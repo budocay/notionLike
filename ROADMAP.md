@@ -13,7 +13,7 @@ Les deux chaînes sont indépendantes jusqu'à F-013 et peuvent avancer en alter
 
 ## En cours
 
-- [ ] F-001 Arborescence des pages d'un espace (modèle Yjs, `packages/document`) — tier: structurel — dépend de: rien — agents: agent-frontend — spec: specs/F-001.md (validée)
+- [ ] F-001 Arborescence des pages d'un espace (modèle Yjs, `packages/document`) — tier: structurel — dépend de: rien — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-001.md (validée)
 
 ## À faire (ordonné)
 
