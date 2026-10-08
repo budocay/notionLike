@@ -12,6 +12,7 @@ Ce document est le plan de réalisation de F-008. Il ne décrit pas du code exis
 - Les ADR-0001 à 0003 cités ici vivent sur la branche `F-001`.
 - Reprise du 2026-10-08, après la veille des conteneurs (commit `42a92f8`) : l'infrastructure (ADR-0006, bloc 6) est alignée sur ses constats et sur trois essais faits avec Docker (« Essais », J à L). Les blocs 0 à 5 ne changent pas.
 - Reprise du 2026-10-08, après la retouche de la spec par `agent-planif` (commit `2d9e14d`, spec toujours en brouillon) : la spec reprend les choix d'infrastructure de l'ADR-0006 et le report de `drizzle-kit` (« Ce que F-008 laisse aux features suivantes » dit ce qui a changé). Les formulations de ce document et des ADR-0005 et 0006 sont alignées sur elle ; aucune décision, aucun bloc, aucun fichier du plan ne change.
+- Reprise du 2026-10-08, après la révision 4 du plan de F-001 (branche `F-001`, commit `38a5117`) : son fichier 4, le `vitest.config.ts` racine, ne déclare plus `projects: ["packages/*"]` mais les deux motifs du fichier 10 d'ici, dans le même ordre, sans le projet `infra`. Ce document écrit cet état dans « Composition avec le bloc 0 de F-001 », sous le fichier 10, dans la première séquence du bloc 0 et dans les essais A et F ; il dit ce qui a été essayé ici et ce qui vient de l'essai M de F-001. Aucune décision, aucun bloc, aucun fichier du plan ne change ; aucun essai n'a été rejoué pour cette reprise.
 
 ## Approche
 
@@ -179,7 +180,7 @@ pnpm exec vitest list --filesOnly --project contrats --project db --project serv
 pnpm exec vitest run --project contrats --project db --project server --project infra; echo "code=$?"
 ```
 
-Les quatre `--project` rendent l'attendu indépendant de F-001 : si elle est fusionnée entre-temps, ses fichiers `[document]` ne comptent pas ici.
+Les quatre `--project` rendent l'attendu indépendant de F-001 et de l'ordre d'application des deux blocs 0 : que son bloc 0 soit en place ou non, que la branche soit fusionnée entre-temps ou non, le projet `document` et ses fichiers `[document]` ne sont ni listés ni comptés ici. Les attendus du tableau valent donc dans les trois ordres de « Composition avec le bloc 0 de F-001 ». Ils ont été essayés sans paquet `document` (« Essais », A) ; avec lui, ils reposent sur le filtre, non rejoué ici. Le plan de F-001 fait de même de son côté avec `--project document`.
 
 | Après le bloc | Lignes attendues de `vitest list --filesOnly` (ordre libre), `code=0`                                                                                                                                                                                                                                 | Ligne attendue de `vitest run`, `code=0` |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
@@ -688,7 +689,7 @@ export default defineConfig({
 });
 ```
 
-- Les deux motifs désignent les fichiers de configuration, pas les dossiers. Un motif `packages/*` attrape `packages/.gitkeep`, et Vitest refuse alors de démarrer (« Essais », A) : c'est le cas du fichier 4 du bloc 0 de F-001, que celui-ci remplace.
+- Les deux motifs désignent les fichiers de configuration, pas les dossiers. Un motif `packages/*` attrape `packages/.gitkeep`, et Vitest refuse alors de démarrer (« Essais », A). C'était la forme du fichier 4 du bloc 0 de F-001 jusqu'à sa révision 3 ; depuis sa révision 4 (commit `38a5117`), ce fichier 4 porte ces deux mêmes motifs, dans le même ordre, sans le projet `infra`. Le fichier 10 est donc le fichier 4 de F-001 plus le projet `infra` : s'il le trouve en place, il le remplace en entier.
 - `infra/` n'est pas un paquet du workspace : son projet est décrit ici, sans fichier de configuration à lui. Ses tests trouvent `yaml` et les types de Node à la racine (fichier 13).
 
 ### 11. `.dependency-cruiser.cjs` (modifié, fichier protégé)
@@ -956,23 +957,27 @@ Sur le poste, pour le bloc 6 et le script de fumée : Docker avec Compose 2.24.0
 
 Les deux blocs 0 touchent les mêmes fichiers racine. Ils se composent dans les deux ordres.
 
-| Fichier                   | Bloc 0 de F-001                                                      | Bloc 0 de F-008                                                     | Composition                                                                                                                          |
-| ------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `.dependency-cruiser.cjs` | deux règles à la fin de `forbidden` ; ligne `exclude`                | quatre règles avant `document-sans-reseau-ni-base` ; même `exclude` | les ajouts ne se touchent pas ; la ligne `exclude` est la même : fusion automatique (« Essais », F). Onze règles au total            |
-| `eslint.config.mjs`       | constante après `NOMBRES_NON_MAGIQUES` ; bloc avant celui des `.cjs` | constante avant `export default` ; bloc en fin de liste             | fusion automatique (« Essais », F)                                                                                                   |
-| `package.json` racine     | script `typecheck`                                                   | même script ; deux dépendances de développement                     | fusion automatique (« Essais », F)                                                                                                   |
-| `vitest.config.ts` racine | `projects: ["packages/*"]`                                           | fichier 10                                                          | conflit d'ajout : **garder le fichier 10**. Il couvre `packages/document` et corrige le défaut du motif `packages/*` (« Essais », A) |
-| `pnpm-lock.yaml`          | `yjs`, `fast-check`                                                  | dépendances du serveur                                              | ne pas fusionner à la main : `pnpm install` le régénère à partir des manifestes fusionnés (non essayé)                               |
+| Fichier                   | Bloc 0 de F-001                                                                    | Bloc 0 de F-008                                                     | Composition                                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.dependency-cruiser.cjs` | deux règles à la fin de `forbidden` ; ligne `exclude`                              | quatre règles avant `document-sans-reseau-ni-base` ; même `exclude` | les ajouts ne se touchent pas ; la ligne `exclude` est la même : fusion automatique (« Essais », F). Onze règles au total                               |
+| `eslint.config.mjs`       | constante après `NOMBRES_NON_MAGIQUES` ; bloc avant celui des `.cjs`               | constante avant `export default` ; bloc en fin de liste             | fusion automatique (« Essais », F)                                                                                                                      |
+| `package.json` racine     | script `typecheck`                                                                 | même script ; deux dépendances de développement                     | fusion automatique (« Essais », F)                                                                                                                      |
+| `vitest.config.ts` racine | fichier 4 : `projects: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts"]` | fichier 10 : les deux mêmes motifs, plus le projet `infra`          | conflit d'ajout, qui subsiste avec cette forme (essai M de F-001) : **garder le fichier 10** en entier. Il couvre `packages/document` par le même motif |
+| `pnpm-lock.yaml`          | `yjs`, `fast-check`                                                                | dépendances du serveur                                              | ne pas fusionner à la main : `pnpm install` le régénère à partir des manifestes fusionnés (non essayé)                                                  |
 
-- **F-008 d'abord** : appliquer les fichiers 1 à 14 tels qu'écrits. Quand le bloc 0 de F-001 arrive, ses fichiers 5, 6 et 7 s'ajoutent comme écrits dans son plan ; son fichier 4 n'est pas appliqué, le fichier 10 d'ici le remplace déjà.
-- **F-001 d'abord** : pour les fichiers 11, 12 et 13, appliquer les seuls ajouts ; pour le fichier 10, remplacer le fichier existant.
-- **Deux branches fusionnées** : trois fichiers fusionnent seuls, `vitest.config.ts` demande de garder le fichier 10, le verrou est régénéré.
+Le fichier 4 de F-001 a changé de forme. Jusqu'à la révision 3 de son plan, il déclarait `projects: ["packages/*"]` : ce motif attrape `packages/.gitkeep` et Vitest refuse de démarrer, défaut trouvé ici par exécution (« Essais », A). La révision 4 (branche `F-001`, commit `38a5117`) l'a remplacé par la forme du tableau. Les deux plans donnent maintenant le même fichier, au projet `infra` près, et les trois ordres mènent au même `vitest.config.ts` racine, le fichier 10 :
 
-Dans tous les cas, après composition, `pnpm exec vitest list --filesOnly` doit lister les fichiers `[document]` de F-001 dès son bloc 1 : le projet `document` est ramassé par le motif `packages/*/vitest.config.ts` (non essayé avec un paquet `document` réel).
+- **F-008 d'abord** : appliquer les fichiers 1 à 14 tels qu'écrits. Quand le bloc 0 de F-001 arrive, ses fichiers 5, 6 et 7 s'ajoutent comme écrits dans son plan ; son fichier 4 n'est pas appliqué (son bloc 0 compte alors sept fichiers, comme l'écrit son plan), le fichier 10 d'ici le contient déjà.
+- **F-001 d'abord** : pour les fichiers 11, 12 et 13, appliquer les seuls ajouts ; pour le fichier 10, remplacer le fichier existant en entier. Le seul écart entre les deux textes est l'ajout du projet `infra`.
+- **Deux branches fusionnées** : trois fichiers fusionnent seuls, `vitest.config.ts` s'arrête sur un conflit d'ajout et demande de garder le fichier 10 en entier, le verrou est régénéré.
+
+Ce qui a été essayé, et par qui : la fusion des trois autres fichiers et le conflit sur `vitest.config.ts` l'ont été ici avec l'ancienne forme du fichier 4 (« Essais », F). Avec la nouvelle forme, le conflit et la consigne viennent de l'essai M du plan de F-001 (M6), qui a fusionné son fichier 4 et le fichier 10 d'ici ; cette fusion n'a pas été rejouée ici.
+
+Dans tous les cas, après composition, `pnpm exec vitest list --filesOnly` doit lister les fichiers `[document]` de F-001 dès son bloc 1 : le projet `document` est ramassé par le motif `packages/*/vitest.config.ts`. Non essayé ici. L'essai M de F-001 (M5) a posé le fichier 10 sur son gabarit, avec un paquet `document` mais sans dossier `infra/` ni paquet de F-008 : les deux fichiers `[document]` y sont listés et comptés. La composition des cinq projets réels n'a été essayée d'aucun côté.
 
 ## Vérification après le commit du bloc 0
 
-Deux séquences, lancées après le commit du bloc 0 et avant le bloc 1 ; leurs sorties sont consignées dans la trace de la feature. Les sorties attendues sont celles de l'essai E.
+Deux séquences, lancées après le commit du bloc 0 et avant le bloc 1 ; leurs sorties sont consignées dans la trace de la feature. Les sorties attendues sont celles de l'essai E, joué sans le bloc 0 de F-001 ; ce qui change quand il est déjà en place est écrit sous chaque séquence.
 
 Première séquence, sur le dépôt tel que commité :
 
@@ -984,7 +989,12 @@ pnpm lint
 pnpm typecheck
 ```
 
-Attendu : cinq codes de sortie à 0. `pnpm test` affiche `No test files found, exiting with code 0`, puis les quatre projets `infra`, `server`, `contrats` et `db` avec leur motif `include` : la configuration racine les connaît tous les quatre. `pnpm contrats` affiche `✔ no dependency violations found (4 modules, 3 dependencies cruised)` : les trois `vitest.config.ts` et la feuille `vitest` qu'ils importent. Si le bloc 0 de F-001 est déjà en place, un module et une dépendance de plus sont attendus, et un cinquième projet `document` (non essayé).
+Attendu : cinq codes de sortie à 0 dans les deux cas ci-dessous. `pnpm test` et `pnpm contrats` ne portent pas de `--project` : ce qu'ils affichent dépend de l'ordre d'application des deux blocs 0.
+
+- **F-008 d'abord** (le bloc 0 de F-001 n'est pas en place ; essai E) : `pnpm test` affiche `No test files found, exiting with code 0`, puis les quatre projets `infra`, `server`, `contrats` et `db` avec leur motif `include` : la configuration racine les connaît tous les quatre. `pnpm contrats` affiche `✔ no dependency violations found (4 modules, 3 dependencies cruised)` : les trois `vitest.config.ts` et la feuille `vitest` qu'ils importent.
+- **F-001 d'abord, ou branches déjà fusionnées** (le bloc 0 de F-001 est en place) : `pnpm test` affiche la même première ligne, puis cinq projets, les quatre d'ici et `document` avec son motif `include` (ordre d'affichage non constaté). `pnpm contrats` compte un module et une dépendance de plus (`5 modules, 4 dependencies cruised`) : le `vitest.config.ts` de `packages/document`. Si le bloc 1 de F-001 est en place lui aussi, `pnpm test` ne dit plus `No test files found` : il passe les tests `[document]`, toujours en code 0, et le compte de `pnpm contrats` croît avec ses fichiers. Ce cas n'a pas été essayé ici ; l'essai M de F-001 (M5) a constaté que le fichier 10, sur son gabarit sans paquet de F-008, affiche les projets `infra` et `document`.
+
+Dans les deux cas, une ligne `Startup Error` à la place : le `vitest.config.ts` commité n'est pas le fichier 10, ou la disposition du dépôt a changé ; le bloc 1 ne démarre pas.
 
 Seconde séquence, preuve que les barrières mordent sur l'installation réelle. Elle écrit des fichiers jetables dans `packages/contrats`, `packages/db` et `apps/server`, jamais commités et supprimés au fil des étapes. Ces dossiers relèvent de deux producteurs : le dev la lance lui-même après son commit, ou l'orchestrateur si le hook de périmètre le lui permet.
 
@@ -1080,7 +1090,7 @@ Chaque étape en échec affiche une seule violation : aucune autre règle ne mor
 - F-002, première application cliente : le motif `apps/*/vitest.config.ts` du fichier 10 ramassera `apps/web` sans retouche.
 - Dev et `agent-veille` : relire l'étiquette et l'empreinte de l'image Node quand la 26 passe en LTS (2026-10-28) ; refaire `trivy image` sur les deux images à chaque changement d'empreinte ; l'image `postgres:18.6-alpine`, non analysée, si le risque accepté sur l'image Debian devait être rouvert.
 - `agent-planif` : les retouches de la spec F-008 que cette conception demandait sont faites (commit `2d9e14d`, spec toujours en brouillon) ; cette conception n'a pas modifié la spec. Ce qui a changé : F-008-AC19 (lancement par `up -d --wait`, constats 1 à 8 de l'ADR-0006, constats 9 et 10 rattachés à AC21 et AC20) ; F-008-AC20 (variante Alpine par étiquette complète, volume sur `/var/lib/postgresql`, `pg_isready` sur l'adresse TCP, `USER node`, `npm` retiré, portée exacte du contrôle `CONTENEURS`, `trivy image` sur l'image du serveur par le script de fumée) ; H1 (point de montage du volume) ; H5 (ce que les essais J à L prouvent et ne prouvent pas) ; H9 (`drizzle-kit` reporté à F-009 et retiré des prérequis de `packages/db`) ; H10 (tranchée par l'ADR-0006) ; H11 (ports du poste réglables) ; H12 (forme du script de fumée, preuves des constats 9 et 10) ; H15, nouvelle (risque accepté sur `postgres:18.6`, décompte de l'ADR-0006) ; prérequis du poste (« Compose 2.24.0 ou plus récent », `curl`, `trivy`).
-- `agent-planif` : la dette D-002 est confirmée par ce plan (« Barrières et contrôles ») ; le plan de F-001 doit remplacer son fichier 4 (`projects: ["packages/*"]`, « Essais », A).
+- `agent-planif` : la dette D-002 est confirmée par ce plan (« Barrières et contrôles ») ; le plan de F-001 devait remplacer son fichier 4 (`projects: ["packages/*"]`, « Essais », A) : c'est fait par sa révision 4 (branche `F-001`, commit `38a5117`), il n'y a plus rien à demander.
 
 ## Essais
 
@@ -1094,7 +1104,7 @@ Essais faits le 2026-10-08 sur des gabarits jetables hors du dépôt (`/tmp/gaba
 
 Les sorties sont citées sans la ligne d'écho de pnpm, sans sa ligne `ELIFECYCLE` et sans les lignes d'heure et de durée de Vitest.
 
-**A. Vitest, configuration racine.** Avec `projects: ["packages/*"]` (fichier 4 du bloc 0 de F-001) et le fichier `packages/.gitkeep` du dépôt :
+**A. Vitest, configuration racine.** Avec `projects: ["packages/*"]` et le fichier `packages/.gitkeep` du dépôt. Cette forme était celle du fichier 4 du bloc 0 de F-001 au moment de l'essai ; la révision 4 de son plan l'a remplacée (commit `38a5117`), et l'essai reste vrai pour l'ancienne forme seulement :
 
 ```text
  Startup Error
@@ -1152,7 +1162,7 @@ Arêtes relevées par la sortie JSON, entre autres : `apps/server/src/applicatio
 
 **E. Séquences du bloc 0** : les deux séquences de « Vérification après le commit du bloc 0 » ont été jouées mot pour mot sur le gabarit nu ; elles ont donné les sorties écrites dans cette section. Deux écarts : le gabarit n'est pas un dépôt git (la dernière ligne a été remplacée par un `ls`, qui ne montrait plus que `node_modules`, `package.json`, `tsconfig.json` et `vitest.config.ts` dans chaque paquet), et ses hooks ne sont pas ceux du dépôt.
 
-**F. Fusion avec le bloc 0 de F-001** : dans un dépôt git jetable, une branche portant les fichiers 4, 5, 6 et 7 du plan de F-001 et une autre les fichiers 10 à 13 d'ici, à partir des fichiers racine actuels. `git merge` :
+**F. Fusion avec le bloc 0 de F-001** : dans un dépôt git jetable, une branche portant les fichiers 4, 5, 6 et 7 du plan de F-001 et une autre les fichiers 10 à 13 d'ici, à partir des fichiers racine actuels. Le fichier 4 était alors dans son ancienne forme, `projects: ["packages/*"]` (révision 3 du plan de F-001). `git merge` :
 
 ```text
 Auto-merging .dependency-cruiser.cjs
@@ -1163,6 +1173,8 @@ CONFLICT (add/add): Merge conflict in vitest.config.ts
 ```
 
 Les fichiers fusionnés portent onze règles et les deux constantes ; `pnpm contrats` et ESLint les chargent sans erreur sur le gabarit complet, et `prettier --check` passe.
+
+Cet essai n'a pas été rejoué avec le fichier 4 de la révision 4 de F-001. Pour `.dependency-cruiser.cjs`, `eslint.config.mjs` et `package.json`, il reste celui qui vaut : la révision 4 n'a pas retouché ses fichiers 5, 6 et 7 (le diff du commit `38a5117` ne porte sur aucune ligne de ces trois sections). Pour `vitest.config.ts`, le résultat avec la nouvelle forme n'est pas de cet essai : il vient de l'essai M du plan de F-001 (M6), qui a fusionné son nouveau fichier 4 et le fichier 10 d'ici dans un dépôt jetable et obtenu le même `CONFLICT (add/add)`, limité à la valeur de `projects`. La consigne « garder le fichier 10 » tient donc sur ce constat de F-001, non sur un essai fait ici.
 
 **G. Exécution sans compilation et installation de production** : dans une copie sans tests, `pnpm install --frozen-lockfile --prod` installe 98 paquets (31 Mo), sans PGlite, Vitest ni TypeScript ; `node apps/server/src/main.ts` et `node packages/db/src/migrer.ts` s'y exécutent, les paquets du workspace étant atteints par leurs liens. À l'inverse, un fichier `.ts` placé sous `node_modules` est refusé par Node (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). `node --env-file=.env src/main.ts` : `node: .env: not found` et code 9 sans le fichier ; avec lui, les variables sont lues.
 
