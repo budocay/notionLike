@@ -3,8 +3,11 @@ dist/
 coverage/
 playwright-report/
 test-results/
-.env*
-!.env.example
+# Secrets locaux uniquement (convention Vite) : .env.production ou .env.ci sans secret restent versionnables,
+# et gitleaks les scanne.
+.env
+.env.local
+.env.*.local
 .DS_Store
 __pycache__/
 .agents/.state/

@@ -7,3 +7,5 @@ packages/*/package.json
 tsconfig*.json
 vite.config.*
 /README.md
+# Manifeste Python éventuel (scripts d'outillage) : partagé, clés d'outils réservées au dev
+pyproject.toml
