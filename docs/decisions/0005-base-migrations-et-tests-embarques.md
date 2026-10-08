@@ -30,7 +30,7 @@ Injection de la base pour les tests :
 
 Sonde qui ne répond pas : occuper PGlite par `pg_sleep`, ou **un faux serveur PostgreSQL de test qui se tait** (retenue). PGlite exécute `pg_sleep` en bloquant la boucle d'événements de Node : la minuterie du code ne peut pas se déclencher, et la sonde finit par réussir après le délai (constaté à l'essai). Le faux serveur fait attendre le vrai pilote `pg`, ce qui est le cas décrit par F-008-AC3.
 
-`drizzle-kit` : l'installer dès F-008 comme la spec le liste, ou **le reporter à F-009** (retenue). Aucun schéma n'existe dans F-008, donc rien à générer : la dépendance serait déclarée sans être atteinte.
+`drizzle-kit` : l'installer dès F-008, comme le premier brouillon de la spec le listait, ou **le reporter à F-009** (retenue ; la spec l'écrit depuis dans son hypothèse H9 et ne le liste plus dans ses prérequis). Aucun schéma n'existe dans F-008, donc rien à générer : la dépendance serait déclarée sans être atteinte.
 
 ## Décision
 
@@ -114,7 +114,7 @@ Le manifeste du paquet a une seconde entrée, `"./essai": "./test/essai.ts"`, po
 
 ### `drizzle-kit`
 
-Non installé par F-008, à l'écart de la liste des prérequis de la spec. Il entre avec F-009, qui écrit le premier schéma et génère la première migration : la spec F-009 le porte désormais dans ses propres prérequis (`drizzle-kit@0.31.11` en dépendance de développement de `packages/db`, son hypothèse H19). Si le dev préfère suivre la spec à la lettre, il ajoute `"drizzle-kit": "0.31.11"` aux dépendances de développement de `packages/db` au bloc 0 ; rien d'autre ne change dans le plan.
+Non installé par F-008, comme l'écrit la spec (H9) : ses prérequis ne le listent pas. Il entre avec F-009, qui écrit le premier schéma et génère la première migration : la spec F-009 le porte dans ses propres prérequis (`drizzle-kit@0.31.11` en dépendance de développement de `packages/db`, son hypothèse H19).
 
 ## Conséquences
 
