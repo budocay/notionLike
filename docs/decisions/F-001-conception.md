@@ -28,6 +28,13 @@ Révision 3 du 2026-10-08, après le troisième rejet (conception du commit `16c
 - ADR-0002 : « version absente = 1 » est une règle permanente du format ;
 - une extraction pure hors de `document-espace.ts` entre dans `document-coeur-pur`.
 
+Révision 4 du 2026-10-08, sans nouveau passage du gate : comme la révision 3 (commit `4469a5b`), elle n'a pas repassé le gate `agent-architecte`, la conception étant en escalade après trois rejets.
+
+- Ce qui change : le fichier 4 du bloc 0 (`vitest.config.ts` racine) déclarait `projects: ["packages/*"]`. Ce motif attrape le fichier `packages/.gitkeep` du dépôt, et Vitest refuse alors de démarrer : le bloc 0 aurait rendu `pnpm test` et le hook de test rouges dès son commit (essai M). Le fichier vise maintenant les fichiers de configuration (`packages/*/vitest.config.ts`, `apps/*/vitest.config.ts`).
+- Pourquoi maintenant : la conception de F-008 a trouvé le défaut par exécution. Les essais des révisions 1 à 3 tournaient sur un gabarit sans `packages/.gitkeep` ; aucun passage du gate ne pouvait le voir.
+- Ce qui suit de ce changement : la composition avec le bloc 0 de F-008 est écrite sous le fichier 4 ; les deux commandes de l'attendu chiffré reçoivent `--project document`, pour que leurs sorties restent justes une fois F-008 en place ; deux phrases sur `--passWithNoTests` sont corrigées (un paquet non ramassé ne passe plus en silence tant que `document` est le seul projet) ; la première séquence du bloc 0 dit ce que `pnpm test` affiche ; l'essai M est ajouté. L'ADR-0003 ne cite pas la forme du fichier : il n'est pas modifié.
+- Leçon : un gabarit d'essai reproduit la disposition réelle du dépôt, fichiers de garde (`.gitkeep`) compris.
+
 ## Approche
 
 `packages/document` est un module pur : il transforme un `Y.Doc` en arborescence lue et des intentions (créer, renommer, déplacer, mettre à la corbeille) en écritures Yjs. Il ne fait aucune entrée-sortie.
@@ -136,15 +143,17 @@ Bloc 4 :
 
 ### Attendu chiffré après chaque bloc
 
-`pnpm test` et la commande de test du socle gardent `--passWithNoTests` (fichiers protégés, non modifiés) : si `projects: ["packages/*"]` ne ramassait pas le paquet, les hooks resteraient verts avec zéro test pendant toute la feature. La preuve du contraire est donc exigée bloc par bloc, par deux commandes lancées à la racine par l'orchestrateur après le commit du bloc, sans `--passWithNoTests` :
+`pnpm test` et la commande de test du socle gardent `--passWithNoTests` (fichiers protégés, non modifiés) : si le motif `include` du paquet ne trouvait aucun test, ou si le projet `document` n'était pas ramassé alors qu'un autre projet existe (c'est le cas dès que le bloc 0 de F-008 est en place), les hooks resteraient verts avec zéro test de F-001 pendant toute la feature. La preuve du contraire est donc exigée bloc par bloc, par deux commandes lancées à la racine par l'orchestrateur après le commit du bloc, sans `--passWithNoTests` :
 
 ```bash
-pnpm exec vitest list --filesOnly; echo "code=$?"
-pnpm exec vitest run; echo "code=$?"
+pnpm exec vitest list --filesOnly --project document; echo "code=$?"
+pnpm exec vitest run --project document; echo "code=$?"
 ```
 
-- `vitest list --filesOnly` nomme chaque fichier de test par son chemin depuis la racine, précédé du nom du projet. `vitest run` seul ne les nomme pas quand tout passe : son rapporteur par défaut n'affiche que les totaux (essai K).
-- `vitest run` sans `--passWithNoTests` finit en `code=1` quand aucun fichier de test n'est trouvé (essai K).
+- `vitest list --filesOnly` nomme chaque fichier de test par son chemin depuis la racine, précédé du nom du projet. `vitest run` seul ne les nomme pas quand tout passe : son rapporteur par défaut n'affiche que les totaux (essais K et M).
+- `vitest run` sans `--passWithNoTests` finit en `code=1` quand aucun fichier de test n'est trouvé (essais K et M).
+- `--project document` rend l'attendu indépendant de F-008 : ses projets (`contrats`, `db`, `server`, `infra`) ne sont ni listés ni comptés, que son bloc 0 soit en place ou non. Le plan de F-008 fait de même de son côté avec ses quatre `--project`. Sans F-008, les sorties sont les mêmes avec et sans ce filtre (essai M).
+- Si le projet `document` n'est pas ramassé par la configuration racine, les deux commandes finissent en `code=1` avec `No projects were found. […] The filter matched no projects: document` (essai M) : l'écart ne peut pas passer pour un zéro test.
 
 | Après le bloc | Lignes attendues de `vitest list --filesOnly` (ordre libre), `code=0`                                                                   | Ligne attendue de `vitest run`, `code=0` |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
@@ -153,7 +162,7 @@ pnpm exec vitest run; echo "code=$?"
 | 3             | les trois précédentes et `[document] packages/document/test/convergence.test.ts`                                                        | `Test Files  4 passed (4)`               |
 | 4             | les quatre précédentes, `[document] packages/document/test/robustesse.test.ts` et `[document] packages/document/test/structure.test.ts` | `Test Files  6 passed (6)`               |
 
-Règle, vraie de chaque bloc : le nombre de fichiers de test est supérieur à zéro, chaque fichier attendu est listé, et le total de `vitest run` est celui de la liste. L'orchestrateur consigne les deux sorties dans la trace de la feature (`MEMORY/features/F-001.md`). Un fichier attendu absent, un total à zéro, la ligne `No test files found` ou un code de sortie non nul : le bloc suivant ne démarre pas, et l'écart est remonté au dev (la configuration de Vitest est hors du périmètre des agents). Un fichier de test en plus, né d'une extraction au bloc 3, s'ajoute à la liste et au total ; il n'en retire aucun.
+Règle, vraie de chaque bloc : le nombre de fichiers de test est supérieur à zéro, chaque fichier attendu est listé, et le total de `vitest run` est celui de la liste. L'orchestrateur consigne les deux sorties dans la trace de la feature (`MEMORY/features/F-001.md`). Un fichier attendu absent, un total à zéro, la ligne `No test files found`, la ligne `No projects were found` ou un code de sortie non nul : le bloc suivant ne démarre pas, et l'écart est remonté au dev (la configuration de Vitest est hors du périmètre des agents). Un fichier de test en plus, né d'une extraction au bloc 3, s'ajoute à la liste et au total ; il n'en retire aucun.
 
 ## Stratégie de test
 
@@ -475,14 +484,27 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    projects: ["packages/*"],
+    projects: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts"],
   },
 });
 ```
 
-Sans lui, la commande de test du socle (`pnpm exec vitest run`, lancée à la racine) ignore la configuration du paquet. `apps/*` s'y ajoutera avec la première application.
+Sans lui, la commande de test du socle (`pnpm exec vitest run`, lancée à la racine) ignore la configuration du paquet.
 
-Rien au bloc 0 ne prouve que `projects` ramasse le paquet : il n'y a encore aucun test, et la commande du socle passe avec zéro test. La preuve est l'attendu chiffré du bloc 1 (« Attendu chiffré après chaque bloc ») : deux fichiers listés et comptés depuis la racine, sans quoi le bloc 2 ne démarre pas.
+- Les deux motifs désignent des fichiers de configuration, pas des dossiers : ils ne peuvent attraper ni `packages/.gitkeep` ni `apps/.gitkeep`. La forme précédente, `projects: ["packages/*"]`, attrapait `packages/.gitkeep`, et Vitest refusait de démarrer (essai M).
+- `apps/*/vitest.config.ts` ne correspond à rien tant qu'`apps/` ne contient que son `.gitkeep` : Vitest l'accepte sans erreur (essai M). La première application sera ramassée sans retouche de ce fichier.
+- Un paquet est ramassé s'il a un `vitest.config.ts` à sa racine, sous ce nom exact. Une énumération des projets, paquet par paquet, a été écartée : elle demanderait de retoucher ce fichier protégé à chaque nouveau paquet, et les deux blocs 0 y écriraient chacun leur liste.
+- Si aucun projet n'est ramassé du tout, Vitest ne démarre pas (`No projects were found`, `code=1`), même avec `--passWithNoTests` (essai M). Tant que `document` est le seul projet, un paquet non ramassé rend donc `pnpm test` et le hook rouges, au lieu de passer avec zéro test.
+
+Au bloc 0, `pnpm test` passe avec zéro test et affiche le projet `document` avec son motif `include` (essai M) : la configuration du paquet est ramassée, rien ne prouve encore que ses tests le sont. Cette preuve est l'attendu chiffré du bloc 1 (« Attendu chiffré après chaque bloc ») : deux fichiers listés et comptés depuis la racine, sans quoi le bloc 2 ne démarre pas.
+
+**Composition avec le bloc 0 de F-008.** Le plan de F-008 (branche `F-008`, `docs/decisions/F-008-conception.md`) donne lui aussi un `vitest.config.ts` racine, son fichier 10 : les deux mêmes motifs, dans le même ordre, plus un projet `infra` décrit sur place. Le fichier 4 est donc le fichier 10 sans le projet `infra`, et le fichier 10 ramasse `packages/document` par le même motif. Dans chaque ordre :
+
+- **F-001 d'abord** : le dev commite le fichier 4 tel qu'écrit ici. Quand le bloc 0 de F-008 arrive, son fichier 10 remplace le fichier 4 en entier, comme l'écrit son plan (« remplacer le fichier existant ») ; le seul écart entre les deux textes est l'ajout du projet `infra`. Le projet `document` reste ramassé.
+- **F-008 d'abord** : le fichier 10 est déjà là. Le fichier 4 n'est pas appliqué, et le bloc 0 de F-001 compte alors sept fichiers au lieu de huit ; rien n'est à retoucher dans le fichier 10. Le fichier 10, posé sur le gabarit de F-001, liste et compte les fichiers `[document]` (essai M).
+- **Deux branches fusionnées** : `git merge` s'arrête sur un conflit d'ajout dans `vitest.config.ts` (essai M) ; garder le fichier 10 en entier.
+
+Dans les trois cas, l'état final est le fichier 10 et les commandes de l'attendu chiffré donnent les mêmes sorties, grâce à `--project document`. Quand le bloc 0 de F-008 est en place, la première séquence de « Vérification après le commit du bloc 0 » affiche en plus les projets et les modules de F-008 : voir la note de cette section.
 
 ### 5. `.dependency-cruiser.cjs` (modifié, fichier protégé)
 
@@ -607,7 +629,7 @@ Exposer `doc: Y.Doc` fait importer `yjs` par chaque consommateur. Si deux copies
 
 ## Vérification après le commit du bloc 0
 
-Deux séquences, lancées par l'orchestrateur après le commit du bloc 0 et avant le bloc 1 ; leurs sorties sont consignées dans la trace de la feature. Les sorties attendues ci-dessous sont celles de l'essai H, rejoué pour la révision 3.
+Deux séquences, lancées par l'orchestrateur après le commit du bloc 0 et avant le bloc 1 ; leurs sorties sont consignées dans la trace de la feature. Les sorties attendues ci-dessous sont celles de l'essai H, rejoué pour la révision 3 ; la première séquence a été rejouée pour la révision 4 avec le nouveau fichier 4, sur un gabarit qui porte les `.gitkeep` du dépôt (essai M).
 
 Première séquence, sur le dépôt tel que commité :
 
@@ -619,7 +641,9 @@ pnpm lint
 pnpm typecheck
 ```
 
-Attendu : cinq codes de sortie à 0. `pnpm contrats` affiche `✔ no dependency violations found (2 modules, 1 dependencies cruised)` : les deux modules sont `packages/document/vitest.config.ts` et la feuille `vitest` qu'il importe. `pnpm test` affiche `No test files found, exiting with code 0` : cette séquence ne prouve donc pas que la configuration racine ramasse les tests du paquet. C'est l'attendu chiffré du bloc 1 qui le prouve.
+Attendu : cinq codes de sortie à 0. `pnpm contrats` affiche `✔ no dependency violations found (2 modules, 1 dependencies cruised)` : les deux modules sont `packages/document/vitest.config.ts` et la feuille `vitest` qu'il importe. `pnpm test` affiche `No test files found, exiting with code 0`, puis le projet `document` et sa ligne `include: test/**/*.test.ts` : la configuration racine démarre et ramasse la configuration du paquet. Cette séquence ne prouve pas qu'elle ramasse ses tests : c'est l'attendu chiffré du bloc 1 qui le prouve. Une ligne `Startup Error` à la place (`The projects glob matched a file …` ou `No projects were found`) : le fichier 4 commité n'est pas celui de ce plan, ou la disposition du dépôt a changé ; le bloc 1 ne démarre pas.
+
+Note pour l'ordre « F-008 d'abord » : si le bloc 0 de F-008 est déjà en place, `pnpm test` affiche aussi ses projets, et `pnpm contrats` compte aussi ses modules ; à l'étape 2 de la seconde séquence, les lignes de ses paquets s'ajoutent aux quatre attendues. Ce qui est exigé reste vrai tel quel : les codes de sortie, le projet `document` affiché, aucune violation dans la première séquence, et dans la seconde les lignes `error` citées, chacune seule violation de son étape. Ces comptes augmentés n'ont pas été essayés ici.
 
 Seconde séquence, preuve que les barrières mordent sur l'installation réelle. Elle écrit un fichier jetable dans `packages/document/src/` et, à l'étape 4, un second dans `packages/document/test/`, jamais commités et supprimés à chaque étape. Ces deux dossiers sont dans le périmètre d'`agent-frontend` : si le hook de périmètre refuse l'écriture à l'orchestrateur, la séquence est déléguée à `agent-frontend` avant tout code du bloc 1, ou faite par le dev.
 
@@ -678,12 +702,15 @@ Si une étape ne donne pas ce résultat, le bloc 1 ne démarre pas : l'écart es
 
 Ce qui suit est une déclaration de l'auteur de la conception, pas une preuve que le gate peut rejouer : la seconde séquence ci-dessus en rend l'essentiel reproductible au bloc 0.
 
-Essais faits le 2026-10-08 sur des gabarits jetables hors du dépôt (`/tmp`), rien n'étant installé ni écrit dans le dépôt. Deux passes :
+Essais faits le 2026-10-08 sur des gabarits jetables hors du dépôt (`/tmp`), rien n'étant installé ni écrit dans le dépôt. Trois passes :
 
+- révision 4, gabarit neuf (`/tmp/gabarit-f001.sfYNaa`, supprimé ensuite), le premier à reproduire la disposition réelle du dépôt : `packages/.gitkeep` et `apps/.gitkeep` copiés du dépôt, `apps/` sans rien d'autre. Essai M, seul essai de cette passe. Les gabarits des révisions 2 et 3 n'avaient pas de `packages/.gitkeep` : c'est pourquoi les essais G, H et K y ont vu démarrer `projects: ["packages/*"]` ;
 - révision 3, gabarit neuf (`/tmp/gabarit-f001.m8ZkeU`, supprimé ensuite), avec la règle `document-yjs-seulement` en liste blanche : essais A, B, H et J rejoués, K et L nouveaux. Leurs sorties ci-dessous sont celles de cette passe ;
 - révision 2, gabarit précédent (`/tmp/gabarit-f001.iS3q66`) : essais C, D, E, F, G et I, non rejoués. Aucun ne dépend de `document-yjs-seulement` : ils portent sur l'option `exclude`, ESLint, TypeScript, Vitest et Yjs, dont les textes n'ont pas changé. La seconde moitié de l'essai C (le vrai `yjs` vu par `document-coeur-pur` avec le motif ancré) est rejouée par l'étape 6 de l'essai H.
 
-Les deux gabarits sont construits de la même façon, décrite ci-dessous. Les sorties sont citées sans la ligne d'écho de pnpm, sans sa ligne `ELIFECYCLE` et, pour Vitest, sans les lignes d'heure, de durée et d'avertissement de Node :
+Règle tirée de la révision 4 : un gabarit d'essai reproduit la disposition réelle du dépôt, fichiers de garde (`.gitkeep`) compris.
+
+Les trois gabarits sont construits de la même façon, décrite ci-dessous, aux écarts près que l'essai M précise pour le sien. Dans les essais A à L, « fichier 4 » et « configuration 4 » désignent la forme d'alors, `projects: ["packages/*"]`. Les sorties sont citées sans la ligne d'écho de pnpm, sans sa ligne `ELIFECYCLE` et, pour Vitest, sans les lignes d'heure, de durée et d'avertissement de Node :
 
 - copies des fichiers racine du dépôt (`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `eslint.config.mjs`, `.dependency-cruiser.cjs`, `tsconfig.base.json`, `.prettierrc.json`), modifiées exactement comme les fichiers 5, 6 et 7 ; fichiers 1 à 4 tels qu'écrits plus haut ;
 - un vrai `pnpm install` (pnpm 12.10.1, Node 26.11.0) : il a résolu `yjs@13.6.33`, `lib0@0.2.119`, `fast-check@4.10.2` et `pure-rand@8.4.2`, et posé dans `packages/document/node_modules` trois liens (`yjs`, `fast-check`, `vitest`) vers `node_modules/.pnpm` ;
@@ -878,8 +905,107 @@ Le rapporteur par défaut ne nomme aucun fichier ; `--reporter=verbose` les nomm
 
 Le parent absent est donc un état lisible dès que deux répliques émettent et qu'une troisième reçoit leurs mises à jour en désordre ; entre deux mises à jour d'un même émetteur, Yjs retient la seconde tant que la première manque.
 
+**M. Configuration racine de Vitest sur la disposition réelle du dépôt** (révision 4). Gabarit neuf hors du dépôt, construit comme les précédents à ceci près : `packages/.gitkeep` et `apps/.gitkeep` y sont copiés du dépôt (`apps/` ne contient rien d'autre, `packages/` contient en plus `document`) ; le gabarit n'est pas un dépôt git. Fichiers racine modifiés comme les fichiers 5, 6 et 7, fichiers 1 à 3 tels qu'écrits, vrai `pnpm install` (mêmes versions que plus haut). Les sorties sont citées sans les codes de couleur, sans la pile d'appels (lignes `at …`) et sans les lignes déjà retirées des autres essais.
+
+M1, ancienne forme (`projects: ["packages/*"]`), paquet nu du bloc 0. `pnpm exec vitest run` :
+
+```text
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error: The projects glob matched a file "packages/.gitkeep", but it should also either start with "vitest.config"/"vite.config" or match the pattern "(vitest|vite).*.config.*".
+
+code=1
+```
+
+`pnpm test` (`vitest run --passWithNoTests`, la commande du socle) : la même erreur, `code=1`. `pnpm exec vitest list --filesOnly` : la même erreur sous le titre `Collect Error`, `code=1`. Le bloc 0 de la révision 3 aurait donc été rouge dès son commit. Contre-épreuve : `packages/.gitkeep` retiré, la même forme démarre (`No test files found, exiting with code 0`, projet `document`), ce qui est l'état des gabarits des révisions 2 et 3.
+
+M2, nouvelle forme (fichier 4 de cette révision), paquet nu du bloc 0 (ni `src/` ni `test/`). `pnpm exec vitest list --filesOnly` :
+
+```text
+code=0
+```
+
+`pnpm exec vitest run` :
+
+```text
+ RUN  v5.0.3 /private/tmp/gabarit-f001.sfYNaa
+
+No test files found, exiting with code 1
+
+ document
+
+include: test/**/*.test.ts
+exclude:  **/node_modules/**, **/.git/**
+
+code=1
+```
+
+Avec `--project document`, les deux commandes donnent les mêmes sorties et les mêmes codes, `vitest run` ajoutant la ligne `projects: document`. `pnpm test` (`--passWithNoTests`) :
+
+```text
+ RUN  v5.0.3 /private/tmp/gabarit-f001.sfYNaa
+
+No test files found, exiting with code 0
+
+ document
+
+include: test/**/*.test.ts
+exclude:  **/node_modules/**, **/.git/**
+
+code=0
+```
+
+La ligne `No test files found` et le résumé des projets sortent sur la sortie d'erreur : avec `2>/dev/null`, il ne reste que la ligne `RUN`, ce que l'essai K avait noté sans le dire. Sur ce même état, le reste de la première séquence du bloc 0 : `pnpm install --frozen-lockfile`, `pnpm lint` et `pnpm typecheck` en `code=0` ; `pnpm contrats` affiche `✔ no dependency violations found (2 modules, 1 dependencies cruised)`, `code=0` (les deux `.gitkeep` n'ajoutent aucun module) ; `prettier --check` passe sur le fichier 4 et sur tout le gabarit.
+
+M3, nouvelle forme, deux fichiers de test écrits pour l'essai (état d'après le bloc 1) : `test/rang.test.ts` (une propriété fast-check à graine fixe sur un `src/rang.ts` de trois lignes) et `test/operations.test.ts` (un test qui écrit et relit une clé d'un `Y.Doc` du vrai `yjs`). Ce ne sont pas les tests de F-001. `pnpm exec vitest list --filesOnly` :
+
+```text
+[document] packages/document/test/operations.test.ts
+[document] packages/document/test/rang.test.ts
+code=0
+```
+
+`pnpm exec vitest run` :
+
+```text
+ RUN  v5.0.3 /private/tmp/gabarit-f001.sfYNaa
+
+ Test Files  2 passed (2)
+      Tests  2 passed (2)
+
+code=0
+```
+
+Avec `--project document` (les commandes de l'attendu chiffré) : mêmes sorties, mêmes codes. `pnpm test`, `pnpm lint` et `pnpm typecheck` : `code=0`.
+
+M4, projet `document` non ramassé (même état, `packages/document/vitest.config.ts` renommé le temps de l'essai). `pnpm exec vitest run --project document` :
+
+```text
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error: No projects were found. Make sure your configuration is correct. The filter matched no projects: document. The projects definition: [
+    "packages/*/vitest.config.ts",
+    "apps/*/vitest.config.ts"
+].
+
+code=1
+```
+
+`pnpm exec vitest list --filesOnly --project document` : la même erreur sous `Collect Error`, `code=1`. `pnpm exec vitest run --passWithNoTests`, sans filtre : `No projects were found. Make sure your configuration is correct. The projects definition: […]`, `code=1`. Quand `document` est le seul projet, un paquet non ramassé rend donc la commande du socle rouge.
+
+M5, fichier 10 du plan de F-008 (lu par `git show F-008:docs/decisions/F-008-conception.md`) posé à la place du fichier 4 sur le même gabarit, sans dossier `infra/` ni paquet de F-008. État d'après le bloc 1 : `pnpm exec vitest list --filesOnly` et `pnpm exec vitest run`, avec et sans `--project document`, donnent les sorties de M3 (deux fichiers `[document]`, `Test Files  2 passed (2)`, `code=0`). État du bloc 0 : `pnpm exec vitest run --passWithNoTests` affiche `No test files found, exiting with code 0` puis les projets `infra` et `document`, `code=0` ; `pnpm exec vitest run --project document` donne la sortie de M2 avec `projects: document`, `code=1`.
+
+M6, fusion des deux fichiers racine : dans un dépôt git jetable, une branche portant le fichier 4 de cette révision, une autre le fichier 10 de F-008, à partir d'un commit vide. `git merge` :
+
+```text
+Auto-merging vitest.config.ts
+CONFLICT (add/add): Merge conflict in vitest.config.ts
+Automatic merge failed; fix conflicts and then commit the result.
+```
+
+Le conflit ne porte que sur la valeur de `projects` ; le côté de F-008 est le fichier 10 entier.
+
 Non essayé :
 
+- la composition avec les vrais paquets de F-008 (`contrats`, `db`, `server`, dossier `infra/`) : M5 ne pose que son fichier racine sur le gabarit de F-001. La seconde séquence du bloc 0 et les essais A à L n'ont pas été rejoués sur le gabarit de la révision 4 : ils ne lisent pas la configuration racine de Vitest, sauf G, H et K, dont M2 et M3 reprennent les commandes ;
 - aucune règle de l'ADR-0002 (rangs, tri par (rang, identifiant), réattribution, parent absent, cycles, consolidation, version) n'a été programmée ni exécutée : elles sont vérifiées par raisonnement, et leurs tests sont ceux du plan. En particulier, l'égalité des rangs de T et de N dans la séquence de F-001-AC5 est déduite de l'ADR-0002 (« Rangs » : calcul sans aléa ni horloge, entre les sœurs lues), pas observée ;
 - les essais C, D, E, F, G et I n'ont pas été rejoués pour la révision 3 ;
 - les séquences du bloc 0 et l'attendu chiffré des blocs sur le dépôt lui-même : ils ne peuvent l'être qu'après le commit du bloc 0 par le dev ;
