@@ -4,6 +4,22 @@ import tseslint from "typescript-eslint";
 
 const COMPLEXITE_CYCLOMATIQUE_MAX = 10;
 const NOMBRES_NON_MAGIQUES = [-1, 0, 1, 2];
+const GLOBALES_INTERDITES_DOCUMENT = [
+  "window",
+  "document",
+  "navigator",
+  "fetch",
+  "XMLHttpRequest",
+  "WebSocket",
+  "EventSource",
+  "indexedDB",
+  "localStorage",
+  "sessionStorage",
+  "process",
+].map((name) => ({
+  name,
+  message: "F-001-AC19 : packages/document/src reste sans DOM, sans réseau et sans stockage.",
+}));
 
 export default tseslint.config(
   {
@@ -43,6 +59,18 @@ export default tseslint.config(
   {
     files: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/e2e/**", "**/*.config.*"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["packages/document/src/**"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: GLOBALES_INTERDITES_DOCUMENT,
+          checkGlobalObject: true,
+        },
+      ],
+    },
   },
   {
     files: ["**/*.cjs"],

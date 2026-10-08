@@ -37,10 +37,26 @@ module.exports = {
       from: { path: "^packages/document/" },
       to: { path: "^packages/(db|contrats)/" },
     },
+    {
+      name: "document-yjs-seulement",
+      severity: "error",
+      comment:
+        "F-001-AC19 : depuis packages/document/src, seuls un fichier de packages/document/src et le paquet yjs sont importables.",
+      from: { path: "^packages/document/src/" },
+      to: { pathNot: ["^packages/document/src/", "(^|/)node_modules/yjs/"] },
+    },
+    {
+      name: "document-coeur-pur",
+      severity: "error",
+      comment:
+        "ADR-0003 : rang, arbre et erreurs sont purs ; ils n'importent qu'eux-mêmes (ni yjs, ni format, ni document-espace).",
+      from: { path: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
+      to: { pathNot: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(^|/)(dist|coverage|node_modules)/" },
+    exclude: { path: "^(apps|packages)/[^/]+/(dist|coverage)/" },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ["exports"],

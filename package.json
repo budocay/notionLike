@@ -12,7 +12,8 @@
     "lint": "eslint --no-warn-ignored .",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
-    "contrats": "depcruise --config .dependency-cruiser.cjs apps packages"
+    "contrats": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "typecheck": "pnpm -r run typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

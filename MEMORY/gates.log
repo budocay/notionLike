@@ -1,0 +1,14 @@
+2026-10-08T09:45:21Z | agent-architecte | F-001 | ARCHITECTURE GATE: FAIL | ba180a02ed89
+2026-10-08T09:54:44Z | agent-architecte | F-001 | ARCHITECTURE GATE: FAIL | 9b7747b9dabb
+2026-10-08T10:21:10Z | agent-architecte | F-001 | ARCHITECTURE GATE: FAIL | 3daa8ec5caca
+2026-10-08T14:00:42Z | agent-architecte | F-001 | REPRISE D-004 | 3daa8ec5caca
+2026-10-08T14:03:10Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | 08f4a9e7c786
+2026-10-08T14:07:52Z | agent-architecte | F-001 | REPRISE D-004 | 08f4a9e7c786
+2026-10-08T18:08:12Z | reviewer-frontend | F-001 | CHANGES_REQUESTED | 3de42046e390
+2026-10-08T18:10:22Z | agent-securite | F-001 | UNVERIFIED (verdict absent ou d'un autre type) | 3de42046e390
+2026-10-08T18:11:32Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | 3de42046e390
+2026-10-08T18:11:33Z | agent-craft | F-001 | CRAFT GATE: PASS | 3de42046e390
+2026-10-08T18:18:33Z | reviewer-frontend | F-001 | APPROVED | ca4cb0d41fe3
+2026-10-08T18:21:11Z | agent-securite | F-001 | SECURITY GATE: PASS | ca4cb0d41fe3
+2026-10-08T18:21:32Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | ca4cb0d41fe3
+2026-10-08T18:21:32Z | agent-craft | F-001 | CRAFT GATE: PASS | ca4cb0d41fe3
