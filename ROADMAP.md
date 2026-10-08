@@ -73,6 +73,8 @@ Décisions transverses (écrites dans les specs, rappelées ici une fois) :
 - Version du document de page : F-003 livre le socle (lecture « la plus haute jamais inscrite », opération d'élévation, table des versions, dont elle écrit la ligne 1). F-028, F-005, F-016 et F-022 incrémentent chacune la version. Le numéro qu'une feature introduit est la version prise en charge par `main` à son premier commit de code, plus un. La version d'un document n'est écrite que lorsqu'un élément nouveau y est inscrit, jamais à l'ouverture. Une application plus ancienne refuse alors la page entière.
 - Nom des bases locales : `notionlike:espace:<idEspace>`, `notionlike:page:<idEspace>:<idPage>`, `notionlike:table:<idEspace>:<idTable>`. L'identifiant d'espace dans le nom isole les espaces d'un même appareil, et le nom correspond terme à terme au nom de document du serveur (F-002 H3, F-012 H2, F-013-AC16).
 - Motion (bibliothèque d'animation de la fiche) n'est installée ni par F-004 ni par F-006 : le CSS leur suffit (F-004 H3, F-006 H8). Elle reste à F-024 ou à une feature dédiée, qui serait alors `structurel` (dépendance directe nouvelle).
+- Dépendances directes décidées par les specs après la veille, hors de celles que la fiche nomme : `@floating-ui/dom`, dépendance de pair obligatoire de `@tiptap/suggestion`, déclarée par F-005 et confinée au module d'édition (F-005 H9, F-005-AC33) ; l'ancienne famille dnd-kit (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`, et non `@dnd-kit/react`), retenue par F-006 (F-006 H6).
+- Contexte sécurisé : la coquille refuse de tourner hors d'un contexte sécurisé et l'explique, sans générateur d'identifiants de secours (F-002-AC26, F-002 H12) ; prérequis du dev : servir l'application en `https` ou à une adresse locale de la machine (`localhost`, `127.0.0.1`), y compris pour un essai depuis un autre appareil du réseau.
 
 Limites acceptées par les specs (à dire au dev avant validation) :
 
@@ -81,6 +83,7 @@ Limites acceptées par les specs (à dire au dev avant validation) :
 - Un bloc déplacé peut être dupliqué par deux déplacements simultanés, ou perdre une modification concurrente (F-006-AC24, AC25).
 - Un membre retiré d'un espace garde sa copie locale de ce qu'il a déjà reçu (F-011 H2).
 - Sur un appareil partagé, les modifications hors ligne d'une personne partent sous le compte de la suivante si elle est membre de l'espace (F-013 H3, H5).
+- Un client défectueux ou malveillant qui a le droit d'écriture peut faire perdre à tous le contenu qu'un client plus ancien ne connaît pas, en envoyant ce contenu avant la version qui le déclare (deux mises à jour) : aucun critère d'aucune spec ne garantit ce cas, la parade complète (vérifier chaque mise à jour contre le schéma avant la liaison) n'est pas retenue et reste à décider par le dev (F-003 H4, cas (a) ; F-013 H8).
 
 Ce que les specs écrites reportent sur les features à venir (à reprendre à l'écriture de chacune) :
 
@@ -92,7 +95,7 @@ Ce que les specs écrites reportent sur les features à venir (à reprendre à l
 - F-022 :
   - la même règle de version que F-028, F-005 et F-016 (voir les décisions transverses) ;
   - sa commande à ajouter à la liste du menu slash de F-005 (F-005-AC21) ;
-  - les fichiers lâchés dans l'éditeur, que F-006 ignore (F-006-AC21).
+  - les fichiers lâchés dans l'éditeur, que F-006 refuse explicitement (F-006-AC35).
 - F-024 : recenser les raccourcis déjà livrés par les features d'éditeur : Mod+B, Mod+I, Mod+K (F-028), Mod+Entrée (F-005, F-016), Alt+Maj+Flèches (F-006), Mod+Alt+M (F-016).
 - F-025 :
   - l'effacement garanti des octets d'une page supprimée : historique Yjs, journal de la persistance, autres appareils, serveur, sauvegardes (F-007 H1 ne le garantit pas) ;
