@@ -8,3 +8,7 @@
 2026-10-08T18:10:22Z | agent-securite | F-001 | UNVERIFIED (verdict absent ou d'un autre type) | 3de42046e390
 2026-10-08T18:11:32Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | 3de42046e390
 2026-10-08T18:11:33Z | agent-craft | F-001 | CRAFT GATE: PASS | 3de42046e390
+2026-10-08T18:18:33Z | reviewer-frontend | F-001 | APPROVED | ca4cb0d41fe3
+2026-10-08T18:21:11Z | agent-securite | F-001 | SECURITY GATE: PASS | ca4cb0d41fe3
+2026-10-08T18:21:32Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | ca4cb0d41fe3
+2026-10-08T18:21:32Z | agent-craft | F-001 | CRAFT GATE: PASS | ca4cb0d41fe3
