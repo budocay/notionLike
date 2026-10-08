@@ -114,7 +114,7 @@ Le manifeste du paquet a une seconde entrée, `"./essai": "./test/essai.ts"`, po
 
 ### `drizzle-kit`
 
-Non installé par F-008, à l'écart de la liste des prérequis de la spec. Il entre avec F-009, qui écrit le premier schéma et génère la première migration. Si le dev préfère suivre la spec à la lettre, il ajoute `"drizzle-kit": "0.31.11"` aux dépendances de développement de `packages/db` au bloc 0 ; rien d'autre ne change dans le plan.
+Non installé par F-008, à l'écart de la liste des prérequis de la spec. Il entre avec F-009, qui écrit le premier schéma et génère la première migration : la spec F-009 le porte désormais dans ses propres prérequis (`drizzle-kit@0.31.11` en dépendance de développement de `packages/db`, son hypothèse H19). Si le dev préfère suivre la spec à la lettre, il ajoute `"drizzle-kit": "0.31.11"` aux dépendances de développement de `packages/db` au bloc 0 ; rien d'autre ne change dans le plan.
 
 ## Conséquences
 
