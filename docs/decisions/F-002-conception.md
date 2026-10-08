@@ -1,16 +1,30 @@
 # F-002 — Conception : approche, plan par blocs, fichiers réservés au dev
 
 Date : 2026-10-08
-Spec : `specs/F-002.md`, validée par le dev sur la branche `F-002` (commit `3107639`) : 32 critères (F-002-AC1 à AC32), H1 à H14.
+Spec : `specs/F-002.md`, 32 critères (F-002-AC1 à AC32), H1 à H15. Validée par le dev au commit `3107639`, puis amendée par `agent-planif` au commit `3a1253a` (six critères réécrits, H15) : elle est en brouillon et attend une nouvelle validation du dev. Ce plan est écrit contre le texte amendé.
 ADR : ADR-0007 (structure d'`apps/web`, session, routes), ADR-0008 (persistance locale), ADR-0003 amendé (fermeture de la façade, rappel d'abonné qui lève : levée de la dette D-006).
 
 Ce document est un plan. Il ne décrit pas le code livré : `ARCHITECTURE.md` le fera, bloc après bloc. Rien de ce plan n'est commité à part lui-même et les trois ADR.
 
-**Les deux scripts du dev sont essayés** : extraits de ce document par les commandes données plus bas, ils ont été lancés à la suite dans un clone du dépôt qui porte le même arbre non commité que le dépôt principal, hooks git actifs ; le script du bloc 0 l'a été aussi, seul, sur un gabarit tiré de `git archive HEAD` (`apps/.gitkeep` et `packages/.gitkeep` compris). Sorties exactes dans « Essais », essais S1 à S3.
+Révision 1 du 2026-10-08, après le premier rejet du gate `agent-architecte` (conception du commit `d2e73f1`, empreinte `41ee62d52f4f`). Le découpage en blocs ne change pas. Ce qui change, et pourquoi :
+
+- **Décisions qui étaient laissées au dev.** Le plan disait de trois points (AC29, AC30, AC31) qu'ils demandaient une décision, alors que l'ADR-0003 les tranchait sous le statut « accepté ». L'orchestrateur les a tranchés à la demande du dev et la spec les porte (H15) : la section « Points de la spec à connaître » ne contient plus aucune décision en attente. L'amendement de l'ADR-0003, et les parties des ADR 0007 et 0008 qui en dépendent, sont « proposés » jusqu'à la revalidation de la spec par le dev (« Statut des décisions », ci-dessous).
+- **Un seul canal pour l'exception d'un abonné.** Le récepteur facultatif ajouté à `creerDocumentEspace` et à `ouvrirDocumentEspace` disparaît : il n'avait qu'un usage, identique au repli sur `console.error`, et donnait deux chemins de remise dans la session. Les deux fonctions gardent leurs signatures de F-001 ; la façade et la session signalent par `console.error`, chacune pour ses propres abonnés.
+- **Fermeture spécifiée jusqu'au bout.** `fermer()` appelée depuis un rappel en cours de diffusion, `lire()` et `abonner` après fermeture, écriture refusée par le nouveau code `facade-fermee` : ADR-0003. Preuves ajoutées au bloc 1 et au bloc 3, mécanismes essayés (essais D et F).
+- **Test de couture d'AC31 discriminant.** La fermeture est prouvée par le compte d'écouteurs du `Y.Doc`, plus par la présence du mot `fermer` ; le test ne cherche plus le mot `abonner`, que trois interfaces portent (« Levée de D-006 »).
+- **AC16, AC17, AC24.** Les lectures que le plan retenait contre la lettre de la spec sont maintenant le texte des critères : le plan et l'ADR-0008 les citent comme critères, plus comme écarts.
+- **Pureté outillée étendue.** `navigation/route.ts` et `persistance/nom-de-base.ts` reçoivent un contrat (`web-formes-pures`) et une règle ESLint sur les globales, comme `identifiants/` ; neuf contrats ajoutés au lieu de huit.
+- **Surface nettoyée.** `interface/` n'importe plus `identifiants/` (aucun appelant : le contrat `web-src-liste-blanche` le refuse désormais) ; le bloc `preview` sort de `vite.config.ts` ; `vitest` est en version exacte dans `apps/web/package.json` ; le compte des chemins de l'arbre est refait (70).
+- **Deux réponses au gate.** Un `import type` est vu par les contrats (« Règles de dépendances ») ; le texte du bloc 0 cesse de faire foi une fois commité (« Bloc 0 »).
+- **Essais.** Le bloc 0, les contrats, les barrières ESLint et les prototypes de la façade, de la session et du test de couture sont rejoués sur un gabarit neuf tiré de `git archive HEAD` ; les sorties chiffrées sont celles de ces passages (« Essais »).
+
+**Statut des décisions.** Sont proposés, et deviennent acceptés quand le dev revalide `specs/F-002.md` (commit `Agent: dev` qui la remet à « validée ») : l'amendement F-002 de l'ADR-0003 ; dans l'ADR-0007, « Exception d'un abonné » et « Fermeture » ; dans l'ADR-0008, les trois conséquences qui citent AC16, AC17 et AC24. Le reste des ADR 0007 et 0008 est accepté. La mise à l'abri et le bloc 0 ne dépendent d'aucune décision proposée. Les blocs 1 à 4 ne démarrent qu'une fois la spec revalidée (règle 1 d'`AGENTS.md`) ; si la revalidation change l'un des six critères amendés, ce plan et les ADR sont repris avant le bloc 1.
+
+**Les deux scripts du dev sont essayés** : extraits de ce document par les commandes données plus bas. Le script de mise à l'abri, inchangé depuis la première version de ce plan, a été lancé dans un clone du dépôt qui porte le même arbre non commité que le dépôt principal, hooks git actifs (essais S1 et S3). Le script du bloc 0, modifié par cette révision, a été relancé sur un gabarit neuf tiré de `git archive HEAD` (`apps/.gitkeep` et `packages/.gitkeep` compris) et dans le clone de l'essai S3 (essai S2). Sorties exactes dans « Essais ».
 
 ## État de départ
 
-Le code de F-002 existe déjà, non commité, dans l'arbre du dépôt principal, mêlé à celui de F-003 et écrit contre une version antérieure de la spec. Relevé du 2026-10-08 par `git ls-files -m -o --exclude-standard` : 73 chemins.
+Le code de F-002 existe déjà, non commité, dans l'arbre du dépôt principal, mêlé à celui de F-003 et écrit contre une version antérieure de la spec. Relevé du 2026-10-08 par `git ls-files -m -o --exclude-standard`, après le commit de la première version de ce plan : 70 chemins.
 
 | Ensemble                                                                    | Chemins | Devenir                                                                |
 | --------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------- |
@@ -18,10 +32,11 @@ Le code de F-002 existe déjà, non commité, dans l'arbre du dépôt principal,
 | `.dependency-cruiser.cjs`, `eslint.config.mjs`, `pnpm-lock.yaml` (modifiés) | 3       | mêlés : le bloc 0 en écrit la version F-002 seule à partir de HEAD     |
 | `packages/document/` : trois fichiers modifiés, cinq non suivis             | 8       | F-003 seule                                                            |
 | `docs/decisions/0009-…`, `docs/decisions/F-003-conception.md`               | 2       | F-003 seule                                                            |
-| `docs/decisions/0007-…`, `0008-…`, `F-002-conception.md`                    | 3       | commités avec ce plan                                                  |
 | `ARCHITECTURE.md` (modifié)                                                 | 1       | version périmée, à ne pas reprendre : `ARCHITECTURE.md` repart de HEAD |
 
-Ce plan ne récrit pas ce code. Il dit comment le mettre à l'abri sans rien perdre, quels fichiers chaque bloc reprend, lesquels sont à retoucher parce que la spec validée a changé (F-002-AC25 réécrit, AC27 à AC32), et ce qui reste à écrire.
+Les quatre documents de cette conception (ce plan, les ADR 0003, 0007 et 0008) sont suivis et commités : ils ne comptent pas dans ce relevé.
+
+Ce plan ne récrit pas ce code. Il dit comment le mettre à l'abri sans rien perdre, quels fichiers chaque bloc reprend, lesquels sont à retoucher parce que la spec a changé depuis (F-002-AC25 réécrit, AC27 à AC32, H15), et ce qui reste à écrire.
 
 ## Approche
 
@@ -29,11 +44,13 @@ Ce plan ne récrit pas ce code. Il dit comment le mettre à l'abri sans rien per
 
 - `identifiants/` : une fonction pure, `estUuidCanonique`, seule définition de la forme d'un identifiant dans l'application ;
 - `persistance/` enrobe `y-indexeddb` et porte ce qu'elle ne fait pas : nom des bases, contrôle de forme de chaque identifiant, identifiant de l'espace local, délai de 10 secondes, interception des échecs, validation de chaque écriture (ADR-0008) ;
-- `espace/` tient la session : garde de contexte sécurisé, `Y.Doc`, persistance, façade de `@notionlike/document`. Elle est la seule abonnée de la façade, lui donne son récepteur d'exception, la ferme, et expose un état immuable ;
+- `espace/` tient la session : garde de contexte sécurisé, `Y.Doc`, persistance, façade de `@notionlike/document`. Elle est la seule abonnée de la façade, la ferme, garde ses propres abonnés comme la façade garde les siens, et expose un état immuable ;
 - `navigation/` lit et écrit le fragment de l'adresse, et refuse tout identifiant qui n'est pas un UUID canonique ;
 - `interface/` rend cet état par `useSyncExternalStore` et appelle trois opérations de la façade.
 
-`packages/document` reçoit deux retouches, et elles seules : la façade se ferme, et un rappel d'abonné qui lève n'interrompt plus la diffusion (amendement F-002 de l'ADR-0003).
+Trois fichiers ne font que calculer et sont tenus purs par un contrat et par une règle ESLint : `identifiants/uuid-canonique.ts`, `navigation/route.ts`, `persistance/nom-de-base.ts`. Les entrées et sorties sont dans d'autres fichiers (`navigation/fragment.ts`, `persistance/indexeddb.ts`, `persistance/espace-local.ts`).
+
+`packages/document` reçoit deux retouches, et elles seules : la façade se ferme (méthode `fermer()`, code d'erreur `facade-fermee` pour une écriture faite ensuite), et un rappel d'abonné qui lève n'interrompt plus la diffusion (amendement F-002 de l'ADR-0003). Aucune signature de F-001 ne change.
 
 L'essentiel des preuves est sous Vitest (jsdom, Testing Library, `fake-indexeddb`), parce que les tests de bout en bout ne sont lancés par aucun hook (dette D-003) ; un scénario Playwright couvre ce qui exige un vrai navigateur.
 
@@ -67,7 +84,8 @@ apps/web/
       pages.ts                     parcours itératifs de l'arborescence lue
       messages.ts                  textes français, message par code d'erreur, limite de titre
   test/
-    preparation.ts                 IndexedDB simulé neuf par test, fragment remis à zéro
+    preparation.ts                 IndexedDB simulé neuf par test, fragment remis à zéro ; en fin de test, façades fermées et comptées
+    aides-facade.ts                seul fichier de test qui ouvre une façade ou démarre une session : suivi et compte d'écouteurs
     aides-persistance.ts  aides-coquille.tsx
     *.test.ts, *.test.tsx          treize fichiers : voir « Attendu chiffré »
   e2e/
@@ -109,7 +127,7 @@ echo "abri : $avant chemins dans $ARCHIVE ($(git rev-parse --short "$ARCHIVE")) 
 ```
 
 - Le script s'arrête sur `ARRET` sans rien faire si la branche courante n'est pas `F-002`, si la branche d'archive existe, si l'arbre est déjà celui de HEAD, ou si un fichier de traçabilité, de spec, du socle ou ce plan porte une modification non commitée (ils partiraient dans l'archive et disparaîtraient de `F-002`).
-- Attendu : une ligne `abri : 70 chemins dans archive-arbre-2026-10-08 (<hash>) ; chemins encore modifies ou non suivis dans l'arbre : 0`. Le compte est celui de l'arbre au moment du lancement : 73 chemins relevés, moins les trois documents commités avec ce plan. Après lui, `git status --short` est vide ; `apps/web/` ne contient plus que `node_modules` (ignoré).
+- Attendu : une ligne `abri : 70 chemins dans archive-arbre-2026-10-08 (<hash>) ; chemins encore modifies ou non suivis dans l'arbre : 0`. Le compte est celui de l'arbre au moment du lancement : les 70 chemins du relevé. Après lui, `git status --short` est vide ; `apps/web/` ne contient plus que `node_modules` (ignoré).
 - Le commit d'archive passe par les hooks comme tout commit : formatage, lint et secrets sur les fichiers archivés, périmètre du dev. Essais S1 et S3 : ils passent sur l'arbre du 2026-10-08. S'ils refusent (un fichier retouché depuis), le script s'arrête sur la branche d'archive, fichiers indexés, arbre intact : rien n'est perdu ; corriger ou revenir par `git switch F-002`, puis supprimer la branche d'archive vide.
 - Ce que le dev peut préférer : une archive `tar` hors du dépôt. Elle ne passe par aucun hook, mais elle ne se relit pas par `git show` et ne survit pas à la perte du dossier où elle est posée ; ce plan ne l'a pas essayée.
 
@@ -128,7 +146,7 @@ Un commit par bloc. Le dev fait la mise à l'abri et le bloc 0 ; `agent-frontend
 | Bloc | Producteur       | Contenu                                                                 | Critères                                                                                                                                                                                                                       |
 | ---- | ---------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | abri | dev              | arbre non commité archivé sur `archive-arbre-2026-10-08`, retour à HEAD | aucun (condition du reste)                                                                                                                                                                                                     |
-| 0    | dev              | squelette d'`apps/web`, huit contrats, barrières ESLint, installation   | prépare AC18, AC19, AC22, AC25, AC26, AC27, AC32 (aucun alias dans les configurations)                                                                                                                                         |
+| 0    | dev              | squelette d'`apps/web`, neuf contrats, barrières ESLint, installation   | prépare AC18, AC19, AC22, AC25, AC26, AC27, AC32 (aucun alias dans les configurations)                                                                                                                                         |
 | 1    | `agent-frontend` | `packages/document` : fermeture de la façade, rappel d'abonné qui lève  | AC29 et AC30 côté paquet ; AC31 (exports, signatures et tests de F-001 inchangés)                                                                                                                                              |
 | 2    | `agent-frontend` | `identifiants/` et `persistance/` entiers ; coutures du workspace       | AC25, AC28 ; AC22 ; AC21 (manifestes, verrou, instance) ; aller-retour d'AC20 ; AC16 et AC24 au niveau du module ; preuve Vitest d'AC4 ; AC2 au niveau du module ; forme d'AC27 ; énumération d'AC31 ; AC32 hors construction  |
 | 3    | `agent-frontend` | session, navigation, interface, entrée : la coquille entière            | AC1 à AC3, AC5 à AC15, AC17, AC18, AC26, AC27 ; AC16 et AC24 à l'écran ; énumération d'AC20 ; AC19 (statique) ; AC21 (document de la session) ; AC29 et AC30 côté application ; AC31 étendu à la session ; construction d'AC32 |
@@ -142,53 +160,62 @@ Après le bloc 4 : la ligne « Lancer l'application » d'`AGENTS.md` (fichier pr
 
 **Bloc 1 — `packages/document`.** Rien n'est repris de l'archive : les fichiers de `packages/document` qui y figurent sont ceux de F-003.
 
-| Fichier                                     | Origine  | Ce que le bloc y fait                                                                                                                                                                              |
-| ------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/document/src/document-espace.ts`  | HEAD     | `fermer()` ; second paramètre facultatif de `creerDocumentEspace` et d'`ouvrirDocumentEspace` ; diffusion sous garde ; repli sur `console.error` ; `console` déclarée localement (ADR-0003 amendé) |
-| `packages/document/test/fermeture.test.ts`  | écrit    | preuves d'AC29 et d'AC30 côté paquet (liste dans « Ce que chaque bloc réalise »)                                                                                                                   |
-| les six autres fichiers de test, `aides.ts` | inchangé | aucun : ils restent verts sans retouche (224 tests), c'est la preuve d'AC31 pour les appelants de F-001                                                                                            |
+| Fichier                                     | Origine  | Ce que le bloc y fait                                                                                                                                             |
+| ------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/document/src/document-espace.ts`  | HEAD     | `fermer()` ; diffusion sous garde, signalée par `console.error` ; `console` déclarée localement ; écritures refusées après fermeture (ADR-0003, amendement F-002) |
+| `packages/document/src/erreurs.ts`          | HEAD     | le code `facade-fermee` s'ajoute à l'union `CodeErreurDocument`, et rien d'autre                                                                                  |
+| `packages/document/test/fermeture.test.ts`  | écrit    | preuves d'AC29 et d'AC30 côté paquet (liste dans « Ce que chaque bloc réalise »)                                                                                  |
+| les six autres fichiers de test, `aides.ts` | inchangé | aucun : ils restent verts sans retouche (224 tests), c'est la preuve d'AC31 pour les appelants de F-001                                                           |
 
-`src/index.ts` ne change pas : aucun export n'est ajouté.
+`src/index.ts` ne change pas : aucun export n'est ajouté, aucune signature ne change.
+
+`erreurs.ts` et la part de F-003. Dans l'arbre d'aujourd'hui, `packages/document/src/erreurs.ts` porte une modification non commitée de F-003 (le code `version-invalide`), sur la même union. Le bloc 1 ne la commite pas, parce qu'il ne la voit pas : il vient après la mise à l'abri, qui ramène le fichier à sa version de HEAD et garde la part de F-003 sur la branche d'archive. Trois garde-fous :
+
+- avant d'écrire, le producteur lance `git status --porcelain -- packages` et s'arrête si la sortie n'est pas vide (mise à l'abri non faite) ;
+- le bloc ajoute une ligne à l'union de HEAD et commite par `git commit` sur les trois chemins nommés ; l'attendu chiffré du bloc 1 exige trois lignes dans `git diff --name-status`, et `git diff HEAD~1 HEAD -- packages/document/src/erreurs.ts` ne doit montrer que `facade-fermee` ;
+- F-003 ne recopie pas `erreurs.ts` de l'archive : elle ajoute `version-invalide` à l'union livrée par F-002, qui porte déjà `facade-fermee`. Une recopie retirerait ce code, et le test de couture d'AC31 échouerait. Même règle pour `src/index.ts` et `test/structure.test.ts`, que F-002 ne touche pas.
 
 **Bloc 2 — `identifiants/` et `persistance/`.**
 
-| Fichier                               | Origine  | Ce que le bloc y fait                                                                                                                                                                                             |
-| ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/identifiants/uuid-canonique.ts`  | écrit    | `estUuidCanonique` (ADR-0007)                                                                                                                                                                                     |
-| `src/persistance/index.ts`            | repris   |                                                                                                                                                                                                                   |
-| `src/persistance/indexeddb.ts`        | repris   |                                                                                                                                                                                                                   |
-| `src/persistance/espace-local.ts`     | repris   | son contrôle de l'identifiant relu passe déjà par la fonction de nommage                                                                                                                                          |
-| `src/persistance/nom-de-base.ts`      | retouché | contrôle de chaque identifiant par `estUuidCanonique` (l'archive ne contrôle que celui de l'espace) ; code `identifiant-invalide` ; message sans l'identifiant                                                    |
-| `test/preparation.ts`                 | retouché | sans les quatre fonctions de mise en page ajoutées pour ProseMirror (F-003)                                                                                                                                       |
-| `test/aides-persistance.ts`           | repris   | retouché seulement si une aide y ouvre une façade sans la fermer                                                                                                                                                  |
-| `test/persistance-ouverture.test.ts`  | retouché | tests d'AC25 réécrits (identifiants de page et de table en UUID ; un identifiant de page avec `:` est refusé, sans base, celle de A inchangée) ; table des refus étendue aux trois identifiants ; façades fermées |
-| `test/persistance-echecs.test.ts`     | retouché | façades fermées ; le test de l'identifiant d'espace illisible sur l'appareil cite AC28                                                                                                                            |
-| `test/persistance-validation.test.ts` | retouché | l'identifiant de page `p1` devient un UUID                                                                                                                                                                        |
-| `test/structure.test.ts`              | retouché | sans le groupe « dépendances d'édition » ni l'import d'`ouvrirDocumentPage` (F-003) ; dépendances d'exécution de F-002 seule ; façade fermée ; plus les preuves d'AC32                                            |
-| `test/uuid-canonique.test.ts`         | écrit    | table de cas de la forme (AC27, AC28)                                                                                                                                                                             |
-| `test/coutures.test.ts`               | écrit    | énumération des appelants de la façade dans le workspace (AC31) ; les autres coutures de ce fichier arrivent au bloc 3                                                                                            |
+| Fichier                               | Origine  | Ce que le bloc y fait                                                                                                                                                                                                           |
+| ------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/identifiants/uuid-canonique.ts`  | écrit    | `estUuidCanonique` (ADR-0007)                                                                                                                                                                                                   |
+| `src/persistance/index.ts`            | repris   |                                                                                                                                                                                                                                 |
+| `src/persistance/indexeddb.ts`        | repris   |                                                                                                                                                                                                                                 |
+| `src/persistance/espace-local.ts`     | repris   | son contrôle de l'identifiant relu passe déjà par la fonction de nommage                                                                                                                                                        |
+| `src/persistance/nom-de-base.ts`      | retouché | contrôle de chaque identifiant par `estUuidCanonique` (l'archive ne contrôle que celui de l'espace) ; code `identifiant-invalide` ; message sans l'identifiant ; seul import : `identifiants/`                                  |
+| `test/preparation.ts`                 | retouché | sans les quatre fonctions de mise en page ajoutées pour ProseMirror (F-003) ; en fin de chaque test, ferme les façades suivies et exige que le compte d'écouteurs n'en voie plus aucune ouverte                                 |
+| `test/aides-facade.ts`                | écrit    | `ouvrirFacade`, `creerFacade` : relèvent le compte d'écouteurs du `Y.Doc` avant d'ouvrir, et suivent la façade ; `ecouteurs`, `facadesEncoreOuvertes`, `fermerLesFacades` (« Levée de D-006 »)                                  |
+| `test/aides-persistance.ts`           | repris   |                                                                                                                                                                                                                                 |
+| `test/persistance-ouverture.test.ts`  | retouché | tests d'AC25 réécrits (identifiants de page et de table en UUID ; un identifiant de page avec `:` est refusé, sans base, celle de A inchangée) ; table des refus étendue aux trois identifiants ; façades par `aides-facade.ts` |
+| `test/persistance-echecs.test.ts`     | retouché | façades par `aides-facade.ts` ; le test de l'identifiant d'espace illisible sur l'appareil cite AC28                                                                                                                            |
+| `test/persistance-validation.test.ts` | retouché | l'identifiant de page `p1` devient un UUID                                                                                                                                                                                      |
+| `test/structure.test.ts`              | retouché | sans le groupe « dépendances d'édition » ni l'import d'`ouvrirDocumentPage` (F-003) ; dépendances d'exécution de F-002 seule ; façade par `aides-facade.ts` ; plus les preuves d'AC32                                           |
+| `test/uuid-canonique.test.ts`         | écrit    | table de cas de la forme (AC27, AC28)                                                                                                                                                                                           |
+| `test/coutures.test.ts`               | écrit    | couture des appelants de la façade (AC31), sans la ligne de la session ; les autres coutures de ce fichier arrivent au bloc 3                                                                                                   |
 
 **Bloc 3 — la coquille.**
 
-| Fichier                                                           | Origine  | Ce que le bloc y fait                                                                                                                                                             |
-| ----------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html`, `src/main.tsx`                                      | repris   |                                                                                                                                                                                   |
-| `src/navigation/fragment.ts`                                      | repris   |                                                                                                                                                                                   |
-| `src/navigation/route.ts`                                         | retouché | l'identifiant lu passe par `estUuidCanonique`, sans décodage ; forme `page-introuvable` sans la chaîne ; `fragmentDe` sans encodage (ADR-0007)                                    |
-| `src/espace/session-espace.ts`                                    | retouché | récepteur donné à la façade ; `fermer()` ; abonnés prévenus sous garde ; façade fermée à l'entrée dans `version-non-prise-en-charge` ; sans `idEspace` dans l'état `pret` (F-003) |
-| `src/interface/BarreLaterale.tsx`, `RangeePage.tsx`               | repris   |                                                                                                                                                                                   |
-| `src/interface/SaisieTitre.tsx`, `pages.ts`                       | repris   |                                                                                                                                                                                   |
-| `src/interface/Application.tsx`                                   | retouché | sans la session de page ni `useEtatDeLaPage` (F-003) ; l'avertissement ne dépend que de `etat.enregistre` ; forme de route `page-introuvable`                                     |
-| `src/interface/ZonePrincipale.tsx`                                | retouché | sans l'éditeur ni `ContenuDePage` (F-003) : titre seul                                                                                                                            |
-| `src/interface/messages.ts`                                       | retouché | sans les deux textes de version de page ni le message du code `version-invalide`, qui n'existe pas dans le paquet de F-002                                                        |
-| `src/styles.css`                                                  | retouché | sans les règles `.edition`, `.barre-de-blocs`, `.ProseMirror` (F-003)                                                                                                             |
-| `test/aides-coquille.tsx`                                         | retouché | chaque session démarrée et chaque façade ouverte par une aide est fermée en fin de test ; une aide unique pour activer une action de rangée (« Ce que F-004 remplacera »)         |
-| `test/coquille.test.tsx`, `coquille-echecs.test.tsx`              | retouché | sessions fermées par l'aide                                                                                                                                                       |
-| `test/barre-laterale.test.tsx`, `barre-laterale-erreurs.test.tsx` | retouché | actions de rangée par l'aide, sauf dans le test d'AC10 qui fixe les commandes natives                                                                                             |
-| `test/navigation.test.tsx`                                        | retouché | cas d'AC13 et d'AC27 à l'écran : identifiant de forme refusée, rien de la chaîne dans la page ni dans l'onglet ; actions de rangée par l'aide                                     |
-| `test/route.test.ts`                                              | retouché | table de cas d'AC27 ; les deux tests qui fixaient l'encodage et « quel qu'il soit » disparaissent                                                                                 |
-| `test/coutures.test.ts`                                           | retouché | énumération d'AC20 et autres coutures reprises de l'archive, sans la part F-003 ni `version-invalide` ; énumération d'AC31 étendue à la session                                   |
-| `test/session-fermeture.test.tsx`                                 | écrit    | AC29 et AC30 côté application                                                                                                                                                     |
+| Fichier                                                           | Origine  | Ce que le bloc y fait                                                                                                                                                                                                         |
+| ----------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`, `src/main.tsx`                                      | repris   |                                                                                                                                                                                                                               |
+| `src/navigation/fragment.ts`                                      | repris   |                                                                                                                                                                                                                               |
+| `src/navigation/route.ts`                                         | retouché | l'identifiant lu passe par `estUuidCanonique`, sans décodage ; forme `page-introuvable` sans la chaîne ; `fragmentDe` sans encodage ; seul import : `identifiants/` (ADR-0007)                                                |
+| `src/espace/session-espace.ts`                                    | retouché | `fermer()` ; une seule fonction prévient les abonnés, sous garde, avec `console.error` ; façade fermée à l'entrée dans `version-non-prise-en-charge` ; rien n'est ouvert après fermeture ; sans `idEspace` dans l'état `pret` |
+| `src/interface/BarreLaterale.tsx`, `RangeePage.tsx`               | repris   |                                                                                                                                                                                                                               |
+| `src/interface/SaisieTitre.tsx`, `pages.ts`                       | repris   |                                                                                                                                                                                                                               |
+| `src/interface/Application.tsx`                                   | retouché | sans la session de page ni `useEtatDeLaPage` (F-003) ; l'avertissement ne dépend que de `etat.enregistre` ; forme de route `page-introuvable`                                                                                 |
+| `src/interface/ZonePrincipale.tsx`                                | retouché | sans l'éditeur ni `ContenuDePage` (F-003) : titre seul                                                                                                                                                                        |
+| `src/interface/messages.ts`                                       | retouché | sans les deux textes de version de page ni le message du code `version-invalide`, qui n'existe pas dans le paquet de F-002 ; un message pour `facade-fermee`                                                                  |
+| `src/styles.css`                                                  | retouché | sans les règles `.edition`, `.barre-de-blocs`, `.ProseMirror` (F-003)                                                                                                                                                         |
+| `test/aides-facade.ts`                                            | retouché | `demarrerSession` : démarre une session et la suit ; les tests n'appellent plus `demarrerSessionEspace` ailleurs                                                                                                              |
+| `test/aides-coquille.tsx`                                         | retouché | sessions et façades par `aides-facade.ts` ; une aide unique pour activer une action de rangée (« Ce que F-004 remplacera »)                                                                                                   |
+| `test/coquille.test.tsx`, `coquille-echecs.test.tsx`              | retouché | sessions par l'aide                                                                                                                                                                                                           |
+| `test/barre-laterale.test.tsx`, `barre-laterale-erreurs.test.tsx` | retouché | actions de rangée par l'aide, sauf dans le test d'AC10 qui fixe les commandes natives                                                                                                                                         |
+| `test/navigation.test.tsx`                                        | retouché | cas d'AC13 et d'AC27 à l'écran : identifiant de forme refusée, rien de la chaîne dans la page ni dans l'onglet ; actions de rangée par l'aide                                                                                 |
+| `test/route.test.ts`                                              | retouché | table de cas d'AC27 ; les deux tests qui fixaient l'encodage et « quel qu'il soit » disparaissent                                                                                                                             |
+| `test/coutures.test.ts`                                           | retouché | énumération d'AC20 et autres coutures reprises de l'archive, sans la part F-003 ni `version-invalide` ; couture d'AC31 étendue à la session et aux modules qui lisent un code d'erreur                                        |
+| `test/session-fermeture.test.tsx`                                 | écrit    | AC29 et AC30 côté application                                                                                                                                                                                                 |
 
 **Bloc 4 — bout en bout.**
 
@@ -211,8 +238,8 @@ Fichiers mêlés : ce que le commit de F-002 garde pour tenir debout seul. Les d
 | Fichier mêlé                       | Ce que F-002 garde                                                                                                      | Ce qui reste à F-003                                                                                                                                                         |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/web/package.json`            | cinq dépendances d'exécution, onze de développement (texte du bloc 0)                                                   | dix paquets `@tiptap/*` et `y-protocols`                                                                                                                                     |
-| `.dependency-cruiser.cjs`          | les sept contrats de HEAD et huit contrats `web-*` (texte du bloc 0)                                                    | `edition-confinee`, `web-edition-par-son-interface`, `web-edition-liste-blanche`, `web-page-liste-blanche`, et `page`, `edition` dans l'exception de `web-src-liste-blanche` |
-| `eslint.config.mjs`                | constantes et trois blocs d'`apps/web/src` (texte du bloc 0)                                                            | `IMPORTS_DE_L_EDITION` et son bloc `no-restricted-imports`                                                                                                                   |
+| `.dependency-cruiser.cjs`          | les sept contrats de HEAD et neuf contrats `web-*` (texte du bloc 0)                                                    | `edition-confinee`, `web-edition-par-son-interface`, `web-edition-liste-blanche`, `web-page-liste-blanche`, et `page`, `edition` dans l'exception de `web-src-liste-blanche` |
+| `eslint.config.mjs`                | constantes et quatre blocs d'`apps/web/src` (texte du bloc 0)                                                           | `IMPORTS_DE_L_EDITION` et son bloc `no-restricted-imports`                                                                                                                   |
 | `pnpm-lock.yaml`                   | régénéré par `pnpm install` au bloc 0                                                                                   | régénéré par le bloc 0 de F-003                                                                                                                                              |
 | `src/interface/Application.tsx`    | tout, sauf l'import de `page/session-page.ts`, `useEtatDeLaPage` et ses trois constantes, `etatPage`, `pageEnregistree` | la session de page et son branchement                                                                                                                                        |
 | `src/interface/ZonePrincipale.tsx` | les trois écrans (titre, « Page introuvable », invitation)                                                              | la propriété `etatPage`, `ContenuDePage`, l'import d'`EditeurDePage`                                                                                                         |
@@ -226,7 +253,7 @@ Fichiers mêlés : ce que le commit de F-002 garde pour tenir debout seul. Les d
 
 Le fichier `src/interface/messages.ts` de l'archive ne compile pas contre le paquet de F-002 : sa table est typée par `CodeErreurDocument`, qui n'a pas `version-invalide` à HEAD. C'est le seul fichier mêlé dont la part F-003 casse la vérification des types sans import absent.
 
-### Écarts entre le code de l'archive et la spec validée
+### Écarts entre le code de l'archive et la spec
 
 Vérifiés dans le code, pas supposés. Chacun est rattaché au bloc qui le comble.
 
@@ -236,9 +263,10 @@ Vérifiés dans le code, pas supposés. Chacun est rattaché au bloc qui le comb
 | aucune fonction unique de forme : l'expression régulière vit dans `nom-de-base.ts`, sans borne de longueur préalable                                                                                                                                        | AC27, AC28       | 2     |
 | `route.ts` décode le fragment (`decodeURIComponent`) et accepte toute chaîne non vide comme identifiant de page ; elle est ensuite cherchée dans l'arborescence. `route.test.ts` fixe « relit l'identifiant qu'il a écrit, quel qu'il soit »                | AC27             | 3     |
 | `document-espace.ts` (HEAD) : diffusion sans garde, aucune fermeture                                                                                                                                                                                        | AC29, AC30       | 1     |
-| `session-espace.ts` : aucun récepteur, aucune `fermer()`, la façade n'est jamais fermée ; ses propres abonnés sont prévenus sans garde                                                                                                                      | AC29, AC30       | 3     |
-| aucun test n'énumère les appelants de `creerDocumentEspace`, `ouvrirDocumentEspace` et `abonner` ; onze fichiers d'`apps/web` et de `packages/document` les appellent (essai X), aucun ne ferme de façade                                                   | AC31             | 2, 3  |
+| `session-espace.ts` : aucune `fermer()`, la façade n'est jamais fermée ; ses propres abonnés sont prévenus sans garde                                                                                                                                       | AC29, AC30       | 3     |
+| aucun test n'énumère les fichiers qui ouvrent une façade ni ne compte les écouteurs ; onze fichiers d'`apps/web` et de `packages/document` les appellent (essai X), aucun ne ferme de façade                                                                | AC31             | 2, 3  |
 | aucun test ne fixe la liste des exports vus par le nom du paquet, l'absence d'alias, ni le refus d'un sous-chemin ; `build` n'est lancé par aucun contrôle                                                                                                  | AC32             | 2, 3  |
+| `messages.ts` n'a pas de message pour `facade-fermee`, code que le bloc 1 ajoute                                                                                                                                                                            | AC15, AC31       | 3     |
 | aucun test ne cite F-002-AC27 à AC32 : `ac-couverture.sh F-002` échouerait                                                                                                                                                                                  | AC27 à AC32      | 1 à 3 |
 | l'état `pret` porte `idEspace`, lu par la seule session de page                                                                                                                                                                                             | hors périmètre   | 3     |
 | les tests atteignent les actions de rangée par leur nom à une soixantaine d'endroits                                                                                                                                                                        | F-004 (plus bas) | 3     |
@@ -249,17 +277,23 @@ Vérifiés dans le code, pas supposés. Chacun est rattaché au bloc qui le comb
 
 ### Bloc 1 — levée de D-006 dans `packages/document`
 
-Décision : amendement F-002 de l'ADR-0003. Interface à la fin du bloc : les exports de F-001, `DocumentEspace.fermer()` et le second paramètre facultatif des deux fonctions de création.
+Décision : amendement F-002 de l'ADR-0003 (proposé). Interface à la fin du bloc : les exports et les signatures de F-001, `DocumentEspace.fermer()`, et le code `facade-fermee` dans `CodeErreurDocument`.
 
-`test/fermeture.test.ts`, par `src/index.ts`, chaque test citant son critère :
+`test/fermeture.test.ts`, par `src/index.ts`, chaque test citant son critère. Les deux origines d'un changement, une opération locale et `Y.applyUpdate`, sont jouées par le même test paramétré partout où le critère les nomme :
 
-- AC29 : trois abonnés dont le deuxième lève ; une opération locale ne lève pas, le premier et le troisième sont appelés une fois, dans l'ordre ; le récepteur reçoit l'exception, une fois ; même constat quand le changement vient de `Y.applyUpdate` ; deux abonnés fautifs : deux remises, dans l'ordre d'inscription ;
-- AC29 : façade créée sans récepteur : ni l'opération ni `Y.applyUpdate` ne lèvent, les autres abonnés sont appelés, `console.error` (espionnée) reçoit l'exception ; récepteur qui lève : la diffusion continue, `console.error` reçoit son exception ;
-- AC30 : après `fermer()`, une transaction qui change l'arborescence n'appelle aucun abonné et `lire()` rend la référence d'avant ; seconde fermeture sans effet ; `abonner` après fermeture n'inscrit rien ; ouvrir puis fermer 50 fois sur un même `Y.Doc` laisse le nombre d'écouteurs `afterTransaction` du départ ; deux façades sur un même `Y.Doc`, l'une fermée : l'autre notifie encore ; `creerDocumentEspace()` se ferme de la même façon.
+- AC29 : quatre abonnés dont le deuxième et le quatrième lèvent ; le changement ne lève pas, le premier et le troisième sont appelés une fois, dans l'ordre ; `console.error` (espionnée, muette) reçoit les deux exceptions, une fois chacune, dans l'ordre des rappels ; pour chacune des deux origines ;
+- AC29 : règles de diffusion de F-001 sous garde : un rappel qui désabonne le suivant, inscrit un nouvel abonné puis lève ; ni le désabonné ni le nouvel inscrit ne sont appelés pour ce changement ;
+- AC30 : après `fermer()`, une mise à jour reçue n'appelle aucun abonné et `lire()` rend la même référence qu'avant ; seconde fermeture sans effet ; `abonner` après fermeture n'inscrit rien et sa fonction de désabonnement est sans effet ; zéro écouteur ;
+- AC30 : chacune des quatre écritures sur une façade fermée est refusée par `facade-fermee`, y compris avec un titre trop long (le code de fermeture passe avant) ; aucune mise à jour émise, état encodé du `Y.Doc` inchangé ;
+- AC30 : façade fermée sur un document de version non prise en charge : `lire()` garde le refus `version-non-prise-en-charge`, l'écriture donne `facade-fermee` ;
+- AC30 : `fermer()` appelée depuis le deuxième de trois rappels : le troisième n'est pas appelé, rien ne lève, `console.error` n'est pas appelée, l'écouteur est retiré, `lire()` rend l'arborescence de la transaction en cours ; une seconde façade ouverte sur le même `Y.Doc` est notifiée de cette transaction et des suivantes ; pour chacune des deux origines ;
+- AC30 : ouvrir puis fermer 50 fois sur un même `Y.Doc` laisse le nombre d'écouteurs `afterTransaction` du départ.
 
-Le nombre d'écouteurs se lit par `doc._observers.get("afterTransaction")?.size ?? 0` : `_observers` est un champ de la classe d'observable dont `Y.Doc` hérite, déclaré dans ses types (essai D : la lecture compile dans `packages/document` ; essai F : elle rend 0, 1, 0).
+Le fichier n'ouvre de façade que par deux aides locales, `ouvrirSuivie` et `creerSuivie`, qui relèvent le compte d'écouteurs du `Y.Doc` avant l'ouverture ; son `afterEach` ferme tout ce qu'elles ont ouvert et exige, pour chaque `Y.Doc`, le compte du départ. C'est la preuve de fermeture d'AC31 pour ce fichier (« Levée de D-006 »).
 
-Constat : aucun test de F-001 ne fixait la remontée de l'exception d'un rappel (`abonnement.test.ts` n'a aucun rappel qui lève). Aucun test de F-001 n'est donc modifié.
+Le nombre d'écouteurs se lit par `doc._observers.get("afterTransaction")?.size ?? 0` : `_observers` est un champ de la classe d'observable dont `Y.Doc` hérite, déclaré dans ses types (essai D : la lecture compile dans `packages/document`). `console` n'est typée ni dans la source ni dans les tests du paquet : le fichier de test la déclare localement, comme la source (essai D : sans cette déclaration, `tsc` rend `TS2584` sur l'espion).
+
+Constat : aucun test de F-001 ne fixait la remontée de l'exception d'un rappel (`abonnement.test.ts` n'a aucun rappel qui lève), ni la liste des codes d'erreur (`structure.test.ts` ne lit que le manifeste). Aucun test de F-001 n'est donc modifié (essai D : les 224 passent).
 
 ### Bloc 2 — `identifiants/` et `persistance/`
 
@@ -268,19 +302,26 @@ Constat : aucun test de F-001 ne fixait la remontée de l'exception d'un rappel 
 - Test d'AC25, dans `persistance-ouverture.test.ts` : contenu témoin sous `{ page, A, P }` ; `{ page, B, P }` lit un document vide ; deux bases énumérées, celle de A inchangée ; puis un identifiant de page qui contient `:` pour l'espace B : `ErreurPersistance`, aucune base de plus, celle de A inchangée. Table d'AC28 : pour chacun des trois identifiants (espace, page, table) et chaque forme refusée, refus sans base ; identifiant d'espace illisible relu sur l'appareil : persistance `coupee`, aucune base d'espace.
 - Les désignations `page` et `table` n'ont pas d'appelant dans l'application avant F-003 et F-018 ; la spec les demande ici (H13 c) et elles sont atteintes par ces tests.
 - `test/structure.test.ts`, preuves d'AC32, toutes essayées (essai X) : (1) `import * as paquet from "@notionlike/document"` rend exactement `ErreurDocument`, `creerDocumentEspace`, `ouvrirDocumentEspace` ; (2) les fichiers de configuration qui peuvent porter un alias sont énumérés par `import.meta.glob` en `?raw` et leur liste est fixée — `apps/web/vite.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `tsconfig.json`, et à la racine `vitest.config.ts`, `tsconfig.base.json` — aucun ne contient `alias`, `"paths"` ni le nom du paquet ; (3) l'import dynamique d'un sous-chemin (`@notionlike/document/src/arbre.ts`) rejette. La vérification des types refuse le même sous-chemin (`TS2307`), ce que `pnpm typecheck` tient sans test dédié. Dans le test, le sous-chemin est assemblé à l'exécution et marqué `@vite-ignore` : écrit en clair, il ferait échouer le chargement du fichier de test et le contrat `web-document-par-ses-exports`.
-- `test/coutures.test.ts`, AC31 : voir « Levée de D-006 ».
-- AC21 : une seule version de `yjs` déclarée et résolue (manifestes par `import.meta.glob`, verrou par `?raw`) ; `creerDocumentEspace().doc instanceof Y.Doc` avec le `Y` d'`apps/web`.
+- `test/aides-facade.ts`, `test/preparation.ts` et `test/coutures.test.ts`, AC31 : voir « Levée de D-006 ». Dès ce bloc, aucun fichier de `test/` autre que `aides-facade.ts` n'appelle `creerDocumentEspace` ni `ouvrirDocumentEspace`.
+- AC21 : une seule version de `yjs` déclarée et résolue (manifestes par `import.meta.glob`, verrou par `?raw`) ; le document d'une façade créée par `creerDocumentEspace` (par l'aide `creerFacade`) est un `Y.Doc` du `Y` d'`apps/web`.
+- AC24, `persistance-echecs.test.ts` (tests de l'archive, repris) : horloge simulée, `relecture` à 9 999 ms, `coupee` à 10 000 ms ; la réponse de la base est délivrée après l'échéance, puis l'arborescence lue est celle tenue en mémoire avant cette réponse et les enregistrements de la base sont inchangés. AC16 : un test par cas nommé par le critère (`indexedDB` absent ; ouverture refusée par une exception, par une erreur ; lecture en échec, écriture en échec, transaction annulée, connexion fermée).
 
 ### Bloc 3 — session, navigation, interface, entrée
 
-- Session : quatre phases ; `operations` porte `creerPage`, `renommerPage`, `mettreALaCorbeille` ; récepteur, garde de ses abonnés et `fermer()` selon l'ADR-0007. `deplacerPage` n'entre pas dans `operations` (hors périmètre de F-002) : le type de l'état l'exclut.
-- `test/session-fermeture.test.tsx` (essai F, sur prototype) : AC29 — un abonné de la session lève, puis une mise à jour est reçue par `Y.applyUpdate` : rien ne lève, `console.error` (espionnée) reçoit l'exception une fois, la page reçue est affichée, « Nouvelle page » fonctionne encore ; même constat quand le changement vient de la persistance (passage à `coupee`). AC30 — même session rendue et démontée cinq fois sous `StrictMode` : un écouteur `afterTransaction` ; après `fermer()`, zéro ; seconde fermeture sans effet ; après fermeture, une mise à jour reçue ne prévient aucun abonné ; entrée dans `version-non-prise-en-charge` : zéro écouteur.
+- Session : quatre phases ; `operations` porte `creerPage`, `renommerPage`, `mettreALaCorbeille` ; garde de ses abonnés, fermeture et entrée dans `version-non-prise-en-charge` selon l'ADR-0007. `deplacerPage` n'entre pas dans `operations` (hors périmètre de F-002) : le type de l'état l'exclut.
+- `test/session-fermeture.test.tsx` (essai F, sur prototype), par `<Application>` et par `demarrerSession` :
+  - AC29, changement du document : deux abonnés de la session dont le premier lève, puis une mise à jour reçue par `Y.applyUpdate` ; rien ne lève, `console.error` (espionnée) reçoit l'exception une fois, le second abonné est prévenu, la page reçue est affichée, « Nouvelle page » fonctionne encore ;
+  - AC29, changement de la persistance : les mêmes abonnés inscrits pendant le chargement ; à la fin de la relecture, même constat, et le second abonné lit la phase `pret` ;
+  - AC30 : même session rendue et démontée cinq fois sous `StrictMode` : un écouteur `afterTransaction` ; après `fermer()`, zéro ; seconde fermeture sans effet ; une mise à jour reçue ensuite ne prévient aucun abonné ;
+  - AC30, la fermeture de production : une version non prise en charge reçue par `Y.applyUpdate` pendant que l'application est affichée ; rien ne lève, zéro écouteur, les abonnés de la session sont prévenus une fois et lisent la phase `version-non-prise-en-charge`, l'écran bloquant est affiché sans « Nouvelle page », `console.error` n'est pas appelée ;
+  - AC30 : session fermée pendant le chargement ; la fin de la relecture n'ouvre aucune façade (zéro écouteur, phase inchangée).
 - Route : `test/route.test.ts`, table d'AC27 par `lireRoute` (les cas de la table du bloc 2, placés après `#/page/`) : chacun rend la forme `page-introuvable`, sans champ qui porte la chaîne ; fragment vide, `#`, `#/`, `#/corbeille` : l'accueil ; `#/page/<uuid>` : la page. `test/navigation.test.tsx` : à l'écran, un fragment de forme refusée affiche « Page introuvable », ne sélectionne rien, laisse la barre latérale utilisable, et la chaîne n'apparaît ni dans le document rendu ni dans `document.title`.
 - Pièges connus de la saisie, chacun avec son test (repris) : Entrée valide puis le champ disparaît, la sortie du champ qui s'ensuit ne valide pas une seconde fois ; Échap ferme le champ, la sortie du champ qui s'ensuit ne renomme rien ; un titre refusé laisse le champ ouvert avec le texte saisi.
-- Erreur typée : `ErreurDocument` est rattrapée autour de chaque appel d'opération et traduite par `messages.ts` (une phrase par code, sans le code ni l'identifiant) ; toute autre exception n'est pas rattrapée.
+- Erreur typée : `ErreurDocument` est rattrapée autour de chaque appel d'opération et traduite par `messages.ts` (une phrase par code, `facade-fermee` compris, sans le code ni l'identifiant) ; toute autre exception n'est pas rattrapée.
 - Mise à la corbeille de la page sélectionnée ou d'une de ses ancêtres : `allerA` l'accueil, après le succès de l'opération. Une disparition reçue par une mise à jour ne change pas l'adresse.
 - `main.tsx` et `index.html` sont atteints par le test de `coquille.test.tsx` qui pose `<div id="racine">`, importe `src/main.tsx` et constate la coquille.
-- `test/coutures.test.ts` : énumération d'AC20 (liste exacte des fichiers de `src/` qui importent `@notionlike/document`, chacun rattaché à un test) ; seule la session importe `yjs` hors de la persistance ; limite 200 / 201 ; un message par code d'erreur.
+- `test/coutures.test.ts` : énumération d'AC20 (liste exacte des fichiers de `src/` qui importent `@notionlike/document`, chacun rattaché à un test) ; seule la session importe `yjs` hors de la persistance ; limite 200 / 201 ; un message par code d'erreur, les sept codes ; couture d'AC31 étendue (« Levée de D-006 »).
+- AC17, `coquille-echecs.test.tsx` (test de l'archive, repris) : les enregistrements de la base sont relevés avant et après l'ouverture d'un document de version 2 ; aucun enregistrement non vide n'est ajouté, l'état relu est identique octet pour octet, la persistance est `fermee`.
 
 ### Bloc 4 — bout en bout
 
@@ -299,83 +340,108 @@ git diff --name-status HEAD~1 HEAD
 
 Constats de l'essai S2 sur le bloc 0 : `vitest list --filesOnly --project web` n'imprime aucune ligne et finit en `code=0` ; `vitest run --project web` imprime `No test files found, exiting with code 1`. Une erreur ou un rejet non intercepté pendant l'exécution donne `Errors  1 error` et `code=1` même quand tous les tests passent (essais T0 et T1) : c'est le contrôle qui tient « ni erreur non interceptée ni rejet de promesse non géré » (AC16, AC26) pour toute la suite.
 
-| Après le bloc | Lignes de `vitest list --filesOnly --project web` (ordre libre), chacune sous la forme `[web] apps/web/test/<nom>`                                                                                                | `vitest run`, `code=0`, sans ligne `Errors`                                      | `pnpm contrats`                                                        | `git diff --name-status HEAD~1 HEAD`                                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 0             | aucune                                                                                                                                                                                                            | `Test Files  6 passed (6)`, `Tests  224 passed (224)`                            | `no dependency violations found (25 modules, 43 dependencies cruised)` | cinq `A` sous `apps/web/`, `M .dependency-cruiser.cjs`, `M eslint.config.mjs`, `M pnpm-lock.yaml` : huit lignes        |
-| 1             | aucune                                                                                                                                                                                                            | `Test Files  7 passed (7)` ; au moins 224 tests plus ceux de `fermeture.test.ts` | aucune violation                                                       | `M packages/document/src/document-espace.ts`, `A packages/document/test/fermeture.test.ts` : deux lignes, rien d'autre |
-| 2             | six : `persistance-ouverture.test.ts`, `persistance-echecs.test.ts`, `persistance-validation.test.ts`, `structure.test.ts`, `uuid-canonique.test.ts`, `coutures.test.ts`                                          | `Test Files  13 passed (13)`                                                     | aucune violation                                                       | seulement des `A` sous `apps/web/src/identifiants/`, `apps/web/src/persistance/`, `apps/web/test/`                     |
-| 3             | treize : les six précédentes, `coquille.test.tsx`, `coquille-echecs.test.tsx`, `barre-laterale.test.tsx`, `barre-laterale-erreurs.test.tsx`, `navigation.test.tsx`, `route.test.ts`, `session-fermeture.test.tsx` | `Test Files  20 passed (20)`                                                     | aucune violation                                                       | des `A` sous `apps/web/`, des `M` limités à `apps/web/test/` ; aucun fichier de `packages/` ni de la racine            |
-| 4             | les treize mêmes                                                                                                                                                                                                  | `Test Files  20 passed (20)`                                                     | aucune violation                                                       | `A apps/web/e2e/aides.ts`, `A apps/web/e2e/arborescence.spec.ts`                                                       |
+| Après le bloc | Lignes de `vitest list --filesOnly --project web` (ordre libre), chacune sous la forme `[web] apps/web/test/<nom>`                                                                                                | `vitest run`, `code=0`, sans ligne `Errors`                                          | `pnpm contrats`                                                        | `git diff --name-status HEAD~1 HEAD`                                                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0             | aucune                                                                                                                                                                                                            | `Test Files  6 passed (6)`, `Tests  224 passed (224)`                                | `no dependency violations found (25 modules, 43 dependencies cruised)` | cinq `A` sous `apps/web/`, `M .dependency-cruiser.cjs`, `M eslint.config.mjs`, `M pnpm-lock.yaml` : huit lignes                                               |
+| 1             | aucune                                                                                                                                                                                                            | `Test Files  7 passed (7)` ; les 224 tests de F-001 plus ceux de `fermeture.test.ts` | aucune violation                                                       | `M packages/document/src/document-espace.ts`, `M packages/document/src/erreurs.ts`, `A packages/document/test/fermeture.test.ts` : trois lignes, rien d'autre |
+| 2             | six : `persistance-ouverture.test.ts`, `persistance-echecs.test.ts`, `persistance-validation.test.ts`, `structure.test.ts`, `uuid-canonique.test.ts`, `coutures.test.ts`                                          | `Test Files  13 passed (13)`                                                         | aucune violation                                                       | seulement des `A` sous `apps/web/src/identifiants/`, `apps/web/src/persistance/`, `apps/web/test/`                                                            |
+| 3             | treize : les six précédentes, `coquille.test.tsx`, `coquille-echecs.test.tsx`, `barre-laterale.test.tsx`, `barre-laterale-erreurs.test.tsx`, `navigation.test.tsx`, `route.test.ts`, `session-fermeture.test.tsx` | `Test Files  20 passed (20)`                                                         | aucune violation                                                       | des `A` sous `apps/web/`, des `M` limités à `apps/web/test/` ; aucun fichier de `packages/` ni de la racine                                                   |
+| 4             | les treize mêmes                                                                                                                                                                                                  | `Test Files  20 passed (20)`                                                         | aucune violation                                                       | `A apps/web/e2e/aides.ts`, `A apps/web/e2e/arborescence.spec.ts`                                                                                              |
 
 S'ajoutent, lancées à la main parce qu'aucun hook ne les lance :
 
 - après chaque bloc : `pnpm typecheck; echo "code=$?"` (dette D-007), attendu `code=0` ;
-- après le bloc 3 et après le bloc 4 : `pnpm --filter @notionlike/web build; echo "code=$?"`, attendu une ligne `✓ built in` et `code=0` (AC32 ; essai G : `✓ 73 modules transformed`, 319,66 kB) ;
+- après le bloc 3 et après le bloc 4 : `pnpm --filter @notionlike/web build; echo "code=$?"`, attendu une ligne `✓ built in` et `code=0` (AC32 ; essai G, gabarit de la révision 1 : `✓ 74 modules transformed`, 320,01 kB) ;
 - après le bloc 4 : `pnpm --filter @notionlike/web test:e2e; echo "code=$?"`, attendu `5 passed` et `code=0` (dette D-003) ; `.agents/checks/ac-couverture.sh F-002; echo "code=$?"`, attendu `code=0` : les 32 critères sont cités par un test.
 
-Repère, sans valeur de seuil : le code de l'archive séparé de F-003, avant toute retouche, donne 104 tests dans onze fichiers pour le projet `web` (essai G). Les retouches en ajoutent ; un total inférieur à 104 après le bloc 3 est à expliquer dans le message de fin.
+Repère, sans valeur de seuil : le code de l'archive séparé de F-003, avant toute retouche, donne 104 tests dans onze fichiers pour le projet `web` (essai G) ; le prototype du bloc 1 ajoute 9 tests aux 224 de F-001 (essai D). Les retouches en ajoutent ; un total inférieur à 104 après le bloc 3 est à expliquer dans le message de fin.
 
 Règle : chaque fichier attendu est listé, le total de fichiers est celui du tableau, aucune ligne `Errors`. Un fichier de test en plus, né d'un découpage, s'ajoute à la liste et au total et est signalé ; il n'en retire aucun. Un fichier attendu absent, un total à zéro, un fichier inattendu dans `git diff --name-status` ou un code non nul : le bloc suivant ne démarre pas. Le nombre de tests par fichier n'est pas fixé ; chaque test cite son critère dans son nom (H9).
 
 ## Correspondance critère par critère
 
-| Critère | Bloc    | Tenu par                                                                                                                                                     | Preuve                                                                                                                                                                                                                 |
-| ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1     | 3       | session (espace local créé), `Application` en phase `pret` sur un document vide                                                                              | `coquille.test.tsx` : base de l'espace créée, barre latérale sans page, « Nouvelle page », invitation                                                                                                                  |
-| AC2     | 2, 3, 4 | `ouvrirEspaceLocal` relit le même identifiant et la même base ; chaque écriture validée                                                                      | `persistance-ouverture.test.ts`, `persistance-validation.test.ts` ; `coquille.test.tsx` (deux sessions successives : mêmes pages, titres, parents, ordre, corbeille absente) ; e2e                                     |
-| AC3     | 3       | phase `chargement` tant que la persistance est en `relecture` ; la façade n'existe pas encore                                                                | `coquille.test.tsx` : état de chargement, aucun bouton ; fin sur succès, échec, échéance (`coquille-echecs.test.tsx`)                                                                                                  |
-| AC4     | 2, 4    | une transaction pour l'identifiant de l'espace local ; fusion Yjs à la relecture                                                                             | `persistance-ouverture.test.ts` : deux ouvertures lancées ensemble, même identifiant, une page chacune, relues dans les deux ; e2e à deux onglets                                                                      |
-| AC5     | 3       | `creerPage("", { parent })` ; parent déplié ; saisie ouverte ; `allerA`                                                                                      | `coquille.test.tsx` (racine), `barre-laterale.test.tsx` (sous-page, dépli, saisie), `navigation.test.tsx` (sélection)                                                                                                  |
-| AC6     | 3       | `SaisieTitre` : Entrée et sortie du champ valident, Échap annule                                                                                             | `barre-laterale.test.tsx` ; zone principale et onglet : `navigation.test.tsx`                                                                                                                                          |
-| AC7     | 3       | `mettreALaCorbeille` ; la lecture retire la descendance ; retour à l'accueil                                                                                 | `barre-laterale.test.tsx` ; `navigation.test.tsx`                                                                                                                                                                      |
-| AC8     | 3       | pages repliées en état d'écran ; bouton absent sans sous-page                                                                                                | `barre-laterale.test.tsx` : l'état encodé du document est identique avant et après repli et dépli                                                                                                                      |
-| AC9     | 3       | abonnement de la session à la façade, `useSyncExternalStore`                                                                                                 | `coquille.test.tsx` : `Y.applyUpdate(session.doc, …)` puis nouvelle page affichée                                                                                                                                      |
-| AC10    | 3       | commandes natives dans l'ordre de tabulation, noms accessibles français                                                                                      | `barre-laterale.test.tsx` et `navigation.test.tsx` : chaque action par `tab` et `keyboard` seuls, chaque commande retrouvée par rôle et nom                                                                            |
-| AC11    | 3       | lien `#/page/<id>`, `aria-current="page"`, titre dans la zone principale                                                                                     | `navigation.test.tsx`, `route.test.ts`                                                                                                                                                                                 |
-| AC12    | 3       | route lue au premier rendu et sur `hashchange` ; ancêtres dépliés                                                                                            | `navigation.test.tsx` : ouverture avec fragment, fragment modifié, `history.back()` ; `route.test.ts`                                                                                                                  |
-| AC13    | 3       | sélection déduite de la route et de l'arborescence                                                                                                           | `navigation.test.tsx` : identifiant absent, page à la corbeille ; barre latérale encore utilisable                                                                                                                     |
-| AC14    | 3       | refus `titre-trop-long` de la façade, champ laissé ouvert                                                                                                    | `barre-laterale-erreurs.test.tsx` : message qui cite 200, texte conservé, titre inchangé ; couture 200 / 201 (`coutures.test.ts`)                                                                                      |
-| AC15    | 3       | `ErreurDocument` rattrapée, message par code ; affichage dérivé de la lecture                                                                                | `barre-laterale-erreurs.test.tsx` : page mise à la corbeille par une mise à jour reçue pendant la saisie, puis validation ; `coutures.test.ts`                                                                         |
-| AC16    | 2, 3    | parades 1 à 3 d'ADR-0008 ; `enregistre` faux ; avertissement `role="alert"`                                                                                  | `persistance-echecs.test.ts` (sans `indexedDB`, ouverture refusée de deux façons, lecture, écriture, annulation, fermeture anormale) ; `coquille-echecs.test.tsx` ; `vitest run` en `code=1` sur tout rejet            |
-| AC17    | 3       | `lire()` sous `try` ; phase `version-non-prise-en-charge` ; persistance et façade fermées                                                                    | `coquille-echecs.test.tsx` : écran bloquant, aucun bouton, état relu de la base identique octet pour octet et aucun enregistrement non vide ajouté (« Points de la spec », 1)                                          |
-| AC18    | 0, 3    | enfants texte de JSX, `document.title` ; ESLint interdit le HTML brut                                                                                        | `coquille.test.tsx` (barre latérale), `navigation.test.tsx` (zone principale, onglet) ; `pnpm lint`                                                                                                                    |
-| AC19    | 0, 3, 4 | ESLint interdit `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` dans `apps/web/src` ; contrat `web-src-liste-blanche`                    | `pnpm lint`, `pnpm contrats` ; `coquille.test.tsx` (aucune adresse externe dans `index.html` ni dans les styles) ; e2e : origines des requêtes, actions réseau coupé                                                   |
-| AC20    | 2, 3    | format V1 de `y-indexeddb`, façade de F-001                                                                                                                  | `persistance-ouverture.test.ts`, `persistance-validation.test.ts` : relecture à l'identique ; `coutures.test.ts` : liste exacte des fichiers de `src/` qui importent `@notionlike/document`, chacun rattaché à un test |
-| AC21    | 2, 3, 4 | une seule version de `yjs` au manifeste et au verrou                                                                                                         | `structure.test.ts` ; `coutures.test.ts` (`session.doc instanceof Y.Doc`) ; e2e : console                                                                                                                              |
-| AC22    | 0, 2, 3 | contrats `web-y-indexeddb-confinee`, `web-document-par-ses-exports`, `web-persistance-par-son-interface` ; ESLint (`getMap` et consorts)                     | `pnpm contrats`, `pnpm lint` ; `structure.test.ts` (exports de `persistance/index.ts`) ; `coutures.test.ts`                                                                                                            |
-| AC23    | 4       | `playwright.config.ts` lance Vite sur `127.0.0.1:5174`                                                                                                       | `e2e/arborescence.spec.ts`, lancement manuel (D-003)                                                                                                                                                                   |
-| AC24    | 2, 3    | échéance de 10 secondes dans le module ; destruction de l'instance de la bibliothèque                                                                        | `persistance-echecs.test.ts`, horloge simulée : `relecture` à 9 999 ms, `coupee` à 10 000 ms, ouverture tardive sans effet ; `coquille-echecs.test.tsx`                                                                |
-| AC25    | 0, 2    | `nom-de-base.ts`, seule à assembler un nom ; type `DesignationDocument` ; ESLint interdit `notionlike:` hors du module                                       | `persistance-ouverture.test.ts` : témoin sous A, vide sous B, deux bases, base de A inchangée ; identifiant de page avec `:` refusé sans base ; `pnpm lint`                                                            |
-| AC26    | 0, 3    | garde en tête de `demarrerSessionEspace` ; ESLint interdit `Math.random`, `getRandomValues`, et `randomUUID` hors de `espace/`                               | `coquille-echecs.test.tsx` : fonction retirée, écran `role="alert"`, aucune base ; fonction présente et `isSecureContext` absent : premier lancement ; `pnpm lint`                                                     |
-| AC27    | 2, 3    | `estUuidCanonique`, seule fonction de forme, longueur d'abord ; `lireRoute` ne décode ni ne garde la chaîne refusée ; contrat `web-navigation-liste-blanche` | `uuid-canonique.test.ts` et `route.test.ts` (table de cas) ; `navigation.test.tsx` (« Page introuvable », rien de la chaîne à l'écran ni dans l'onglet)                                                                |
-| AC28    | 2       | `nom-de-base.ts` applique `estUuidCanonique` à chaque identifiant, y compris à celui relu sur l'appareil                                                     | `persistance-ouverture.test.ts` (table des trois identifiants, aucune base énumérée) ; `persistance-echecs.test.ts` (identifiant relu illisible)                                                                       |
-| AC29    | 1, 3    | diffusion sous garde et récepteur (ADR-0003 amendé) ; récepteur et garde de la session (ADR-0007)                                                            | `packages/document/test/fermeture.test.ts` ; `session-fermeture.test.tsx` : l'application reçoit l'exception et reste utilisable                                                                                       |
-| AC30    | 1, 3    | `DocumentEspace.fermer()` ; `SessionEspace.fermer()`                                                                                                         | `fermeture.test.ts` (50 ouvertures et fermetures, compte d'écouteurs) ; `session-fermeture.test.tsx` (cinq montages sous `StrictMode`, compte d'écouteurs)                                                             |
-| AC31    | 1, 2, 3 | exports et signatures de F-001 inchangés ; tests de F-001 non modifiés                                                                                       | `git diff --name-status` du bloc 1 ; `coutures.test.ts` : énumération des appelants du workspace ; `structure.test.ts` (exports vus par le nom du paquet)                                                              |
-| AC32    | 0, 2, 3 | aucun alias dans les configurations du bloc 0 ; lien de workspace `@notionlike/document`                                                                     | `structure.test.ts` (exports, configurations sans alias, sous-chemin refusé) ; `pnpm typecheck` ; `pnpm --filter @notionlike/web build`                                                                                |
+| Critère | Bloc    | Tenu par                                                                                                                                                                                                 | Preuve                                                                                                                                                                                                                                                                         |
+| ------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC1     | 3       | session (espace local créé), `Application` en phase `pret` sur un document vide                                                                                                                          | `coquille.test.tsx` : base de l'espace créée, barre latérale sans page, « Nouvelle page », invitation                                                                                                                                                                          |
+| AC2     | 2, 3, 4 | `ouvrirEspaceLocal` relit le même identifiant et la même base ; chaque écriture validée                                                                                                                  | `persistance-ouverture.test.ts`, `persistance-validation.test.ts` ; `coquille.test.tsx` (deux sessions successives : mêmes pages, titres, parents, ordre, corbeille absente) ; e2e                                                                                             |
+| AC3     | 3       | phase `chargement` tant que la persistance est en `relecture` ; la façade n'existe pas encore                                                                                                            | `coquille.test.tsx` : état de chargement, aucun bouton ; fin sur succès, échec, échéance (`coquille-echecs.test.tsx`)                                                                                                                                                          |
+| AC4     | 2, 4    | une transaction pour l'identifiant de l'espace local ; fusion Yjs à la relecture                                                                                                                         | `persistance-ouverture.test.ts` : deux ouvertures lancées ensemble, même identifiant, une page chacune, relues dans les deux ; e2e à deux onglets                                                                                                                              |
+| AC5     | 3       | `creerPage("", { parent })` ; parent déplié ; saisie ouverte ; `allerA`                                                                                                                                  | `coquille.test.tsx` (racine), `barre-laterale.test.tsx` (sous-page, dépli, saisie), `navigation.test.tsx` (sélection)                                                                                                                                                          |
+| AC6     | 3       | `SaisieTitre` : Entrée et sortie du champ valident, Échap annule                                                                                                                                         | `barre-laterale.test.tsx` ; zone principale et onglet : `navigation.test.tsx`                                                                                                                                                                                                  |
+| AC7     | 3       | `mettreALaCorbeille` ; la lecture retire la descendance ; retour à l'accueil                                                                                                                             | `barre-laterale.test.tsx` ; `navigation.test.tsx`                                                                                                                                                                                                                              |
+| AC8     | 3       | pages repliées en état d'écran ; bouton absent sans sous-page                                                                                                                                            | `barre-laterale.test.tsx` : l'état encodé du document est identique avant et après repli et dépli                                                                                                                                                                              |
+| AC9     | 3       | abonnement de la session à la façade, `useSyncExternalStore`                                                                                                                                             | `coquille.test.tsx` : `Y.applyUpdate(session.doc, …)` puis nouvelle page affichée                                                                                                                                                                                              |
+| AC10    | 3       | commandes natives dans l'ordre de tabulation, noms accessibles français                                                                                                                                  | `barre-laterale.test.tsx` et `navigation.test.tsx` : chaque action par `tab` et `keyboard` seuls, chaque commande retrouvée par rôle et nom                                                                                                                                    |
+| AC11    | 3       | lien `#/page/<id>`, `aria-current="page"`, titre dans la zone principale                                                                                                                                 | `navigation.test.tsx`, `route.test.ts`                                                                                                                                                                                                                                         |
+| AC12    | 3       | route lue au premier rendu et sur `hashchange` ; ancêtres dépliés                                                                                                                                        | `navigation.test.tsx` : ouverture avec fragment, fragment modifié, `history.back()` ; `route.test.ts`                                                                                                                                                                          |
+| AC13    | 3       | sélection déduite de la route et de l'arborescence                                                                                                                                                       | `navigation.test.tsx` : identifiant absent, page à la corbeille ; barre latérale encore utilisable                                                                                                                                                                             |
+| AC14    | 3       | refus `titre-trop-long` de la façade, champ laissé ouvert                                                                                                                                                | `barre-laterale-erreurs.test.tsx` : message qui cite 200, texte conservé, titre inchangé ; couture 200 / 201 (`coutures.test.ts`)                                                                                                                                              |
+| AC15    | 3       | `ErreurDocument` rattrapée, message par code, `facade-fermee` compris ; affichage dérivé de la lecture                                                                                                   | `barre-laterale-erreurs.test.tsx` : page mise à la corbeille par une mise à jour reçue pendant la saisie, puis validation ; `coutures.test.ts` : un message par code, modules qui lisent un code énumérés                                                                      |
+| AC16    | 2, 3    | parades 1 à 3 d'ADR-0008, une par cas du critère ; `enregistre` faux ; avertissement `role="alert"` ; limite acceptée par le critère : la fenêtre entre la sonde et la bibliothèque, rendue à l'échéance | `persistance-echecs.test.ts` : un test par cas (sans `indexedDB` ; ouverture refusée par une exception, par une erreur ; lecture, écriture, transaction annulée, connexion fermée) ; `coquille-echecs.test.tsx` ; `vitest run` en `code=1` sur tout rejet                      |
+| AC17    | 3       | `lire()` sous `try` ; phase `version-non-prise-en-charge` ; façade et persistance fermées dès le refus ; l'enregistrement vide de la bibliothèque est admis par le critère                               | `coquille-echecs.test.tsx` : écran bloquant, aucun bouton, enregistrements relevés avant et après, aucun enregistrement non vide ajouté, état relu identique octet pour octet                                                                                                  |
+| AC18    | 0, 3    | enfants texte de JSX, `document.title` ; ESLint interdit le HTML brut                                                                                                                                    | `coquille.test.tsx` (barre latérale), `navigation.test.tsx` (zone principale, onglet) ; `pnpm lint`                                                                                                                                                                            |
+| AC19    | 0, 3, 4 | ESLint interdit `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` dans `apps/web/src` ; contrat `web-src-liste-blanche`                                                                | `pnpm lint`, `pnpm contrats` ; `coquille.test.tsx` (aucune adresse externe dans `index.html` ni dans les styles) ; e2e : origines des requêtes, actions réseau coupé                                                                                                           |
+| AC20    | 2, 3    | format V1 de `y-indexeddb`, façade de F-001                                                                                                                                                              | `persistance-ouverture.test.ts`, `persistance-validation.test.ts` : relecture à l'identique ; `coutures.test.ts` : liste exacte des fichiers de `src/` qui importent `@notionlike/document`, chacun rattaché à un test                                                         |
+| AC21    | 2, 3, 4 | une seule version de `yjs` au manifeste et au verrou                                                                                                                                                     | `structure.test.ts` ; `coutures.test.ts` (`session.doc instanceof Y.Doc`) ; e2e : console                                                                                                                                                                                      |
+| AC22    | 0, 2, 3 | contrats `web-y-indexeddb-confinee`, `web-document-par-ses-exports`, `web-persistance-par-son-interface` ; ESLint (`getMap` et consorts)                                                                 | `pnpm contrats`, `pnpm lint` ; `structure.test.ts` (exports de `persistance/index.ts`) ; `coutures.test.ts`                                                                                                                                                                    |
+| AC23    | 4       | `playwright.config.ts` lance Vite sur `127.0.0.1:5174`                                                                                                                                                   | `e2e/arborescence.spec.ts`, lancement manuel (D-003)                                                                                                                                                                                                                           |
+| AC24    | 2, 3    | échéance de 10 secondes dans le module ; destruction de l'instance de la bibliothèque, qui peut finir sa lecture (admis par le critère) sans rien appliquer ni écrire                                    | `persistance-echecs.test.ts`, horloge simulée : `relecture` à 9 999 ms, `coupee` à 10 000 ms, réponse délivrée après l'échéance, arborescence en mémoire et enregistrements inchangés ; `coquille-echecs.test.tsx`                                                             |
+| AC25    | 0, 2    | `nom-de-base.ts`, seule à assembler un nom, fichier pur (`web-formes-pures`) ; type `DesignationDocument` ; ESLint interdit `notionlike:` hors du module                                                 | `persistance-ouverture.test.ts` : témoin sous A, vide sous B, deux bases, base de A inchangée ; identifiant de page avec `:` refusé sans base ; `pnpm lint`, `pnpm contrats`                                                                                                   |
+| AC26    | 0, 3    | garde en tête de `demarrerSessionEspace` ; ESLint interdit `Math.random`, `getRandomValues`, et `randomUUID` hors de `espace/`                                                                           | `coquille-echecs.test.tsx` : fonction retirée, écran `role="alert"`, aucune base ; fonction présente et `isSecureContext` absent : premier lancement ; `pnpm lint`                                                                                                             |
+| AC27    | 0, 2, 3 | `estUuidCanonique`, seule fonction de forme, longueur d'abord ; `lireRoute` ne décode ni ne garde la chaîne refusée ; contrats `web-navigation-liste-blanche` et `web-formes-pures`                      | `uuid-canonique.test.ts` et `route.test.ts` (table de cas) ; `navigation.test.tsx` (« Page introuvable », rien de la chaîne à l'écran ni dans l'onglet)                                                                                                                        |
+| AC28    | 2       | `nom-de-base.ts` applique `estUuidCanonique` à chaque identifiant, y compris à celui relu sur l'appareil                                                                                                 | `persistance-ouverture.test.ts` (table des trois identifiants, aucune base énumérée) ; `persistance-echecs.test.ts` (identifiant relu illisible)                                                                                                                               |
+| AC29    | 1, 3    | diffusion sous garde et `console.error`, seul canal (ADR-0003, amendement) ; même garde pour les abonnés de la session, une seule fonction (ADR-0007)                                                    | `packages/document/test/fermeture.test.ts` (deux origines, ordre, nombre, une fois par rappel fautif) ; `session-fermeture.test.tsx` : changement du document, changement de la persistance, application utilisable                                                            |
+| AC30    | 1, 3    | `DocumentEspace.fermer()`, code `facade-fermee` ; `SessionEspace.fermer()` ; façade fermée à l'entrée dans `version-non-prise-en-charge`, seule fermeture de production                                  | `fermeture.test.ts` (après fermeture, écritures refusées, fermeture depuis un rappel pour les deux origines, 50 ouvertures et fermetures) ; `session-fermeture.test.tsx` (cinq montages sous `StrictMode`, version reçue par `Y.applyUpdate`, fermeture pendant le chargement) |
+| AC31    | 1, 2, 3 | exports et signatures de F-001 inchangés ; fichiers de test de F-001 non modifiés ; toute façade de test ouverte par une aide suivie                                                                     | `git diff --name-status` du bloc 1 ; `coutures.test.ts` : ouvrants énumérés, liste fermée de F-001, fermeture par le compte d'écouteurs, modules qui lisent un code ; `preparation.ts` : compte en fin de chaque test ; `structure.test.ts` (exports vus par le nom du paquet) |
+| AC32    | 0, 2, 3 | aucun alias dans les configurations du bloc 0 ; lien de workspace `@notionlike/document`                                                                                                                 | `structure.test.ts` (exports, configurations sans alias, sous-chemin refusé) ; `pnpm typecheck` ; `pnpm --filter @notionlike/web build`                                                                                                                                        |
 
 ## Levée de D-006
 
-**Décision.** Amendement F-002 de l'ADR-0003, commité avec ce plan : `fermer()`, récepteur facultatif à la création, repli sur `console.error`. L'ADR-0007 dit ce que la session en fait.
+**Décision.** Amendement F-002 de l'ADR-0003 (proposé), commité avec ce plan : `fermer()`, code `facade-fermee`, diffusion sous garde signalée par `console.error`, aucun paramètre ajouté. L'ADR-0007 dit ce que la session en fait.
 
-**Test de couture des appelants (AC31)**, dans `apps/web/test/coutures.test.ts`, parce qu'`import.meta.glob` y est typé (`vite/client`) et pas dans `packages/document` (`types` vide). Il lit en `?raw` : `apps/web/src/**`, `apps/web/test/**`, `apps/web/e2e/**`, `packages/*/src/**`, `packages/*/test/**` (essai X : treize fichiers trouvés sur le gabarit). Il retient tout fichier qui contient un appel à `creerDocumentEspace(` ou à `ouvrirDocumentEspace(`, ou un appel à `abonner` d'une façade, hors `document-espace.ts` qui les définit, et compare leur liste, exacte et triée, à une table tenue dans le test :
+**Ce que le changement de contrat touche, et le test qui énumère chaque sorte d'appelant** (grille du gate, point 9). Tout est dans `apps/web/test/coutures.test.ts`, parce qu'`import.meta.glob` y est typé (`vite/client`) et pas dans `packages/document` (`types` vide). Le test lit en `?raw` : `apps/web/src/**`, `apps/web/test/**`, `apps/web/e2e/**`, `packages/*/src/**`, `packages/*/test/**`.
 
-| Sorte d'appelant                                                                                                     | Ce que la table exige                                                                                                                         |
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| code de production (`apps/web/src/espace/session-espace.ts`, seul à ce jour)                                         | le test qui le couvre (`session-fermeture.test.tsx`) existe ; le fichier passe un récepteur à l'ouverture et appelle `fermer()` de la façade  |
-| tests et aides écrits ou retouchés par F-002 (`apps/web/test/**`, `packages/document/test/fermeture.test.ts`)        | le fichier ferme ce qu'il ouvre : par une aide de `aides-*.ts` qui ferme en fin de test, ou par un appel à `fermer()` dans le fichier         |
-| tests de F-001 (`abonnement.test.ts`, `aides.ts`, `convergence.test.ts`, `operations.test.ts`, `robustesse.test.ts`) | liste fermée, nommée « façades de test de F-001, non modifiables (AC31) » : le test échoue si un fichier s'y ajoute ou en sort sans y figurer |
+| Ce qui change                                               | Appelants touchés                                        | Preuve                                              |
+| ----------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------- |
+| une façade ouverte doit être fermée (`fermer()`)            | tout fichier qui ouvre une façade                        | énumération des ouvrants, fermeture par le compte   |
+| un rappel d'abonné qui lève ne remonte plus                 | tout abonné d'une façade : dans `src/`, la session seule | « la session seule tient une façade », plus AC29    |
+| `CodeErreurDocument` reçoit `facade-fermee`                 | tout module qui lit un code d'erreur du document         | énumération des lecteurs de code, message exigé     |
+| signatures de `creerDocumentEspace`, `ouvrirDocumentEspace` | aucune ne change                                         | les fichiers de test de F-001 passent sans retouche |
 
-Un appelant nouveau, dans n'importe quel paquet, fait échouer le test tant qu'il n'est pas inscrit avec sa sorte. La troisième ligne est une lecture de la spec, à trancher par le dev (« Points de la spec », 7).
+**Qui ouvre une façade.** Un fichier est un ouvrant s'il contient un appel `creerDocumentEspace(` ou `ouvrirDocumentEspace(`. La liste des ouvrants, exacte et triée, est comparée à quatre sortes tenues dans le test ; un fichier de plus ou de moins, dans n'importe quel paquet, fait échouer le test tant qu'il n'est pas inscrit dans sa sorte.
 
-**`ARCHITECTURE.md`, phrases à réviser après le bloc 1** (numéros de ligne de la version de HEAD) :
+| Sorte                                                                                                                                                                                   | Ce que le test exige                                                                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| définition : `packages/document/src/document-espace.ts`                                                                                                                                 | rien : c'est le fichier qui définit les deux fonctions                                                                                                                                                                              |
+| production : `apps/web/src/espace/session-espace.ts`, seul à ce jour (ligne ajoutée au bloc 3)                                                                                          | le test l'exécute : session démarrée, attente de la phase `pret`, un écouteur ; `session.fermer()`, zéro écouteur, qui est le compte d'un `Y.Doc` neuf relevé dans le même test                                                     |
+| aides suivies : `apps/web/test/aides-facade.ts`, `packages/document/test/fermeture.test.ts`                                                                                             | chacun contient exactement deux appels d'ouverture, ceux de ses deux aides ; aucun autre fichier de `apps/web/test` ni d'`apps/web/e2e` n'ouvre de façade ni n'appelle `demarrerSessionEspace(` : ils passent par `aides-facade.ts` |
+| « façades de test de F-001, non modifiables (AC31) » : `abonnement.test.ts`, `aides.ts`, `convergence.test.ts`, `operations.test.ts`, `robustesse.test.ts` de `packages/document/test/` | liste fermée et nommée : chaque fichier existe, ouvre encore une façade et ne contient aucun appel `.fermer(` ; sinon le test échoue et la liste est à reprendre (F-002-AC31, H15)                                                  |
 
-- l. 43 : « Façade `DocumentEspace`, sept membres » devient huit, avec `fermer()` ; les deux fonctions de création reçoivent leur second paramètre ;
-- l. 47 et l. 97-98 : `abonner` et l'écouteur — la diffusion est sous garde, l'exception va au récepteur ou à `console.error` ;
-- l. 103 : « Un rappel d'abonné qui lève n'est pas rattrapé… » est remplacée par le comportement livré ;
-- l. 108 : « La façade ne retire jamais son écouteur… » est remplacée par la fermeture ;
-- l. 114 : six fichiers de test deviennent sept ;
-- l. 192, menaces : « un rappel d'abonné qui lève pendant `Y.applyUpdate` » sort de la liste des abus sans parade.
+**La fermeture est prouvée par le compte d'écouteurs, pas par le texte.** Le compte se lit par `doc._observers.get("afterTransaction")?.size ?? 0`. Une façade y ajoute un écouteur à l'ouverture et l'en retire à la fermeture ; ni la session ni la persistance n'en posent sur cet événement (`y-indexeddb` écoute `update` et `destroy`).
+
+- `aides-facade.ts` relève le compte du `Y.Doc` avant chaque ouverture et garde ce départ avec le moyen de fermer (la façade, ou la session qui la porte). `preparation.ts`, chargé avant chaque fichier de test du projet `web`, ferme en fin de chaque test tout ce que les aides ont ouvert, puis exige que `facadesEncoreOuvertes()` rende zéro : aucun `Y.Doc` suivi ne garde plus d'écouteurs qu'à son départ. Un test n'a donc pas à penser à fermer, et une fermeture qui ne retirerait pas l'écouteur fait échouer tous les tests qui ouvrent une façade (essai F : `doc.off` retiré du prototype, 69 tests en échec dans 11 fichiers).
+- `fermeture.test.ts` fait de même dans son propre `afterEach`, avec ses deux aides locales : le projet `document` n'a pas de fichier de préparation, et `apps/web` ne peut pas importer un fichier de test du paquet (contrat `web-document-par-ses-exports`). Le test de couture ne peut pas exécuter ce fichier ; il vérifie qu'il n'ouvre que par ses deux aides, et la preuve par le compte tourne dans le projet `document`.
+- La session créée par `main.tsx` quand un test importe l'entrée n'est pas suivie : `main.tsx` n'est pas un ouvrant, et sa session vit autant que le module, comme dans l'onglet (ADR-0007).
+
+**La façade n'est pas confondue avec la session ni avec la persistance.** Trois objets portent `abonner` et `fermer`. Le test ne cherche aucun de ces deux mots : un appelant de l'`abonner` d'une façade est un fichier qui tient une façade, et le test énumère ceux qui en tiennent une.
+
+- Dans `apps/web/src`, tenir une façade entière oblige à l'ouvrir ou à nommer son type : le test exige que `session-espace.ts` soit le seul fichier de `src/` où figure le mot `DocumentEspace` seul (ni `creerDocumentEspace` ni `ouvrirDocumentEspace`). Les composants reçoivent `Pick<DocumentEspace, …>` par le type de l'état, déclaré dans ce fichier, qui ne porte ni `abonner` ni `fermer`.
+- Dans les tests, toute façade vient d'une aide suivie ou de la liste fermée de F-001.
+- Un test exécuté prouve la distinction : une façade et une persistance ouvertes sur le même `Y.Doc` ; `persistance.fermer()` ; `facadesEncoreOuvertes()` rend encore un ; `facade.fermer()` ; zéro. La fermeture de la persistance ne vaut donc pas fermeture de la façade, et une façade laissée ouverte est vue (essai F).
+
+**Qui lit un code d'erreur.** Le test énumère les fichiers de `src/` du workspace, hors `packages/document`, qui nomment `CodeErreurDocument` ou lisent le champ `code` d'une erreur, et compare leur liste à une table : `interface/messages.ts` (traduit chaque code), `interface/Application.tsx` (passe le code à `messages.ts`), `espace/session-espace.ts` (ne lit que `version-non-prise-en-charge`). Il exige que `messages.ts`, seul traducteur, porte une entrée `facade-fermee`, et que son message soit une phrase française sans le code (F-002-AC15).
+
+**Par bloc.** Bloc 2 : `aides-facade.ts`, l'`afterEach` de `preparation.ts`, l'énumération des ouvrants sans la ligne de production, la liste fermée, le test « persistance et façade ». Bloc 3 : la ligne de production et son test exécuté, `demarrerSession`, « la session seule tient une façade », les lecteurs de code. Mécanisme entier essayé sur le gabarit (essai F : sept tests de couture, verts ; rouges quand une clé de la table est fausse).
+
+**`ARCHITECTURE.md`, phrases de la version de HEAD à réviser après le bloc 1** (citées par leur début, les numéros de ligne n'étant pas stables) :
+
+- « Façade `DocumentEspace`, sept membres » devient huit, avec `fermer()` ; les deux fonctions de création ne changent pas ;
+- ligne du tableau des fichiers pour `erreurs.ts` et liste « ordre des validations » : `facade-fermee`, contrôlé en premier ;
+- « `abonner(rappel)` : inscrit un rappel… » et « À chaque fin de transaction… » : la diffusion est sous garde, l'exception va à `console.error` ; rien n'est inscrit après fermeture ;
+- « Un rappel d'abonné qui lève n'est pas rattrapé… » est remplacée par le comportement livré ;
+- « La façade ne retire jamais son écouteur… » est remplacée par la fermeture, fermeture pendant la diffusion comprise ;
+- « Six fichiers de test dans `test/` » deviennent sept ;
+- menaces : « un rappel d'abonné qui lève pendant `Y.applyUpdate` » sort de la liste des abus sans parade.
 
 **Dette.** D-006 est close par le dev dans `PROJECT_LOG.md` à la livraison (spec, prérequis).
 
@@ -385,8 +451,8 @@ Un appelant nouveau, dans n'importe quel paquet, fait échouer le test tant qu'i
 
 | Après le bloc | Ce qui entre dans `ARCHITECTURE.md`                                                                                                                                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0             | rien sur le code (aucun module) ; la liste des contrats en vigueur passe à quinze                                                                                                                                                                                                    |
-| 1             | les six révisions de « Levée de D-006 »                                                                                                                                                                                                                                              |
+| 0             | rien sur le code (aucun module) ; la liste des contrats en vigueur passe à seize, et les règles ESLint d'`apps/web/src` y entrent                                                                                                                                                    |
+| 1             | les sept révisions de « Levée de D-006 »                                                                                                                                                                                                                                             |
 | 2             | section `apps/web` : modules `identifiants/` et `persistance/`, leurs dépendances, flux d'enregistrement et de relecture ; l. 15 (« Aucun autre paquet ne l'importe… ») : le paquet est importé par son nom ; menaces : identifiant forgé dans un nom de base, espace relu illisible |
 | 3             | modules `espace/`, `navigation/`, `interface/`, entrée ; flux d'une mise à jour reçue jusqu'à l'écran ; menaces : fragment d'adresse forgé ou géant, titre piégé, ouverture hors contexte sécurisé, exception d'un abonné                                                            |
 | 4             | ce que le bout en bout couvre et ce qu'aucun hook ne lance (D-003)                                                                                                                                                                                                                   |
@@ -394,11 +460,12 @@ Un appelant nouveau, dans n'importe quel paquet, fait échouer le test tant qu'i
 ## Stratégie de test
 
 - Vitest, projet `web`, environnement jsdom. `test/preparation.ts` donne à chaque test un `IDBFactory` neuf de `fake-indexeddb` et remet le fragment à zéro. La configuration restaure les espions et les globales simulées après chaque test (`restoreMocks`, `unstubGlobals`).
-- Les tests de composants rendent `<Application session={demarrerSessionEspace()} />` sous `StrictMode` et agissent par `@testing-library/user-event` ; ils retrouvent les éléments par rôle et nom accessible, jamais par classe. Chaque session démarrée est fermée en fin de test par l'aide.
+- Les tests de composants rendent `<Application session={demarrerSessionEspace()} />` sous `StrictMode` et agissent par `@testing-library/user-event` ; ils retrouvent les éléments par rôle et nom accessible, jamais par classe. Chaque session démarrée est suivie par `aides-facade.ts` et fermée en fin de test.
 - Horloge simulée : `vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })`. Simuler toute l'horloge figerait `fake-indexeddb`, qui s'ordonnance par `setImmediate`.
 - Échecs d'IndexedDB : `indexedDB` retiré de `globalThis` ; `indexedDB.open` remplacé par une demande qui échoue, qui lève, ou qui ne répond jamais puis tard ; écriture et lecture en échec par une vraie erreur de contrainte de `fake-indexeddb`.
 - Contexte non sécurisé : `vi.stubGlobal("crypto", {})` (essai T2).
 - Exception d'un abonné : `vi.spyOn(console, "error")`, rendue muette dans le test.
+- Façades et sessions : ouvertes par `test/aides-facade.ts` seulement ; `preparation.ts` les ferme en fin de test et exige le compte d'écouteurs du départ (« Levée de D-006 »).
 - Playwright sur Chromium, serveur de développement de Vite lancé par `webServer` sur le port 5174 (5173 reste libre pour `pnpm dev`), `reuseExistingServer: false`.
 
 Reste au bout en bout seulement, donc hors des hooks : AC23 ; le rechargement réel d'AC2 ; deux onglets réels (AC4) ; l'absence de requête vers une autre origine observée à l'exécution et les actions réseau coupé (AC19) ; la console du navigateur (AC21). La construction (AC32) et la vérification des types sont hors des hooks aussi.
@@ -412,44 +479,50 @@ Reste au bout en bout seulement, donc hors des hooks : AC23 ; le rechargement r�
 | relecture                     | échec de lecture ; contenu partiel                                            | garde en capture ; la bibliothèque applique tout ce qui est stocké en une transaction, la façade n'est ouverte qu'après |
 | identifiant de l'espace local | deux onglets ensemble ; base de l'appareil inutilisable ; valeur illisible    | une transaction ; candidat gardé en mémoire, persistance `coupee`, aucune base d'espace                                 |
 | fragment de l'adresse         | vide, de forme inconnue, identifiant qui n'est pas un UUID canonique, géant   | accueil, ou « Page introuvable » sans rien garder de la chaîne                                                          |
-| `lire()`                      | version non prise en charge, à l'ouverture ou plus tard                       | `try` dans la session, phase dédiée, persistance et façade fermées                                                      |
+| `lire()`                      | version non prise en charge, à l'ouverture ou plus tard                       | `try` dans la session, phase dédiée, façade et persistance fermées, y compris depuis le rappel de la façade             |
 | arborescence                  | page absente puis revenue, filles à la racine entre-temps (entrée incomplète) | affichage dérivé au rendu, aucun effet correctif ; l'adresse n'est pas modifiée                                         |
 | page sélectionnée             | absente, à la corbeille, jamais existante                                     | « Page introuvable », barre latérale utilisable                                                                         |
 | saisie en cours               | page retirée ou mise à la corbeille pendant la saisie                         | l'opération lève, message en français, rien n'est perdu de la lecture                                                   |
 | écriture                      | échec, quota, connexion fermée, rechargement immédiat                         | garde `error`, `abort`, `close` ; `coupee`, avertissement ; chaque écriture validée par `commit()`                      |
-| abonné                        | lève pendant une diffusion                                                    | les autres sont prévenus ; l'exception va au récepteur, donc à la console d'erreur                                      |
+| abonné                        | lève pendant une diffusion                                                    | les autres sont prévenus ; l'exception est signalée par `console.error`, une fois                                       |
 | `crypto.randomUUID`           | absente                                                                       | écran d'explication, rien n'est créé                                                                                    |
 
 ## Règles de dépendances
 
-Les sept contrats de HEAD sont conservés tels quels (`pas-de-cycle`, `domaine-pur`, `paquets-sans-apps`, `apps-isolees`, `document-sans-reseau-ni-base`, `document-yjs-seulement`, `document-coeur-pur`). Huit contrats sont ajoutés, tous en liste blanche ou en confinement, ce qui porte la liste à quinze :
+Les sept contrats de HEAD sont conservés tels quels (`pas-de-cycle`, `domaine-pur`, `paquets-sans-apps`, `apps-isolees`, `document-sans-reseau-ni-base`, `document-yjs-seulement`, `document-coeur-pur`). Neuf contrats sont ajoutés, tous en liste blanche ou en confinement, ce qui porte la liste à seize :
 
-| Contrat                             | Règle                                                                                                                                                             | Critère    |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `web-y-indexeddb-confinee`          | dans `apps/web` (tests et bout en bout compris), seul `src/persistance/indexeddb.ts` importe `y-indexeddb`                                                        | AC22       |
-| `web-document-par-ses-exports`      | `apps/web` (tests compris) n'atteint `packages/document` que par `src/index.ts`, y compris par un sous-chemin du nom du paquet                                    | AC22, AC32 |
-| `web-persistance-par-son-interface` | hors du module, seul `src/persistance/index.ts` est importable (tests compris)                                                                                    | AC22       |
-| `web-identifiants-pur`              | `src/identifiants/` n'importe que lui-même                                                                                                                        | AC27       |
-| `web-persistance-liste-blanche`     | `src/persistance/` n'importe que lui-même, `src/identifiants/`, `yjs` et `y-indexeddb`                                                                            | ADR-0008   |
-| `web-espace-liste-blanche`          | `src/espace/` n'importe que lui-même, `persistance/index.ts`, l'entrée de `@notionlike/document` et `yjs`                                                         | ADR-0007   |
-| `web-navigation-liste-blanche`      | `src/navigation/` n'importe que lui-même et `src/identifiants/`                                                                                                   | AC27       |
-| `web-src-liste-blanche`             | le reste de `src/` (interface, entrée, tout dossier à venir) n'importe que `src/` hors `persistance/`, l'entrée de `@notionlike/document`, `react` et `react-dom` | AC19, AC22 |
+| Contrat                             | Règle                                                                                                                                                                                | Critère    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `web-y-indexeddb-confinee`          | dans `apps/web` (tests et bout en bout compris), seul `src/persistance/indexeddb.ts` importe `y-indexeddb`                                                                           | AC22       |
+| `web-document-par-ses-exports`      | `apps/web` (tests compris) n'atteint `packages/document` que par `src/index.ts`, y compris par un sous-chemin du nom du paquet                                                       | AC22, AC32 |
+| `web-persistance-par-son-interface` | hors du module, seul `src/persistance/index.ts` est importable (tests compris)                                                                                                       | AC22       |
+| `web-identifiants-pur`              | `src/identifiants/` n'importe que lui-même                                                                                                                                           | AC27       |
+| `web-persistance-liste-blanche`     | `src/persistance/` n'importe que lui-même, `src/identifiants/`, `yjs` et `y-indexeddb`                                                                                               | ADR-0008   |
+| `web-espace-liste-blanche`          | `src/espace/` n'importe que lui-même, `persistance/index.ts`, l'entrée de `@notionlike/document` et `yjs`                                                                            | ADR-0007   |
+| `web-navigation-liste-blanche`      | `src/navigation/` n'importe que lui-même et `src/identifiants/`                                                                                                                      | AC27       |
+| `web-formes-pures`                  | `src/navigation/route.ts` et `src/persistance/nom-de-base.ts` n'importent que `src/identifiants/` : ni un fichier de leur propre module, ni aucun paquet                             | AC25, AC27 |
+| `web-src-liste-blanche`             | le reste de `src/` (interface, entrée, tout dossier à venir) n'importe que `src/` hors `persistance/` et `identifiants/`, l'entrée de `@notionlike/document`, `react` et `react-dom` | AC19, AC22 |
 
-Une liste blanche refuse sans énumération tout le reste : autre paquet npm, dépendance de développement, module de Node, import non résolu. Chaque contrat est prouvé par une violation jetable sur le texte du bloc 0 (essai C, 18 cas). Par rapport au plan précédent : `web-identifiants-pur` est nouveau, `web-navigation-pure` devient `web-navigation-liste-blanche`, `web-persistance-liste-blanche` admet `identifiants/`.
+Une liste blanche refuse sans énumération tout le reste : autre paquet npm, dépendance de développement, module de Node, import non résolu. Chaque contrat est prouvé par une violation jetable sur le texte du bloc 0 (essai C, 25 cas). Par rapport à la première version de ce plan : `web-formes-pures` est nouveau ; `web-src-liste-blanche` ne s'applique plus à `navigation/` ni à `identifiants/`, qui ont leur propre liste, et refuse `identifiants/` comme cible, de sorte qu'`interface/` ne peut plus l'importer.
+
+**Un `import type` est vu par les contrats.** L'option `tsPreCompilationDeps: true` de `.dependency-cruiser.cjs`, en place à HEAD et non modifiée par le bloc 0, fait analyser les imports avant que TypeScript n'efface ceux qui ne portent que des types. Essayé (essai C) : `import type * as Y from "yjs"` dans `src/interface/` déclenche `web-src-liste-blanche` (cas 23), dans `nom-de-base.ts` il déclenche `web-formes-pures` (cas 22), et un `import type` de `persistance/nom-de-base.ts` depuis `src/interface/` déclenche `web-persistance-par-son-interface` et `web-src-liste-blanche` (cas 24).
 
 Barrières ESLint ajoutées sur `apps/web/src/**` (chacune prouvée par une violation jetable, essai L) :
 
-| Interdit                                                                                | Exception            | Critère        |
-| --------------------------------------------------------------------------------------- | -------------------- | -------------- |
-| globales `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` ; propriété `sendBeacon` | aucune               | AC19           |
-| globale `indexedDB` (y compris `window.indexedDB`, `globalThis.indexedDB`)              | `src/persistance/**` | AC22, ADR-0008 |
-| globales `localStorage`, `sessionStorage`                                               | aucune               | ADR-0008       |
-| littéral ou gabarit contenant `notionlike:`                                             | `src/persistance/**` | AC25           |
-| `Math.random`, `getRandomValues`                                                        | aucune               | AC26           |
-| `randomUUID`                                                                            | `src/espace/**`      | AC26           |
-| `pushState`, `replaceState`                                                             | aucune               | H4             |
-| `innerHTML`, `outerHTML`, `insertAdjacentHTML`, attribut `dangerouslySetInnerHTML`      | aucune               | AC18           |
-| `transact`, `getMap`, `getArray`, `getText`, `getXmlFragment`, `getXmlElement`          | aucune               | AC22, ADR-0007 |
+| Interdit                                                                                                                                                                                                              | Exception            | Critère            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------ |
+| globales `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` ; propriété `sendBeacon`                                                                                                                               | aucune               | AC19               |
+| globale `indexedDB` (y compris `window.indexedDB`, `globalThis.indexedDB`)                                                                                                                                            | `src/persistance/**` | AC22, ADR-0008     |
+| globales `localStorage`, `sessionStorage`                                                                                                                                                                             | aucune               | ADR-0008           |
+| littéral ou gabarit contenant `notionlike:`                                                                                                                                                                           | `src/persistance/**` | AC25               |
+| `Math.random`, `getRandomValues`                                                                                                                                                                                      | aucune               | AC26               |
+| `randomUUID`                                                                                                                                                                                                          | `src/espace/**`      | AC26               |
+| globales `window`, `self`, `globalThis`, `document`, `location`, `history`, `navigator`, `crypto`, `indexedDB`, dans les trois fichiers purs (`identifiants/**`, `navigation/route.ts`, `persistance/nom-de-base.ts`) | aucune               | ADR-0007, ADR-0008 |
+| `pushState`, `replaceState`                                                                                                                                                                                           | aucune               | H4                 |
+| `innerHTML`, `outerHTML`, `insertAdjacentHTML`, attribut `dangerouslySetInnerHTML`                                                                                                                                    | aucune               | AC18               |
+| `transact`, `getMap`, `getArray`, `getText`, `getXmlFragment`, `getXmlElement`                                                                                                                                        | aucune               | AC22, ADR-0007     |
+
+La dernière ligne est la barrière de pureté des trois fichiers de calcul : un bloc ESLint placé après les autres, qui y remplace la règle des globales par la liste la plus large. `nom-de-base.ts` garde le droit d'écrire `notionlike:`, qu'il tient du bloc de `persistance/`, et perd celui de nommer `indexedDB` (essai L).
 
 Ces règles ne visent que `src/` : les tests écrivent dans un `Y.Doc` (version 2 pour AC17), lisent IndexedDB et `doc._observers` pour constater. `checkGlobalObject` ne voit `window.indexedDB` que si `window` est déclarée comme globale ; le bloc ESLint la déclare, avec `self`. `console.error` reste permis (`no-console` l'admet déjà à HEAD).
 
@@ -466,19 +539,22 @@ La barre d'outils permanente que F-004 rend flottante appartient à F-003 : F-00
 
 ## Points de la spec à connaître
 
-Aucun critère n'est jugé irréalisable. Neuf points où la lettre de la spec, le code de F-001 ou la bibliothèque obligent à préciser ; les points 7 à 9 demandent une décision du dev.
+Aucun critère n'est jugé irréalisable, et aucun point n'attend plus de décision : les six critères que la première version de ce plan lisait contre leur lettre ont été réécrits (H15, commit `3a1253a`), et ce plan les applique tels qu'ils sont. Ce qui suit dit seulement où chacun est tenu.
 
-1. **AC17, « n'écrire aucune mise à jour dans IndexedDB ».** `y-indexeddb` écrit un enregistrement vide (deux octets) à chaque ouverture, avant de relire (essai E10). La lettre du critère n'est pas tenable avec cette bibliothèque. Ce qui est tenu et testé : l'état relu de la base est identique octet pour octet, aucun enregistrement non vide n'est ajouté, et la persistance est fermée dès le refus.
-2. **AC16, rejets émis par la bibliothèque.** Tenu pour `indexedDB` absent, pour l'ouverture refusée (sonde) et pour une lecture ou une écriture en échec (garde en capture). Non couvert : une ouverture qui réussit pour la sonde puis échoue pour la bibliothèque dans l'instant qui suit.
-3. **AC24, « ne plus rien lire ».** Après l'échéance, une ouverture tardive laisse la bibliothèque finir la lecture qu'elle avait lancée ; rien n'est appliqué au document ni écrit (essai E9).
-4. **`creerDocumentEspace` n'est pas appelée par l'application** (ADR-0007). La clause d'AC21 sur le document qu'elle fournit est tenue par un test ; celle qui compte à l'exécution, par `session.doc instanceof Y.Doc`.
-5. **La limite de 200 caractères n'est pas exportée par `@notionlike/document`** : `messages.ts` en garde une constante, tenue par un test de couture.
-6. **Emplacement de l'identifiant de l'espace local** (H1 ne le dit pas) : la base `notionlike:appareil` (ADR-0008). Elle apparaît dans l'énumération des bases de l'appareil.
-7. **AC31, deux exigences qui se heurtent.** Le critère demande que les tests de F-001 restent verts « sans modification » et que le test de couture échoue si un appelant, tests de `packages/*` compris, « ne ferme pas la façade qu'il ouvre ». Cinq fichiers de test de F-001 ouvrent des façades sans les fermer, et ne peuvent le faire qu'en étant modifiés. Ce plan ne tranche pas à la place du dev : il inscrit ces cinq fichiers dans une liste fermée et nommée du test de couture, et applique la règle de fermeture au code de production et à tout test écrit ou retouché par F-002. Leurs façades vivent sur des `Y.Doc` qui meurent avec le test. Si le dev veut la lettre, il faut autoriser la retouche des tests de F-001 (une aide commune qui ferme en fin de test) : c'est une modification de la spec.
-8. **AC29, façade créée sans récepteur.** La spec veut l'exception « remise à l'appelant qui a créé la façade » ; un appelant qui n'a donné aucun récepteur ne peut la recevoir que par la pile (interdit par le même critère) ou par un canal commun. Ce plan retient `console.error`, qui n'est pas une globale du navigateur. L'autre lecture possible, écartée : relancer l'exception en fin de diffusion quand il n'y a pas de récepteur, ce qui laisserait `Y.applyUpdate` lever.
-9. **AC30, « quand il ferme la session ».** Aucun écran de F-002 ne ferme une session : elle vit autant que l'onglet. `SessionEspace.fermer()` est livrée parce que le critère l'exige ; ses appelants sont les tests, et la façade est fermée en production à l'entrée dans `version-non-prise-en-charge`. Le premier écran à fermer une session sera celui du changement d'espace (F-014).
+1. **AC17** admet l'enregistrement vide de deux octets que `y-indexeddb` écrit à chaque ouverture, et exige : persistance fermée dès le refus, aucun enregistrement non vide ajouté, état relu identique octet pour octet, enregistrements relevés avant et après (essai E10 ; test de l'archive repris au bloc 3).
+2. **AC16** nomme trois cas, chacun avec son test, et accepte une limite : une ouverture qui réussit pour la sonde du module puis échoue aussitôt pour la bibliothèque. Aucun test ne la couvre ; l'échéance d'AC24 rend la main (ADR-0008).
+3. **AC24** admet que la bibliothèque finisse la lecture lancée avant l'échéance, et exige qu'une réponse tardive ne change ni l'arborescence ni la base (essai E9 ; tests de l'archive repris au bloc 2).
+4. **AC29** fixe le canal : `console.error`, une fois par rappel fautif, sans paramètre ajouté ; la session garde ses abonnés de la même façon (ADR-0003, ADR-0007).
+5. **AC30** fixe `fermer()`, la fermeture depuis un rappel, la lecture et `abonner` après fermeture, le code `facade-fermee`, et admet que la seule fermeture de production soit l'entrée dans « version non prise en charge » : `SessionEspace.fermer()` est livrée pour F-014 et atteinte par les tests.
+6. **AC31** exempte de fermeture cinq fichiers de test de F-001 par une liste fermée, exige la preuve par le compte d'écouteurs et l'énumération des modules qui traduisent un code (« Levée de D-006 »).
 
-Sans décision à prendre : le prérequis « ajout d'`apps/*` aux projets du `vitest.config.ts` de la racine » est déjà en place à HEAD ; ce fichier et le `package.json` de la racine ne changent pas. `packages/document/package.json` non plus.
+Trois précisions qui ne touchent aucun critère :
+
+- **`creerDocumentEspace` n'est pas appelée par l'application** (ADR-0007). La clause d'AC21 sur le document qu'elle fournit est tenue par un test ; celle qui compte à l'exécution, par `session.doc instanceof Y.Doc`.
+- **La limite de 200 caractères n'est pas exportée par `@notionlike/document`** : `messages.ts` en garde une constante, tenue par un test de couture.
+- **Emplacement de l'identifiant de l'espace local** (H1 ne le dit pas) : la base `notionlike:appareil` (ADR-0008). Elle apparaît dans l'énumération des bases de l'appareil.
+
+Le prérequis « ajout d'`apps/*` aux projets du `vitest.config.ts` de la racine » est déjà en place à HEAD ; ce fichier et le `package.json` de la racine ne changent pas. `packages/document/package.json` non plus.
 
 ## Bloc 0 (dev)
 
@@ -489,10 +565,10 @@ Huit fichiers, pour F-002 seule : cinq créés, deux fichiers protégés modifi�
 | `apps/web/package.json`         | nouveau, réservé | scripts `dev`, `build`, `test`, `test:e2e`, `lint`, `format`, `typecheck` ; cinq dépendances, onze de développement |
 | `apps/web/vitest.config.ts`     | nouveau, protégé | projet `web`, jsdom, `test/**/*.test.{ts,tsx}`, fichier de préparation                                              |
 | `apps/web/tsconfig.json`        | nouveau, partagé | DOM, `react-jsx`, types de `vite/client` ; aucun `paths`                                                            |
-| `apps/web/vite.config.ts`       | nouveau, partagé | greffon React, serveur sur `127.0.0.1` seulement ; aucun `alias`                                                    |
+| `apps/web/vite.config.ts`       | nouveau, partagé | greffon React, serveur de développement sur `127.0.0.1` seulement ; aucun `alias`, aucun bloc `preview`             |
 | `apps/web/playwright.config.ts` | nouveau, protégé | Chromium, `webServer` sur le port 5174                                                                              |
-| `.dependency-cruiser.cjs`       | modifié, protégé | huit contrats ajoutés en fin de liste                                                                               |
-| `eslint.config.mjs`             | modifié, protégé | constantes et trois blocs pour `apps/web/src`                                                                       |
+| `.dependency-cruiser.cjs`       | modifié, protégé | neuf contrats ajoutés en fin de liste                                                                               |
+| `eslint.config.mjs`             | modifié, protégé | constantes et quatre blocs pour `apps/web/src`                                                                      |
 | `pnpm-lock.yaml`                | modifié, partagé | par `pnpm install`                                                                                                  |
 
 Où le lancer : à la racine du dépôt principal, sur la branche `F-002`, **après la mise à l'abri**. Le script part des fichiers de HEAD : il refuse d'écrire si l'un des cinq fichiers à créer existe, si `apps/web/src`, `test`, `e2e` ou `index.html` existent, ou si `.dependency-cruiser.cjs`, `eslint.config.mjs`, `pnpm-lock.yaml` ou `packages/` portent une modification non commitée. C'est ce qui sépare F-002 de F-003 pour les fichiers protégés : la version F-002 seule n'est pas extraite de l'arbre mêlé, elle est construite sur HEAD, et la part de F-003 reste entière sur la branche d'archive (essai S1 : les fichiers de l'archive sont identiques à ceux de l'arbre, à l'octet près).
@@ -503,7 +579,9 @@ sed -n '/^# F-002 BLOC 0 DEBUT$/,/^# F-002 BLOC 0 FIN$/p' docs/decisions/F-002-c
 
 Le script vérifie tout avant d'écrire : sur `ARRET`, rien n'est écrit ; relancé après un succès, il s'arrête sans rien écrire. Sa dernière ligne, `bloc 0 : code=0`, dit que l'installation et les cinq contrôles ont tous fini en code 0. Le dev commite alors les huit fichiers en un commit `Agent: dev`, `Feature: F-002`. Si un contrôle est rouge pour une raison étrangère au bloc 0, les fichiers sont écrits et l'installation est faite : il reste à relancer les contrôles, pas le script.
 
-Le texte exact de chaque fichier est dans le script : les cinq fichiers créés sont les valeurs du dictionnaire `NOUVEAUX` (seule la version de `yjs` est lue dans `packages/document/package.json`, pour rester à la même version exacte) ; les fragments insérés sont `CONTRATS_AJOUTES`, `ESLINT_CONSTANTES` et `ESLINT_BLOCS`. Les repères d'insertion sont la fin de la liste `forbidden`, le début de l'appel `tseslint.config` et le bloc `**/*.cjs` ; la conception de F-008 a essayé la composition de son bloc 0 avec la version précédente de celui-ci, dans les deux ordres.
+Le texte exact de chaque fichier est dans le script : les cinq fichiers créés sont les valeurs du dictionnaire `NOUVEAUX` (seule la version de `yjs` est lue dans `packages/document/package.json`, pour rester à la même version exacte) ; les fragments insérés sont `CONTRATS_AJOUTES`, `ESLINT_CONSTANTES` et `ESLINT_BLOCS`. Les repères d'insertion sont la fin de la liste `forbidden`, le début de l'appel `tseslint.config` et le bloc `**/*.cjs` ; la conception de F-008 a essayé la composition de son bloc 0 avec une version antérieure de celui-ci (sept contrats), dans les deux ordres ; elle ne l'a pas été avec celle-ci.
+
+**Ce texte cesse de faire foi une fois commité.** Le script sert une fois. Dès que le dev a commité le bloc 0, la référence des huit fichiers est le dépôt : `apps/web/package.json`, `apps/web/vitest.config.ts`, `apps/web/tsconfig.json`, `apps/web/vite.config.ts`, `apps/web/playwright.config.ts`, `.dependency-cruiser.cjs`, `eslint.config.mjs`, `pnpm-lock.yaml`, et leur histoire par `git log`. Ce plan n'est pas tenu à jour de leurs évolutions (F-003 y ajoutera ses contrats et ses dépendances) ; `ARCHITECTURE.md`, section « Configuration racine », décrit les contrats et les règles ESLint en vigueur, à partir du bloc 0. Le script lui-même refuse de tourner une seconde fois.
 
 ```bash
 # F-002 BLOC 0 DEBUT
@@ -546,7 +624,7 @@ NOUVEAUX = {
     "fake-indexeddb": "6.2.5",
     "jsdom": "30.1.1",
     "vite": "8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "5.0.3"
   }
 }
 ''',
@@ -584,7 +662,6 @@ const HOTE_LOCAL = "127.0.0.1";
 export default defineConfig({
   plugins: [react()],
   server: { host: HOTE_LOCAL, port: 5173, strictPort: true },
-  preview: { host: HOTE_LOCAL, port: 4173, strictPort: true },
 });
 ''',
     "apps/web/playwright.config.ts": '''import { defineConfig, devices } from "@playwright/test";
@@ -681,14 +758,25 @@ CONTRATS_AJOUTES = r'''    {
       to: { pathNot: ["^apps/web/src/navigation/", "^apps/web/src/identifiants/"] },
     },
     {
+      name: "web-formes-pures",
+      severity: "error",
+      comment:
+        "ADR-0007, ADR-0008 : la forme des routes et le nom des bases sont des calculs purs ; ces deux fichiers n'importent que le contrôle de forme des identifiants (ni leur propre module, ni aucun paquet).",
+      from: { path: "^apps/web/src/(navigation/route|persistance/nom-de-base)\\.ts$" },
+      to: { pathNot: "^apps/web/src/identifiants/" },
+    },
+    {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007 : hors persistance et espace, le code d'apps/web n'importe que src/ (la persistance exceptée), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
-      from: { path: "^apps/web/src/", pathNot: "^apps/web/src/(persistance|espace)/" },
+        "ADR-0007 : hors persistance, espace, navigation et identifiants, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+      from: {
+        path: "^apps/web/src/",
+        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants)/",
+      },
       to: {
         pathNot: [
-          "^apps/web/src/(?!persistance/)",
+          "^apps/web/src/(?!(persistance|identifiants)/)",
           "^packages/document/src/index\\.ts$",
           "(^|/)node_modules/(react|react-dom)/",
         ],
@@ -709,6 +797,24 @@ const GLOBALE_INDEXEDDB = {
   name: "indexedDB",
   message: "F-002-AC22 : seul apps/web/src/persistance appelle IndexedDB.",
 };
+const GLOBALES_D_ENTREE_SORTIE_WEB = [
+  "window",
+  "self",
+  "globalThis",
+  "document",
+  "location",
+  "history",
+  "navigator",
+  "crypto",
+].map((name) => ({
+  name,
+  message: "ADR-0007, ADR-0008 : ce fichier est un calcul pur, sans DOM, adresse ni stockage.",
+}));
+const FICHIERS_PURS_WEB = [
+  "apps/web/src/identifiants/**",
+  "apps/web/src/navigation/route.ts",
+  "apps/web/src/persistance/nom-de-base.ts",
+];
 const PROPRIETES_INTERDITES_WEB = [
   ["random", "Math", "F-002-AC26 : aucun identifiant ni aléa hors de crypto.randomUUID."],
   ["getRandomValues", undefined, "F-002-AC26 : aucun générateur de secours."],
@@ -774,6 +880,18 @@ ESLINT_BLOCS = r'''  {
       "no-restricted-properties": ["error", ...PROPRIETES_INTERDITES_WEB],
     },
   },
+  {
+    files: FICHIERS_PURS_WEB,
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: [...GLOBALES_INTERDITES_WEB, GLOBALE_INDEXEDDB, ...GLOBALES_D_ENTREE_SORTIE_WEB],
+          checkGlobalObject: true,
+        },
+      ],
+    },
+  },
 '''
 REPERE_ESLINT_BLOCS = '  {\n    files: ["**/*.cjs"],'
 
@@ -821,7 +939,7 @@ PY
 ```
 
 - `apps/web/index.html` n'est ni protégé ni partagé : il est repris par le producteur au bloc 3. `apps/web/vitest.config.ts` nomme `test/preparation.ts`, repris au bloc 2 : tant qu'aucun test n'existe, le fichier manquant ne gêne pas (essais S2 et D : `pnpm test` vert après le bloc 0, et avec le prototype du bloc 1).
-- Versions : celles de la spec (veille du 2026-10-08), toutes publiées depuis au moins 7 jours ; pnpm les a toutes acceptées à l'essai, `vite@8.3.2` comprise.
+- Versions : celles de la spec (veille du 2026-10-08), toutes exactes, toutes publiées depuis au moins 7 jours ; pnpm les a toutes acceptées à l'essai, `vite@8.3.2` comprise. `vitest` est en `5.0.3` exact, la version que la spec fixe ; le manifeste de la racine le demande en `^5.0.3` (`git show HEAD:package.json`) et le verrou résout `5.0.3` pour les deux (essai S2 : une seule entrée `vitest@5.0.3`).
 - Attendu : sept lignes `cree` ou `modifie`, puis `All matched files use Prettier code style!`, `no dependency violations found (25 modules, 43 dependencies cruised)`, `Test Files  6 passed (6)`, `Tests  224 passed (224)`, et enfin `bloc 0 : code=0`.
 
 Commandes à part, hors du script :
@@ -837,10 +955,10 @@ pnpm --filter @notionlike/web test:e2e
 
 À décider par le dev, hors agent : ouvrir la dette D-003 ; brancher ou non `test:e2e` dans `.agents/outils.env` ; garder ou supprimer la branche d'archive une fois F-003 livrée.
 
-Preuve des barrières, à rejouer si le dev le souhaite après le bloc 0 (chaque fichier jetable est supprimé après sa commande). `depcruise` sort avec le nombre d'erreurs pour code. Ces commandes ont été rejouées telles quelles dans le clone de l'essai S3, après le bloc 0 : codes 2, 1, 1, et l'arbre du bloc 0 retrouvé à la fin.
+Preuve des barrières, à rejouer si le dev le souhaite après le bloc 0 (chaque fichier jetable est supprimé après sa commande). `depcruise` sort avec le nombre d'erreurs pour code. Ces commandes ont été rejouées telles quelles dans le clone de l'essai S3, après le bloc 0 de cette révision : codes 2, 1, 1, puis 2 et 1, et l'arbre du bloc 0 retrouvé à la fin.
 
 ```bash
-mkdir -p apps/web/src/interface apps/web/test
+mkdir -p apps/web/src/interface apps/web/src/navigation apps/web/test
 # 1. y-indexeddb hors de son fichier : attendu « error web-y-indexeddb-confinee » et « error web-src-liste-blanche », code=2
 printf '%s\n' 'import { IndexeddbPersistence } from "y-indexeddb"; export const x = IndexeddbPersistence;' > apps/web/src/interface/jetable.ts
 pnpm contrats; echo "code=$?"; rm apps/web/src/interface/jetable.ts
@@ -850,21 +968,27 @@ pnpm contrats; echo "code=$?"; rm apps/web/test/jetable.test.ts
 # 3. nom de base et réseau hors du module de persistance : attendu deux erreurs (no-restricted-syntax, no-restricted-globals), code=1
 printf '%s\n' 'export const x = ["notionlike:page:x", typeof fetch];' > apps/web/src/interface/jetable.ts
 pnpm lint; echo "code=$?"; rm apps/web/src/interface/jetable.ts
-rmdir apps/web/src/interface apps/web/src apps/web/test
+# 4. fichier pur qui importe un paquet et lit l'adresse : attendu « error web-formes-pures » et « error web-navigation-liste-blanche », code=2 ; puis une erreur no-restricted-globals, code=1
+printf '%s\n' 'import { useState } from "react"; export const x = [useState, location.hash];' > apps/web/src/navigation/route.ts
+pnpm contrats; echo "code=$?"; pnpm lint; echo "code=$?"; rm apps/web/src/navigation/route.ts
+rmdir apps/web/src/interface apps/web/src/navigation apps/web/src apps/web/test
 ```
 
 ## Essais
 
-Faits le 2026-10-08 dans le dossier temporaire de la session, hors du dépôt, Node 26.11.0, pnpm 12.10.1. Rien n'a été installé ni écrit dans le dépôt hors des quatre documents de cette conception. Deux lieux :
+Faits le 2026-10-08 dans le dossier temporaire de la session, hors du dépôt, Node 26.11.0, pnpm 12.10.1. Rien n'a été installé ni écrit dans le dépôt hors des quatre documents de cette conception. Trois lieux :
 
 - **le clone** : `git clone` du dépôt principal, branche `F-002`, dans lequel les chemins modifiés ou non suivis de l'arbre ont été recopiés, `core.hooksPath` réglé sur `.githooks`, puis `pnpm install --frozen-lockfile --offline` ;
-- **le gabarit** : `git archive HEAD` déplié dans un dossier vide (tous les fichiers suivis, `apps/.gitkeep`, `packages/.gitkeep`, `.agents/`, `.githooks/` compris), `git init`, un commit, `pnpm install --frozen-lockfile --offline`.
+- **le gabarit de la première version** de ce plan : `git archive HEAD` du commit d'alors, déplié dans un dossier vide ;
+- **le gabarit de la révision 1** : `git archive HEAD` du commit `dc82732`, déplié dans un dossier vide (tous les fichiers suivis, `apps/.gitkeep`, `packages/.gitkeep`, `.agents/`, `.githooks/` compris), `git init`, un commit, `pnpm install --frozen-lockfile --offline`. Avant tout ajout : `no dependency violations found (19 modules, 39 dependencies cruised)`.
 
-Les essais D, F, X et G portent sur des prototypes ou sur le code de l'archive recopié dans le gabarit. Ils ne sont pas le code de la feature : le producteur écrit ou reprend le sien.
+Rejoués par la révision 1, sur son gabarit : S2 (bloc 0), C (contrats), L (ESLint), D (façade), F (session et test de couture), les mesures de G. Non rejoués, parce que rien de ce qu'ils éprouvent n'a changé : S1, la mise à l'abri de S3, X, et les essais E, R, T, B du plan précédent.
+
+Les essais D, F, X et G portent sur des prototypes ou sur le code de l'archive recopié dans un gabarit. Ils ne sont pas le code de la feature : le producteur écrit ou reprend le sien.
 
 ### S1 — mise à l'abri, dans le clone, hooks actifs (première forme du script)
 
-Clone portant les 73 chemins de l'arbre, les trois documents de cette conception compris, à l'état non suivi. Les hooks `pre-commit` (formatage, lint, secrets sur le contenu indexé) et `commit-msg` (trailers, périmètre) ont tourné sur le commit d'archive :
+Essai de la première version de ce plan, non rejoué. Clone portant les 73 chemins que l'arbre comptait alors, trois documents de cette conception compris, à l'état non suivi (ils sont commités depuis : l'arbre en compte 70). Les hooks `pre-commit` (formatage, lint, secrets sur le contenu indexé) et `commit-msg` (trailers, périmètre) ont tourné sur le commit d'archive :
 
 ```text
 Checking formatting...
@@ -879,9 +1003,9 @@ abri : 73 chemins dans archive-arbre-2026-10-08 (c82bcc9) ; chemins encore modif
 
 La garde sur les fichiers de traçabilité et sur ce plan a été ajoutée au script après ce passage ; la forme finale est rejouée en S3.
 
-### S2 — script du bloc 0
+### S2 — script du bloc 0 (révision 1)
 
-Lancé deux fois : dans le clone, à la suite de S1 ; dans le gabarit. Sortie dans le gabarit (lignes vides, barre de progression, lignes de durée et avertissements `ExperimentalWarning: localStorage is not available` de Node 26 retirés ; ces avertissements existent à HEAD sans F-002) :
+Extrait de ce document par la commande `sed … | zsh` donnée plus haut, et lancé sur le gabarit de la révision 1. Sortie (lignes vides, barre de progression, lignes de durée et avertissements `ExperimentalWarning: localStorage is not available` de Node 26 retirés ; ces avertissements existent à HEAD sans F-002) :
 
 ```text
 cree     apps/web/package.json
@@ -892,10 +1016,10 @@ cree     apps/web/playwright.config.ts
 modifie  .dependency-cruiser.cjs
 modifie  eslint.config.mjs
 Scope: all 3 workspace projects
-✓ Lockfile passes supply-chain policies (verified 5h ago)
+✓ Lockfile passes supply-chain policies (verified 6h ago)
 Packages: +66 -3
 Progress: resolved 66, reused 195, downloaded 0, added 66, done
-Done in 275ms using pnpm v12.10.1
+Done in 212ms using pnpm v12.10.1
 Checking formatting...
 All matched files use Prettier code style!
 $ eslint --no-warn-ignored .
@@ -911,16 +1035,19 @@ $ vitest run --passWithNoTests
 bloc 0 : code=0
 ```
 
-- avant le script, sur le gabarit : `Test Files  6 passed (6)`, `Tests  224 passed (224)`, `no dependency violations found (19 modules, 39 dependencies cruised)` ;
-- dans le clone : mêmes sept lignes, `Packages: -35` (les paquets d'édition de l'arbre mêlé sortent de `node_modules`), mêmes totaux, `bloc 0 : code=0` ; `git status --porcelain` : `M .dependency-cruiser.cjs`, `M eslint.config.mjs`, `M pnpm-lock.yaml`, `?? apps/web/` ;
-- les huit fichiers du clone et du gabarit sont identiques, à l'octet près (`cmp`), verrou compris ;
-- relance du script : `ARRET : apps/web/package.json existe deja, rien n'est ecrit ; l'arbre doit etre celui de HEAD (mise a l'abri faite)`, puis `bloc 0 : code=1` ;
-- `.dependency-cruiser.cjs` : quinze règles ; `pnpm why yjs -r` : `Found 1 version of yjs` (13.6.33) ; le verrou résout `lib0@0.2.119`, `react@19.3.0`, `react-dom@19.3.0`, `y-indexeddb@9.0.12`, `vite@8.3.2`, `jsdom@30.1.1`, `fake-indexeddb@6.2.5`, `@playwright/test@1.63.0`, chacun en une version ;
-- projet `web` sans test : `vitest list --filesOnly --project web` n'imprime rien, `code=0` ; `vitest run --project web` : `No test files found, exiting with code 1`.
+- un premier passage a fini en `bloc 0 : code=1` : Prettier refusait la mise en forme d'un tableau du bloc ESLint ajouté par cette révision. Le texte a été corrigé dans ce document, le gabarit ramené à son commit de départ, et le script relancé : c'est la sortie ci-dessus ;
+- `git status --porcelain` après le script : `M .dependency-cruiser.cjs`, `M eslint.config.mjs`, `M pnpm-lock.yaml`, `?? apps/web/` ;
+- `.dependency-cruiser.cjs` : seize règles ; `pnpm why yjs -r` : `Found 1 version of yjs` ; `apps/web/package.json` porte `"vitest": "5.0.3"` ; le verrou a deux demandes (`^5.0.3` à la racine, `5.0.3` pour `apps/web`) et une seule version résolue, `vitest@5.0.3` ;
+- même script dans le clone de l'essai S3, ramené à l'arbre de HEAD (l'état que laisse la mise à l'abri) : mêmes sept lignes, mêmes totaux, `bloc 0 : code=0` ; les huit fichiers du clone et du gabarit sont identiques, à l'octet près (`cmp`), verrou compris ;
+- relance du script dans le clone : `ARRET : apps/web/package.json existe deja, rien n'est ecrit ; l'arbre doit etre celui de HEAD (mise a l'abri faite)`, puis `bloc 0 : code=1` ;
+- le texte du script extrait du document final est identique, par `cmp`, à celui qui a tourné ;
+- projet `web` sans test (constat de la première version, non rejoué) : `vitest list --filesOnly --project web` n'imprime rien, `code=0` ; `vitest run --project web` : `No test files found, exiting with code 1`.
 
-### S3 — les deux scripts, dans leur forme finale, à la suite
+### S3 — les deux scripts à la suite (première version de ce plan)
 
-Second clone, fait après l'écriture de ce document : les 74 chemins modifiés ou non suivis de l'arbre y sont recopiés (les 73 du relevé et l'ADR-0003 amendé), puis les quatre documents de cette conception y sont commités avec les trailers de l'agent, hooks actifs (`All matched files use Prettier code style!`, périmètre accepté). Restent 70 chemins. Les deux scripts sont alors extraits du document commité par les deux commandes `sed … | zsh` de ce plan, l'un après l'autre :
+La mise à l'abri n'a pas changé depuis : son texte extrait de ce document est identique, par `cmp`, à celui qui a tourné ici. Le bloc 0 qui a tourné ici est celui de la première version (huit contrats) ; celui de cette révision a été relancé dans ce même clone (essai S2).
+
+Second clone, fait après l'écriture de la première version de ce document : les 74 chemins modifiés ou non suivis de l'arbre y sont recopiés (les 73 du relevé et l'ADR-0003 amendé), puis les quatre documents de cette conception y sont commités avec les trailers de l'agent, hooks actifs (`All matched files use Prettier code style!`, périmètre accepté). Restent 70 chemins. Les deux scripts sont alors extraits du document commité par les deux commandes `sed … | zsh` de ce plan, l'un après l'autre :
 
 ```text
 Checking formatting...
@@ -949,40 +1076,49 @@ bloc 0 : code=0
 - gardes de la mise à l'abri, rejouées dans ce clone : relancée, `ARRET : la branche archive-arbre-2026-10-08 existe deja, rien n'est fait`, `code=1` ; branche d'archive supprimée et une ligne ajoutée à `MEMORY/gates.log`, `ARRET : a commiter sur F-002 avant la mise a l'abri, rien n'est fait :` suivi de ` M MEMORY/gates.log`, `code=1`, branche courante inchangée, aucune branche d'archive créée ;
 - les textes des deux scripts extraits du document final sont identiques, par `cmp`, à ceux qui ont tourné.
 
-### C — contrats, par violations jetables (gabarit, texte du bloc 0)
+### C — contrats, par violations jetables (gabarit de la révision 1, texte du bloc 0)
 
-Un fichier jetable par cas, `depcruise` lancé, lignes `error <règle>` et code de sortie relevés, fichier supprimé ; à la fin, `no dependency violations found`. Les cas 17 et 18 demandent que `src/identifiants/uuid-canonique.ts` existe : ils ont été joués avec le prototype de l'essai G.
+Sur le gabarit après le bloc 0, avec le code de l'essai G et trois prototypes (`identifiants/uuid-canonique.ts`, `route.ts` et `nom-de-base.ts` qui l'importent). Un cas à la fois : un fichier jetable, ou une ligne ajoutée en tête de `route.ts`, `nom-de-base.ts` ou `fragment.ts` pour les cas 19 à 22 et 25 ; `depcruise` lancé, règles en erreur et code de sortie relevés (le code est le nombre d'erreurs), fichier supprimé ou rétabli. À la fin : `no dependency violations found (71 modules, 173 dependencies cruised)`.
 
-| Cas | Import jetable                                                      | Règle déclenchée                                    | Code |
-| --- | ------------------------------------------------------------------- | --------------------------------------------------- | ---- |
-| 1   | `react` depuis `src/identifiants/`                                  | `web-identifiants-pur`                              | 1    |
-| 2   | `navigation/route.ts` depuis `src/identifiants/`                    | `web-identifiants-pur`                              | 1    |
-| 3   | `espace/session-espace.ts` depuis `src/navigation/`                 | `web-navigation-liste-blanche`                      | 1    |
-| 4   | `react` depuis `src/navigation/`                                    | `web-navigation-liste-blanche`                      | 1    |
-| 5   | `navigation/route.ts` depuis `src/persistance/`                     | `web-persistance-liste-blanche`                     | 1    |
-| 6   | `@notionlike/document` depuis `src/persistance/`                    | `web-persistance-liste-blanche`                     | 1    |
-| 7   | `y-indexeddb` depuis `src/interface/`                               | `web-src-liste-blanche`, `web-y-indexeddb-confinee` | 2    |
-| 8   | `packages/document/src/arbre.ts` par chemin relatif, depuis `test/` | `web-document-par-ses-exports`                      | 1    |
-| 9   | `@notionlike/document/src/arbre.ts` depuis `test/`                  | `web-document-par-ses-exports`                      | 1    |
-| 10  | `persistance/nom-de-base.ts` depuis `test/`                         | `web-persistance-par-son-interface`                 | 1    |
-| 11  | `react` depuis `src/espace/`                                        | `web-espace-liste-blanche`                          | 1    |
-| 12  | `yjs` depuis `src/interface/`                                       | `web-src-liste-blanche`                             | 1    |
-| 13  | `persistance/index.ts` depuis `src/interface/`                      | `web-src-liste-blanche`                             | 1    |
-| 14  | `node:fs` depuis `src/interface/`                                   | `web-src-liste-blanche`                             | 1    |
-| 15  | `@testing-library/react` depuis un dossier neuf `src/nouveau/`      | `web-src-liste-blanche`                             | 1    |
-| 16  | `y-indexeddb` depuis `test/`                                        | `web-y-indexeddb-confinee`                          | 1    |
-| 17  | `identifiants/uuid-canonique.ts` depuis `src/espace/`               | `web-espace-liste-blanche`                          | 1    |
-| 18  | `identifiants/uuid-canonique.ts` depuis `src/interface/`            | aucune : import permis                              | 0    |
+| Cas | Import jetable                                                        | Règle déclenchée                                             | Code |
+| --- | --------------------------------------------------------------------- | ------------------------------------------------------------ | ---- |
+| 1   | `react` depuis `src/identifiants/`                                    | `web-identifiants-pur`                                       | 1    |
+| 2   | `navigation/route.ts` depuis `src/identifiants/`                      | `web-identifiants-pur`                                       | 1    |
+| 3   | `espace/session-espace.ts` depuis `src/navigation/`                   | `web-navigation-liste-blanche`                               | 1    |
+| 4   | `react` depuis `src/navigation/`                                      | `web-navigation-liste-blanche`                               | 1    |
+| 5   | `navigation/route.ts` depuis `src/persistance/`                       | `web-persistance-liste-blanche`                              | 1    |
+| 6   | `@notionlike/document` depuis `src/persistance/`                      | `web-persistance-liste-blanche`                              | 1    |
+| 7   | `y-indexeddb` depuis `src/interface/`                                 | `web-src-liste-blanche`, `web-y-indexeddb-confinee`          | 2    |
+| 8   | `packages/document/src/arbre.ts` par chemin relatif, depuis `test/`   | `web-document-par-ses-exports`                               | 1    |
+| 9   | `@notionlike/document/src/arbre.ts` depuis `test/`                    | `web-document-par-ses-exports`                               | 1    |
+| 10  | `persistance/nom-de-base.ts` depuis `test/`                           | `web-persistance-par-son-interface`                          | 1    |
+| 11  | `react` depuis `src/espace/`                                          | `web-espace-liste-blanche`                                   | 1    |
+| 12  | `yjs` depuis `src/interface/`                                         | `web-src-liste-blanche`                                      | 1    |
+| 13  | `persistance/index.ts` depuis `src/interface/`                        | `web-src-liste-blanche`                                      | 1    |
+| 14  | `node:fs` depuis `src/interface/`                                     | `web-src-liste-blanche`                                      | 1    |
+| 15  | `@testing-library/react` depuis un dossier neuf `src/nouveau/`        | `web-src-liste-blanche`                                      | 1    |
+| 16  | `y-indexeddb` depuis `test/`                                          | `web-y-indexeddb-confinee`                                   | 1    |
+| 17  | `identifiants/uuid-canonique.ts` depuis `src/espace/`                 | `web-espace-liste-blanche`                                   | 1    |
+| 18  | `identifiants/uuid-canonique.ts` depuis `src/interface/`              | `web-src-liste-blanche` (permis dans la version d'avant)     | 1    |
+| 19  | `navigation/fragment.ts` depuis `navigation/route.ts`                 | `web-formes-pures`, `pas-de-cycle`                           | 2    |
+| 20  | `react` depuis `navigation/route.ts`                                  | `web-formes-pures`, `web-navigation-liste-blanche`           | 2    |
+| 21  | `persistance/indexeddb.ts` depuis `persistance/nom-de-base.ts`        | `web-formes-pures`, `pas-de-cycle`                           | 2    |
+| 22  | `import type` de `yjs` depuis `persistance/nom-de-base.ts`            | `web-formes-pures`                                           | 1    |
+| 23  | `import type` de `yjs` depuis `src/interface/`                        | `web-src-liste-blanche`                                      | 1    |
+| 24  | `import type` de `persistance/nom-de-base.ts` depuis `src/interface/` | `web-persistance-par-son-interface`, `web-src-liste-blanche` | 2    |
+| 25  | `identifiants/uuid-canonique.ts` depuis `navigation/fragment.ts`      | aucune : import permis                                       | 0    |
 
-Non rejoué ici : `apps-isolees` entre `apps/web` et un `apps/server` (contrat de HEAD, joué par le plan précédent).
+Dans les cas 19 et 21, `pas-de-cycle` se déclenche aussi parce que `fragment.ts` et `indexeddb.ts` importent déjà le fichier modifié. Non rejoué ici : `apps-isolees` entre `apps/web` et un `apps/server` (contrat de HEAD, joué par le plan précédent).
 
-### L — ESLint, par violations jetables (gabarit, texte du bloc 0)
+### L — ESLint, par violations jetables (gabarit de la révision 1, texte du bloc 0)
 
-Trois fichiers jetables, un par dossier, lancés un par un :
+Trois fichiers jetables, un par dossier, puis une ligne ajoutée à la fin de quatre fichiers existants, lancés un par un :
 
 - `src/interface/jetable.tsx` : `27 problems (27 errors, 0 warnings)`, `code=1` — 9 `no-restricted-globals` (`fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `localStorage`, `sessionStorage`, `indexedDB`, `window.indexedDB`, `globalThis.fetch`), 15 `no-restricted-properties` (`Math.random`, `getRandomValues`, `randomUUID`, `pushState`, `replaceState`, `sendBeacon`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `transact`, `getMap`, `getArray`, `getText`, `getXmlFragment`, `getXmlElement`), 3 `no-restricted-syntax` (littéral et gabarit `notionlike:`, `dangerouslySetInnerHTML`) ;
 - `src/persistance/jetable.ts` : `2 problems`, `code=1` — `randomUUID` et `fetch` refusés ; `indexedDB` et `notionlike:` admis ;
-- `src/espace/jetable.ts` : `3 problems`, `code=1` — `indexedDB`, `notionlike:` et `Math.random` refusés ; `randomUUID` admis.
+- `src/espace/jetable.ts` : `3 problems`, `code=1` — `indexedDB`, `notionlike:` et `Math.random` refusés ; `randomUUID` admis ;
+- pureté : la ligne `[location.hash, window.location, globalThis.indexedDB, document.title, history.length, navigator.userAgent, typeof crypto, self.name, indexedDB, localStorage, fetch]` ajoutée à `navigation/route.ts`, à `persistance/nom-de-base.ts`, à `identifiants/uuid-canonique.ts` : `13 problems (13 errors, 0 warnings)`, `code=1` à chaque fois, tous `no-restricted-globals` (les onze noms, `window.location` et `globalThis.indexedDB` comptant chacun pour deux) ; dans `nom-de-base.ts`, un gabarit `notionlike:` ajouté avec elle n'est pas signalé ;
+- témoin : `[location.hash, window.location, history.length]` ajoutée à `navigation/fragment.ts`, qui n'est pas un fichier pur : aucune erreur, `code=0`.
 
 ### G — le code de l'archive, séparé de F-003, sur le gabarit
 
@@ -993,32 +1129,37 @@ Après le bloc 0 : les 33 fichiers de code et de test de F-002 recopiés de l'ar
 - `pnpm --filter @notionlike/web build` : `✓ 73 modules transformed`, `dist/assets/index-*.js 319.66 kB`, `✓ built`, `code=0` ; la chaîne « Yjs was already imported » figure une fois dans le paquet produit ;
 - `pnpm --filter @notionlike/web test:e2e` : `5 passed (4.1s)`, `code=0` (Chromium de Playwright déjà en cache sur le poste, rien n'a été téléchargé).
 
-Puis les retouches d'AC25, AC27 et AC28 en prototype (`uuid-canonique.ts`, `nom-de-base.ts`, `route.ts`) : `pnpm contrats` sans violation (69 modules, 158 dépendances), `pnpm typecheck` en `code=1` et 25 tests en échec dans `persistance-ouverture.test.ts`, `persistance-validation.test.ts` et `route.test.ts`. C'est la mesure des fichiers « retouchés » des blocs 2 et 3 : ces tests fixaient l'ancienne spec. Ce prototype a été défait avant les essais D, F et X.
+Ces mesures sont celles du gabarit de la première version. Sur le gabarit de la révision 1, avec les prototypes des essais D et F : `pnpm --filter @notionlike/web build` rend `✓ 74 modules transformed`, `dist/assets/index-*.js 320.01 kB`, `✓ built`, la chaîne « Yjs was already imported » une fois ; `pnpm --filter @notionlike/web test:e2e` rend `5 passed (4.0s)`.
 
-### D — fermeture et rappel qui lève, dans `packages/document` (prototype sur le gabarit)
+Puis les retouches d'AC25, AC27 et AC28 en prototype (`uuid-canonique.ts`, `nom-de-base.ts`, `route.ts`), sur le gabarit de la révision 1 et après les essais D et F : `pnpm contrats` sans violation (71 modules, 173 dépendances), `pnpm typecheck` sans erreur, et 15 tests en échec dans `persistance-ouverture.test.ts` (3), `persistance-validation.test.ts` (9) et `route.test.ts` (3). C'est la mesure des fichiers « retouchés » des blocs 2 et 3 : ces tests fixaient l'ancienne spec. Les essais C et L ont tourné sur cet état.
 
-`document-espace.ts` modifié selon l'amendement de l'ADR-0003, un fichier de test de deux tests ajouté, aucun fichier de F-001 touché.
+### D — fermeture et rappel qui lève, dans `packages/document` (prototype, gabarit de la révision 1)
 
-- `pnpm --filter @notionlike/document typecheck` : `code=0`, y compris la lecture de `doc._observers.get("afterTransaction")?.size` dans le test et `console` déclarée localement dans la source ; sans cette déclaration, `console.error` ne compile pas dans le paquet (essayé) ;
+`document-espace.ts` et `erreurs.ts` modifiés selon l'amendement de l'ADR-0003 (aucun paramètre ajouté, `console.error`, `fermer()`, `facade-fermee`), un fichier `test/fermeture.test.ts` de sept cas dont le premier et le sixième sont joués pour les deux origines, soit neuf tests ; aucun fichier de F-001 touché.
+
+- `vitest run --project document` : `Test Files  7 passed (7)`, `Tests  233 passed (233)` : les 224 tests de F-001, inchangés, et les neuf du prototype ;
+- `pnpm --filter @notionlike/document typecheck` : sans erreur, y compris la lecture de `doc._observers.get("afterTransaction")?.size`. Premier passage en échec : `test/fermeture.test.ts: error TS2584: Cannot find name 'console'` sur `vi.spyOn(console, "error")` ; `console` déclarée localement dans le test, comme dans la source, et l'erreur disparaît ;
 - `pnpm lint`, `pnpm exec prettier --check packages` : sans erreur ;
-- `vitest run --project document` : `Test Files  7 passed (7)`, `Tests  226 passed (226)` : les 224 tests de F-001, inchangés, et les deux du prototype ;
-- constaté par ces deux tests : trois abonnés dont le deuxième lève, appels `a` puis `c`, l'opération ne lève pas, le récepteur reçoit l'exception ; même chose par `Y.applyUpdate` ; 50 ouvertures et fermetures (chacune fermée deux fois) sur un même `Y.Doc` : écouteurs revenus au compte de départ.
+- constaté par ces neuf tests : quatre abonnés dont le deuxième et le quatrième lèvent, appels `a` puis `c`, rien ne lève, `console.error` reçoit les deux exceptions dans l'ordre ; un rappel qui désabonne le suivant, inscrit un abonné et lève : un seul appel ; après fermeture, aucune notification, `lire()` rend la même référence, `abonner` n'inscrit rien, zéro écouteur ; les quatre écritures et un titre de 201 caractères refusés par `facade-fermee`, aucune mise à jour émise, état encodé inchangé ; façade fermée sur un document de version 2 : lecture `version-non-prise-en-charge`, écriture `facade-fermee` ; `fermer()` depuis le deuxième de trois rappels : appels `a`, `b ferme`, puis le rappel d'une autre façade du même `Y.Doc`, jamais `c`, rien ne lève, `console.error` non appelée, un écouteur restant (celui de l'autre façade), qui notifie encore à la transaction suivante ; 50 ouvertures et fermetures : compte du départ ;
+- l'`afterEach` du fichier ferme les façades suivies et retrouve le compte du départ sur chaque `Y.Doc`, à chaque test.
 
-Non essayé dans ce prototype : façade sans récepteur, récepteur qui lève, `abonner` après fermeture, deux façades dont une fermée.
+Non essayé dans ce prototype : une façade fermée par le rappel d'une autre façade du même `Y.Doc`.
 
-### F — session : exception d'un abonné, fermeture (prototype sur le gabarit)
+### F — session et test de couture (prototypes, gabarit de la révision 1)
 
-`session-espace.ts` modifié selon l'ADR-0007 (récepteur, garde des abonnés, `fermer()`), un fichier de deux tests.
+Sur le code de l'essai G recopié dans le gabarit après le prototype D. `session-espace.ts` modifié selon l'ADR-0007 (une seule fonction qui prévient sous garde, `fermer()`, façade fermée à l'entrée dans `version-non-prise-en-charge`, rien d'ouvert après fermeture) ; un message `facade-fermee` dans `messages.ts` ; `test/aides-facade.ts` écrit ; l'`afterEach` de compte ajouté à `test/preparation.ts` ; les cinq fichiers de test qui ouvraient une façade ou démarraient une session passent par les aides ; `test/session-fermeture.test.tsx` (cinq tests) ; sept tests de couture ajoutés à `test/coutures.test.ts`.
 
-- un abonné de la session lève, puis une mise à jour est reçue par `Y.applyUpdate` sous `StrictMode` : rien ne lève, `console.error` appelée une fois avec l'exception, la page reçue est affichée, « Nouvelle page » en crée une seconde ;
-- même session rendue et démontée cinq fois sous `StrictMode`, puis fermée deux fois : écouteurs `afterTransaction` du document `[0, 1, 0]` (au démarrage, après les montages, après la fermeture) ;
-- suite entière avec ces prototypes : `Test Files  19 passed (19)`, `Tests  332 passed (332)`, `pnpm typecheck` en `code=0`, `pnpm lint` sans erreur.
+- suite entière : `Test Files  19 passed (19)`, `Tests  349 passed (349)`, aucune ligne `Errors`, `code=0` ; projet `web` : douze fichiers, 116 tests (les 104 de l'essai G, cinq, sept) ; `pnpm typecheck` sans erreur, `pnpm lint` sans erreur, `prettier --check .` propre, `pnpm contrats` : `no dependency violations found (70 modules, 171 dependencies cruised)` ;
+- session, AC29 : un abonné lève, un second suit ; une mise à jour reçue par `Y.applyUpdate` sous `StrictMode` ne lève pas, `console.error` reçoit l'exception une fois, le second est prévenu, la page reçue est affichée, « Nouvelle page » en crée une autre ; mêmes abonnés inscrits pendant le chargement : à la fin de la relecture, une exception signalée, le second lit `pret` ;
+- session, AC30 : cinq montages et démontages sous `StrictMode`, puis deux fermetures : écouteurs `[0, 1, 0]`, et une mise à jour reçue ensuite ne prévient personne ; version 2 reçue par `Y.applyUpdate` sur l'application affichée : rien ne lève, écouteurs de 1 à 0, un seul appel des abonnés, qui lisent `version-non-prise-en-charge`, écran `role="alert"`, plus de bouton « Nouvelle page », `console.error` non appelée ; session fermée pendant le chargement : zéro écouteur une fois IndexedDB au repos, phase `chargement` ;
+- couture, AC31 : neuf ouvrants énumérés sur plus de quarante fichiers lus (la définition, la session, les deux aides suivies, les cinq fichiers de F-001) ; deux appels d'ouverture dans chaque aide suivie, `demarrerSessionEspace(` dans le seul `aides-facade.ts` côté tests ; les cinq fichiers de F-001 ouvrent une façade et n'ont aucun `.fermer(` ; session démarrée puis fermée : `[0, 1, 0]` ; façade et persistance sur un même `Y.Doc`, persistance fermée : une façade encore ouverte, puis zéro après `facade.fermer()` ; `DocumentEspace` nommé dans le seul `session-espace.ts` ; trois lecteurs de code (`session-espace.ts`, `Application.tsx`, `messages.ts`), message `facade-fermee` présent ;
+- témoins, pour s'assurer que ces preuves peuvent échouer : avec des clés fausses dans la table (`../test/aides-facade.ts` au lieu de `./aides-facade.ts`), deux tests de couture en échec ; avec `doc.off` retiré de `fermer()` dans le prototype D, `Test Files  11 failed | 8 passed (19)`, `Tests  69 failed | 280 passed (349)` : le compte de fin de test voit la façade restée ouverte.
 
-Non essayé : le chemin de la persistance (passage à `coupee` avec un abonné qui lève), plusieurs abonnés fautifs (`AggregateError`), la façade fermée à l'entrée dans `version-non-prise-en-charge`.
+Non essayé : plusieurs abonnés fautifs de la session dans une même diffusion ; un passage à `coupee` après la phase `pret` avec un abonné qui lève (le changement de persistance essayé est la fin de la relecture) ; la répartition de ces tests entre le bloc 2 et le bloc 3 (le prototype les porte tous ensemble).
 
 ### X — exports, alias, sous-chemin, énumération des appelants (gabarit)
 
-Un fichier de test jetable dans `apps/web/test/`, sur le code de l'essai G et le prototype de l'essai D :
+Essai de la première version de ce plan, non rejoué ; l'énumération des appelants est remplacée par celle de l'essai F. Un fichier de test jetable dans `apps/web/test/`, sur le code de l'essai G et le prototype D d'alors :
 
 - `import * as paquet from "@notionlike/document"`, clés triées : `ErreurDocument`, `creerDocumentEspace`, `ouvrirDocumentEspace` ;
 - `import.meta.glob` en `?raw` sur les configurations : six fichiers (`../../../tsconfig.base.json`, `../../../vitest.config.ts`, `../playwright.config.ts`, `../tsconfig.json`, `../vite.config.ts`, `../vitest.config.ts`), aucun ne contient `alias`, `"paths"` ni `@notionlike/document` ;
@@ -1087,10 +1228,12 @@ Le poste a déjà Chromium de Playwright en cache (révision 1243, celle de `@pl
 ### Non essayé
 
 - Le comportement d'un navigateur hors contexte sécurisé (absence réelle de `crypto.randomUUID` à une adresse `http` de réseau local) : sources documentaires de la veille seulement.
-- Les retouches des blocs 2 et 3 dans leur forme finale : seuls les mécanismes l'ont été (essais D, F, X, et les trois fichiers du prototype de l'essai G) ; les tests retouchés ne sont pas écrits.
+- Les retouches des blocs 2 et 3 dans leur forme finale : seuls les mécanismes l'ont été (essais D, F, X, et les trois fichiers du prototype de l'essai G) ; les tests retouchés d'AC25, AC27 et AC28 ne sont pas écrits.
+- La limite acceptée d'AC16 (ouverture qui réussit pour la sonde puis échoue pour la bibliothèque) : aucun essai, aucun test.
 - L'aide de test unique pour les actions de rangée, et tout ce qui touche F-004.
 - Un dépassement de quota réel : les écouteurs `abort` et `close` ont leurs tests dans l'archive, sur une simulation.
 - Les deux scripts dans le dépôt principal lui-même (rien n'y est lancé ni installé) : le clone en reproduit l'arbre et les hooks.
-- Le bloc 0 sur un arbre où le bloc 0 de F-008 serait déjà fusionné : essayé par la conception de F-008 sur la version précédente de ce bloc (sept contrats), pas sur celle-ci (huit).
-- `vite preview` et le paquet produit servi : seul `vite build` l'a été.
+- Le bloc 0 sur un arbre où le bloc 0 de F-008 serait déjà fusionné : essayé par la conception de F-008 sur une version antérieure de ce bloc (sept contrats), pas sur celle-ci (neuf).
+- La mise à l'abri suivie du bloc 0 de cette révision dans un clone neuf, d'une traite : le bloc 0 a été relancé dans le clone de l'essai S3 ramené à l'arbre de HEAD, pas après une mise à l'abri refaite.
+- Le paquet produit servi : seul `vite build` l'a été ; aucune configuration de `vite preview` n'est livrée.
 - Une archive `tar` à la place de la branche d'archive.

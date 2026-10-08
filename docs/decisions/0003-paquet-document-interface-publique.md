@@ -1,7 +1,7 @@
 # ADR-0003 — Paquet `@notionlike/document` : interface publique et outillage
 
-Statut : accepté
-Date : 2026-10-08 ; amendé le 2026-10-08 par F-002 (levée de la dette D-006 : « Amendement F-002 » dans la décision)
+Statut : accepté pour tout ce que F-001 a livré ; la section « Amendement F-002 » est proposée, et passe à « accepté » quand le dev revalide `specs/F-002.md` amendée (commit `Agent: dev` qui la remet à « validée »)
+Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception
 
 ## Contexte et problème
 
@@ -35,7 +35,7 @@ Distribution : paquet compilé (`dist`) ou **paquet source** (retenue) : `export
 
 ### Interface publique (`packages/document/src/index.ts`)
 
-Ce qui suit est l'interface à la fin de F-001 ; F-002 lui ajoute une fermeture et un récepteur facultatif (« Amendement F-002 », plus bas), sans rien retirer. Elle n'est pas livrée d'un coup : `DocumentEspace`, `CodeErreurDocument` et `index.ts` n'exposent à chaque bloc du plan que ce qui est réalisé et testé dans ce bloc ou les précédents, sans méthode factice (`docs/decisions/F-001-conception.md`, « Interface livrée bloc par bloc »).
+Ce qui suit est l'interface à la fin de F-001 ; F-002 propose de lui ajouter une méthode de fermeture et un code d'erreur (« Amendement F-002 », plus bas), sans rien retirer ni changer aucune signature. Elle n'est pas livrée d'un coup : `DocumentEspace`, `CodeErreurDocument` et `index.ts` n'exposent à chaque bloc du plan que ce qui est réalisé et testé dans ce bloc ou les précédents, sans méthode factice (`docs/decisions/F-001-conception.md`, « Interface livrée bloc par bloc »).
 
 ```ts
 import type * as Y from "yjs";
@@ -107,38 +107,39 @@ Rien d'autre n'est exporté : ni constantes de format, ni fonction de rang, ni f
 
 ### Amendement F-002 : fermeture de la façade, rappel d'abonné qui lève
 
-Décidé le 2026-10-08 par la conception de F-002 (`specs/F-002.md`, F-002-AC29 à AC31, H13), premier appelant réel de la façade. Il lève la dette D-006, ouverte par les gates de F-001 : un rappel d'abonné qui levait interrompait la diffusion et remontait par `Y.applyUpdate`, et la façade ne retirait jamais son écouteur du `Y.Doc`. Tant que le bloc 1 de F-002 n'est pas livré, le code est celui de F-001 et `ARCHITECTURE.md` le décrit tel quel.
+**Statut de cette section : proposé.** Elle est écrite contre `specs/F-002.md` amendée au commit `3a1253a` (F-002-AC29 à AC31, H15), que le dev n'a pas encore revalidée : les décisions qu'elle porte ont été prises par l'orchestrateur à la demande du dev. Elle devient acceptée, sans changement de texte, quand le dev revalide cette spec ; si la revalidation modifie l'un des trois critères, la section est reprise avant le bloc 1 de F-002. Aucun code ne la réalise d'ici là : le code est celui de F-001 et `ARCHITECTURE.md` le décrit tel quel.
 
-Options étudiées pour remettre l'exception à l'appelant :
+Elle lève la dette D-006, ouverte par les gates de F-001 : un rappel d'abonné qui levait interrompait la diffusion et remontait par `Y.applyUpdate`, et la façade ne retirait jamais son écouteur du `Y.Doc`. F-002 est le premier appelant réel de la façade.
 
-1. **Un récepteur passé à la création de la façade** (retenue) : un second paramètre facultatif, une fonction. Aucune globale, aucun nouvel export.
-2. Un événement global (`reportError`, `window.onerror`, `unhandledrejection`). Écartée : globale du navigateur, interdite au paquet (F-001-AC19) et absente côté serveur.
-3. Relancer l'exception une fois la diffusion terminée. Écartée : elle remonterait encore par l'opération ou par `Y.applyUpdate`, ce que F-002-AC29 interdit, et une mise à jour reçue du réseau (F-012, F-013) pourrait toujours interrompre la synchronisation.
-4. Garder les exceptions dans la façade pour une lecture ultérieure. Écartée : un état de plus, sans lecteur.
+Options étudiées pour ne pas perdre l'exception d'un rappel :
+
+1. **La console d'erreur, seul canal** (retenue) : `console.error`, sans paramètre ni export de plus. `console` existe sous Node comme dans un navigateur : ce n'est pas une globale du navigateur au sens de F-001-AC19, et elle n'est pas dans la liste interdite au paquet.
+2. Un récepteur passé à la création de la façade. Écartée après le premier passage du gate : il ajoutait un paramètre facultatif à deux fonctions publiques pour un seul usage, qui faisait exactement ce que fait l'option 1, et créait deux chemins de remise dans la session d'`apps/web`.
+3. Un événement global (`reportError`, `window.onerror`). Écartée : globale du navigateur, interdite au paquet et absente côté serveur.
+4. Relancer l'exception une fois la diffusion terminée. Écartée : elle remonterait encore par l'opération ou par `Y.applyUpdate`, ce que F-002-AC29 interdit.
 
 Ce qui change dans l'interface, et rien d'autre :
 
 ```ts
+export type CodeErreurDocument =
+  // … les six codes de F-001, inchangés
+  "facade-fermee";
+
 export interface DocumentEspace {
   // … les sept membres de F-001, inchangés
   fermer(): void;
 }
-
-export function creerDocumentEspace(surErreurDAbonne?: (erreur: unknown) => void): DocumentEspace;
-export function ouvrirDocumentEspace(
-  doc: Y.Doc,
-  surErreurDAbonne?: (erreur: unknown) => void,
-): DocumentEspace;
 ```
 
-- La liste des exports de `src/index.ts` ne change pas (`ErreurDocument`, `creerDocumentEspace`, `ouvrirDocumentEspace` et les types de F-001) : le récepteur est un paramètre, pas un type exporté. Les appels de F-001, sans second argument, compilent et se comportent comme avant, hormis les deux points ci-dessous.
-- **Rappel d'abonné qui lève.** Pendant la diffusion d'un changement, chaque rappel est appelé sous garde : s'il lève, les abonnés suivants sont appelés quand même, dans l'ordre d'inscription, avec les mêmes règles qu'avant (abonnés inscrits au début de la diffusion et encore inscrits à leur tour). L'exception ne remonte ni par l'opération qui a provoqué le changement, ni par `Y.applyUpdate`. Elle est remise, une fois par rappel fautif et dans l'ordre, à `surErreurDAbonne`, donc à l'appelant qui a créé la façade.
-- **Sans récepteur.** Une façade créée sans second argument remet l'exception à `console.error`, avec une phrase fixe et l'exception. La garde vaut donc pour toute façade, y compris celles des tests de F-001 : aucune ne laisse plus une mise à jour reçue interrompre `Y.applyUpdate`. `console` n'est pas une globale du navigateur : elle existe sous Node comme dans un navigateur, et n'est pas dans la liste interdite au paquet. Elle est déclarée localement dans `document-espace.ts`, comme `crypto` l'est déjà, parce que le paquet compile sans `DOM` ni types Node. Tout appelant de production du workspace passe un récepteur ; le test de couture de F-002-AC31 le vérifie.
-- **Récepteur qui lève.** Son exception est remise à `console.error` de la même façon ; la diffusion continue.
-- **`fermer()`.** Elle retire du `Y.Doc` l'écouteur `afterTransaction` que la façade y avait posé et oublie ses abonnés. Ensuite, une transaction appliquée au `Y.Doc` ne provoque ni relecture ni notification par cette façade ; `lire()` rend la dernière lecture faite avant la fermeture ; `abonner` n'inscrit plus rien et rend une fonction sans effet ; les fonctions de désabonnement déjà rendues restent sans effet. Une seconde fermeture est sans effet. Une façade fermée ne se rouvre pas : l'appelant en ouvre une autre sur le même `Y.Doc`. Les écritures ne dépendent pas de l'écouteur (chacune relit le document avant de valider) ; aucun appelant du workspace n'écrit par une façade fermée.
-- `creerDocumentEspace` rend une façade ouverte comme `ouvrirDocumentEspace` : l'appelant la ferme de la même façon.
+- `creerDocumentEspace()` et `ouvrirDocumentEspace(doc)` gardent leurs signatures de F-001. La liste des exports de `src/index.ts` ne change pas : neuf noms, dont deux types reçoivent chacun un membre. Aucun appel de F-001 ne change de sens, hormis les deux points qui suivent.
+- **Rappel d'abonné qui lève (F-002-AC29).** Pendant la diffusion d'un changement, chaque rappel est appelé sous garde. S'il lève, les abonnés suivants sont appelés quand même, dans l'ordre d'inscription, et les règles de diffusion de F-001 restent vraies : un abonné désabonné pendant la diffusion n'est pas appelé, un abonné inscrit pendant la diffusion ne l'est qu'au changement suivant. L'exception ne remonte ni par l'opération qui a provoqué le changement, ni par `Y.applyUpdate`. Elle est signalée par `console.error` (une phrase fixe, puis l'exception), une fois par rappel fautif, dans l'ordre des rappels. C'est le seul canal ; il vaut pour toute façade, celles des tests de F-001 comprises. `console` est déclarée localement dans `document-espace.ts`, comme `crypto` l'est déjà, parce que le paquet compile sans `DOM` ni types Node ; un test qui l'espionne la déclare de la même façon (essai D du plan).
+- **`fermer()` (F-002-AC30).** Elle retire du `Y.Doc` l'écouteur `afterTransaction` que la façade y avait posé et oublie ses abonnés. Elle ne lève jamais ; une seconde fermeture est sans effet ; une façade fermée ne se rouvre pas, l'appelant en ouvre une autre sur le même `Y.Doc`. `creerDocumentEspace` rend une façade ouverte comme `ouvrirDocumentEspace` : elle se ferme de la même façon.
+- **`fermer()` appelée depuis un rappel d'abonné, pendant une diffusion.** C'est le cas de la session d'`apps/web`, qui ferme sa façade quand une mise à jour reçue apporte une version non prise en charge (ADR-0007). Les rappels restants de cette diffusion ne sont pas appelés, l'écouteur est retiré, et rien ne lève : ni `fermer()`, ni l'opération ou le `Y.applyUpdate` qui a provoqué la diffusion. Le résultat gardé est celui de la transaction en cours, lu avant la diffusion. Une autre façade ouverte sur le même `Y.Doc` reçoit quand même cette transaction : `yjs` appelle les écouteurs présents au début de l'émission.
+- **Après la fermeture.** Une transaction appliquée au `Y.Doc` ne provoque ni relecture ni notification par cette façade. `lire()` rend ce qu'elle rendait à la fermeture, sans relire : la dernière arborescence gardée, même référence, ou le refus `version-non-prise-en-charge` si le document était dans cet état. `abonner` n'inscrit plus rien et rend une fonction sans effet ; les fonctions de désabonnement déjà rendues restent sans effet. Toute écriture (`creerPage`, `renommerPage`, `deplacerPage`, `mettreALaCorbeille`) est refusée par `ErreurDocument` de code `facade-fermee`, sans modifier le `Y.Doc` ni émettre de mise à jour.
+- **Ordre des validations.** `facade-fermee` est contrôlé avant tout le reste : il précède le rang 1 (version du document) de la liste donnée plus haut. Une façade fermée sur un document de version non prise en charge refuse donc une écriture par `facade-fermee`, et sa lecture par `version-non-prise-en-charge`.
+- **Appelants touchés par le nouveau code.** Un module qui traduit chaque code en message doit traiter `facade-fermee` : dans le workspace, c'est `apps/web/src/interface/messages.ts` (bloc 3 de F-002). Le test de couture de F-002-AC31 énumère les modules qui lisent un code d'erreur du document et échoue si celui qui les traduit ne le traite pas.
 
-Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`) : ordre et nombre des appels quand un rappel lève, pour une opération locale et pour `Y.applyUpdate` ; exception reçue par le récepteur ; récepteur absent ; récepteur qui lève ; N ouvertures et fermetures sur un même `Y.Doc` laissent le nombre d'écouteurs `afterTransaction` de départ ; les 224 tests de F-001 restent verts sans retouche (aucun ne fixait la remontée de l'exception). Mécanisme essayé sur un gabarit le 2026-10-08 (essai D du plan de F-002).
+Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`, « Bloc 1 »), toutes dans `packages/document/test/fermeture.test.ts` : ordre et nombre des appels quand un ou deux rappels lèvent, pour une opération locale et pour `Y.applyUpdate`, et `console.error` espionnée appelée une fois par rappel fautif ; règles de diffusion de F-001 sous garde ; fermeture, seconde fermeture, `abonner` et `lire()` après fermeture ; écritures refusées par `facade-fermee` sans mise à jour ; `fermer()` depuis un rappel, pour chacune des deux origines, avec une seconde façade sur le même `Y.Doc` ; N ouvertures et fermetures sur un même `Y.Doc` qui laissent le nombre d'écouteurs `afterTransaction` de départ. Les 224 tests de F-001 restent verts sans retouche : aucun ne fixait la remontée de l'exception ni la liste des codes. Mécanisme essayé sur un gabarit le 2026-10-08 (essai D du plan : 233 tests verts, dont les 224 de F-001).
 
 ### Organisation interne
 
@@ -156,7 +157,7 @@ Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`) : o
 
 ## Conséquences
 
-- Les consommateurs dépendent de deux fonctions, d'une façade de six méthodes (sept avec `fermer`, amendement F-002) et d'une classe d'erreur ; le format de l'ADR-0002 peut évoluer derrière eux.
+- Les consommateurs dépendent de deux fonctions, d'une façade de six méthodes (sept avec `fermer`, amendement F-002 proposé) et d'une classe d'erreur ; le format de l'ADR-0002 peut évoluer derrière eux.
 - Exposer `doc` permet à un consommateur d'écrire dans les types partagés en contournant les validations. C'est une convention, pas une barrière : la lecture tolérante (F-001-AC16, AC17) en limite l'effet, et les revues refusent tout accès aux types partagés hors de `packages/document`.
 - **Une seule instance de `yjs` dans le workspace.** Exposer `doc` fait importer `yjs` par chaque consommateur. Si deux copies de `yjs` étaient chargées, une `Y.Map` créée par l'une ne serait pas reconnue par l'autre : la validation « la valeur est une `Y.Map` » (ADR-0002, lecture, étape 2) écarterait toutes les entrées, et F-001-AC16 demande de les ignorer sans erreur. L'arborescence serait vide, en silence.
   - Parade retenue : l'unicité de l'instance, pas une validation tolérante. `format.ts` peut reconnaître une `Y.Map` par `instanceof`, parce que ce test n'est fragile qu'entre deux instances et que deux instances sont interdites. Une reconnaissance par la forme (présence de `get`, `has`…) ne couvrirait que la lecture : rien n'établit que l'écriture d'une `Y.Map` d'une instance dans le document d'une autre fonctionne (non vérifié : aucun essai à deux instances), et elle accepterait des valeurs qui ne sont pas des types partagés. Avec une seule instance, une entrée reçue par `Y.applyUpdate` est bien reconnue par `instanceof` (essai I du plan).
@@ -165,5 +166,5 @@ Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`) : o
 - Le cœur pur et la règle des globales sont tenus par des contrôles, pas par la relecture : un import de `yjs` dans `arbre.ts`, un import d'un fichier de `test/` depuis `src/` ou un `fetch` dans `src/` fait échouer `pnpm contrats` ou `pnpm lint`.
 - Un paquet source lie les consommateurs aux options TypeScript du paquet (extensions `.ts`). Passer à un paquet compilé resterait un changement local : `exports` et un script de build.
 - Une graine fixe explore moins de cas qu'une graine aléatoire. Un contre-exemple trouvé à la main ou en changeant la graine s'ajoute comme test par l'exemple.
-- `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant. Depuis l'amendement F-002, l'appelant la ferme quand il cesse de s'en servir, et l'écouteur est retiré.
-- Amendement F-002 : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant : elle n'est visible que par le récepteur, ou par la console d'erreur quand il n'y en a pas. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant.
+- `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant. Avec l'amendement F-002, l'appelant la ferme quand il cesse de s'en servir, et l'écouteur est retiré.
+- Amendement F-002 (proposé) : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant et n'est visible que sur la console d'erreur. Un appelant qui veut la traiter autrement la rattrape dans son propre rappel. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant. Un consommateur qui énumère les codes d'erreur a un code de plus à traiter.
