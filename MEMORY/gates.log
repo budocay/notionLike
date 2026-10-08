@@ -4,3 +4,7 @@
 2026-10-08T14:00:42Z | agent-architecte | F-001 | REPRISE D-004 | 3daa8ec5caca
 2026-10-08T14:03:10Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | 08f4a9e7c786
 2026-10-08T14:07:52Z | agent-architecte | F-001 | REPRISE D-004 | 08f4a9e7c786
+2026-10-08T18:08:12Z | reviewer-frontend | F-001 | CHANGES_REQUESTED | 3de42046e390
+2026-10-08T18:10:22Z | agent-securite | F-001 | UNVERIFIED (verdict absent ou d'un autre type) | 3de42046e390
+2026-10-08T18:11:32Z | agent-architecte | F-001 | ARCHITECTURE GATE: PASS | 3de42046e390
+2026-10-08T18:11:33Z | agent-craft | F-001 | CRAFT GATE: PASS | 3de42046e390
