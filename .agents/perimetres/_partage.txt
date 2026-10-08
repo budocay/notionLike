@@ -1,0 +1,9 @@
+# Partagés : autorisés, signalés, à faire approuver par le dev
+# (leurs clés de configuration des contrôles restent réservées au dev : CONFIG_PROTEGEE)
+/package.json
+pnpm-lock.yaml
+apps/*/package.json
+packages/*/package.json
+tsconfig*.json
+vite.config.*
+/README.md

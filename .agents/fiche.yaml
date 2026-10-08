@@ -1,0 +1,68 @@
+projet:
+  nom: "notionLike"                # nom provisoire
+  domaine_metier: "Espace de travail collaboratif : notes, documents et bases de données d'équipe"
+  description_courte: "Un Notion-like plus soigné visuellement : pages par blocs, bases de données à vues multiples, édition simultanée, utilisable hors ligne."
+  utilisateurs_cibles: "Petite équipe (quelques comptes, espaces partagés, droits simples)"
+  fonctionnalites_cles:
+    - "Éditeur par blocs : pages imbriquées, blocs texte/titres/listes/code/images, commandes slash, glisser-déposer"
+    - "Bases de données : tables avec vues tableau, kanban, calendrier, filtres et tris"
+    - "Collaboration temps réel : édition simultanée, curseurs, commentaires"
+    - "Local d'abord : données sur l'appareil, hors ligne complet, synchronisation avec le serveur"
+    - "Identité visuelle sombre premium : dégradés subtils, animations fluides, raccourcis clavier partout"
+  type_projet: [web-app]
+  criticite: "interne"
+  langue: "fr"
+
+env_execution:                    # constaté le 2026-10-08
+  shell: true
+  web: true
+  fs: true
+  ci: ""                          # aucune pour l'instant ; plateforme git à choisir plus tard
+  branche_protegee: false
+  harness: [claude-code]
+
+stack:
+  langages: ["TypeScript 6.0"]    # 7.0 écarté : typescript-eslint 8.71 exige < 6.1
+  backend: "Node 26 + Express 5 + Hocuspocus 4 (synchronisation Yjs par WebSocket) + better-auth"
+  api_style: "REST (comptes, espaces, invitations) + WebSocket (documents) — même code que le backend"
+  frontend: "React 19 + Vite 8 + Tailwind 4 + Motion 14 ; éditeur Tiptap 3 ; Yjs 13 + y-indexeddb ; TanStack Table 9 ; dnd-kit"
+  backoffice: ""
+  mobile: ""
+  base_de_donnees: "PostgreSQL (comptes, espaces, droits, mises à jour Yjs binaires) ; IndexedDB côté client"
+  orm: "Drizzle"
+  packaging: "PWA (vite-plugin-pwa)"
+  infra: ["Docker Compose (PostgreSQL + serveur)"]
+  ci_cd: ""
+  cloud_messaging: ""
+  outillage_qualite:
+    formateur: "prettier 3"
+    linter: "eslint 10 + typescript-eslint 8"
+    test_runner: "vitest 5 (Playwright pour le bout en bout, à l'arrivée du premier écran)"
+    complexite: "eslint complexity (seuil 10)"
+    sast: "semgrep (règles locales .semgrep.yml)"
+    sca: "pnpm audit"
+    secrets: "gitleaks"
+    contrats_dependances: "dependency-cruiser"
+    mutation: ""                  # Stryker envisagé plus tard
+    conteneurs: "trivy"
+
+contraintes:
+  reglementaire: [RGPD]           # comptes nominatifs (courriel, nom)
+  performance:
+    - "Frappe et édition sans attente réseau (local d'abord)"
+    - "Animations à 60 images/s (transform et opacity seulement)"
+  conventions_code: "ESLint + Prettier ; commits en français avec emoji ; tests unitaires obligatoires"
+  architecture_cible: "Monorepo pnpm (apps/web, apps/server, packages/document, packages/contrats, packages/db) ; monolithe modulaire ; domaine pur séparé de l'infrastructure"
+  budget: ""
+  partage_externe_autorise: false
+
+equipe:
+  destinataires: "développeurs"
+  niveau: "mixte"
+
+modeles:
+  defaut: ""
+  architecte: "opus"
+  reviewers: "sonnet"
+  veille: "sonnet"
+  gate_critique: ""

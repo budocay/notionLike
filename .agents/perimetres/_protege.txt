@@ -1,0 +1,33 @@
+# Protégés : « Agent: dev » uniquement — règles, contrôles, configuration des contrôles
+# Un fichier de configuration d'un formateur, d'un linter ou d'un analyseur est protégé où qu'il soit.
+AGENTS.md
+CLAUDE.md
+CODEOWNERS
+.gitignore
+.gitattributes
+.agents/**
+.githooks/**
+.github/**
+.gitlab-ci.yml
+.claude/**
+.gitleaks.toml
+.gitleaksignore
+.dependency-cruiser.*
+.semgrep*
+eslint.config.*
+.eslintrc*
+.prettierrc*
+.prettierignore
+prettier.config.*
+biome.json*
+jest.config.*
+vitest.config.*
+vitest.workspace.*
+playwright.config.*
+.nycrc*
+.stryker*
+stryker.config.*
+pnpm-workspace.yaml
+.npmrc
+apps/.gitkeep
+packages/.gitkeep

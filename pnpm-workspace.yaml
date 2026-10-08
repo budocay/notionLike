@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Protection chaîne d'approvisionnement : un paquet publié depuis moins de 7 jours n'est pas installé.
+minimumReleaseAge: 10080

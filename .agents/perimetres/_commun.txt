@@ -1,0 +1,6 @@
+# Traçabilité : modifiable par tout agent qui a un périmètre
+PROJECT_LOG.md
+MEMORY/STATE.md
+MEMORY/INDEX.md
+MEMORY/features/**/*.md
+MEMORY/gates.log

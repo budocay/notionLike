@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+dist/
+coverage/
+.agents/
+.claude/
+.githooks/
+AGENTS.md
+CLAUDE.md
+MEMORY/gates.log

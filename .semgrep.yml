@@ -1,0 +1,63 @@
+# Règles SAST locales (aucun téléchargement : le contrôle ne dépend pas du réseau). Fichier protégé.
+rules:
+  - id: execution-de-code-dynamique
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Exécution de code construit à l'exécution (eval / new Function) interdite.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: commande-shell-non-litterale
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Commande shell construite à partir d'une valeur non littérale (injection de commande).
+    patterns:
+      - pattern-either:
+          - pattern: $CP.exec($CMD, ...)
+          - pattern: $CP.execSync($CMD, ...)
+      - metavariable-regex:
+          metavariable: $CP
+          regex: ^(child_process|cp|childProcess)$
+      - pattern-not: $CP.exec("...", ...)
+      - pattern-not: $CP.execSync("...", ...)
+
+  - id: html-non-assaini
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Injection de HTML brut (XSS). Le contenu des pages est une donnée utilisateur, passer par le rendu de l'éditeur.
+    pattern-either:
+      - pattern: $EL.innerHTML = $X
+      - pattern: $EL.outerHTML = $X
+      - pattern: $EL.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+      - pattern: <$TAG dangerouslySetInnerHTML={...} />
+
+  - id: verification-tls-desactivee
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Vérification du certificat TLS désactivée.
+    pattern-either:
+      - pattern: "{..., rejectUnauthorized: false, ...}"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+  - id: sql-brut-interpole
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: SQL brut construit par interpolation (injection SQL). Utiliser les requêtes paramétrées de Drizzle.
+    pattern-either:
+      - pattern: sql.raw(`...${$X}...`)
+      - pattern: sql.raw($A + $B)
+      - pattern: $DB.execute(`...${$X}...`)
+
+  - id: aleatoire-non-cryptographique-pour-jeton
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Math.random() ne doit pas produire un jeton, un identifiant de session ou une invitation. Utiliser crypto.randomUUID() ou crypto.getRandomValues().
+    patterns:
+      - pattern: Math.random()
+      - pattern-inside: |
+          function $F(...) { ... }
+      - metavariable-regex:
+          metavariable: $F
+          regex: (?i).*(token|jeton|secret|session|invitation|password|motdepasse).*
