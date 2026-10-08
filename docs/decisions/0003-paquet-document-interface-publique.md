@@ -7,7 +7,14 @@ Date : 2026-10-08
 
 `packages/document` est le premier paquet du dépôt et sera importé par le client (F-002, F-013) et par le serveur (F-012). Ce qu'il exporte devient un contrat entre paquets. Il faut une interface étroite, qui cache le format de l'ADR-0002, tout en laissant la persistance (y-indexeddb) et la synchronisation (Hocuspocus) faire leur travail : ces deux bibliothèques prennent un `Y.Doc` en paramètre.
 
-Le nom du paquet (H6), `yjs@13.6.33` comme seule dépendance d'exécution, `fast-check@4.10.2` et Vitest sous Node sont arrêtés par la spec F-001 et la veille du 2026-10-08.
+D'où vient chaque choix d'outillage :
+
+- Arrêtés par la spec F-001 (validée, commit `ccbcd25`) : le nom du paquet (H6), `yjs` comme seule dépendance d'exécution directe (F-001-AC19), Vitest sous Node, et quatre fichiers à la charge du dev (`packages/document/package.json`, `packages/document/vitest.config.ts`, `packages/document/tsconfig.json`, `pnpm-lock.yaml`).
+- Version de `yjs` (`13.6.33`) : relevée par la veille du 2026-10-08 (ligne 13.x, aucune version 14 stable).
+- `fast-check@4.10.2` : la spec ne le cite pas. C'est une dépendance de développement proposée par la veille (« à faire valider par le dev ») et retenue par cette conception pour F-001-AC7, AC9 et AC16.
+- Quatre fichiers racine que la spec ne liste pas et que cette conception ajoute aux prérequis du dev : `vitest.config.ts` (nouveau), `.dependency-cruiser.cjs`, `package.json` et `eslint.config.mjs` (modifiés).
+
+fast-check et ces quatre fichiers ne sont donc validés par personne tant que le dev ne les a pas commités : c'est le commit `Agent: dev` du bloc 0, qui les introduit, qui les entérine. La liste réelle du bloc 0 compte huit fichiers, les quatre de la spec et ces quatre-là ; leur texte est dans `docs/decisions/F-001-conception.md`.
 
 ## Options étudiées
 
@@ -89,21 +96,27 @@ Rien d'autre n'est exporté : ni constantes de format, ni fonction de rang, ni f
 
 ### Organisation interne
 
-- `src/rang.ts` et `src/arbre.ts` sont purs et n'importent pas `yjs` : calcul des rangs ; passage des entrées valides à l'arborescence (parent effectif, cycles, corbeille, ordre).
-- `src/format.ts` est le seul fichier qui connaît les noms de clés et valide une entrée brute ; `src/document-espace.ts` porte les opérations et l'abonnement ; `src/erreurs.ts` la classe d'erreur ; `src/index.ts` ne fait que réexporter.
-- Les imports relatifs portent l'extension `.ts`, et la syntaxe reste effaçable (`erasableSyntaxOnly`) : le paquet source est ainsi chargeable par Vite, Vitest et Node 26 sans compilation.
+- `src/rang.ts`, `src/arbre.ts` et `src/erreurs.ts` forment le cœur pur : calcul des rangs ; passage des entrées valides à l'arborescence (parent effectif, cycles, corbeille, ordre) ; classe d'erreur. Ils n'importent qu'eux-mêmes : ni `yjs` ni aucun autre paquet, ni `format.ts`, ni `document-espace.ts`. Le contrat `document-coeur-pur` le vérifie.
+- `src/format.ts` est le seul fichier qui connaît les noms de clés et valide une entrée brute ; `src/document-espace.ts` porte les opérations et l'abonnement ; `src/index.ts` ne fait que réexporter. Sens des dépendances : `index → document-espace → format, arbre, rang, erreurs`.
+- Les imports relatifs portent l'extension `.ts`, et la syntaxe reste effaçable (`erasableSyntaxOnly`) : le paquet source est ainsi chargeable par Vitest sans compilation, ce que les tests de F-001 exercent. Le chargement par Node 26 sans compilation est l'intention de ces deux choix, mais il est **non vérifié** : F-001 n'a aucun consommateur Node et aucun essai avec le vrai `yjs` n'a été fait. À prouver par la première feature serveur, qui pourra remettre en cause le paquet source si la preuve échoue. Le chargement par Vite est de même à prouver par F-002.
 
 ### Outillage
 
-- TypeScript : bibliothèque `ES2023` seule, sans `DOM` ni types Node. Un usage du DOM, du réseau ou du système de fichiers dans le module ne compile pas. `crypto.randomUUID`, présent dans Node et dans les navigateurs, est déclaré localement là où il est appelé.
+- ESLint, `no-restricted-globals` limitée à `packages/document/src` : `window`, `document`, `navigator`, `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `indexedDB`, `localStorage`, `sessionStorage` et `process` y sont interdits, accès par `globalThis` compris. C'est la barrière déterministe de « sans DOM, sans réseau, sans stockage » (F-001-AC19) : ces globales s'utilisent sans import, donc hors de vue des contrats de dépendances, et `pnpm lint` est lancé par le socle à chaque commit.
+- TypeScript, seconde barrière : bibliothèque `ES2023` seule, sans `DOM` ni types Node. Un usage du DOM, du réseau ou du système de fichiers dans le module ne compile pas. Aucun contrôle du socle ne lance `tsc` : `pnpm typecheck` est exigé à chaque bloc par le plan, et ne compte pas comme seule barrière. `crypto.randomUUID`, présent dans Node et dans les navigateurs, est déclaré localement là où il est appelé.
 - Vitest 5.0.3 (version du dépôt), environnement `node`. Les tests sont dans `packages/document/test/`, séparés de `src/`.
 - `fast-check@4.10.2` en dépendance de développement, pour les critères de convergence et de robustesse. Les tests de propriétés tournent avec une graine fixe : en l'absence de CI, les hooks git sont la seule barrière et doivent donner le même résultat à chaque exécution.
-- Contrat de dépendances `document-yjs-seulement` (dependency-cruiser) : `packages/document/src` n'importe que `yjs` ; ni autre paquet, ni module intégré de Node.
+- Contrats de dépendances (dependency-cruiser) : `document-yjs-seulement`, `packages/document/src` n'importe que `yjs`, ni autre paquet, ni module intégré de Node ; `document-coeur-pur`, `src/(rang|arbre|erreurs).ts` n'importent qu'eux-mêmes.
 
 ## Conséquences
 
 - Les consommateurs dépendent de deux fonctions, d'une façade de six méthodes et d'une classe d'erreur ; le format de l'ADR-0002 peut évoluer derrière eux.
 - Exposer `doc` permet à un consommateur d'écrire dans les types partagés en contournant les validations. C'est une convention, pas une barrière : la lecture tolérante (F-001-AC16, AC17) en limite l'effet, et les revues refusent tout accès aux types partagés hors de `packages/document`.
+- **Une seule instance de `yjs` dans le workspace.** Exposer `doc` fait importer `yjs` par chaque consommateur. Si deux copies de `yjs` étaient chargées, une `Y.Map` créée par l'une ne serait pas reconnue par l'autre : la validation « la valeur est une `Y.Map` » (ADR-0002, lecture, étape 2) écarterait toutes les entrées, et F-001-AC16 demande de les ignorer sans erreur. L'arborescence serait vide, en silence.
+  - Parade retenue : l'unicité de l'instance, pas une validation tolérante. `format.ts` peut reconnaître une `Y.Map` par `instanceof`, parce que ce test n'est fragile qu'entre deux instances et que deux instances sont interdites. Une reconnaissance par la forme (présence de `get`, `has`…) ne couvrirait que la lecture : rien n'établit que l'écriture d'une `Y.Map` d'une instance dans le document d'une autre fonctionne (non vérifié, `yjs` n'étant pas installé), et elle accepterait des valeurs qui ne sont pas des types partagés.
+  - Dans F-001 l'unicité tient par construction : un seul manifeste déclare `yjs`, en version exacte, et aucun autre paquet ne l'importe.
+  - À la charge de F-002, première feature qui ajoute un second manifeste et une bibliothèque dépendant de `yjs` : imposer une version unique à la racine (catalogue pnpm dans `pnpm-workspace.yaml`, ou `overrides`), et livrer le test de couture qui construit un `Y.Doc` avec l'import `yjs` du consommateur, y crée des pages par la façade, le rouvre par `ouvrirDocumentEspace` et exige de les relire. Deux instances font alors échouer un test au lieu de vider l'arborescence.
+- Le cœur pur et la règle des globales sont tenus par des contrôles, pas par la relecture : un import de `yjs` dans `arbre.ts` ou un `fetch` dans `src/` fait échouer `pnpm contrats` ou `pnpm lint`.
 - Un paquet source lie les consommateurs aux options TypeScript du paquet (extensions `.ts`). Passer à un paquet compilé resterait un changement local : `exports` et un script de build.
 - Une graine fixe explore moins de cas qu'une graine aléatoire. Un contre-exemple trouvé à la main ou en changeant la graine s'ajoute comme test par l'exemple.
 - `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant.
