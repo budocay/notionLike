@@ -14,7 +14,7 @@ Invoquer `agent-planif` : produire `ROADMAP.md` et `specs/F-001.md` (premier mod
 
 ## État des contrôles / gates
 
-`test-blocage.sh` : voir le résultat noté par le dev à la génération. Aucun verdict de gate.
+2026-10-08 : `test-blocage.sh` → `RESULTAT: tous les blocages sont effectifs` (83 cas de plomberie, 9 cas d'adaptateur, 0 KO) ; `controles.sh --tout` → `RESULTAT: OK`. Aucun verdict de gate.
 
 ## Pièges actifs
 
