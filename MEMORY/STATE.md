@@ -2,15 +2,15 @@
 
 ## Où on en est
 
-F-001 (arborescence des pages, `packages/document`, tier structurel) : revue terminée, tous les gates verts sur l'empreinte `ca4cb0d41fe3`, traçabilité écrite. Reste la fusion dans `main` et le réordonnancement de `ROADMAP.md` par `agent-planif`.
+F-001 (arborescence des pages, `packages/document`, tier structurel) est DONE : tous les gates verts sur l'empreinte `ca4cb0d41fe3`, fusionnée dans `main` par le merge commit `7e99266`. Aucune feature en cours.
 
-L'arbre de travail de la branche `F-001` porte du travail NON COMMITÉ fait en avance, sans spec validée : code F-003 dans `packages/document` (`document-page.ts`, `format-page.ts`, leurs tests, et un reste de diff dans `erreurs.ts`, `index.ts`, `test/structure.test.ts`), application `apps/web` entière (F-002 et F-003), ADR 0004 à 0009, conceptions F-002, F-003 et F-008, fichiers protégés ou partagés modifiés (`eslint.config.mjs`, `.dependency-cruiser.cjs`, `pnpm-lock.yaml`, configurations de `apps/web`). `ARCHITECTURE.md` de l'arbre est une ancienne version de celle de HEAD : repartir de HEAD.
+La branche de planification `F-008` (131 commits : ROADMAP à 28 features, specs F-002 à F-028 en brouillon, veille, ADR-0004 à 0006 et conception de F-008) est réunie à `main` par le merge commit `d1caf7a`. `main` porte 28 specs, 947 critères : F-001 validée, 27 brouillons.
 
-Specs F-002, F-008, F-009, F-017 : écrites, en `brouillon`. F-003 : pas de spec.
+Le dépôt principal (`~/dev/notionLike`) est resté sur la branche `F-001`, en retard sur `main`, parce que son arbre de travail porte du travail NON COMMITÉ, fait en avance sans spec validée : code F-003 dans `packages/document` (`document-page.ts`, `format-page.ts`, leurs tests, et un reste de diff dans `erreurs.ts`, `index.ts`, `test/structure.test.ts`), application `apps/web` entière (F-002 et F-003), ADR 0007 à 0009, conceptions F-002 et F-003, une version de `docs/decisions/F-008-conception.md` différente de celle de `main`, et des fichiers protégés ou partagés modifiés (`eslint.config.mjs`, `.dependency-cruiser.cjs`, `pnpm-lock.yaml`, configurations d'`apps/web`). `main` n'est extrait que dans un worktree temporaire.
 
 ## Prochaine action prévue
 
-Le dev valide `specs/F-002.md` (commit `Agent: dev`) et commite les fichiers protégés de son bloc 0 ; ensuite reprendre F-002 au pipeline structurel à partir du code déjà présent dans l'arbre : gate de conception sur `docs/decisions/F-002-conception.md`, commits d'`agent-frontend`, revue.
+Le dev relit et valide `specs/F-002.md` sur `main` (commit `Agent: dev`, en tranchant H13 et H14) ; puis amener le travail non commité sur une branche `F-002` partie de `main` sans le perdre (les fichiers non suivis `docs/decisions/0004` à `0006` et `F-008-conception.md` existent aussi dans `main` : les comparer avant tout changement de branche), relire `docs/decisions/F-002-conception.md` contre la spec réunie, et reprendre le pipeline structurel de F-002 au gate de conception.
 
 ## Dettes ouvertes
 
@@ -18,27 +18,31 @@ Le dev valide `specs/F-002.md` (commit `Agent: dev`) et commite les fichiers pro
 - D-002 Tests d'intégration du serveur sur PGlite et non sur un PostgreSQL réel — proposée par F-008 (voir `ROADMAP.md`) — pas encore ouverte par le dev.
 - D-003 Tests de bout en bout hors des hooks — proposée par F-002 (voir `ROADMAP.md`) — pas encore ouverte par le dev.
 - D-004 Citée par le dev dans deux lignes `REPRISE D-004` de `MEMORY/gates.log` — titre et impact écrits nulle part : à faire décrire par le dev dans `PROJECT_LOG.md`.
-- D-005 Rang de longueur non bornée et `rangEntre` récursive — depuis F-001 — impact : une mise à jour forgée peut épuiser la pile ; à lever avant F-012.
-- D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — impact : diffusion interrompue, écouteur jamais retiré ; à lever avec F-002.
+- D-005 Rang de longueur non bornée et `rangEntre` récursive — depuis F-001 — impact : une mise à jour forgée peut épuiser la pile ; à lever avant F-012, aucune feature ne la porte encore.
+- D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — impact : diffusion interrompue, écouteur jamais retiré ; levée par F-002 (AC29, AC30) si le dev retient H13.
 - D-007 Vérification des types hors des contrôles du socle — depuis F-001 — impact : la barrière « sans DOM » de F-001-AC19 n'est prouvée par aucun `checks.txt` ; à lever par le dev.
 
 ## État des contrôles / gates
 
-2026-10-08, F-001, empreinte `ca4cb0d41fe3` : `checks.txt` → `RESULTAT: OK` (224 tests sur 6 fichiers) ; `reviewer-frontend` APPROVED, `SECURITY GATE: PASS`, `ARCHITECTURE GATE: PASS`, `CRAFT GATE: PASS` ; `gates-verts.sh main..HEAD` → `RESULTAT GATES: OK`. Premier passage (empreinte `3de42046e390`) : `CHANGES_REQUESTED` (deux constats, corrigés par `f9b7def`) et sécurité `UNVERIFIED` (verdict écrit dans un bloc de code).
+2026-10-08, F-001, empreinte `ca4cb0d41fe3` : `checks.txt` → `RESULTAT: OK` (224 tests sur 6 fichiers) ; `reviewer-frontend` APPROVED, `SECURITY GATE: PASS`, `ARCHITECTURE GATE: PASS`, `CRAFT GATE: PASS` ; `gates-verts.sh main..HEAD` → `RESULTAT GATES: OK` avant la fusion.
 
-Arbre complet, travail non commité compris : `pnpm test` 448 tests verts sur 29 fichiers, `pnpm typecheck`, `pnpm lint`, `pnpm contrats` verts (lancés à la main).
+`main` à `d1caf7a` : `pnpm test` 224 tests verts sur 6 fichiers, `pnpm lint` et `pnpm contrats` verts ; `gates-verts.sh 7e99266..HEAD` code 0 (planification seulement).
 
-UNVERIFIED : tests de bout en bout de `apps/web` (`pnpm --filter @notionlike/web test:e2e`), non relancés depuis la coupure de courant du 2026-10-08.
+Non conforme, à trancher par le dev : `.agents/checks/perimetre.sh --commits -1 d1caf7a` → `HORS : MEMORY/VEILLE.md (commit d1caf7a, agent-planif)`, code 2. La résolution du conflit de fusion compte comme une écriture d'`agent-planif` hors de son périmètre, bien que le contenu soit la version de `F-008` à l'octet près. Le hook `pre-push` refusera ce commit ; il n'y a pas de distant aujourd'hui.
+
+UNVERIFIED : arbre de travail du dépôt principal (448 tests verts, typecheck, lint et contrats verts, lancés à la main, hors de tout dossier de revue) ; tests de bout en bout d'`apps/web` (`pnpm --filter @notionlike/web test:e2e`), non relancés depuis la coupure de courant du 2026-10-08.
 
 ## Pièges actifs
 
-- Ne jamais lancer `git stash`, `git clean`, `git restore`, `git checkout -- <fichier>` ni `git reset --hard` sur cet arbre : le travail non commité de F-002 et F-003 n'existe nulle part ailleurs.
-- `dossier-revue.sh` exige un arbre propre : tant que ce travail n'est pas commité, une revue se fait dans un worktree séparé.
+- Dans `~/dev/notionLike`, ne jamais lancer `git stash`, `git clean`, `git restore`, `git checkout -- <fichier>`, `git reset --hard` ni changer de branche sans précaution : le travail non commité de F-002 et F-003 n'existe nulle part ailleurs.
+- Avant toute commande, lister les branches et les worktrees (`git branch -a -vv`, `git worktree list`) : une reprise qui ne l'a pas fait a manqué la branche `F-008` pendant une heure.
+- Le code de F-002 et F-003 a été écrit contre les specs de l'ancienne branche `F-008`. La spec F-002 réunie a six critères de plus (AC27 à AC32) et un AC25 réécrit (identifiant UUID canonique) : `apps/web/src/persistance/nom-de-base.ts` ne contrôle que l'identifiant d'espace.
 - Trois fichiers de `packages/document` sont commités en version F-001 seule et restent modifiés dans l'arbre (part F-003) : `src/erreurs.ts`, `src/index.ts`, `test/structure.test.ts`.
-- Le code de F-002 et F-003 a été écrit sans spec validée : aucun commit, aucun gate tant que le dev n'a pas validé `specs/F-002.md` et une `specs/F-003.md` à écrire.
-- Les fichiers protégés modifiés dans l'arbre ne se commitent que par le dev (`Agent: dev`).
+- `ARCHITECTURE.md` de l'arbre du dépôt principal est une ancienne version : repartir de celle de `main`.
+- `specs/F-012.md` ne dit pas qui écrit `meta.version` et ne cite pas D-005 : à porter avant sa validation.
+- Les fichiers protégés ne se commitent que par le dev (`Agent: dev`) ; un nouveau paquet de workspace aussi.
 - `fast-check@4.10.2` n'est pas dans la spec F-001 : à entériner par le dev.
 - `.idea/` est exclu localement par `.git/info/exclude`, pas par `.gitignore`.
 - Un gate dont la ligne de verdict est dans un bloc de code est lu `UNVERIFIED` : relancer le gate.
-- Un nouveau paquet de workspace (`package.json` avec scripts, `vitest.config.*`) est créé par le dev, pas par un agent.
+- `dossier-revue.sh` exige un arbre propre : une revue se fait dans un worktree séparé tant que l'arbre principal est chargé.
 - Stryker n'est pas installé.
