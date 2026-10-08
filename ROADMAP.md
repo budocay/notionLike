@@ -2,77 +2,142 @@
 
 Dernière mise à jour : 2026-10-08
 
-Source du besoin : `.agents/fiche.yaml`. Une feature est terminée : F-001 (2026-10-08, tous gates verts). Sur cette branche, quatre features ont une spec en brouillon, à valider par le dev : F-002, F-008, F-009 et F-017. Les titres, tiers et dépendances des autres features sont une proposition, précisée à l'écriture de chaque spec.
-
-À réunir avant toute validation (le dev tranche) : la branche `F-008`, non fusionnée et partie de `main` avant F-001, porte une autre planification, plus récente sur les specs et plus ancienne sur F-001 : vingt-huit features, des specs en brouillon pour F-002 à F-017 et F-028 (dont F-003 et F-012, « à écrire » ici), et une version de `specs/F-002.md` qui a deux critères de plus que celle de cette branche (numéros 25 et 26), contre laquelle le code écrit en avance dans l'arbre de travail a été conçu. Cette ROADMAP et `specs/F-002.md` existent donc en deux versions, créées séparément sur les deux branches : leur fusion sera un conflit sur le fichier entier, à résoudre à la main. Ce que la présente mise à jour ajoute (F-001 terminée, dettes D-005 à D-007, reports des gates de F-001, critères F-002-AC27 à AC32) n'existe que sur cette branche et doit survivre à cette réunion.
+Source du besoin : `.agents/fiche.yaml`. Les vingt-neuf features ont une spec (998 critères). Une feature est terminée : F-001 (2026-10-08, tous gates verts, fusionnée dans `main`). Une seule spec est validée sur cette ligne : F-001. Les vingt-huit autres, F-002 à F-029, sont des brouillons à valider par le dev ; F-002 et F-008 avaient été validées le 2026-10-08 sur la branche `planification-reunie` (commits du dev `2e8a651` et `38b5c5f`) et sont à revalider par le dev sur cette ligne, leur texte étant inchangé ; F-029 a été ajoutée le 2026-10-08 pour lever la dette D-005. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. Cette ROADMAP et les specs F-002 à F-029 sont l'import, le 2026-10-08, de l'état final de la planification, reposé sur la ligne de `main` : elles réunissent la planification écrite sur la branche `F-008` et ce que la livraison de F-001 a ajouté. L'historique détaillé reste sur les branches `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`), gardées comme archive.
 
 Chemin critique (collaboration temps réel, la chaîne la plus longue) :
 
-- côté client : ~~F-001~~ (terminée) → F-002 → F-003 → F-013 ;
-- côté serveur : F-008 → F-009 → F-011 → F-012 → F-013.
+- côté client : ~~F-001~~ (terminée) → F-029 → F-002 → F-003 → F-004 → F-013 ;
+- côté serveur : F-008 → F-009 → F-011 → F-012 → F-013 ;
+- après la jonction : F-013 → F-014 → F-015.
 
-Suite du chemin critique : F-002 côté client, F-008 côté serveur, toutes deux débloquées côté dépendances (F-001 livrée ; F-008 ne dépend de rien) et toutes deux en attente de la validation de leur spec par le dev. Les deux chaînes peuvent avancer en alternance jusqu'à F-012, qui attend en plus la levée de D-005 (dette de F-001, dans `packages/document`). F-015, F-016, F-022 et F-025 attendent F-013. F-026 et F-027 sont hors du chemin critique.
+Les deux chaînes se rejoignent dès F-012, qui dépend de F-011 et de F-001 (son test de couture lit le document d'espace par `@notionlike/document`) : F-001, livrée, était en amont des deux. Suite du chemin critique : F-002 côté client, F-008 côté serveur, toutes deux débloquées côté dépendances (F-001 livrée ; F-008 ne dépend de rien) et toutes deux à revalider par le dev sur cette ligne. F-029 (rang borné, levée de D-005) est placée en tête du côté client : elle ne dépend que de F-001, F-012 en dépend, et il est recommandé de la livrer avant F-002, premier code qui enregistre un document sur un appareil (F-029 H3, H6) ; ce n'est pas une dépendance de F-002, et le dev tranche l'ordre. F-004 n'est pas une dépendance de F-013, mais elle est placée sur la chaîne client juste après F-003 (voir l'ordre recommandé). Jusqu'à F-012 les deux chaînes avancent en alternance ; F-012 attend F-011 et F-029 ; F-013 attend F-003, F-007, F-010 et F-012. F-014 attend F-013 (et F-010, F-011) ; F-015 attend F-013 et F-004 et se place après F-014, sans dépendre de son code (F-015 H12 : sans F-014, aucun second appareil n'ouvre un espace hors des tests). F-016, F-022 et F-025 attendent F-013. F-028, F-005 et F-006 ne sont pas sur le chemin critique, mais F-028 gagne à passer avant F-013 (voir l'ordre recommandé). F-026 et F-027 sont hors du chemin critique.
+
+État au 2026-10-08 :
+
+- F-001 est terminée et fusionnée dans `main` : `packages/document` (document d'espace, arborescence des pages) est le seul code applicatif livré.
+- F-008 : spec en brouillon, à revalider par le dev sur cette ligne ; sa conception (`docs/decisions/F-008-conception.md`, ADR-0004 à 0006) a été écrite sur les branches d'archive et reste à présenter au gate de conception, après la revalidation.
+- F-002 : spec en brouillon, à revalider par le dev sur cette ligne, avec les critères F-002-AC27 à AC32 reportés des gates de F-001 et F-002-AC25 réécrit (F-002 H13 et H14).
+- F-029 : spec écrite le 2026-10-08, en brouillon ; elle lève D-005.
+- `specs/F-012.md` porte depuis le 2026-10-08 les deux reports du gate sécurité de F-001 qui lui manquaient (F-012-AC38 à AC40) ; `specs/F-013.md` en reçoit la réaction du client (F-013-AC47).
+- `specs/F-004.md` a été réécrite le 2026-10-08 à la demande du dev, qui a jugé insuffisant l'écran de F-002 et de F-003 : trente critères ajoutés (F-004-AC24 à AC53) sur le résultat visible, et une dépendance nouvelle à F-003.
+- Aucune spec autre que celle de F-001 n'est validée : aucune feature ne peut démarrer avant une validation du dev.
 
 ## En cours
 
-Aucune feature en cours : F-002 et F-008 attendent la validation de leur spec.
+Aucune feature en cours : F-002 et F-008 attendent leur revalidation par le dev sur cette ligne (puis gate de conception de F-008, reprise du pipeline de F-002).
 
 ## À faire (ordonné)
 
-- [ ] F-002 Application web locale : coquille `apps/web`, barre latérale des pages, persistance IndexedDB, premier test de bout en bout — tier: structurel — dépend de: F-001 — agents: agent-frontend — spec: specs/F-002.md (brouillon, retouchée le 2026-10-08 : F-002-AC27 à AC32, reports des gates de F-001 ; à valider par le dev) — lève D-006
-- [ ] F-003 Éditeur de page : paragraphes, titres, listes, enregistrés sur l'appareil — tier: structurel — dépend de: F-002 — agents: agent-frontend — spec: à écrire sur cette branche (un brouillon existe sur la branche `F-008`)
-- [ ] F-004 Identité visuelle sombre : jetons de design, dégradés, animations de base — tier: structurel — dépend de: F-002 — agents: agent-frontend — spec: à écrire
-- [ ] F-005 Bloc code et commandes slash — tier: standard — dépend de: F-003 — agents: agent-frontend — spec: à écrire
-- [ ] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003 — agents: agent-frontend — spec: à écrire
-- [ ] F-007 Corbeille : restauration et suppression définitive d'une page — tier: standard — dépend de: F-002 — agents: agent-frontend — spec: à écrire
-- [ ] F-008 Socle serveur : `apps/server`, PostgreSQL sous Docker Compose, `packages/db`, `packages/contrats` — tier: structurel — dépend de: rien — agents: agent-devops, agent-bdd, agent-backend — spec: specs/F-008.md (brouillon, à valider par le dev)
-- [ ] F-009 Comptes et sessions côté serveur (better-auth) — tier: structurel — dépend de: F-008 — agents: agent-bdd, agent-backend — spec: specs/F-009.md (brouillon, à valider par le dev)
-- [ ] F-010 Écrans d'inscription, de connexion et de déconnexion — tier: structurel — dépend de: F-002, F-009 — agents: agent-frontend — spec: à écrire
-- [ ] F-011 Espaces, membres, invitations et droits (API REST) — tier: structurel — dépend de: F-009 — agents: agent-bdd, agent-backend — spec: à écrire
-- [ ] F-012 Synchronisation serveur des documents : Hocuspocus, stockage des mises à jour Yjs, autorisation par espace — tier: structurel — dépend de: F-011, D-005 levée — agents: agent-bdd, agent-backend — spec: à écrire sur cette branche (un brouillon existe sur la branche `F-008`) — à porter (gate sécurité de F-001) : taille et débit maximaux des messages de synchronisation ; contrôle par le serveur de qui écrit `meta.version` ; validation de la forme de l'identifiant de page avant tout usage comme nom de document ; autorisation d'une page par son rattachement à l'espace
-- [ ] F-013 Synchronisation côté client : connexion, reprise après hors ligne, état de synchronisation visible — tier: structurel — dépend de: F-003, F-010, F-012 — agents: agent-frontend — spec: à écrire
-- [ ] F-014 Écrans des espaces, des membres et des invitations — tier: standard — dépend de: F-010, F-011 — agents: agent-frontend — spec: à écrire
-- [ ] F-015 Présence et curseurs des autres membres — tier: standard — dépend de: F-013 — agents: agent-frontend — spec: à écrire
-- [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-frontend — spec: à écrire
-- [ ] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — tier: structurel — dépend de: F-001 — agents: agent-frontend — spec: specs/F-017.md (brouillon, à valider par le dev)
-- [ ] F-018 Vue tableau d'une base de données — tier: structurel — dépend de: F-002, F-017 — agents: agent-frontend — spec: à écrire
-- [ ] F-019 Filtres et tris d'une vue — tier: standard — dépend de: F-018 — agents: agent-frontend — spec: à écrire
-- [ ] F-020 Vue kanban — tier: standard — dépend de: F-006, F-018 — agents: agent-frontend — spec: à écrire
-- [ ] F-021 Vue calendrier — tier: standard — dépend de: F-018 — agents: agent-frontend — spec: à écrire
-- [ ] F-022 Bloc image : fichier disponible hors ligne, téléversement à la reconnexion — tier: structurel — dépend de: F-003, F-013 — agents: agent-bdd, agent-backend, agent-frontend — spec: à écrire
-- [ ] F-023 PWA installable : coquille servie hors ligne, mise à jour de version — tier: structurel — dépend de: F-002 — agents: agent-frontend, agent-devops — spec: à écrire
-- [ ] F-024 Raccourcis clavier et palette de commandes — tier: standard — dépend de: F-003 — agents: agent-frontend — spec: à écrire
-- [ ] F-025 RGPD : export des données d'un compte, suppression d'un compte — tier: structurel — dépend de: F-011, F-013 — agents: agent-bdd, agent-backend, agent-frontend — spec: à écrire
-- [ ] F-026 Courriels : vérification d'adresse et réinitialisation du mot de passe — tier: structurel — dépend de: F-009 — agents: agent-devops, agent-backend — spec: à écrire
-- [ ] F-027 Gestion du compte : changement de mot de passe et de nom, liste et révocation des sessions — tier: standard — dépend de: F-009, F-010 — agents: agent-backend, agent-frontend — spec: à écrire
+- [ ] F-029 Rang borné dans le document d'espace : longueur limitée à la lecture, calcul sans récursion (levée de D-005) — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-029.md (brouillon, à valider par le dev) — lève D-005 ; obligatoire avant F-012, recommandée avant F-002 (F-029 H6) ; amende l'ADR-0002
+- [ ] F-002 Application web locale : coquille `apps/web`, barre latérale des pages, persistance IndexedDB, premier test de bout en bout — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-002.md (brouillon, à revalider par le dev sur cette ligne) — lève D-006
+- [ ] F-003 Éditeur de page : paragraphes, titres, listes, enregistrés sur l'appareil — tier: structurel — dépend de: F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-003.md (brouillon, à valider par le dev)
+- [ ] F-004 Identité visuelle sombre et ergonomie de la coquille : jetons, barre latérale, éditeur sans cadre, petit écran — tier: structurel — dépend de: F-002, F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-004.md (brouillon, réécrite le 2026-10-08 : F-004-AC24 à AC53 ; à valider par le dev ; sa spec propose une scission après le premier bloc, F-004 H25)
+- [ ] F-028 Mise en forme dans le texte : gras, italique, liens — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-028.md (brouillon, à valider par le dev)
+- [ ] F-005 Bloc code et commandes slash — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-005.md (brouillon, à valider par le dev)
+- [ ] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003, F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-006.md (brouillon, à valider par le dev)
+- [ ] F-007 Corbeille : écran de la corbeille, restauration et suppression définitive d'une page — tier: structurel — dépend de: F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-007.md (brouillon, à valider par le dev)
+- [ ] F-008 Socle serveur : `apps/server`, PostgreSQL sous Docker Compose, `packages/db`, `packages/contrats` — tier: structurel — dépend de: rien — agents: agent-veille, agent-architecte-conception, agent-devops, agent-bdd, agent-backend — spec: specs/F-008.md (brouillon, à revalider par le dev sur cette ligne) — état : conception écrite, à présenter au gate de conception après la revalidation
+- [ ] F-009 Comptes et sessions côté serveur (better-auth) — tier: structurel — dépend de: F-008 — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend — spec: specs/F-009.md (brouillon, à valider par le dev)
+- [ ] F-010 Écrans d'inscription, de connexion et de déconnexion (`apps/web`) — tier: structurel — dépend de: F-002, F-009 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-010.md (brouillon, à valider par le dev)
+- [ ] F-011 Espaces, membres, invitations et droits (API REST) — tier: structurel — dépend de: F-009 (F-010 conditionnelle, voir les notes) — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend (agent-frontend pour un seul bloc, seulement si F-010 est fusionnée avant) — spec: specs/F-011.md (brouillon, à valider par le dev)
+- [ ] F-012 Synchronisation serveur des documents : Hocuspocus, stockage des instantanés Yjs, autorisation par espace — tier: structurel — dépend de: F-011, F-001, F-029 — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend — spec: specs/F-012.md (brouillon, à valider par le dev ; reports du gate sécurité de F-001 portés le 2026-10-08 : contrôle de qui écrit `meta.version`, F-012-AC38 et AC39, et couture avec F-029, F-012-AC40 ; faisabilité du contrôle à confirmer par `agent-veille`, F-012 H20)
+- [ ] F-013 Synchronisation côté client : connexion au serveur, reprise après hors ligne, état de synchronisation visible — tier: structurel — dépend de: F-003, F-007, F-010, F-012 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-013.md (brouillon, à valider par le dev)
+- [ ] F-014 Écrans des espaces, des membres et des invitations (`apps/web`) — tier: structurel — dépend de: F-010, F-011, F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-014.md (brouillon, à valider par le dev)
+- [ ] F-015 Présence et curseurs des autres membres — tier: structurel — dépend de: F-013, F-004 — agents: agent-veille, agent-architecte-conception, agent-backend, agent-frontend — spec: specs/F-015.md (brouillon, à valider par le dev)
+- [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-016.md (brouillon, à valider par le dev)
+- [ ] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-017.md (brouillon, à valider par le dev)
+- [ ] F-018 Vue tableau d'une base de données — tier: structurel — dépend de: F-002, F-007, F-017 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-018.md (brouillon, à valider par le dev)
+- [ ] F-019 Filtres et tris d'une vue — tier: structurel — dépend de: F-018 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-019.md (brouillon, à valider par le dev)
+- [ ] F-020 Vue kanban — tier: structurel — dépend de: F-006, F-018 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-020.md (brouillon, à valider par le dev)
+- [ ] F-021 Vue calendrier — tier: structurel — dépend de: F-018 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-021.md (brouillon, à valider par le dev)
+- [ ] F-022 Bloc image : fichier disponible hors ligne, téléversement à la reconnexion — tier: structurel — dépend de: F-003, F-013 — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-frontend — spec: specs/F-022.md (brouillon, à valider par le dev)
+- [ ] F-023 PWA installable : coquille servie hors ligne, mise à jour de version — tier: structurel — dépend de: F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-023.md (brouillon, à valider par le dev)
+- [ ] F-024 Raccourcis clavier et palette de commandes — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-024.md (brouillon, à valider par le dev)
+- [ ] F-025 RGPD : export des données d'un compte, suppression d'un compte, effacement et hygiène — tier: structurel — dépend de: F-011, F-012, F-013 (F-016, F-018, F-022, F-026 et F-027 conditionnelles : F-025 H16, H17) — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-devops, agent-frontend — spec: specs/F-025.md (brouillon, à valider par le dev ; sa spec recommande en tête une scission, F-025 H0)
+- [ ] F-026 Courriels : vérification d'adresse et réinitialisation du mot de passe — tier: structurel — dépend de: F-009 (F-010 et F-011 conditionnelles : F-026 H10, F-026-AC20) — agents: agent-veille, agent-architecte-conception, agent-devops, agent-bdd, agent-backend (agent-frontend seulement si F-010 est fusionnée avant : F-026 H10) — spec: specs/F-026.md (brouillon, à valider par le dev)
+- [ ] F-027 Gestion du compte : changement de mot de passe et de nom, liste et révocation des sessions — tier: structurel — dépend de: F-009, F-010 — agents: agent-veille, agent-architecte-conception, agent-backend, agent-frontend — spec: specs/F-027.md (brouillon, à valider par le dev)
 
 Notes d'ordonnancement :
 
 - Aucune feature n'est `trivial` : un changement trivial n'a ni spec ni ligne ici.
-- Prochaines validations attendues du dev : F-002 et F-008 (têtes des deux chaînes), puis F-009 et F-017. Avant de valider F-002 : choisir entre les deux versions de sa spec (cette branche et la branche `F-008`) et y réunir les critères des deux. Une spec retouchée après validation impose une revalidation.
+- Toute feature `structurel` commence par `agent-veille` puis `agent-architecte-conception` (skill `pipeline-feature`) : ils figurent en tête de ses agents.
+- Ordre recommandé : la liste ci-dessus, dans l'ordre. F-029 est en tête : petite, sans autre dépendance que F-001, elle resserre la lecture du format avant qu'un document ne soit enregistré (F-002) ou ne circule (F-012) ; F-029 et F-002 modifient toutes deux `packages/document` et ne se mènent pas en parallèle. F-004 est remontée juste après F-003 (elle suivait F-005) : le dev a jugé l'écran de F-002 et de F-003 insuffisant, et F-004 en fixe la disposition (menu de rangée, barre de blocs flottante, colonne de lecture, tiroir, seuils de largeur). Toute feature d'interface livrée avant elle poserait ses commandes dans une disposition à refaire : F-028, F-005 et F-006 ajoutent les leurs à la barre de blocs et aux rangées, et gagnent à les poser directement au bon endroit. Coût : F-028 et F-005 reculent d'un rang, sans effet sur le chemin critique. F-028 est placée après F-004 et avant F-005 (elles prennent ainsi les versions 2 et 3 du document de page), et avant F-013 : la rencontre de deux versions du schéma se règle mieux avant qu'un document circule entre appareils. F-014 suit immédiatement F-013 ; F-015 vient après F-014.
+- Prochaines validations attendues du dev, dans l'ordre du chemin critique : F-002 et F-008 (à revalider sur cette ligne), F-029, puis F-009, F-003, F-004, F-011, F-012 ; puis F-007, F-010 et F-013 ; puis F-014 et F-015 ; ensuite F-028, F-005, F-006, F-016 et F-017 ; enfin F-018 à F-027, dans l'ordre de la liste. Avant de valider F-002 : faire relire `docs/decisions/F-002-conception.md` par `agent-architecte-conception` contre la spec réunie (F-002 H14). Une spec retouchée après validation impose une revalidation.
 - F-002 est le premier écran : Playwright est à installer par le dev avant elle. Stryker reste « envisagé plus tard » (fiche), non planifié.
-- F-021 passe `structurel` si elle demande une bibliothèque de calendrier ; F-020 aussi si elle ne peut pas réutiliser le glisser-déposer de F-006.
-- Chaque feature qui crée un paquet ou une application (F-002, F-008) attend du dev le squelette du paquet (`package.json` avec ses scripts, `vitest.config.*`).
-- F-026 et F-027 sont placées en fin de liste faute d'être sur le chemin critique ; elles peuvent remonter dès que leurs dépendances sont livrées. F-026 est `structurel` (premier envoi de courriel : dépendance et service nouveaux) ; l'écran de saisie du nouveau mot de passe lui ajoutera F-010 en dépendance si elle le porte. F-027 ouvre des routes natives de better-auth que F-009 garde fermées : c'est un changement de contrat, avec son test de couture.
+- Changements de tier, tranchés par les specs : F-005 `structurel` (nœud ajouté au schéma, version du document de page incrémentée, utilitaire de suggestion du menu slash) ; F-007 `structurel` (contrat public de `@notionlike/document` élargi, premier effacement dans le document d'espace ; l'amendement de l'ADR-0002 par `agent-architecte-conception` est un préalable à son code) ; F-014 `structurel`, et non `standard` (sa spec, « Pourquoi ce tier ») ; F-015 `structurel`, et non `standard` (F-015 H5 : dépendance directe nouvelle, contrat nouveau dans `packages/contrats`, nouveau module d'`apps/web`, contrôle de sécurité ajouté au relais du serveur) ; F-028 `structurel` (marques ajoutées au format stocké) ; F-019, F-020, F-021, F-024 et F-027 `structurel`, et non `standard` comme proposé avant l'écriture de leur spec (leur ligne « Pourquoi ce tier »).
+- F-011 et F-010 : F-011 dépend de F-009 seulement. F-010 est une dépendance conditionnelle : celle des deux qui est fusionnée en second porte, dans `apps/web`, les messages des codes d'erreur que F-011 ajoute (F-011-AC34, F-010-AC16). Si F-010 est déjà fusionnée quand F-011 est codée, F-011 reçoit `agent-frontend` pour ce seul bloc, et `reviewer-frontend` à sa revue.
+- F-012 et F-013 : la fabrique d'essai du serveur est livrée par F-012 (F-012-AC36) ; F-013 n'écrit rien dans `apps/server`, et `agent-backend` ne figure pas à ses agents.
+- F-012 et F-015 : F-012 se livre en simple relais des messages de présence ; le contrôle d'identité de présence (le serveur vérifie que l'identifiant de compte annoncé est celui de la session de la connexion) est livré par F-015, avec `agent-backend`, et sa réserve est écrite dans F-012-AC25 et F-012 H12 (retouche R1).
+- F-018 dépend aussi de F-007, et F-025 de F-012 : dépendances ajoutées par leur spec. F-023 et F-022 n'ont pas `agent-devops` (F-023 H8, F-022 H4) ; F-025 et F-026 l'ont.
+- Chaque feature qui crée un paquet ou une application (F-002, F-008) attend du dev le squelette du paquet (`package.json` avec ses scripts, `vitest.config.*`). F-003 lui demande en plus `apps/web/vitest.config.ts` (fichier de préparation des tests : quatre fonctions de mise en page manquent à jsdom).
+- Listes d'exports de `@notionlike/document` : F-003 (façade du document de page), F-007 (deux opérations de corbeille, un code d'erreur), F-016 (opérations sur les commentaires) et F-017 (modèle de table) élargissent ce paquet, et chacune a un test de couture qui compare la liste des exports et des codes d'erreur à une liste attendue. Leur ordre de livraison est libre : la dernière livrée met à jour les listes attendues des tests de couture des autres (F-003-AC24, F-007-AC24 et H13, F-016-AC29).
+- F-026 et F-027 sont placées en fin de liste faute d'être sur le chemin critique ; elles peuvent remonter dès que leurs dépendances sont livrées. F-026 est `structurel` (premier envoi de courriel : dépendance et service nouveaux) ; l'écran de saisie du nouveau mot de passe lui ajoutera F-010 en dépendance si elle le porte. F-025, F-026 et F-027 écrivent leurs flux de compte par le code du serveur, sous `/api/v1/compte/` : les routes natives de better-auth restent fermées (F-009 H21, F-009-AC17).
 
-Ce que les specs écrites reportent sur les features à venir (à reprendre à l'écriture de chacune) :
+Décisions transverses (écrites dans les specs, rappelées ici une fois) :
 
-- F-006 porte le premier appel de `deplacerPage` depuis un écran (F-002 ne l'appelle pas).
-- F-007 garde l'écran de la corbeille, la restauration et la suppression définitive (F-002 ne fait que mettre à la corbeille).
-- F-011 accepte un identifiant d'espace fourni par le client (celui de l'espace local de F-002) et tranche l'inscription ouverte ou sur invitation (F-009 livre une inscription ouverte).
-- F-012 porte les contrats WebSocket de `packages/contrats` et l'authentification de la connexion WebSocket par le cookie de session de F-009.
-- F-013 porte la diffusion en direct entre onglets et l'adoption de l'identifiant de l'espace local par le serveur.
-- F-018 porte le rattachement d'une table à l'arborescence des pages et la persistance du document de table (F-017 ne livre que le modèle).
-- F-025 porte la purge des sessions expirées (F-009 les refuse sans les effacer).
+- Version du document de page : F-003 livre le socle (lecture « la plus haute jamais inscrite », opération d'élévation, table des versions, dont elle écrit la ligne 1). F-028, F-005, F-016 et F-022 incrémentent chacune la version. Le numéro qu'une feature introduit est la version prise en charge par `main` à son premier commit de code, plus un. La version d'un document n'est écrite que lorsqu'un élément nouveau y est inscrit, jamais à l'ouverture. Une application plus ancienne refuse alors la page entière.
+- Nom des bases locales : `notionlike:espace:<idEspace>`, `notionlike:page:<idEspace>:<idPage>`, `notionlike:table:<idEspace>:<idTable>`. L'identifiant d'espace dans le nom isole les espaces d'un même appareil, et le nom correspond terme à terme au nom de document du serveur (F-002 H3, F-012 H2, F-013-AC16).
+- Motion (bibliothèque d'animation de la fiche) n'est installée ni par F-004 ni par F-006 : le CSS leur suffit (F-004 H3, F-006 H8). Elle reste à F-024 ou à une feature dédiée, qui serait alors `structurel` (dépendance directe nouvelle).
+- Dépendances directes décidées par les specs après la veille, hors de celles que la fiche nomme : `@floating-ui/dom`, dépendance de pair obligatoire de `@tiptap/suggestion`, déclarée par F-005 et confinée au module d'édition (F-005 H9, F-005-AC33) ; l'ancienne famille dnd-kit (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`, et non `@dnd-kit/react`), retenue par F-006 (F-006 H6).
+- Contexte sécurisé : la coquille refuse de tourner hors d'un contexte sécurisé et l'explique, sans générateur d'identifiants de secours (F-002-AC26, F-002 H12) ; prérequis du dev : servir l'application en `https` ou à une adresse locale de la machine (`localhost`, `127.0.0.1`), y compris pour un essai depuis un autre appareil du réseau.
+
+Limites acceptées par les specs (à dire au dev avant validation) :
+
+- Un `lecteur` lit les commentaires et n'en écrit pas (F-016 H2).
+- Aucun auteur de commentaire n'est vérifié par le serveur : l'auteur et la date sont déclarés par l'appareil (F-016 H3).
+- Un bloc déplacé peut être dupliqué par deux déplacements simultanés, ou perdre une modification concurrente (F-006-AC24, AC25).
+- Un membre retiré d'un espace garde sa copie locale de ce qu'il a déjà reçu (F-011 H2).
+- Sur un appareil partagé, les modifications hors ligne d'une personne partent sous le compte de la suivante si elle est membre de l'espace (F-013 H3, H5).
+- Un client défectueux ou malveillant qui a le droit d'écriture peut faire perdre à tous le contenu qu'un client plus ancien ne connaît pas, en envoyant ce contenu avant la version qui le déclare (deux mises à jour) : aucun critère d'aucune spec ne garantit ce cas, la parade complète (vérifier chaque mise à jour contre le schéma avant la liaison) n'est pas retenue et reste à décider par le dev (F-003 H4, cas (a) ; F-013 H8).
+
+Ce que les specs écrites reportent sur les features à venir (liste dressée avant l'écriture des specs de F-018 à F-027 ; ces specs existent depuis : la reprise de chaque point est à vérifier à leur validation) :
+
+- F-004 : un jeton de police à chasse fixe, que le bloc code de F-005 emploie s'il existe (F-005-AC8).
+- F-007 : si la restauration d'une page appelle `deplacerPage`, elle entre dans l'énumération des appelants de F-006 (F-006-AC30).
+- F-018 :
+  - le rattachement d'une table à l'arborescence des pages et la persistance du document de table (F-017 ne livre que le modèle) ;
+  - brancher le type `table` à la passe de fond de F-013, qui n'en fixe que le nom (F-013-AC16).
+- F-022 :
+  - la même règle de version que F-028, F-005 et F-016 (voir les décisions transverses) ;
+  - sa commande à ajouter à la liste du menu slash de F-005 (F-005-AC21) ;
+  - les fichiers lâchés dans l'éditeur, que F-006 refuse explicitement (F-006-AC35).
+- F-024 : recenser les raccourcis déjà livrés par les features d'éditeur : Mod+B, Mod+I, Mod+K (F-028), Mod+Entrée (F-005, F-016), Alt+Maj+Flèches (F-006), Mod+Alt+M (F-016).
+- F-025 :
+  - l'effacement garanti des octets d'une page supprimée : historique Yjs, journal de la persistance, autres appareils, serveur, sauvegardes (F-007 H1 ne le garantit pas) ;
+  - le balayage des bases de page orphelines laissées par un effacement manqué (F-007-AC21) ou par une suppression propagée (F-013-AC37) ;
+  - le document du serveur d'une page supprimée définitivement, ou d'une table isolée : sa suppression demande une route ou un signal nouveau (F-012 : un document n'y disparaît qu'avec son espace ; F-013 ne le fait pas) ;
+  - l'export des commentaires dont un compte est l'auteur déclaré, qui demande de lire les documents de page (F-016 H7) ;
+  - le nom et l'identifiant d'un compte supprimé dans ses commentaires, que le serveur ne peut pas effacer lui-même (F-016 H7) ;
+  - l'effacement garanti des octets d'un commentaire supprimé (F-016 H7) ;
+  - le sort des espaces dont le compte supprimé est le dernier propriétaire (F-011) ;
+  - la purge des invitations expirées ou consommées (F-011) et celle des sessions expirées (F-009) ;
+  - l'adresse IP et l'agent utilisateur des sessions dans l'export (F-009 H10).
 
 Ce que les gates de F-001 reportent sur les features à venir (source : `MEMORY/features/F-001.md`) :
 
 - F-002 : forme de l'identifiant de page contrôlée avant tout usage comme fragment d'adresse ou nom de base (F-002-AC27, AC28) ; levée de D-006, qui modifie l'interface publique de `@notionlike/document`, avec son test de couture (F-002-AC29 à AC31) ; preuve que le champ `exports` du manifeste est atteint par un import par nom de paquet (F-002-AC32). Écrits dans la spec, en brouillon.
-- F-012 : quatre points inscrits sur sa ligne ci-dessus. Le brouillon de la branche `F-008` fixe déjà des plafonds de taille et de débit, le refus d'un nom de document qui n'est pas un UUID canonique et l'autorisation par l'identifiant d'espace du nom ; il ne dit rien de qui écrit `meta.version` ni de D-005 : à ajouter à la réunion des deux branches.
-- F-003 et F-017 : figer par un test la liste des exports de `@notionlike/document` et celle des codes d'erreur (aucun test de F-001 ne le fait).
+- F-012 : quatre points demandés par le gate sécurité, tous dans sa spec depuis le 2026-10-08 : des plafonds de taille et de débit des messages, le refus d'un nom de document dont l'identifiant n'est pas un UUID canonique, l'autorisation par l'identifiant d'espace du nom, et le contrôle de qui écrit `meta.version` (F-012-AC38, AC39 ; motif `version-refusee`, dont F-013-AC47 porte la réaction du client). La dépendance à la levée de D-005 y est écrite aussi (F-029, F-012-AC40).
+- F-029 : lève D-005 (constat M2 du gate sécurité, CWE-674) : rang de 1024 unités au plus à la lecture, calcul sans récursion, réattribution élargie à la borne, code d'erreur `rang-indisponible` ajouté au contrat de `@notionlike/document`. Les features qui figent la liste des codes d'erreur de ce paquet par un test (F-003-AC24, F-007-AC24, F-016-AC29) la reçoivent selon l'ordre de livraison (F-029-AC16).
+- F-003 et F-017 : figer par un test la liste des exports de `@notionlike/document` et celle des codes d'erreur (aucun test de F-001 ne le fait). Leurs specs le demandent déjà (test de couture des listes attendues, voir les notes d'ordonnancement).
 - Première feature qui touche au titre d'une page : la limite de 200 se mesure en unités UTF-16 ; aucun test hors du plan multilingue de base ne la fixe.
 
-Manque signalé, sans feature : le déploiement hors du poste du dev (TLS, proxy inverse, sauvegarde et restauration de la base) n'est couvert par aucune ligne de cette ROADMAP. F-008 et F-009 le laissent hors périmètre ; F-009 en dépend pour un usage réel (cookie `Secure`, `PROXYS_DE_CONFIANCE`). Le dev décide s'il devient une feature.
+Ce que la réécriture de F-004 reporte sur les specs voisines (F-004 H29 ; à porter dans chacune avant sa validation, aucune n'a été modifiée pour cela) :
+
+- F-003 : H8 (barre de blocs permanente) et le texte d'invite de F-003-AC2, remplacés par la barre flottante et l'invite de F-004-AC35 et AC36.
+- F-005 : F-005-AC6, AC11 et AC21 supposent une barre de blocs toujours visible, à reformuler ; à sa livraison l'invite cite « / » et la barre ne s'affiche plus dans un bloc vide.
+- F-006 : poignée dans la marge de la colonne de lecture ; commandes de déplacement de rangée dans le menu « ⋯ ».
+- F-007 : entrée « Corbeille » dans le pied de la barre latérale (F-004-AC30).
+- F-013 : emplacement de l'état de synchronisation, barre du haut (F-004-AC40) ou barre latérale (définition actuelle de F-013) : au dev de trancher (F-013 H19).
+- F-024 : F2 et Alt+F10 au registre ; l'entrée « Rechercher » de la barre latérale est sa commande « Palette de commandes » ; elle décide des raccourcis de « Nouvelle page », « Ajouter une sous-page » et « Mettre à la corbeille », que F-004 ne crée pas.
+- F-028 : H7 (« sans menu flottant ») à revoir : ses commandes entrent dans la barre de blocs flottante.
+- F-010, F-014, F-015, F-016, F-018 à F-023 : seuil étroit, cibles tactiles et absence de défilement horizontal (F-004-AC41, AC43, AC45) pour chaque écran ajouté.
+
+Manques signalés, sans feature (le dev décide si l'un d'eux devient une feature) :
+
+- Le déploiement hors du poste du dev (TLS, proxy inverse, sauvegarde et restauration de la base) n'est couvert par aucune ligne de cette ROADMAP. F-008 et F-009 le laissent hors périmètre ; F-009 en dépend pour un usage réel (cookie `Secure`, `PROXYS_DE_CONFIANCE`). Sont à rouvrir avec lui : l'inscription ouverte, que F-011 (H4) n'accepte que parce que le serveur n'est pas exposé ; `wss://` pour le point de synchronisation de F-012 ; le service de l'application et de l'API sous une même origine (F-010).
+- La coloration syntaxique du bloc code est exclue de F-005 (H4), qui enregistre pourtant le langage ; aucune ligne ne la porte.
+- Déplacer un élément de liste seul est exclu de F-006 ; aucune ligne ne le porte.
+- L'aperçu d'une invitation avant acceptation est exclu de F-014 (H3) : il demanderait une route nouvelle dans F-011 ; aucune ligne ne le porte.
 
 ## Refactors planifiés (par blocs)
 
@@ -82,15 +147,15 @@ Dette ouverte, non planifiée : D-001 (pas de CI ni de branche protégée). Elle
 
 Dettes ouvertes par F-001 (texte dans `PROJECT_LOG.md`, entrées du 2026-10-08) :
 
-- D-005 — levée : à planifier avant F-012, qui en dépend ; aucune feature ne la porte encore. Elle touche `packages/document` et ADR-0002 : tier `standard` au moins, spec à écrire à la demande du dev.
+- D-005 — levée : par F-029 (F-029-AC1 à AC17), avant F-012 qui en dépend (F-012-AC40) ; tier `structurel` (F-029 H7), ADR-0002 à amender avant le code.
 - D-006 — levée : par F-002 (F-002-AC29 à AC31).
 - D-007 — levée : par le dev (fichiers du socle, refusés à un agent) ; aucune feature.
 - D-004 — citée par le dev dans `MEMORY/gates.log`, décrite nulle part : à décrire par le dev dans `PROJECT_LOG.md`.
 
 Dettes proposées, à ouvrir par le dev à la validation des specs concernées (elles ne sont inscrites nulle part ailleurs à ce jour) :
 
-- D-002 Tests d'intégration du serveur sur PGlite et non sur un PostgreSQL réel — origine : F-008 (H5) — impact : concurrence, pool, droits et pilote `pg` ne sont vérifiés que par le script de fumée manuel de F-008-AC19 ; à lever avec D-001 (une CI peut lancer PostgreSQL).
-- D-003 Tests de bout en bout hors des hooks — origine : F-002 (H9) — impact : `TEST_CMD` ne lance que Vitest, donc F-002-AC23, AC4 et AC19 ne sont tenus que par un lancement manuel ; à lever quand le dev branche Playwright dans `.agents/outils.env`.
+- D-002 Tests d'intégration du serveur sur PGlite et non sur un PostgreSQL réel — origine : F-008 (H5), étendue par F-011 (H10) et F-012 (H11) — impact : concurrence, pool, droits et pilote `pg` ne sont vérifiés que par le script de fumée manuel de F-008-AC19 ; les volets « en même temps » de F-011-AC17 (dernier propriétaire) et F-011-AC22 (invitation à usage unique) ne sont prouvés que par la présence du verrou et des contraintes, sans concurrence réelle ; la colonne binaire des instantanés de F-012-AC28 n'est pas éprouvée sur un vrai PostgreSQL ; à lever avec D-001 (une CI peut lancer PostgreSQL).
+- D-003 Tests de bout en bout hors des hooks — origine : F-002 (H9), étendue aux scénarios de F-003, F-004, F-007 et F-010, puis à ceux de F-005, F-006, F-013, F-014, F-015, F-016 et F-028 — impact : `TEST_CMD` ne lance que Vitest, donc ne sont tenus que par un lancement manuel : F-002-AC23, AC4 et AC19 ; F-003-AC28 (seule preuve de la frappe réelle dans l'éditeur) ; F-004-AC22 (seule preuve du rendu réel) et, depuis sa réécriture, toutes les preuves de disposition de F-004 dans un navigateur et ses captures de référence (liste dans F-004 H26) ; F-007-AC28 ; le scénario de F-010 contre le serveur réel (F-010 H8) ; F-005-AC34 (frappe réelle, position du menu, rendu du bloc code) ; pour F-006, tout le geste au pointeur (repères de dépôt, poignée, abandon par Échap : F-006-AC1 à AC3, AC7, AC14, AC15, AC34), que rien d'autre ne prouve ; les scénarios de bout en bout de F-013 (deux onglets réels, cookie joint par le navigateur, F-013 H13) et de F-014 (contre la pile réelle, F-014 H11) ; F-015-AC33, le rendu réel des curseurs et le retrait à la fermeture de l'onglet (F-015 H13) ; F-016-AC35 (seule preuve dans un vrai navigateur que rien ne s'exécute et que le couper-coller détache un fil) ; F-028-AC30 (seule preuve que rien ne s'exécute dans un vrai navigateur) ; à lever quand le dev branche Playwright dans `.agents/outils.env`.
 
 ## Terminé (lien PROJECT_LOG)
 
