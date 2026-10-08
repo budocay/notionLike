@@ -95,7 +95,7 @@ Le refus `deplacement-cyclique` ne voit que l'arbre lu sur la réplique : un cyc
 #### Résultat gardé et abonnement
 
 - À l'ouverture, la façade lit le document une fois et pose un écouteur sur l'événement `afterTransaction` du `Y.Doc`.
-- À chaque fin de transaction, locale ou reçue, l'écouteur relit la version et toutes les entrées, reconstruit l'arborescence et la compare à celle qu'il garde (identifiants, titres, ordre). Si elle diffère, il la remplace puis appelle les abonnés, dans l'ordre d'inscription.
+- À chaque fin de transaction, locale ou reçue, l'écouteur relit la version et toutes les entrées, reconstruit l'arborescence et la compare à celle qu'il garde (identifiants, titres, ordre). Si elle diffère, il la remplace puis appelle les abonnés, dans l'ordre d'inscription. Seuls sont appelés les abonnés inscrits au début de la diffusion et encore inscrits au moment de leur tour : un abonné désabonné par un rappel précédent n'est pas appelé, et un abonné inscrit pendant la diffusion ne l'est qu'au changement suivant.
 - Les opérations ne se servent pas du résultat gardé : chacune relit le document avant de valider et d'écrire.
 
 #### Limites connues
