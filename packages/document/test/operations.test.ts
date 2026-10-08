@@ -450,11 +450,19 @@ describe("mettre une page à la corbeille", () => {
 
     expect(espace.lire().corbeille).toEqual([page(premiere, "Première"), page(seconde, "Seconde")]);
   });
+});
 
-  it("F-001-AC5 après les deux tests à identifiants fixés, une création reçoit de nouveau un identifiant tiré", () => {
-    const espace = creerDocumentEspace();
+// Les deux tests se suivent : le premier laisse un identifiant fixé non consommé, que seule la
+// restauration des simulacres après chaque test empêche d'atteindre le second.
+describe("restaurer le tirage des identifiants après chaque test", () => {
+  it("un test fixe deux identifiants et n'en consomme qu'un", () => {
+    fixerLesProchainsIdentifiants(identifiantFixe(1), identifiantFixe(2));
 
-    expect(espace.creerPage("Libre")).not.toBe(identifiantFixe(1));
+    expect(creerDocumentEspace().creerPage("Fixée")).toBe(identifiantFixe(1));
+  });
+
+  it("le test suivant reçoit un identifiant tiré, pas l'identifiant resté en attente", () => {
+    expect(creerDocumentEspace().creerPage("Libre")).not.toBe(identifiantFixe(2));
   });
 });
 

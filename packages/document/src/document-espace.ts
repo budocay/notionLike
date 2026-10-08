@@ -68,7 +68,13 @@ export function ouvrirDocumentEspace(doc: Y.Doc): DocumentEspace {
     const relue = lectureAdmise(doc);
     if (!memeLecture(relue, lecture)) {
       lecture = relue;
-      [...abonnes].forEach((notifier) => notifier());
+      // La copie tient à l'écart les abonnés inscrits pendant la diffusion ; le test d'appartenance
+      // écarte ceux qu'un rappel précédent vient de désabonner.
+      for (const notifier of [...abonnes]) {
+        if (abonnes.has(notifier)) {
+          notifier();
+        }
+      }
     }
   });
 

@@ -230,6 +230,20 @@ describe("s'abonner à l'arborescence lue", () => {
     expect(suivant).toHaveBeenCalledTimes(2);
   });
 
+  it("F-001-AC6 un abonné désabonné pendant la notification par un abonné inscrit avant lui n'est pas notifié", () => {
+    const espace = creerDocumentEspace();
+    const second = vi.fn();
+    const desabonnerLeSecond: { appeler: () => void } = { appeler: () => undefined };
+    const premier = vi.fn(() => desabonnerLeSecond.appeler());
+    espace.abonner(premier);
+    desabonnerLeSecond.appeler = espace.abonner(second);
+
+    espace.creerPage("a");
+
+    expect(premier).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
+  });
+
   it("F-001-AC6 deux façades ouvertes sur le même Y.Doc sont notifiées l'une et l'autre", () => {
     const espace = creerDocumentEspace();
     const autreFacade = ouvrirDocumentEspace(espace.doc);
