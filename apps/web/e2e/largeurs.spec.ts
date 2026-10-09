@@ -14,9 +14,12 @@ import {
   jeton,
   largeur,
   montrerLaBarre,
+  OUVRIR_LA_BARRE,
   ouvrirLeMenu,
+  ouvrirLeRenommage,
   style,
   tiroir,
+  TITRE_DE_200,
   TITRE_DU_NIVEAU_12,
   toutRefermer,
   voile,
@@ -85,8 +88,51 @@ async function constaterLeTiroirFerme(page: Page): Promise<void> {
   expect(await page.locator("[inert]").count()).toBe(0);
 }
 
-function commandeDuReste(page: Page): Locator {
-  return page.getByRole("button", { name: "Afficher les pages intermédiaires" });
+/** Commandes du reste de l'application : barre du haut et zone principale, hors du tiroir. */
+function commandesDuReste(page: Page): Locator {
+  return page.locator("[inert]").locator("a[href], button");
+}
+
+interface EtatDeCommande {
+  readonly nom: string;
+  readonly deplie: string | null;
+  readonly focalisee: boolean;
+  /** Centre de la boîte, et s'il tombe hors de la boîte du tiroir. */
+  readonly centre: { readonly x: number; readonly y: number };
+  readonly horsDuTiroir: boolean;
+}
+
+/** Ce que chaque commande du reste porte : son état, le focus, et où son centre se trouve. */
+function etatsDesCommandes(page: Page): Promise<EtatDeCommande[]> {
+  return commandesDuReste(page).evaluateAll((commandes) => {
+    const tiroir = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
+    return commandes.map((commande) => {
+      const boite = commande.getBoundingClientRect();
+      const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 };
+      return {
+        nom: commande.getAttribute("aria-label") ?? commande.textContent,
+        deplie: commande.getAttribute("aria-expanded"),
+        focalisee: document.activeElement === commande,
+        centre,
+        horsDuTiroir: tiroir === undefined || centre.x >= tiroir.right,
+      };
+    });
+  });
+}
+
+/** L'effet d'aucune commande du reste ne s'est produit : ni état changé, ni focus, ni adresse. */
+async function constaterSansEffet(
+  page: Page,
+  avant: readonly EtatDeCommande[],
+  adresse: string,
+): Promise<void> {
+  const apres = await etatsDesCommandes(page);
+  expect(apres.map(({ nom, deplie }) => ({ nom, deplie }))).toEqual(
+    avant.map(({ nom, deplie }) => ({ nom, deplie })),
+  );
+  expect(apres.filter(({ focalisee }) => focalisee)).toEqual([]);
+  expect(page.url()).toBe(adresse);
+  await expect(page.getByRole("banner").locator("ul")).toHaveCount(0);
 }
 
 // (1) et (2) : tiroir par-dessus le contenu, voile sur le reste, focus dans le tiroir, aussitôt.
@@ -105,12 +151,22 @@ async function constaterLOuverture(page: Page, pixels: number): Promise<void> {
   expect((await page.getByRole("main").boundingBox())?.width).toBe(pixels);
 }
 
-// (3) : le reste est inerte, le focus n'y atteint aucune commande.
+// (3) : le reste est inerte. Chaque commande du reste reçoit un appel à son `focus()` : elle ne
+// prend pas le focus, qui reste dans le tiroir, et rien de ce qu'elle porte ne change.
 async function constaterLInertie(page: Page): Promise<void> {
-  for (const commande of [commandeDuReste(page), boutonDOuverture(page)]) {
+  const adresse = page.url();
+  const avant = await etatsDesCommandes(page);
+  expect(avant.map(({ nom }) => nom)).toEqual([
+    OUVRIR_LA_BARRE,
+    TITRE_DE_200,
+    "Afficher les pages intermédiaires",
+  ]);
+  for (const commande of await commandesDuReste(page).all()) {
     await commande.evaluate((element: HTMLElement) => element.focus());
+    await expect(commande).not.toBeFocused();
     expect(await lieuDuFocus(page)).toBe("tiroir");
   }
+  await constaterSansEffet(page, avant, adresse);
   const inerte = await page.getByRole("banner").evaluate((barre) => barre.closest("[inert]"));
   expect(inerte).not.toBeNull();
 }
@@ -128,14 +184,68 @@ async function constaterLesTabulations(page: Page): Promise<void> {
   expect(lieux.has("tiroir")).toBe(true);
 }
 
-// Un clic à l'endroit d'une commande du reste tombe sur le voile : il ferme le tiroir sans
-// activer la commande ni changer l'adresse.
-async function fermerParLeVoile(page: Page, pixels: number): Promise<void> {
+interface PointDeClic {
+  readonly x: number;
+  readonly y: number;
+  /** Rang, parmi les commandes du reste, de celle que le clic vise ; absent s'il vise le voile. */
+  readonly rang: number | undefined;
+}
+
+// Le centre de la boîte d'une commande du reste que le tiroir ne couvre pas. Le bouton d'ouverture
+// n'est pas visé : la fermeture lui rend le focus, quel que soit le clic. Quand aucune commande n'a
+// son centre hors du tiroir (elles sont à gauche de la barre du haut, sous lui), le scénario le
+// note, et le point est sur le voile, à leur hauteur.
+async function pointHorsDuTiroir(
+  page: Page,
+  pixels: number,
+  commandes: readonly EtatDeCommande[],
+): Promise<PointDeClic> {
+  const panneau = await tiroir(page).boundingBox();
+  const bord = (panneau?.x ?? 0) + (panneau?.width ?? pixels);
+  const rang = commandes.findIndex(
+    ({ nom, horsDuTiroir }) => horsDuTiroir && nom !== OUVRIR_LA_BARRE,
+  );
+  const visee = commandes[rang];
+  if (visee !== undefined) {
+    return { ...visee.centre, rang };
+  }
+  test.info().annotations.push({
+    type: "F-004-AC42",
+    description: `à ${pixels}, aucune commande du reste n'a son centre hors du tiroir (bord à ${bord}, centres à ${commandes.map(({ centre }) => centre.x).join(", ")}) : le clic vise le voile`,
+  });
+  return { x: (bord + pixels) / 2, y: commandes[0]?.centre.y ?? 0, rang: undefined };
+}
+
+// Clic au centre de la boîte d'une commande du reste, en un point que le tiroir ne couvre pas : il
+// ne l'active pas, ne lui donne pas le focus et ne change pas l'adresse ; reçu par le voile, il
+// ferme le tiroir. Sans commande à viser, il ne prouve que la fermeture par le voile, l'inertie
+// restant prouvée par les appels à `focus()` de `constaterLInertie`.
+async function fermerParUnClicHorsDuTiroir(page: Page, pixels: number): Promise<void> {
   const adresse = page.url();
-  const cible = await commandeDuReste(page).boundingBox();
-  await page.mouse.click(pixels - 4, (cible?.y ?? 0) + (cible?.height ?? 0) / 2);
+  // L'entrée du tiroir glisse : sa boîte n'est comparée à celles des commandes qu'une fois en place.
+  await expect.poll(async () => (await tiroir(page).boundingBox())?.x).toBe(0);
+  const avant = await etatsDesCommandes(page);
+  const point = await pointHorsDuTiroir(page, pixels, avant);
+
+  await page.mouse.click(point.x, point.y);
+
   await constaterLeTiroirFerme(page);
-  await expect(commandeDuReste(page)).toHaveAttribute("aria-expanded", "false");
+  // Fermé, le reste n'est plus inerte : ses commandes y sont dans l'état d'avant le clic, sauf le
+  // bouton d'ouverture, dont `aria-expanded` suit le tiroir.
+  const commandes = page.getByRole("banner").locator("a[href], button");
+  const apres = await commandes.evaluateAll((elements) =>
+    elements.map((element) => ({
+      nom: element.getAttribute("aria-label") ?? element.textContent,
+      deplie: element.getAttribute("aria-expanded"),
+    })),
+  );
+  expect(apres).toEqual(
+    avant.map(({ nom, deplie }) => ({ nom, deplie: nom === OUVRIR_LA_BARRE ? "false" : deplie })),
+  );
+  if (point.rang !== undefined) {
+    await expect(commandes.nth(point.rang)).not.toBeFocused();
+  }
+  await expect(page.getByRole("banner").locator("ul")).toHaveCount(0);
   expect(page.url()).toBe(adresse);
 }
 
@@ -160,7 +270,7 @@ for (const pixels of [360, 768]) {
     await expect(boutonDOuverture(page)).toBeFocused();
 
     await boutonDOuverture(page).click();
-    await fermerParLeVoile(page, pixels);
+    await fermerParUnClicHorsDuTiroir(page, pixels);
     await expect(boutonDOuverture(page)).toBeFocused();
 
     await boutonDOuverture(page).click();
@@ -240,7 +350,23 @@ async function constaterLesCibles(page: Page, ecran: string, auMoins: number): P
   expect(tropPetites, `cibles de moins de ${CIBLE} pixels, écran ${ecran}`).toEqual([]);
 }
 
-test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des écrans (b), (c), (d) et (j) offre au moins 44 pixels de large et de haut", async ({
+/** Écran (e) : la saisie de renommage est ouverte ; son champ est une cible comme les autres. */
+async function constaterLeChampDeRenommage(
+  page: Page,
+  ecran: string,
+  auMoins: number,
+): Promise<void> {
+  await ouvrirLeRenommage(page, TITRE_DU_NIVEAU_12);
+  const champ = await page.getByRole("textbox", { name: "Titre de la page" }).boundingBox();
+  expect(champ?.height, `hauteur du champ de renommage, écran ${ecran}`).toBeGreaterThanOrEqual(
+    CIBLE,
+  );
+  await constaterLesCibles(page, ecran, auMoins);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+}
+
+test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des écrans (b), (c), (d), (e) et (j) offre au moins 44 pixels de large et de haut", async ({
   browser,
   baseURL,
 }) => {
@@ -250,6 +376,7 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
   expect(await page.evaluate(() => window.matchMedia("(pointer: coarse)").matches)).toBe(true);
   // Pointeur imprécis sur écran large : les cibles ne sont pas compactes non plus.
   await constaterLesCibles(page, "(c) à 1280", 60);
+  await constaterLeChampDeRenommage(page, "(e) à 1280", 60);
 
   await largeur(page, 360);
   await constaterLesCibles(page, "(c)", 3);
@@ -258,6 +385,9 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
   await ouvrirLeMenu(page, TITRE_DU_NIVEAU_12);
   await expect(page.getByRole("menuitem")).toHaveCount(3);
   await constaterLesCibles(page, "(d)", 63);
+  await toutRefermer(page);
+  await montrerLaBarre(page);
+  await constaterLeChampDeRenommage(page, "(e)", 60);
   await toutRefermer(page);
   await montrerLaBarre(page);
   await lienDePage(page, "Carnet 1").click();

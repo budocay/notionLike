@@ -7,7 +7,6 @@ import {
 } from "@notionlike/document";
 import {
   type ReactElement,
-  type ReactNode,
   type RefObject,
   useEffect,
   useId,
@@ -22,8 +21,7 @@ import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
 import { BarreDuHaut, ZoneEtat } from "./composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "./composants/BoutonIcone.tsx";
-import { Coquille, type TiroirDeCoquille } from "./composants/Coquille.tsx";
-import { COQUILLE } from "./composants/coquille.classes.ts";
+import { Coquille, EcranPlein, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Avertissement, Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
@@ -57,7 +55,7 @@ export function Application({ session }: { readonly session: SessionEspace }): R
   switch (etat.phase) {
     case "contexte-non-securise":
       return (
-        <EcranPlein>
+        <EcranPlein fenetre>
           <EcranBloquant
             titre={TITRE_CONTEXTE_NON_SECURISE}
             explication={EXPLICATION_CONTEXTE_NON_SECURISE}
@@ -66,7 +64,7 @@ export function Application({ session }: { readonly session: SessionEspace }): R
       );
     case "version-non-prise-en-charge":
       return (
-        <EcranPlein>
+        <EcranPlein fenetre>
           <EcranBloquant
             titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
             explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
@@ -75,17 +73,13 @@ export function Application({ session }: { readonly session: SessionEspace }): R
       );
     case "chargement":
       return (
-        <EcranPlein>
+        <EcranPlein fenetre>
           <Chargement texte={CHARGEMENT} />
         </EcranPlein>
       );
     case "pret":
       return <EspacePret etat={etat} />;
   }
-}
-
-function EcranPlein({ children }: { readonly children: ReactNode }): ReactElement {
-  return <main className={COQUILLE.ecranPlein}>{children}</main>;
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
@@ -112,25 +106,23 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
     />
   );
   return (
-    <div className={COQUILLE.fenetre}>
-      <Coquille tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
-        {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
-        <BarreDuHaut
-          ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
-          fil={
-            page === undefined ? undefined : (
-              <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
-            )
-          }
-          etat={<ZoneEtat echec={etat.enregistre ? undefined : NON_ENREGISTRE} />}
-        />
-        <ZonePrincipale
-          ref={tiroir.zonePrincipale}
-          selection={selection}
-          espaceVide={racines.length === 0}
-        />
-      </Coquille>
-    </div>
+    <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
+      {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
+      <BarreDuHaut
+        ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
+        fil={
+          page === undefined ? undefined : (
+            <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
+          )
+        }
+        etat={<ZoneEtat echec={etat.enregistre ? undefined : NON_ENREGISTRE} />}
+      />
+      <ZonePrincipale
+        ref={tiroir.zonePrincipale}
+        selection={selection}
+        espaceVide={racines.length === 0}
+      />
+    </Coquille>
   );
 }
 

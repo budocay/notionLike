@@ -1,5 +1,5 @@
 // Contrôles statiques des fichiers de style d'`apps/web` (F-004-AC3, AC4, AC6, AC10, AC11, AC13,
-// AC18, AC19, AC23, AC40, AC41). Chaque contrôle reçoit des textes et rend la liste des fautes,
+// AC18, AC19, AC23, AC40, AC41, AC50). Chaque contrôle reçoit des textes et rend la liste des fautes,
 // chacune nommant le fichier et la valeur en cause. Deux régimes : tout fichier source passe les
 // interdits (`controlerFichier`) ; les fichiers que Tailwind analyse passent en plus une liste
 // blanche, où chaque classe doit être une classe nommée du projet ou bâtie sur un jeton
@@ -10,11 +10,14 @@ import { COULEUR_LITTERALE, COURBE_LITTERALE, DUREE_LITTERALE, FOND } from "./ai
 
 export const FICHIER_DES_JETONS = "src/styles/jetons.css";
 export const FEUILLE_D_ENTREE = "src/styles/entree.css";
+/** Seconde feuille, réservée à la page de démonstration : elle importe la feuille d'entrée. */
+export const FEUILLE_DE_DEMONSTRATION = "src/demonstration/demonstration.css";
+export const ENTREE_DE_LA_DEMONSTRATION = "src/demonstration/entree.tsx";
 
 export interface Contexte {
   /** Noms des jetons déclarés, `--color-surface-application` par exemple. */
   readonly jetons: ReadonlySet<string>;
-  /** Classes nommées du projet, déclarées par `@utility` dans la feuille d'entrée. */
+  /** Classes nommées du projet, déclarées par `@utility` dans les feuilles données. */
   readonly utilitaires: ReadonlySet<string>;
   /** Variantes du projet : `@custom-variant` et celles que donnent les seuils. */
   readonly variantes: ReadonlySet<string>;
@@ -22,15 +25,21 @@ export interface Contexte {
   readonly boucles: ReadonlySet<string>;
 }
 
-export function contexteDe(jetons: string, entree: string): Contexte {
+/**
+ * Contexte d'un fichier analysé. `feuilles` est le texte des feuilles qui le désignent : la feuille
+ * d'entrée seule pour l'application, suivie de la feuille de démonstration pour la page.
+ */
+export function contexteDe(jetons: string, feuilles: string): Contexte {
   const { theme } = lireJetons(jetons);
   const seuils = theme
     .filter(({ nom }) => nom.startsWith("--breakpoint-"))
     .map(({ nom }) => nom.replace("--breakpoint-", ""));
-  const personnalisees = [...entree.matchAll(/@custom-variant\s+([\w-]+)/g)].map(([, nom]) => nom);
+  const personnalisees = [...feuilles.matchAll(/@custom-variant\s+([\w-]+)/g)].map(
+    ([, nom]) => nom,
+  );
   return {
     jetons: new Set(theme.map(({ nom }) => nom)),
-    utilitaires: new Set([...entree.matchAll(/@utility\s+([\w-]+)/g)].map(([, nom = ""]) => nom)),
+    utilitaires: new Set([...feuilles.matchAll(/@utility\s+([\w-]+)/g)].map(([, nom = ""]) => nom)),
     variantes: new Set([
       ...personnalisees.filter((nom) => nom !== undefined),
       ...seuils.flatMap((seuil) => [seuil, `min-${seuil}`, `max-${seuil}`]),
@@ -464,6 +473,42 @@ export function controlerClasses(chemin: string, source: string, contexte: Conte
   ];
 }
 
+/** Classes écrites dans un fichier analysé, sans doublon. */
+export function classesDe(chemin: string, source: string): string[] {
+  const classes = listesDeClasses(chemin, source).flatMap((liste) => liste.split(/\s+/));
+  return [...new Set(classes.filter((classe) => classe !== ""))];
+}
+
+/**
+ * F-004-AC50 : classes que la construction de production ne doit pas porter. Ce sont les classes
+ * nommées que la feuille de démonstration déclare, et les classes utilitaires que ses fichiers
+ * analysés emploient sans qu'un fichier analysé de la feuille d'entrée les emploie aussi.
+ */
+export function classesDeLaSeuleDemonstration(
+  demonstration: string,
+  analysesDeLaPage: ReadonlyMap<string, string>,
+  analysesDeLApplication: ReadonlyMap<string, string>,
+): string[] {
+  const declarees = [...sansCommentaires(demonstration).matchAll(/@utility\s+([\w-]+)/g)].map(
+    ([, nom = ""]) => nom,
+  );
+  const application = new Set(
+    [...analysesDeLApplication].flatMap(([chemin, source]) => classesDe(chemin, source)),
+  );
+  const page = [...analysesDeLaPage].flatMap(([chemin, source]) => classesDe(chemin, source));
+  return [...new Set([...declarees, ...page.filter((classe) => !application.has(classe))])].sort();
+}
+
+/** Classes de la liste dont une feuille construite porte le sélecteur. */
+export function classesPortees(feuille: string, classes: readonly string[]): string[] {
+  return classes.filter((classe) => {
+    const selecteur = `.${classe.replace(/[^\w-]/g, "\\$&")}`;
+    return new RegExp(`${selecteur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w\\\\-])`).test(
+      feuille,
+    );
+  });
+}
+
 // ── Feuille d'entrée et gabarits ─────────────────────────────────────────────────────────────────
 
 function normaliser(chemin: string): string {
@@ -483,23 +528,60 @@ function motifDe(chemin: string): RegExp {
   return new RegExp(`^${echappe.replace(/\*\*\//g, "(?:.*/)?").replace(/\*/g, "[^/]*")}$`);
 }
 
-/** Chemins, depuis `apps/web`, que désignent les directives `@source` de la feuille d'entrée. */
-export function sourcesDe(entree: string): string[] {
-  const dossier = FEUILLE_D_ENTREE.slice(0, FEUILLE_D_ENTREE.lastIndexOf("/"));
-  return [...sansCommentaires(entree).matchAll(/@source\s+"([^"]+)"/g)].map(([, chemin = ""]) =>
+/** Chemins, depuis `apps/web`, que désignent les directives `@source` d'une feuille. */
+export function sourcesDe(texte: string, feuille: string = FEUILLE_D_ENTREE): string[] {
+  const dossier = feuille.slice(0, feuille.lastIndexOf("/"));
+  return [...sansCommentaires(texte).matchAll(/@source\s+"([^"]+)"/g)].map(([, chemin = ""]) =>
     chemin.startsWith("/") ? chemin : normaliser(`${dossier}/${chemin}`),
   );
 }
 
-/** Fichiers du disque que Tailwind analyse. */
-export function fichiersAnalyses(entree: string, disque: readonly string[]): string[] {
-  const motifs = sourcesDe(entree).map(motifDe);
+/** Fichiers du disque que Tailwind analyse pour une feuille. */
+export function fichiersAnalyses(
+  texte: string,
+  disque: readonly string[],
+  feuille: string = FEUILLE_D_ENTREE,
+): string[] {
+  const motifs = sourcesDe(texte, feuille).map(motifDe);
   return disque.filter((chemin) => motifs.some((motif) => motif.test(chemin)));
 }
 
 const DANS_LES_SOURCES = /^(?:src\/|[\w-]+\.html$)/;
+const DE_LA_DEMONSTRATION = /^(?:src\/demonstration\/|demo\.html$)/;
 
-/** F-004-AC23 : analyse bornée, et aucun fichier analysé hors du contrôle. */
+/** Vrai pour un fichier de la page de démonstration : son code, sa feuille, son gabarit. */
+export function estDeLaDemonstration(chemin: string): boolean {
+  return DE_LA_DEMONSTRATION.test(chemin);
+}
+
+interface Designation {
+  readonly feuille: string;
+  readonly texte: string;
+  readonly disque: readonly string[];
+  readonly controles: readonly string[];
+}
+
+/** Fautes des `@source` d'une feuille : bornés aux sources, désignant des fichiers contrôlés. */
+function fautesDeSources({ feuille, texte, disque, controles }: Designation): string[] {
+  const fautes: string[] = [];
+  for (const source of sourcesDe(texte, feuille)) {
+    if (!DANS_LES_SOURCES.test(source) || source.includes("node_modules")) {
+      fautes.push(`${feuille} : @source hors des sources d'apps/web : « ${source} »`);
+    } else if (!disque.some((chemin) => motifDe(source).test(chemin))) {
+      fautes.push(`${feuille} : @source qui ne désigne aucun fichier : « ${source} »`);
+    }
+  }
+  const suivis = new Set(controles);
+  return [
+    ...fautes,
+    ...fichiersAnalyses(texte, disque, feuille)
+      .filter((chemin) => !suivis.has(chemin))
+      .map((chemin) => `${chemin} : analysé par Tailwind sans être contrôlé`),
+  ];
+}
+
+/** F-004-AC23, feuille d'entrée : analyse bornée, rien de la page de démonstration, aucun fichier
+ * analysé hors du contrôle. */
 export function controlerSources(
   entree: string,
   disque: readonly string[],
@@ -513,20 +595,88 @@ export function controlerSources(
   if (!/@import\s+"\.\/jetons\.css"\s*;/.test(texte)) {
     fautes.push(`${FEUILLE_D_ENTREE} : le fichier des jetons n'est pas importé`);
   }
-  for (const source of sourcesDe(entree)) {
-    if (!DANS_LES_SOURCES.test(source) || source.includes("node_modules")) {
-      fautes.push(`${FEUILLE_D_ENTREE} : @source hors des sources d'apps/web : « ${source} »`);
-    } else if (!disque.some((chemin) => motifDe(source).test(chemin))) {
-      fautes.push(`${FEUILLE_D_ENTREE} : @source qui ne désigne aucun fichier : « ${source} »`);
-    }
+  for (const source of sourcesDe(entree).filter((chemin) => DE_LA_DEMONSTRATION.test(chemin))) {
+    fautes.push(
+      `${FEUILLE_D_ENTREE} : @source vers la page de démonstration, que la production n'embarque pas : « ${source} »`,
+    );
   }
-  const suivis = new Set(controles);
   return [
     ...fautes,
-    ...fichiersAnalyses(entree, disque)
-      .filter((chemin) => !suivis.has(chemin))
-      .map((chemin) => `${chemin} : analysé par Tailwind sans être contrôlé`),
+    ...fautesDeSources({ feuille: FEUILLE_D_ENTREE, texte: entree, disque, controles }),
   ];
+}
+
+const IMPORT_CSS = /@import\s+(?:url\(\s*)?"([^"]+)"/g;
+const IMPORT_DE_LA_FEUILLE_D_ENTREE = "../styles/entree.css";
+
+/** F-004-AC23, feuille de démonstration : elle importe la feuille d'entrée et rien d'autre (ni
+ * Tailwind ni les jetons), ne déclare aucun jeton, et ses `@source` sont bornés et contrôlés. */
+export function controlerFeuilleDeDemonstration(
+  texte: string,
+  disque: readonly string[],
+  controles: readonly string[],
+): string[] {
+  const feuille = FEUILLE_DE_DEMONSTRATION;
+  const sansCommentaire = sansCommentaires(texte);
+  const imports = [...sansCommentaire.matchAll(IMPORT_CSS)].map(([, chemin = ""]) => chemin);
+  const fautes = imports
+    .filter((chemin) => chemin !== IMPORT_DE_LA_FEUILLE_D_ENTREE)
+    .map((chemin) => `${feuille} : import autre que la feuille d'entrée : « ${chemin} »`);
+  if (!imports.includes(IMPORT_DE_LA_FEUILLE_D_ENTREE)) {
+    fautes.push(`${feuille} : la feuille d'entrée n'est pas importée`);
+  }
+  const jeton = /@theme\b|(?:^|[{;\s])(--[\w-]+)\s*:/.exec(sansCommentaire);
+  if (jeton !== null) {
+    fautes.push(
+      `${feuille} : jeton déclaré hors du fichier des jetons : « ${jeton[1] ?? "@theme"} »`,
+    );
+  }
+  return [...fautes, ...fautesDeSources({ feuille, texte, disque, controles })];
+}
+
+const FEUILLES_ADMISES = [FEUILLE_DE_DEMONSTRATION, FEUILLE_D_ENTREE, FICHIER_DES_JETONS];
+const IMPORT_RESERVE = /@import\s+(?:url\(\s*)?"(tailwindcss[^"]*|[^"]*jetons\.css)"/;
+const NOM_DE_LA_FEUILLE_DE_DEMONSTRATION = /demonstration\.css/;
+
+const IMPORT_PAR_SON_ENTREE = /^import "\.\/demonstration\.css";$/m;
+const SEUL_IMPORTATEUR = "la feuille de démonstration n'est importée que par son entrée";
+
+function fautesDeFeuille(chemin: string, texte: string): string[] {
+  const fautes: string[] = [];
+  if (!FEUILLES_ADMISES.includes(chemin)) {
+    fautes.push(`${chemin} : feuille CSS hors des trois admises`);
+  }
+  const reserve = IMPORT_RESERVE.exec(texte)?.[1];
+  if (reserve !== undefined && chemin !== FEUILLE_D_ENTREE) {
+    fautes.push(`${chemin} : import réservé à la feuille d'entrée : « ${reserve} »`);
+  }
+  if (chemin !== FEUILLE_DE_DEMONSTRATION && NOM_DE_LA_FEUILLE_DE_DEMONSTRATION.test(texte)) {
+    fautes.push(`${chemin} : ${SEUL_IMPORTATEUR}`);
+  }
+  return fautes;
+}
+
+function fautesDImportateur(chemin: string, texte: string): string[] {
+  return chemin !== ENTREE_DE_LA_DEMONSTRATION && NOM_DE_LA_FEUILLE_DE_DEMONSTRATION.test(texte)
+    ? [`${chemin} : ${SEUL_IMPORTATEUR}`]
+    : [];
+}
+
+/**
+ * F-004-AC23, AC50 : les feuilles CSS d'`apps/web`, énumérées depuis le disque. Trois seulement ;
+ * Tailwind et les jetons ne sont importés que par la feuille d'entrée ; la feuille de
+ * démonstration n'est citée que par l'entrée de la démonstration, qui l'importe.
+ */
+export function controlerFeuilles(fichiers: ReadonlyMap<string, string>): string[] {
+  const fautes = [...fichiers].flatMap(([chemin, texte]) =>
+    chemin.endsWith(".css")
+      ? fautesDeFeuille(chemin, sansCommentaires(texte))
+      : fautesDImportateur(chemin, texte),
+  );
+  if (!IMPORT_PAR_SON_ENTREE.test(fichiers.get(ENTREE_DE_LA_DEMONSTRATION) ?? "")) {
+    fautes.push(`${ENTREE_DE_LA_DEMONSTRATION} : la feuille de démonstration n'est pas importée`);
+  }
+  return fautes;
 }
 
 const PIXELS_PAR_REM = 16;

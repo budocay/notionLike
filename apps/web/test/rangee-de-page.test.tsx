@@ -2,7 +2,7 @@
 // renommage sur place, repère de page courante, tête et pied, raccourcis, structure accessible de
 // l'arbre. Les styles, les dimensions et le survol ne se voient que dans un navigateur.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { afficherTouches, RACCOURCIS } from "../src/interface/raccourcis.ts";
 import {
@@ -18,6 +18,12 @@ import {
   recevoir,
 } from "./aides-coquille.tsx";
 import { lire, lister } from "./aides-disque.ts";
+import {
+  DECLARATION,
+  fautesDeTouches,
+  MODULE_DES_CLICS,
+  TOUCHES_D_INTERACTION,
+} from "./aides-touches.ts";
 
 const CHAMP_TITRE = { name: "Titre de la page" };
 const TITRE_DE_200 = "m".repeat(200);
@@ -234,6 +240,48 @@ describe("menu « ⋯ »", () => {
     await waitFor(() => expect(lien("Voisine").getAttribute("aria-current")).toBe("page"));
   });
 
+  it("F-004-AC26 seul le bouton principal enfoncé hors du menu est retenu : un clic droit ou du milieu garde son effet par défaut", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    await ouvrirLeMenu(coquille, "Carnet");
+
+    // `fireEvent` rend faux quand l'effet par défaut a été empêché.
+    expect(fireEvent.mouseDown(lien("Voisine"), { button: 2 })).toBe(true);
+    expect(fireEvent.mouseDown(lien("Voisine"), { button: 1 })).toBe(true);
+    expect(fireEvent.mouseDown(lien("Voisine"), { button: 0 })).toBe(false);
+    expect(fireEvent.mouseDown(screen.getByRole("menu"), { button: 0 })).toBe(true);
+    expect(screen.getByRole("menu", { name: nomDuMenu("Carnet") })).toBeDefined();
+  });
+
+  it.each([
+    ["Ajouter une sous-page", "creerPage"],
+    ["Mettre à la corbeille", "mettreALaCorbeille"],
+  ] as const)(
+    "F-004-AC26 « %s » refusée par le document : le menu se ferme comme pour « Renommer », le message s'affiche et le focus revient au bouton « ⋯ »",
+    async (libelle, operation) => {
+      const coquille = await ouvrirTroisNiveaux();
+      const avant = etatEncode(coquille.session);
+      const etat = coquille.session.lireEtat();
+      if (etat.phase !== "pret") {
+        throw new Error("La session n'est pas prête.");
+      }
+      vi.spyOn(etat.operations, operation).mockImplementation(() => {
+        // Le refus réel du document pour une page qu'il ne connaît pas.
+        etat.operations.renommerPage("5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e", "Refus");
+        throw new Error("Le document aurait dû refuser.");
+      });
+      const menu = await ouvrirLeMenu(coquille, "Voisine");
+
+      await coquille.utilisateur.click(within(menu).getByRole("menuitem", { name: libelle }));
+
+      expect(screen.getByRole("alert").textContent).toMatch(/^Cette page n'existe plus/);
+      expect(screen.queryByRole("menu")).toBeNull();
+      expect((await boutonDuMenu("Voisine")).getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(await boutonDuMenu("Voisine"));
+      expect(etatEncode(coquille.session)).toEqual(avant);
+      expect(titresDeLaBarre()).toEqual(["Carnet", "Semaine", "Lundi", "Voisine"]);
+    },
+  );
+
   it("F-004-AC26 le bouton « ⋯ » referme son menu, et ouvrir le menu d'une autre page ferme le premier", async () => {
     const coquille = await ouvrirTroisNiveaux();
     await ouvrirLeMenu(coquille, "Carnet");
@@ -440,46 +488,141 @@ describe("tête, pied et raccourcis", () => {
   });
 });
 
-// Un nom de touche de raccourci écrit en dur : touche de fonction, ou modificateur d'une combinaison.
-const TOUCHE_EN_DUR = /["'`](?:F\d{1,2}|Mod|Ctrl|Cmd|⌘|Alt|Meta|Control)(?:\+[^"'`]*)?["'`]/u;
-const DECLARATION = "src/interface/raccourcis.ts";
-
-function touchesEnDur(fichiers: ReadonlyMap<string, string>): string[] {
-  return [...fichiers]
-    .filter(([chemin]) => chemin !== DECLARATION)
-    .flatMap(([chemin, texte]) => {
-      const trouve = TOUCHE_EN_DUR.exec(texte);
-      return trouve === null ? [] : [`${chemin} : touche en dur ${trouve[0]}`];
-    });
-}
-
 describe("raccourcis : une seule source", () => {
-  it("F-004-AC31 aucun fichier de src/ n'écrit un nom de touche de raccourci hors de la déclaration", () => {
+  it("F-004-AC31 hors de la déclaration, aucun fichier de src/ ne compare une touche à un littéral, ne lit un modificateur de frappe ni n'écrit un nom de touche de raccourci ; les touches d'interaction sont celles de la liste fermée, toutes présentes dans le code", () => {
     const sources = new Map(
       lister("src")
         .filter((chemin) => /\.tsx?$/.test(chemin))
         .map((chemin) => [chemin, lire(chemin)]),
     );
     expect(sources.size).toBeGreaterThan(30);
-    expect(touchesEnDur(sources)).toEqual([]);
-    expect(TOUCHE_EN_DUR.test(lire(DECLARATION))).toBe(true);
+    expect(fautesDeTouches(sources)).toEqual([]);
+    expect(TOUCHES_D_INTERACTION).toEqual({
+      "src/interface/SaisieTitre.tsx": ["Enter", "Escape"],
+      "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],
+      "src/interface/flottant.ts": ["Escape"],
+      "src/interface/tiroir.ts": ["Escape"],
+    });
+    expect(lire(DECLARATION)).toContain('touche: "F2"');
+    // Les modificateurs ne sont lus que par la déclaration, pour une frappe, et par le module des
+    // clics, pour un clic.
+    expect(
+      [...sources].filter(([, texte]) => /ctrlKey|metaKey/.test(texte)).map(([chemin]) => chemin),
+    ).toEqual([MODULE_DES_CLICS, DECLARATION]);
   });
 
-  it("F-004-AC53 F-004-AC31 une touche écrite en dur dans un composant est nommée, la déclaration est permise", () => {
+  it("F-004-AC53 F-004-AC31 la déclaration, les touches d'interaction de la liste et le module des clics sont permis", () => {
+    const admises = {
+      "src/interface/A.tsx": ["Enter", "Escape"],
+      "src/interface/B.tsx": ["ArrowUp"],
+    };
     const conforme = new Map([
-      [DECLARATION, 'export const R = { touche: "F2" };'],
-      ["src/interface/A.tsx", "<Raccourci touches={afficherTouches(RACCOURCIS.renommer)} />"],
+      [DECLARATION, 'export const R = { touche: "F2" };\nfrappe.ctrlKey && frappe.key === "k";'],
+      [
+        "src/interface/A.tsx",
+        'const ECHAP = "Escape";\nif (evenement.key === "Enter" || ECHAP === evenement.key) {}\n<Raccourci touches={afficherTouches(RACCOURCIS.renommer)} />',
+      ],
+      [
+        "src/interface/B.tsx",
+        "const PAS: Record<string, number> = { ArrowUp: -1 };\nconst pas = PAS[evenement.key];",
+      ],
+      [MODULE_DES_CLICS, "return clic.button === 0 && !clic.ctrlKey && !clic.metaKey;"],
+      ["src/espace/C.ts", 'if (erreur.code === "version-non-prise-en-charge") {}'],
     ]);
-    expect(touchesEnDur(conforme)).toEqual([]);
+    expect(fautesDeTouches(conforme, admises)).toEqual([]);
+  });
+
+  it.each([
+    [
+      'if (evenement.key === "Delete") {}',
+      ["src/interface/A.tsx : touche « Delete » comparée hors de la déclaration"],
+    ],
+    [
+      'if (evenement.ctrlKey && evenement.key === "k") {}',
+      [
+        "src/interface/A.tsx : modificateur lu hors de la déclaration : ctrlKey",
+        "src/interface/A.tsx : touche « k » comparée hors de la déclaration",
+      ],
+    ],
+    [
+      'if ("Delete" !== e.key) {}',
+      ["src/interface/A.tsx : touche « Delete » comparée hors de la déclaration"],
+    ],
+    [
+      'const SUPPR = "Delete";\nif (evenement.key === SUPPR) {}',
+      ["src/interface/A.tsx : touche « Delete » comparée hors de la déclaration"],
+    ],
+    [
+      'if (evenement.code === "KeyK") {}',
+      ["src/interface/A.tsx : touche « KeyK » comparée hors de la déclaration"],
+    ],
+    [
+      "const EFFETS = { Delete: jeter };\nEFFETS[evenement.key]?.();",
+      ["src/interface/A.tsx : touche « Delete » comparée hors de la déclaration"],
+    ],
+    [
+      'if (evenement.key === "Enter") {}',
+      ["src/interface/A.tsx : touche « Enter » comparée hors de la déclaration"],
+    ],
+    [
+      "if (evenement.key === TOUCHE_VENUE_D_AILLEURS) {}",
+      [
+        "src/interface/A.tsx : touche comparée à une valeur que le contrôle ne lit pas : evenement.key === TOUCHE_VENUE_D_AILLEURS",
+      ],
+    ],
+    [
+      'switch (evenement.key) { case "k": break; }',
+      ["src/interface/A.tsx : touche lue hors d'une comparaison que le contrôle sait lire"],
+    ],
+    [
+      "if (evenement.shiftKey) {}",
+      ["src/interface/A.tsx : modificateur lu hors de la déclaration : shiftKey"],
+    ],
+    [
+      'if (evenement.key === "F2") {}',
+      expect.arrayContaining(['src/interface/A.tsx : touche en dur "F2"']),
+    ],
+    ['<Raccourci touches={["⌘", "K"]} />', ['src/interface/A.tsx : touche en dur "⌘"']],
+    ['aria-keyshortcuts="Control+K"', ['src/interface/A.tsx : touche en dur "Control+K"']],
+  ])("F-004-AC53 F-004-AC31 %s est refusé hors de la déclaration", (texte, fautes) => {
+    expect(fautesDeTouches(new Map([["src/interface/A.tsx", texte]]), {})).toEqual(fautes);
+  });
+
+  it("F-004-AC53 F-004-AC31 une touche admise dans un autre fichier que le sien, un couple de la liste disparu du code et un clavier lu par le module des clics sont nommés", () => {
+    const admises = { "src/interface/A.tsx": ["Enter", "Escape"] };
+    const a = 'if (evenement.key === "Enter" || evenement.key === "Escape") {}';
+    expect(fautesDeTouches(new Map([["src/interface/A.tsx", a]]), admises)).toEqual([]);
     expect(
-      touchesEnDur(new Map([["src/interface/A.tsx", 'if (evenement.key === "F2") {}']])),
-    ).toEqual(['src/interface/A.tsx : touche en dur "F2"']);
+      fautesDeTouches(
+        new Map([
+          ["src/interface/A.tsx", a],
+          ["src/interface/B.tsx", 'if (evenement.key === "Escape") {}'],
+        ]),
+        admises,
+      ),
+    ).toEqual(["src/interface/B.tsx : touche « Escape » comparée hors de la déclaration"]);
     expect(
-      touchesEnDur(new Map([["src/interface/B.tsx", '<Raccourci touches={["⌘", "K"]} />']])),
-    ).toEqual(['src/interface/B.tsx : touche en dur "⌘"']);
+      fautesDeTouches(
+        new Map([["src/interface/A.tsx", 'if (evenement.key === "Enter") {}']]),
+        admises,
+      ),
+    ).toEqual([
+      "liste des touches d'interaction : (Escape, src/interface/A.tsx) n'est plus dans le code",
+    ]);
+    expect(fautesDeTouches(new Map(), admises)).toHaveLength(2);
     expect(
-      touchesEnDur(new Map([["src/interface/C.tsx", 'aria-keyshortcuts="Control+K"']])),
-    ).toHaveLength(1);
+      fautesDeTouches(
+        new Map([[MODULE_DES_CLICS, 'return clic.key === "k" && clic.ctrlKey;']]),
+        {},
+      ),
+    ).toEqual(["src/interface/clic.ts : le module des clics lit le clavier : .key"]);
+    // Un commentaire qui cite une touche n'est pas une comparaison.
+    expect(
+      fautesDeTouches(
+        new Map([["src/interface/C.tsx", '// evenement.key === "Delete"\nconst a = 1;']]),
+        {},
+      ),
+    ).toEqual([]);
   });
 });
 

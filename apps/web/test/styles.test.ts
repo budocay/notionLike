@@ -2,16 +2,22 @@
 // le disque, et détecte un cas fautif donné comme donnée de test (F-004-AC21, AC53).
 import { describe, expect, it } from "vitest";
 
-import { existe, lire, lister } from "./aides-disque.ts";
+import { existe, lire, lister, listerLaRacine } from "./aides-disque.ts";
 import {
+  classesDeLaSeuleDemonstration,
+  classesPortees,
   contexteDe,
   controlerBase,
   controlerClasses,
   controlerCouleurDeTheme,
+  controlerFeuilleDeDemonstration,
+  controlerFeuilles,
   controlerFichier,
   controlerSources,
+  ENTREE_DE_LA_DEMONSTRATION,
   fauteDeClasse,
   FEUILLE_D_ENTREE,
+  FEUILLE_DE_DEMONSTRATION,
   FICHIER_DES_JETONS,
   fichiersAnalyses,
   sourcesDe,
@@ -19,16 +25,26 @@ import {
 
 const jetons = lire(FICHIER_DES_JETONS);
 const entree = lire(FEUILLE_D_ENTREE);
+const demonstration = lire(FEUILLE_DE_DEMONSTRATION);
+// L'application ne connaît que les classes nommées de la feuille d'entrée ; la page de
+// démonstration, celles des deux feuilles.
 const contexte = contexteDe(jetons, entree);
+const contexteDeLaPage = contexteDe(jetons, `${entree}\n${demonstration}`);
 
 // Aucune exemption : la feuille de F-002, exception nommée du bloc 1, est supprimée par
 // l'habillage de l'application.
 const FEUILLE_DE_F002 = "src/styles.css";
 
-const GABARITS = ["index.html", "demo.html"];
+// Gabarits et feuilles sont énumérés depuis le disque : un troisième gabarit ou une feuille posée
+// hors de src/ n'échappe ni aux interdits ni au compte des feuilles.
+const racine = listerLaRacine();
+const GABARITS = racine.filter((nom) => nom.endsWith(".html"));
+const HORS_DE_SRC = [...racine, ...lister("test"), ...lister("e2e")];
 const disque = [...GABARITS, ...lister("src")];
 const controles = disque;
 const analyses = fichiersAnalyses(entree, disque);
+const analysesDeLaPage = fichiersAnalyses(demonstration, disque, FEUILLE_DE_DEMONSTRATION);
+const textes = new Map(disque.map((chemin) => [chemin, lire(chemin)]));
 
 function fautesDe(chemin: string, texte: string): string[] {
   return controlerFichier(chemin, texte, contexte);
@@ -48,36 +64,59 @@ describe("fichiers de style réels", () => {
     }
   });
 
-  it("F-004-AC3 F-004-AC16 la feuille de F-002 est supprimée : la seule feuille que l'entrée importe est la feuille d'entrée, seule à importer Tailwind et les jetons", () => {
+  it("F-004-AC3 F-004-AC16 F-004-AC23 la feuille de F-002 est supprimée : apps/web n'a que trois feuilles, l'entrée de production importe la feuille d'entrée, seule à importer Tailwind et les jetons, et l'entrée de la démonstration importe seule la feuille de démonstration", () => {
     expect(existe(FEUILLE_DE_F002)).toBe(false);
     expect(disque.filter((chemin) => chemin.endsWith(".css"))).toEqual([
+      FEUILLE_DE_DEMONSTRATION,
       FEUILLE_D_ENTREE,
       FICHIER_DES_JETONS,
     ]);
-    expect(lire("src/main.tsx").match(/^import "[^"]*\.css";$/gm)).toEqual([
-      'import "./styles/entree.css";',
-    ]);
-    const quiImportentUneFeuille = disque.filter(
-      (chemin) => /\.tsx?$/.test(chemin) && /import "[^"]*\.css"/.test(lire(chemin)),
+    expect(GABARITS).toEqual(["demo.html", "index.html"]);
+    expect(HORS_DE_SRC.filter((chemin) => /\.(?:css|scss|sass|less|pcss)$/.test(chemin))).toEqual(
+      [],
     );
-    expect(quiImportentUneFeuille).toEqual(["src/demonstration/entree.tsx", "src/main.tsx"]);
+    expect(lister("src").filter((chemin) => /\.(?:scss|sass|less|pcss)$/.test(chemin))).toEqual([]);
+    expect(controlerFeuilles(textes)).toEqual([]);
+    const feuillesImportees = Object.fromEntries(
+      disque
+        .filter((chemin) => /\.tsx?$/.test(chemin))
+        .map((chemin) => [chemin, lire(chemin).match(/^import "[^"]*\.css";$/gm) ?? []] as const)
+        .filter(([, imports]) => imports.length > 0),
+    );
+    expect(feuillesImportees).toEqual({
+      [ENTREE_DE_LA_DEMONSTRATION]: ['import "./demonstration.css";'],
+      "src/main.tsx": ['import "./styles/entree.css";'],
+    });
   });
 
-  it("F-004-AC3 F-004-AC19 chaque classe d'un fichier analysé par Tailwind est nommée ou bâtie sur un jeton", () => {
+  it("F-004-AC3 F-004-AC19 chaque classe d'un fichier analysé par Tailwind est nommée ou bâtie sur un jeton ; un fichier de l'application n'emploie aucune classe de la feuille de démonstration", () => {
     expect(analyses.length).toBeGreaterThanOrEqual(10);
     for (const chemin of analyses) {
       expect(controlerClasses(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }
+    expect(analysesDeLaPage).toEqual(["demo.html", "src/demonstration/page.classes.ts"]);
+    for (const chemin of analysesDeLaPage) {
+      expect(controlerClasses(chemin, lire(chemin), contexteDeLaPage), chemin).toEqual([]);
+    }
+    expect(contexte.utilitaires.has("grille-auto")).toBe(false);
+    expect(contexteDeLaPage.utilitaires.has("grille-auto")).toBe(true);
   });
 
-  it("F-004-AC23 l'analyse de Tailwind est bornée aux fichiers de classes et au gabarit de démonstration", () => {
+  it("F-004-AC23 F-004-AC50 l'analyse de Tailwind est bornée : la feuille d'entrée ne désigne que les fichiers de classes des composants, la feuille de démonstration ceux de la page et son gabarit", () => {
     expect(controlerSources(entree, disque, controles)).toEqual([]);
-    expect(sourcesDe(entree)).toEqual([
-      "src/interface/composants/*.classes.ts",
+    expect(sourcesDe(entree)).toEqual(["src/interface/composants/*.classes.ts"]);
+    expect(
+      analyses.every((chemin) => /^src\/interface\/composants\/[^/]+\.classes\.ts$/.test(chemin)),
+    ).toBe(true);
+    expect(controlerFeuilleDeDemonstration(demonstration, disque, controles)).toEqual([]);
+    expect(sourcesDe(demonstration, FEUILLE_DE_DEMONSTRATION)).toEqual([
       "src/demonstration/*.classes.ts",
       "demo.html",
     ]);
-    expect(analyses.every((chemin) => /\.classes\.ts$|^demo\.html$/.test(chemin))).toBe(true);
+    expect(analyses.filter((chemin) => analysesDeLaPage.includes(chemin))).toEqual([]);
+    for (const feuille of [entree, jetons]) {
+      expect(feuille).not.toMatch(/demonstration|demo\.html/);
+    }
   });
 
   it("F-004-AC3 hors des fichiers analysés, aucun composant n'écrit une classe en dur", () => {
@@ -132,6 +171,98 @@ describe("fichiers de style réels", () => {
       lire(chemin).includes("Non enregistré sur cet appareil"),
     );
     expect(quiLEcrivent).toEqual(["src/interface/messages.ts"]);
+  });
+});
+
+// ── Fichiers de classes : lus par leur seul dossier, sans clé morte ──────────────────────────────
+
+const FICHIER_DE_CLASSES = /\.classes\.ts$/;
+const IMPORT = /import\s+[^;"]*?\sfrom\s+"([^"]+)";/g;
+
+/** Imports d'un fichier de classes depuis un autre dossier que le sien. */
+function classesLuesDAilleurs(fichiers: ReadonlyMap<string, string>): string[] {
+  return [...fichiers].flatMap(([chemin, texte]) =>
+    [...texte.matchAll(IMPORT)]
+      .map(([, cible = ""]) => cible)
+      .filter((cible) => FICHIER_DE_CLASSES.test(cible) && !/^\.\/[^/]+$/.test(cible))
+      .map((cible) => `${chemin} : classes d'un autre dossier : « ${cible} »`),
+  );
+}
+
+/** Ce qu'un fichier de classes exporte : « NOM.cle » pour un objet, « NOM » pour une chaîne. */
+function exportsDeClasses(texte: string): string[] {
+  return [...texte.matchAll(/^export const (\w+) =\s*(\{[\s\S]*?^\}|[^{])/gm)].flatMap(
+    ([, nom = "", corps = ""]) =>
+      corps.startsWith("{")
+        ? [...corps.matchAll(/^ {2}(\w+):/gm)].map(([, cle = ""]) => `${nom}.${cle}`)
+        : [nom],
+  );
+}
+
+/** Classes exportées qu'aucun autre fichier ne lit ; « NOM[…] » lit toutes les clés de NOM. */
+function classesSansLecteur(fichiers: ReadonlyMap<string, string>): string[] {
+  const lecteurs = [...fichiers]
+    .filter(([chemin]) => !FICHIER_DE_CLASSES.test(chemin))
+    .map(([, texte]) => texte.replace(IMPORT, ""));
+  return [...fichiers]
+    .filter(([chemin]) => FICHIER_DE_CLASSES.test(chemin))
+    .flatMap(([chemin, texte]) =>
+      exportsDeClasses(texte)
+        .filter((exporte) => {
+          const [nom = ""] = exporte.split(".");
+          const lecture = new RegExp(`\\b(?:${exporte.replace(".", "\\.")}\\b|${nom}\\[)`);
+          return !lecteurs.some((lecteur) => lecture.test(lecteur));
+        })
+        .map((exporte) => `${chemin} : ${exporte} n'a aucun lecteur`),
+    );
+}
+
+describe("fichiers de classes", () => {
+  it("F-004-AC16 un fichier de classes n'est lu que par les fichiers de son dossier : hors des composants, l'application rend des composants et n'habille aucune balise", () => {
+    expect([...textes.keys()].filter((chemin) => FICHIER_DE_CLASSES.test(chemin)).length).toBe(11);
+    expect(classesLuesDAilleurs(textes)).toEqual([]);
+  });
+
+  it("F-004-AC21 F-004-AC16 un fichier de classes lu depuis un autre dossier est nommé", () => {
+    const conforme = 'import { COQUILLE } from "./coquille.classes.ts";';
+    expect(classesLuesDAilleurs(new Map([["src/interface/composants/A.tsx", conforme]]))).toEqual(
+      [],
+    );
+    expect(
+      classesLuesDAilleurs(
+        new Map([
+          ["src/interface/A.tsx", 'import { COQUILLE } from "./composants/coquille.classes.ts";'],
+          [
+            "src/demonstration/B.tsx",
+            'import { RANGEE } from "../interface/composants/rangee.classes.ts";',
+          ],
+        ]),
+      ),
+    ).toEqual([
+      "src/interface/A.tsx : classes d'un autre dossier : « ./composants/coquille.classes.ts »",
+      "src/demonstration/B.tsx : classes d'un autre dossier : « ../interface/composants/rangee.classes.ts »",
+    ]);
+  });
+
+  it("F-004-AC3 chaque classe exportée par un fichier de classes a un lecteur : Tailwind ne produit aucune règle pour une clé morte", () => {
+    expect(classesSansLecteur(textes)).toEqual([]);
+  });
+
+  it("F-004-AC21 F-004-AC3 une clé de classes sans lecteur est nommée, une constante aussi ; un accès par indice lit toutes les clés", () => {
+    const classes =
+      'export const A = {\n  lue: "flex",\n  morte:\n    "grid",\n} as const;\nexport const B = "flex";\nexport const C = `${X} grid`;\n';
+    const fichiers = (lecteur: string): Map<string, string> =>
+      new Map([
+        ["src/a.classes.ts", classes],
+        ["src/A.tsx", `import { A, B, C } from "./a.classes.ts";\n${lecteur}`],
+      ]);
+    expect(classesSansLecteur(fichiers("<p className={A.lue + B + C} />"))).toEqual([
+      "src/a.classes.ts : A.morte n'a aucun lecteur",
+    ]);
+    expect(classesSansLecteur(fichiers("<p className={A[cle]} />"))).toEqual([
+      "src/a.classes.ts : B n'a aucun lecteur",
+      "src/a.classes.ts : C n'a aucun lecteur",
+    ]);
   });
 });
 
@@ -377,6 +508,51 @@ describe("classes des fichiers analysés : cas conformes et cas fautifs", () => 
     ]);
   });
 
+  it("F-004-AC21 F-004-AC50 une classe de la feuille de démonstration est refusée dans un fichier de l'application, permise dans un fichier de la page", () => {
+    const source = 'export const A = "grille-auto hauteur-apercu";';
+    expect(controlerClasses("src/demonstration/a.classes.ts", source, contexteDeLaPage)).toEqual(
+      [],
+    );
+    expect(controlerClasses("src/interface/composants/a.classes.ts", source, contexte)).toEqual([
+      "src/interface/composants/a.classes.ts : « grille-auto » : classe qui n'est ni nommée par le projet ni bâtie sur un jeton",
+      "src/interface/composants/a.classes.ts : « hauteur-apercu » : classe qui n'est ni nommée par le projet ni bâtie sur un jeton",
+    ]);
+  });
+
+  it("F-004-AC50 les classes propres à la démonstration se calculent depuis les sources : celles que sa feuille déclare, et celles que ses fichiers emploient seuls", () => {
+    const propres = classesDeLaSeuleDemonstration(
+      demonstration,
+      new Map(analysesDeLaPage.map((chemin) => [chemin, lire(chemin)])),
+      new Map(analyses.map((chemin) => [chemin, lire(chemin)])),
+    );
+    for (const classe of ["grille-auto", "hauteur-apercu", "repere-des-fixes", "gap-vaste"]) {
+      expect(propres, classe).toContain(classe);
+    }
+    for (const classe of ["flex", "filet", "bg-surface-application", "text-texte-principal"]) {
+      expect(propres, classe).not.toContain(classe);
+    }
+    expect(propres.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("F-004-AC21 F-004-AC50 une feuille construite qui porte une classe propre à la démonstration est vue, variante et classe voisine comprises", () => {
+    const propres = classesDeLaSeuleDemonstration(
+      "@utility grille-auto { display: grid; }",
+      new Map([
+        ["src/demonstration/a.classes.ts", 'export const A = "flex gap-vaste etroit:px-grand";'],
+      ]),
+      new Map([["src/interface/composants/a.classes.ts", 'export const A = "flex";']]),
+    );
+    expect(propres).toEqual(["etroit:px-grand", "gap-vaste", "grille-auto"]);
+    expect(classesPortees(".flex{display:flex}.gap-vaste-x{gap:1rem}", propres)).toEqual([]);
+    expect(
+      classesPortees(
+        ".gap-vaste{gap:3rem}@media (width>=51rem){.etroit\\:px-grand{padding:0}}",
+        propres,
+      ),
+    ).toEqual(["etroit:px-grand", "gap-vaste"]);
+    expect(classesPortees(".grille-auto,.a{display:grid}", propres)).toEqual(["grille-auto"]);
+  });
+
   it("F-004-AC21 F-004-AC11 une classe de transition demande sa durée au même endroit", () => {
     const bonne = 'export const A = "transition-opacity duration-(--duree-rapide) ease-sortie";';
     expect(controlerClasses("src/a.classes.ts", bonne, contexte)).toEqual([]);
@@ -412,8 +588,9 @@ describe("classes des fichiers analysés : cas conformes et cas fautifs", () => 
 
 describe("feuille d'entrée : cas conformes et cas fautifs", () => {
   const ENTREE =
-    '@import "tailwindcss" source(none);\n@source "../demonstration/*.classes.ts";\n@import "./jetons.css";';
-  const DISQUE = ["src/demonstration/page.classes.ts", "src/main.tsx"];
+    '@import "tailwindcss" source(none);\n@source "../interface/composants/*.classes.ts";\n@import "./jetons.css";';
+  const DISQUE = ["src/interface/composants/a.classes.ts", "src/main.tsx"];
+  const DISQUE_DE_LA_PAGE = ["src/demonstration/page.classes.ts", "src/main.tsx"];
 
   it("F-004-AC21 F-004-AC23 analyse bornée : conforme, puis chaque défaut", () => {
     expect(controlerSources(ENTREE, DISQUE, DISQUE)).toEqual([]);
@@ -430,11 +607,93 @@ describe("feuille d'entrée : cas conformes et cas fautifs", () => {
       "src/styles/entree.css : @source qui ne désigne aucun fichier : « src/absent/*.ts »",
     ]);
     expect(controlerSources(ENTREE, DISQUE, ["src/main.tsx"])).toEqual([
-      "src/demonstration/page.classes.ts : analysé par Tailwind sans être contrôlé",
+      "src/interface/composants/a.classes.ts : analysé par Tailwind sans être contrôlé",
     ]);
     expect(
       controlerSources(ENTREE.replace('@import "./jetons.css";', ""), DISQUE, DISQUE),
     ).toHaveLength(1);
+  });
+
+  it("F-004-AC21 F-004-AC23 F-004-AC50 la feuille d'entrée ne désigne aucun fichier de la page de démonstration", () => {
+    const disque = [...DISQUE, "src/demonstration/page.classes.ts", "demo.html"];
+    expect(controlerSources(ENTREE, disque, disque)).toEqual([]);
+    expect(
+      controlerSources(`${ENTREE}\n@source "../demonstration/*.classes.ts";`, disque, disque),
+    ).toEqual([
+      "src/styles/entree.css : @source vers la page de démonstration, que la production n'embarque pas : « src/demonstration/*.classes.ts »",
+    ]);
+    expect(controlerSources(`${ENTREE}\n@source "../../demo.html";`, disque, disque)).toEqual([
+      "src/styles/entree.css : @source vers la page de démonstration, que la production n'embarque pas : « demo.html »",
+    ]);
+  });
+
+  it("F-004-AC21 F-004-AC23 la feuille de démonstration : conforme, puis chaque défaut", () => {
+    const FEUILLE =
+      '@import "../styles/entree.css";\n@source "./*.classes.ts";\n@utility a { contain: layout; }';
+    const fautes = (texte: string, controles = DISQUE_DE_LA_PAGE): string[] =>
+      controlerFeuilleDeDemonstration(texte, DISQUE_DE_LA_PAGE, controles);
+    expect(fautes(FEUILLE)).toEqual([]);
+    expect(fautes(FEUILLE.replace('@import "../styles/entree.css";', ""))).toEqual([
+      "src/demonstration/demonstration.css : la feuille d'entrée n'est pas importée",
+    ]);
+    expect(fautes(`@import "tailwindcss";\n${FEUILLE}`)).toEqual([
+      "src/demonstration/demonstration.css : import autre que la feuille d'entrée : « tailwindcss »",
+    ]);
+    expect(fautes(`${FEUILLE}\n@import "../styles/jetons.css";`)).toEqual([
+      "src/demonstration/demonstration.css : import autre que la feuille d'entrée : « ../styles/jetons.css »",
+    ]);
+    expect(fautes(`${FEUILLE}\n@theme { --spacing-apercu: 30rem; }`)).toEqual([
+      "src/demonstration/demonstration.css : jeton déclaré hors du fichier des jetons : « @theme »",
+    ]);
+    expect(fautes(`${FEUILLE}\n:root { --spacing-apercu: 30rem; }`)).toEqual([
+      "src/demonstration/demonstration.css : jeton déclaré hors du fichier des jetons : « --spacing-apercu »",
+    ]);
+    expect(fautes(`${FEUILLE}\n@source "../../dist";`)).toEqual([
+      "src/demonstration/demonstration.css : @source hors des sources d'apps/web : « dist »",
+    ]);
+    expect(fautes(`${FEUILLE}\n@source "../absent/*.ts";`)).toEqual([
+      "src/demonstration/demonstration.css : @source qui ne désigne aucun fichier : « src/absent/*.ts »",
+    ]);
+    expect(fautes(FEUILLE, ["src/main.tsx"])).toEqual([
+      "src/demonstration/page.classes.ts : analysé par Tailwind sans être contrôlé",
+    ]);
+    expect(
+      fautesDe(
+        "src/demonstration/demonstration.css",
+        "@utility a { width: var(--spacing-absent); }",
+      ),
+    ).toEqual(["src/demonstration/demonstration.css : jeton non déclaré : « --spacing-absent »"]);
+  });
+
+  it("F-004-AC21 F-004-AC23 F-004-AC50 feuilles énumérées : trois seulement, Tailwind et les jetons importés par la seule feuille d'entrée, la feuille de démonstration par sa seule entrée", () => {
+    const conforme = new Map([
+      [FEUILLE_D_ENTREE, '@import "tailwindcss" source(none);\n@import "./jetons.css";'],
+      [FICHIER_DES_JETONS, "@theme static { --spacing-nul: 0rem; }"],
+      [FEUILLE_DE_DEMONSTRATION, '@import "../styles/entree.css";'],
+      [ENTREE_DE_LA_DEMONSTRATION, 'import "./demonstration.css";\n'],
+      ["src/main.tsx", 'import "./styles/entree.css";\n'],
+    ]);
+    const avec = (chemin: string, texte: string): string[] =>
+      controlerFeuilles(new Map([...conforme, [chemin, texte]]));
+    expect(controlerFeuilles(conforme)).toEqual([]);
+    expect(avec("src/interface/autre.css", ".a { display: none; }")).toEqual([
+      "src/interface/autre.css : feuille CSS hors des trois admises",
+    ]);
+    expect(avec(FEUILLE_DE_DEMONSTRATION, '@import "tailwindcss";')).toEqual([
+      "src/demonstration/demonstration.css : import réservé à la feuille d'entrée : « tailwindcss »",
+    ]);
+    expect(avec(FEUILLE_DE_DEMONSTRATION, '@import "../styles/jetons.css";')).toEqual([
+      "src/demonstration/demonstration.css : import réservé à la feuille d'entrée : « ../styles/jetons.css »",
+    ]);
+    expect(avec("src/main.tsx", 'import "./demonstration/demonstration.css";\n')).toEqual([
+      "src/main.tsx : la feuille de démonstration n'est importée que par son entrée",
+    ]);
+    expect(avec(FEUILLE_D_ENTREE, '@import "../demonstration/demonstration.css";')).toEqual([
+      "src/styles/entree.css : la feuille de démonstration n'est importée que par son entrée",
+    ]);
+    expect(avec(ENTREE_DE_LA_DEMONSTRATION, 'import "../styles/entree.css";\n')).toEqual([
+      "src/demonstration/entree.tsx : la feuille de démonstration n'est pas importée",
+    ]);
   });
 
   it("F-004-AC21 F-004-AC6 F-004-AC10 racine sans thème sombre, contour absent, étranger ou trop fin", () => {

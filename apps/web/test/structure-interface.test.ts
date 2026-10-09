@@ -1,4 +1,4 @@
-// Contrôles statiques de la structure de l'interface (F-004-AC17, AC57, AC58) : chacun passe sur
+// Contrôles statiques de la structure de l'interface (F-004-AC17, AC52, AC57, AC58) : chacun passe sur
 // les fichiers réels, lus sur le disque, et détecte un cas fautif donné comme donnée de test
 // (F-004-AC53).
 import { createHash } from "node:crypto";
@@ -173,6 +173,7 @@ describe("fonctions bornées", () => {
 
 // ── F-004-AC17, AC58 : les tests de session et de persistance de F-002 sont intacts ──────────────
 
+// F-030 retravaille la persistance : elle lève ce contrôle ou met ces empreintes à jour.
 const EMPREINTES_DE_F002: Readonly<Record<string, string>> = {
   "test/session-fermeture.test.tsx":
     "6fad8ba320ef520f7ed7fd119d20787831edb128263b878de89740f1622586ef",
@@ -198,5 +199,59 @@ describe("tests de F-002 que cette feature ne modifie pas", () => {
       expect(empreinte(lire(chemin)), chemin).toBe(attendue);
     }
     expect(empreinte("a")).toBe("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb");
+  });
+});
+
+// ── F-004-AC52, AC58 : les outils que les tests importent n'existent qu'en une version ──────────
+
+interface Manifeste {
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly devDependencies?: Readonly<Record<string, string>>;
+}
+
+const manifestes = import.meta.glob<Manifeste>(
+  ["../../../package.json", "../../*/package.json", "../../../packages/*/package.json"],
+  { eager: true, import: "default" },
+);
+
+/** Manifestes du workspace qui déclarent le paquet, avec le spécificateur de chacun. */
+function declarations(paquet: string): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(manifestes).flatMap(([chemin, manifeste]) => {
+      const version = manifeste.dependencies?.[paquet] ?? manifeste.devDependencies?.[paquet];
+      return version === undefined ? [] : [[chemin, version]];
+    }),
+  );
+}
+
+/** Versions du paquet que le verrou résout, sans doublon. */
+function versionsResolues(verrou: string, paquet: string): string[] {
+  const entrees = verrou.matchAll(new RegExp(`^ {2}'?${paquet}@([^(:']+)`, "gm"));
+  return [...new Set([...entrees].map(([, version = ""]) => version))];
+}
+
+// Importés comme bibliothèques par les tests d'apps/web (graphe de F-004-AC52, mesure de
+// F-004-AC58) et lancés depuis la racine par `pnpm contrats` et `pnpm lint`.
+const OUTILS_PARTAGES = ["dependency-cruiser", "eslint"];
+
+describe("outils partagés avec la racine : une seule version", () => {
+  it.each(OUTILS_PARTAGES)(
+    "F-004-AC52 F-004-AC58 %s est déclaré par la racine et par apps/web, et le verrou n'en résout qu'une version, celle qu'apps/web fixe : le test et la commande de la racine mesurent avec le même outil",
+    (outil) => {
+      const declarees = declarations(outil);
+      expect(Object.keys(declarees).sort()).toEqual(["../../../package.json", "../package.json"]);
+      const fixee = declarees["../package.json"] ?? "";
+      expect(fixee).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(versionsResolues(lire("../../pnpm-lock.yaml"), outil)).toEqual([fixee]);
+    },
+  );
+
+  it("F-004-AC53 F-004-AC58 deux versions résolues d'un même outil sont vues, les variantes d'une même version n'en font qu'une", () => {
+    const uneSeule =
+      "packages:\n\n  eslint@10.11.0:\n    resolution: {}\n\nsnapshots:\n\n  eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0):\n    dependencies: {}\n\n  eslint-scope@9.1.0:\n";
+    expect(versionsResolues(uneSeule, "eslint")).toEqual(["10.11.0"]);
+    const deux = `${uneSeule}\n  eslint@10.12.0:\n    resolution: {}\n`;
+    expect(versionsResolues(deux, "eslint")).toEqual(["10.11.0", "10.12.0"]);
+    expect(versionsResolues("  '@scope/outil@1.0.0':\n", "@scope/outil")).toEqual(["1.0.0"]);
   });
 });

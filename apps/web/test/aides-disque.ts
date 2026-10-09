@@ -24,6 +24,11 @@ export function lister(dossier: string): string[] {
     .sort();
 }
 
+/** Noms des fichiers et dossiers posés à la racine d'`apps/web`, triés. */
+export function listerLaRacine(): string[] {
+  return readdirSync(RACINE).sort();
+}
+
 /** Texte de chaque fichier d'un dossier, par chemin depuis `apps/web`. */
 export function lireDossier(dossier: string): Map<string, string> {
   return new Map(lister(dossier).map((chemin) => [chemin, lire(chemin)]));

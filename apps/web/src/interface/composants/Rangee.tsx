@@ -12,6 +12,12 @@ import { BoutonIcone } from "./BoutonIcone.tsx";
 import { Pictogramme } from "./Pictogramme.tsx";
 import { RANGEE } from "./rangee.classes.ts";
 
+/**
+ * Le lien de sélection d'une rangée se désigne lui-même : ce qui doit le reconnaître dans la barre
+ * (le tiroir, qui se ferme quand une page est choisie) lit ce sélecteur, pas le balisage.
+ */
+export const SELECTEUR_DU_LIEN_DE_PAGE = "[data-lien-de-page]";
+
 /** Commande de repli : son nom ne change pas, l'état est porté par `aria-expanded`. */
 export interface RepliDeRangee {
   readonly nom: string;
@@ -115,6 +121,7 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
         ref={props.refLien}
         className={RANGEE.lien}
         href={props.adresse}
+        data-lien-de-page=""
         aria-current={props.courante ? "page" : undefined}
         aria-describedby={description === undefined ? undefined : idDescription}
         onMouseEnter={(evenement) => mesurer(evenement.currentTarget, "survol")}

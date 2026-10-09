@@ -2,6 +2,7 @@
 // déclenchée au clavier seul, sous son nom accessible, sur écran large comme sur écran étroit, et
 // appelle la même fonction du document ; les modules qui appellent ces fonctions sont énumérés
 // d'après le graphe que dependency-cruiser calcule (`aides-graphe.ts`), sans analyseur d'imports.
+// De même pour les appelants des deux parcours dont cette feature change la forme.
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +16,8 @@ import {
   recevoir,
   tabulerJusqua,
 } from "./aides-coquille.tsx";
-import { lire } from "./aides-disque.ts";
+import { rendreApplication } from "./aides-coquille.tsx";
+import { lire, lister } from "./aides-disque.ts";
 import { type Aretes, atteintsDepuis, graphe } from "./aides-graphe.ts";
 import { simulerLaLargeur } from "./aides-largeur.ts";
 
@@ -36,9 +38,28 @@ const APPELANTS: Readonly<Record<string, string>> = {
   "src/interface/pages.ts": "définit l'adresse d'une page",
 };
 
-function appelants(aretes: Aretes, textes: (chemin: string) => string): string[] {
+// Les deux parcours de l'arborescence dont cette feature change la forme : `ancetresDe` rend des
+// pages et non plus des identifiants, et chaque rangée de `rangeesVisibles` porte sa page mère.
+const APPEL_D_UN_PARCOURS = /\b(?:ancetresDe|rangeesVisibles)\(/;
+
+/** Modules qui appellent ces parcours, et ce que chacun lit de ce qu'ils rendent. */
+const APPELANTS_DES_PARCOURS: Readonly<Record<string, RegExp>> = {
+  "src/interface/BarreLaterale.tsx":
+    /rangeesVisibles\(racines, ecran\.repliees\)\.map\(\(\{ page, niveau, mere \}\) =>/,
+  "src/interface/FilDAriane.tsx":
+    /ancetresDe\(racines, page\.id\)\.map\(\(ancetre\) => \(\{\s*titre: titreAffiche\(ancetre\.titre\),\s*adresse: adresseDePage\(ancetre\.id\),/,
+  "src/interface/pages.ts":
+    /export function ancetresDe\([^)]*\): readonly PageLue\[\] \{[\s\S]*export function rangeesVisibles\([^)]*\): readonly RangeeVisible\[\] \{/,
+  "src/interface/repli.ts": /ancetresDe\(racines, idPageDesignee\)\.map\(\(\{ id \}\) => id\)/,
+};
+
+function appelants(
+  aretes: Aretes,
+  textes: (chemin: string) => string,
+  appel: RegExp = APPEL_D_UNE_ACTION,
+): string[] {
   return [...atteintsDepuis(aretes, POINT_D_ENTREE)]
-    .filter((chemin) => chemin.startsWith("src/") && APPEL_D_UNE_ACTION.test(textes(chemin)))
+    .filter((chemin) => chemin.startsWith("src/") && appel.test(textes(chemin)))
     .sort();
 }
 
@@ -54,6 +75,43 @@ describe("couture : modules qui appellent les actions de F-002", () => {
       expect(couverts.has(module), `${CE_TEST} atteint ${module}`).toBe(true);
     }
     expect(couverts.has("src/demonstration/PageDemonstration.tsx")).toBe(false);
+  });
+
+  it("F-004-AC52 d'après le même graphe, chaque module qui appelle ancetresDe ou rangeesVisibles est inscrit, atteint par ce test, et lit la forme que ces parcours rendent depuis cette feature", async () => {
+    const aretes = await graphe();
+
+    expect(appelants(aretes, lire, APPEL_D_UN_PARCOURS)).toEqual(
+      Object.keys(APPELANTS_DES_PARCOURS).sort(),
+    );
+    const couverts = atteintsDepuis(aretes, CE_TEST);
+    for (const [module, lecture] of Object.entries(APPELANTS_DES_PARCOURS)) {
+      expect(couverts.has(module), `${CE_TEST} atteint ${module}`).toBe(true);
+      expect(lire(module), module).toMatch(lecture);
+    }
+    // Aucun appelant hors de l'application : ni la page de démonstration, ni un autre module de src/.
+    const horsDeLApplication = [...aretes.keys()].filter(
+      (chemin) =>
+        chemin.startsWith("src/") &&
+        APPEL_D_UN_PARCOURS.test(lire(chemin)) &&
+        !(chemin in APPELANTS_DES_PARCOURS),
+    );
+    expect(horsDeLApplication).toEqual([]);
+  });
+
+  it("F-004-AC53 F-004-AC52 un module de plus qui appelle un parcours, atteint depuis l'application, est vu", () => {
+    const aretes = new Map([
+      [POINT_D_ENTREE, ["src/interface/A.tsx", "src/interface/B.ts"]],
+      ["src/demonstration/D.tsx", []],
+    ]);
+    const textes: Readonly<Record<string, string>> = {
+      "src/interface/A.tsx": "const lignee = ancetresDe(racines, id);",
+      "src/interface/B.ts": "return rangeesVisibles(racines, repliees).length;",
+      "src/demonstration/D.tsx": "ancetresDe(racines, id);",
+    };
+    expect(appelants(aretes, (chemin) => textes[chemin] ?? "", APPEL_D_UN_PARCOURS)).toEqual([
+      "src/interface/A.tsx",
+      "src/interface/B.ts",
+    ]);
   });
 
   it("F-004-AC53 F-004-AC52 un module de plus qui appelle une action, atteint depuis l'application, est vu", () => {
@@ -215,5 +273,93 @@ describe.each([
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Feuille"),
     );
     expect(lien("Feuille").getAttribute("aria-current")).toBe("page");
+  });
+});
+
+describe("couture : appelants d'ancetresDe et de rangeesVisibles", () => {
+  it("F-004-AC52 F-004-AC39 F-004-AC54 F-004-AC55 désignée par son adresse, une page de niveau 3 sous une racine repliée : ses ancêtres se déplient (repli.ts), le fil les cite avec l'adresse de leur rangée (FilDAriane.tsx), et chaque rangée dit son niveau et sa mère (BarreLaterale.tsx)", async () => {
+    simulerLaLargeur(1280);
+    const coquille = await ouvrirCoquille();
+    recevoir(coquille.session, (espace) => {
+      const dossier = espace.creerPage("Dossier");
+      const chemise = espace.creerPage("Chemise", { parent: dossier });
+      espace.creerPage("Feuille", { parent: chemise });
+    });
+    const adresse = lien("Feuille").getAttribute("href") ?? "";
+    await coquille.utilisateur.click(bouton(nomDuRepli("Dossier")));
+    expect(screen.queryByRole("link", { name: "Feuille" })).toBeNull();
+
+    window.location.hash = adresse;
+
+    await waitFor(() => expect(lien("Feuille").getAttribute("aria-current")).toBe("page"));
+    expect(bouton(nomDuRepli("Dossier")).getAttribute("aria-expanded")).toBe("true");
+    expect(bouton(nomDuRepli("Chemise")).getAttribute("aria-expanded")).toBe("true");
+    const fil = within(screen.getByRole("navigation", { name: "Fil d'Ariane" }));
+    expect(
+      fil
+        .getAllByRole("link")
+        .map((ancetre) => [ancetre.textContent, ancetre.getAttribute("href")]),
+    ).toEqual([
+      ["Dossier", lien("Dossier").getAttribute("href")],
+      ["Chemise", lien("Chemise").getAttribute("href")],
+    ]);
+    const description = (titre: string): string | null | undefined => {
+      const cible = lien(titre).getAttribute("aria-describedby");
+      return cible === null ? null : document.getElementById(cible)?.textContent;
+    };
+    expect(["Dossier", "Chemise", "Feuille"].map(description)).toEqual([
+      null,
+      "Niveau 2, sous-page de « Dossier »",
+      "Niveau 3, sous-page de « Chemise »",
+    ]);
+    expect(
+      within(screen.getByRole("navigation", { name: "Pages" }))
+        .getAllByRole("listitem")
+        .map((rangee) => rangee.getAttribute("aria-level")),
+    ).toEqual(["1", "2", "3"]);
+  });
+});
+
+// `Coquille` et `EcranPlein` remplissent ce qui les contient, sauf quand `fenetre` leur donne la
+// hauteur de la fenêtre : cette propriété, absente par défaut, est le contrat de leurs appelants.
+const ENVELOPPE = /<(Coquille|EcranPlein)\b([^>]*)>/g;
+
+/** Chaque rendu d'une enveloppe dans `src/`, par fichier : « Composant » ou « Composant fenetre ». */
+function rendusDesEnveloppes(fichiers: readonly string[]): Record<string, string[]> {
+  return Object.fromEntries(
+    fichiers
+      .map((chemin) => {
+        const rendus = [...lire(chemin).matchAll(ENVELOPPE)].map(([, nom = "", proprietes = ""]) =>
+          /(?:^|\s)fenetre(?:\s|$)/.test(proprietes) ? `${nom} fenetre` : nom,
+        );
+        return [chemin, rendus] as const;
+      })
+      .filter(([, rendus]) => rendus.length > 0),
+  );
+}
+
+describe("couture : enveloppes à la hauteur de la fenêtre", () => {
+  it("F-004-AC52 F-004-AC16 les appelants de Coquille et d'EcranPlein sont énumérés : l'application demande toujours la hauteur de la fenêtre, la page de démonstration jamais (son rendu est constaté par demonstration.test.tsx)", async () => {
+    const sources = lister("src").filter((chemin) => chemin.endsWith(".tsx"));
+    expect(rendusDesEnveloppes(sources)).toEqual({
+      "src/demonstration/PageDemonstration.tsx": [
+        "Coquille",
+        "Coquille",
+        "EcranPlein",
+        "EcranPlein",
+      ],
+      "src/interface/Application.tsx": [
+        "EcranPlein fenetre",
+        "EcranPlein fenetre",
+        "EcranPlein fenetre",
+        "Coquille fenetre",
+      ],
+    });
+
+    // Dans l'application : l'écran de chargement, puis la coquille, à la hauteur de la fenêtre.
+    rendreApplication();
+    expect(screen.getByRole("status").closest("main")?.classList.contains("min-h-dvh")).toBe(true);
+    await screen.findByRole("button", { name: "Nouvelle page" });
+    expect(screen.getByRole("banner").closest(".h-dvh")).not.toBeNull();
   });
 });

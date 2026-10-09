@@ -1,7 +1,7 @@
 import type { PageLue } from "@notionlike/document";
 import type { ReactElement, Ref } from "react";
 
-import { COQUILLE } from "./composants/coquille.classes.ts";
+import { Principale } from "./composants/Coquille.tsx";
 import { EntetePage } from "./composants/Etats.tsx";
 import {
   EXPLICATION_PAGE_INTROUVABLE,
@@ -42,9 +42,5 @@ function entete({ selection, espaceVide }: Proprietes): ReactElement {
 }
 
 export function ZonePrincipale(props: Proprietes): ReactElement {
-  return (
-    <main ref={props.ref} className={COQUILLE.principale} tabIndex={-1}>
-      {entete(props)}
-    </main>
-  );
+  return <Principale ref={props.ref}>{entete(props)}</Principale>;
 }

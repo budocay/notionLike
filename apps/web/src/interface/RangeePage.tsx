@@ -18,7 +18,8 @@ import { adresseDePage } from "./pages.ts";
 import { afficherTouches, cleAria, estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
 import { SaisieTitre } from "./SaisieTitre.tsx";
 
-/** État d'écran de la barre latérale : il vit dans `Application`, hors du document d'espace. */
+/** État d'écran de la barre latérale : pages repliées (`repli.ts`) et saisie ouverte
+ * (`Application`), hors du document d'espace. */
 export interface EcranBarre {
   readonly idPageCourante: IdPage | undefined;
   readonly repliees: ReadonlySet<IdPage>;
@@ -64,10 +65,17 @@ export function RangeePage(props: Proprietes): ReactElement {
       renommer();
     }
   };
+  // Une entrée ferme le menu avant d'agir, et rend le focus au bouton « ⋯ » : il y reste si
+  // l'opération est refusée, sous son message ; sinon l'action le porte où elle l'entend.
+  const depuisLeMenu = (effet: () => void) => (): void => {
+    menu.fermer();
+    menu.commande.current?.focus();
+    effet();
+  };
   const entrees = entreesDuMenu({
     renommer,
-    ajouter: () => actions.creerPage(page.id),
-    jeter: () => actions.mettreALaCorbeille(page),
+    ajouter: depuisLeMenu(() => actions.creerPage(page.id)),
+    jeter: depuisLeMenu(() => actions.mettreALaCorbeille(page)),
   });
   return (
     <Rangee

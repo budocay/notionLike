@@ -197,7 +197,8 @@ describe("fil d'Ariane", () => {
     document.documentElement.style.removeProperty("--breakpoint-etroit");
   });
 
-  it("F-004-AC39 avec trois ancêtres au plus, le fil les montre tous, sans commande de repli", async () => {
+  it("F-004-AC39 sur écran large, avec exactement trois ancêtres, le fil les montre tous, sans commande de repli", async () => {
+    simulerLaLargeur(1280);
     const coquille = await ouvrirUneLignee(4);
 
     await selectionner(coquille, "Niveau 4");
@@ -208,6 +209,40 @@ describe("fil d'Ariane", () => {
       "lien Niveau 3",
       "courante Niveau 4",
     ]);
+    expect(within(fil()).queryByRole("button")).toBeNull();
+    document.documentElement.style.removeProperty("--breakpoint-etroit");
+  });
+
+  it("F-004-AC39 sur écran large, avec exactement quatre ancêtres, le fil se replie : la racine, la commande et la page courante, les trois autres ancêtres dans la liste", async () => {
+    simulerLaLargeur(1280);
+    const coquille = await ouvrirUneLignee(5);
+
+    await selectionner(coquille, "Niveau 5");
+
+    expect(contenuDuFil()).toEqual([
+      "lien Niveau 1",
+      `commande ${INTERMEDIAIRES}`,
+      "courante Niveau 5",
+    ]);
+    const commande = within(fil()).getByRole("button", { name: INTERMEDIAIRES });
+    await coquille.utilisateur.click(commande);
+    const liste = document.getElementById(commande.getAttribute("aria-controls") ?? "");
+    expect(
+      within(liste as HTMLElement)
+        .getAllByRole("link")
+        .map((lien) => lien.textContent),
+    ).toEqual(["Niveau 2", "Niveau 3", "Niveau 4"]);
+    document.documentElement.style.removeProperty("--breakpoint-etroit");
+  });
+
+  it("F-004-AC39 sur écran étroit, avec exactement un ancêtre, le fil le montre sans commande de repli", async () => {
+    simulerLaLargeur(360);
+    await ouvrirUneLignee(2);
+    window.location.hash = lienDeBarre("Niveau 2").getAttribute("href") ?? "";
+
+    await waitFor(() => expect(contenuDuFil()).toEqual(["lien Niveau 1", "courante Niveau 2"]));
+    expect(within(fil()).queryByRole("button")).toBeNull();
+    document.documentElement.style.removeProperty("--breakpoint-etroit");
   });
 });
 

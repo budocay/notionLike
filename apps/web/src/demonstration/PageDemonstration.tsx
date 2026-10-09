@@ -1,12 +1,13 @@
 // Page de démonstration (F-004-AC50) : chaque composant de présentation dans chacun de ses états,
-// sur des données fictives. Outil de développement, sans texte d'explication.
+// sur des données fictives. Outil de développement, sans texte d'explication. Elle montre plusieurs
+// écrans l'un sous l'autre : sa racine n'est donc pas une zone principale, chaque aperçu a la sienne.
 import type { ReactElement, ReactNode } from "react";
 
 import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
-import { Coquille } from "../interface/composants/Coquille.tsx";
+import { Coquille, EcranPlein, Principale } from "../interface/composants/Coquille.tsx";
 import {
   Avertissement,
   Chargement,
@@ -48,6 +49,7 @@ import {
   ADRESSE_FICTIVE,
   ANCETRES,
   ARBORESCENCE,
+  ENTREE_DE_PIED_FICTIVE,
   NOM_DE_L_ESPACE_FICTIF,
   PAGE_COURANTE,
   type PageFictive,
@@ -212,7 +214,9 @@ function SectionCoquille(): ReactElement {
       <div className={PAGE.apercu}>
         <Coquille tiroir={{ ouvert: false, nom: NOM_DU_TIROIR }} barre={<Barre />}>
           <BarreDuHaut ouverture={ouverture} fil={fil} etat={<ZoneEtat echec={undefined} />} />
-          <EntetePage titre={PAGE_COURANTE} />
+          <Principale>
+            <EntetePage titre={PAGE_COURANTE} />
+          </Principale>
         </Coquille>
       </div>
     </Section>
@@ -319,6 +323,25 @@ function SectionMenu(): ReactElement {
   );
 }
 
+// Le pied ne porte une entrée qu'à partir de F-007 : celle-ci est une donnée fictive, sans effet,
+// que rien n'active. La hauteur bornée fait défiler l'arborescence entre la tête et le pied.
+function SectionBarre(): ReactElement {
+  const pied = <span className={PAGE.entreeDePied}>{ENTREE_DE_PIED_FICTIVE}</span>;
+  return (
+    <Section titre="Tête et pied de barre latérale">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="L'arborescence défile entre la tête et le pied">
+          <div className={PAGE.apercuDeBarre}>
+            <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={<Tete />} pied={pied}>
+              <Arborescence />
+            </CadreDeBarre>
+          </div>
+        </Specimen>
+      </div>
+    </Section>
+  );
+}
+
 function SectionBarreDuHaut(): ReactElement {
   return (
     <Section titre="Barre du haut">
@@ -348,7 +371,9 @@ function SectionTiroir(): ReactElement {
           barre={<Barre fermeture={fermeture} />}
         >
           <BarreDuHaut fil={<Fil replie />} etat={<ZoneEtat echec={undefined} />} />
-          <EntetePage titre={PAGE_COURANTE} />
+          <Principale>
+            <EntetePage titre={PAGE_COURANTE} />
+          </Principale>
         </Coquille>
       </div>
     </Section>
@@ -365,16 +390,20 @@ function SectionEtats(): ReactElement {
       </Specimen>
       <div className={PAGE.grille}>
         <Specimen etiquette="Chargement">
-          <div className={PAGE.ecran}>
-            <Chargement texte={CHARGEMENT} />
+          <div className={PAGE.fondZone}>
+            <EcranPlein>
+              <Chargement texte={CHARGEMENT} />
+            </EcranPlein>
           </div>
         </Specimen>
         <Specimen etiquette="Écran bloquant">
-          <div className={PAGE.ecran}>
-            <EcranBloquant
-              titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
-              explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
-            />
+          <div className={PAGE.fondZone}>
+            <EcranPlein>
+              <EcranBloquant
+                titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
+                explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
+              />
+            </EcranPlein>
           </div>
         </Specimen>
       </div>
@@ -426,7 +455,7 @@ function SectionCommandes(): ReactElement {
 
 export function PageDemonstration({ jetons }: { readonly jetons: string }): ReactElement {
   return (
-    <main className={PAGE.cadre} data-demonstration={MARQUEUR_DE_DEMONSTRATION}>
+    <div className={PAGE.cadre} data-demonstration={MARQUEUR_DE_DEMONSTRATION}>
       <header className={PAGE.entete}>
         <span className={PAGE.enseigne}>
           <Sceau />
@@ -437,6 +466,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionCoquille />
       <SectionRangees />
       <SectionMenu />
+      <SectionBarre />
       <SectionBarreDuHaut />
       <SectionTiroir />
       <SectionEtats />
@@ -446,6 +476,6 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
           {contenu}
         </Section>
       ))}
-    </main>
+    </div>
   );
 }

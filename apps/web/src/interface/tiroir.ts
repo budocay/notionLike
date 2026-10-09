@@ -10,6 +10,8 @@ import {
   useState,
 } from "react";
 
+import { estUnClicSimple } from "./clic.ts";
+import { SELECTEUR_DU_LIEN_DE_PAGE } from "./composants/Rangee.tsx";
 import { useEcranEtroit } from "./largeur.ts";
 
 /** Ce qui a fermé le tiroir décide de l'élément qui reçoit le focus. */
@@ -26,12 +28,21 @@ export interface Tiroir {
   /** Échap, voile, bouton de fermeture : le focus revient au bouton d'ouverture. */
   readonly abandonner: () => void;
   readonly surTouche: (evenement: KeyboardEvent<HTMLElement>) => void;
-  /** Clic dans la barre : choisir une page ferme le tiroir. */
+  /** Clic dans la barre : suivre sur place le lien d'une rangée ferme le tiroir. */
   readonly surClic: (evenement: MouseEvent<HTMLElement>) => void;
 }
 
 const ECHAP = "Escape";
-const LIEN_DE_PAGE = "li a[href]";
+
+// Le lien de page est celui que la rangée désigne (`composants/Rangee.tsx`), non un balisage deviné.
+// Ouvert ailleurs par un clic avec modificateur, il ne choisit rien ici : le tiroir reste ouvert.
+function choisitUnePage(evenement: MouseEvent<HTMLElement>): boolean {
+  return (
+    estUnClicSimple(evenement) &&
+    evenement.target instanceof Element &&
+    evenement.target.closest(SELECTEUR_DU_LIEN_DE_PAGE) !== null
+  );
+}
 
 export function useTiroir(): Tiroir {
   const etroit = useEcranEtroit();
@@ -77,7 +88,7 @@ export function useTiroir(): Tiroir {
       }
     },
     surClic: (evenement) => {
-      if (ouvert && evenement.target instanceof Element && evenement.target.closest(LIEN_DE_PAGE)) {
+      if (ouvert && choisitUnePage(evenement)) {
         fermer("selection");
       }
     },

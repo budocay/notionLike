@@ -2,6 +2,8 @@
 // intermédiaires du fil d'Ariane) : un seul état, tenu par le composant qui l'ouvre.
 import { type RefObject, useEffect, useRef, useState } from "react";
 
+import { estLeBoutonPrincipal } from "./clic.ts";
+
 export interface Flottant<Surface extends HTMLElement> {
   readonly ouvert: boolean;
   /** Commande qui ouvre la surface : le focus lui revient à la fermeture sans choix. */
@@ -27,9 +29,9 @@ interface Dehors {
   readonly fermer: () => void;
 }
 
-// Écoute le document tant que la surface est ouverte, et rend de quoi cesser. Le bouton enfoncé au
-// dehors ne déplace pas le focus : la surface reste ouverte jusqu'au clic, qui est alors arrêté
-// avant d'atteindre ce qu'il vise.
+// Écoute le document tant que la surface est ouverte, et rend de quoi cesser. Le bouton principal
+// enfoncé au dehors ne déplace pas le focus : la surface reste ouverte jusqu'au clic, qui est alors
+// arrêté avant d'atteindre ce qu'il vise. Un clic droit ou du milieu garde son effet par défaut.
 function ecouterLeDehors({ dedans, abandonner, fermer }: Dehors): () => void {
   const sansEffet = (evenement: Event): void => {
     evenement.preventDefault();
@@ -37,7 +39,7 @@ function ecouterLeDehors({ dedans, abandonner, fermer }: Dehors): () => void {
     abandonner();
   };
   const surAppui = (evenement: MouseEvent): void => {
-    if (!dedans(evenement.target)) {
+    if (estLeBoutonPrincipal(evenement) && !dedans(evenement.target)) {
       evenement.preventDefault();
     }
   };

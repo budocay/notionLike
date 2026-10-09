@@ -1,11 +1,15 @@
 // Seuil étroit et tiroir de la barre latérale (F-004-AC41, AC42), sous jsdom : attributs posés et
 // retirés, gestionnaires écrits par le projet. L'inertie réelle, le focus au fil des tabulations et
 // les dimensions ne se prouvent que dans un navigateur (e2e/largeurs.spec.ts).
-import { screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { lire, lister } from "./aides-disque.ts";
+import { Coquille as CoquilleDePresentation } from "../src/interface/composants/Coquille.tsx";
+import { Rangee, SELECTEUR_DU_LIEN_DE_PAGE } from "../src/interface/composants/Rangee.tsx";
+import { useTiroir } from "../src/interface/tiroir.ts";
 import { type Coquille, ouvrirCoquille, recevoir } from "./aides-coquille.tsx";
+import { lire, lister } from "./aides-disque.ts";
 import { seuilEtroit, seuilEtroitEnPixels, simulerLaLargeur } from "./aides-largeur.ts";
 
 const OUVRIR = "Ouvrir la barre latérale";
@@ -222,6 +226,29 @@ describe("tiroir sur écran étroit", () => {
     expect(document.activeElement).toBe(screen.getByRole("main"));
   });
 
+  it.each([
+    ["Ctrl", { ctrlKey: true }],
+    ["⌘", { metaKey: true }],
+    ["Maj", { shiftKey: true }],
+    ["Alt", { altKey: true }],
+    ["le bouton du milieu", { button: 1 }],
+  ])(
+    "F-004-AC42 un clic avec %s sur le lien d'une rangée, qui l'ouvre ailleurs, ne ferme pas le tiroir et ne déplace pas le focus",
+    async (_cas, clic) => {
+      simulerLaLargeur(ETROIT);
+      const coquille = await ouvrirAvecDeuxPages();
+      await ouvrirLeTiroir(coquille);
+      const fermeture = screen.getByRole("button", { name: FERMER });
+      expect(document.activeElement).toBe(fermeture);
+
+      fireEvent.click(within(barre()).getByRole("link", { name: "Bêta" }), clic);
+
+      expect(conteneurDeLaBarre().getAttribute("role")).toBe("dialog");
+      expect(reste().hasAttribute("inert")).toBe(true);
+      expect(document.activeElement).toBe(fermeture);
+    },
+  );
+
   it("F-004-AC42 créer une page dans le tiroir le laisse ouvert, pour la saisie de son titre", async () => {
     simulerLaLargeur(ETROIT);
     const coquille = await ouvrirAvecDeuxPages();
@@ -273,5 +300,65 @@ describe("tiroir sur écran étroit", () => {
     fenetre.changer(ETROIT);
     constaterLeTiroirFerme();
     expect(boutonDOuverture().getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+// Le tiroir et la rangée, sans l'application : une barre qui porte, à côté d'une rangée, un autre
+// lien dans un élément de liste, comme une feature suivante pourrait en poser dans le pied.
+function TiroirSeul(): ReactElement {
+  const tiroir = useTiroir();
+  const barreFictive = (
+    <ul>
+      <li>
+        <a href="#/ailleurs">Autre lien de liste</a>
+      </li>
+      <Rangee
+        niveau={1}
+        titre="Page"
+        adresse="#/page/a"
+        courante={false}
+        ajout={{ nom: "Ajouter", surActivation: vi.fn() }}
+        actions={{ nom: "Actions", surActivation: vi.fn() }}
+        menuOuvert={false}
+      />
+    </ul>
+  );
+  return (
+    <CoquilleDePresentation
+      tiroir={{ ouvert: tiroir.ouvert, nom: "Barre latérale", surClic: tiroir.surClic }}
+      barre={barreFictive}
+    >
+      <button type="button" onClick={tiroir.ouvrir}>
+        Ouvrir
+      </button>
+    </CoquilleDePresentation>
+  );
+}
+
+describe("tiroir et rangée : le lien de page est désigné par la rangée", () => {
+  it("F-004-AC42 seul le lien que la rangée désigne comme lien de page ferme le tiroir : un autre lien d'une liste de la barre le laisse ouvert", () => {
+    simulerLaLargeur(ETROIT);
+    render(<TiroirSeul />);
+    fireEvent.click(screen.getByRole("button", { name: "Ouvrir" }));
+    expect(screen.getByRole("dialog", { name: "Barre latérale" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("link", { name: "Autre lien de liste" }));
+    expect(screen.queryByRole("dialog")).not.toBeNull();
+
+    const lienDePage = screen.getByRole("link", { name: "Page" });
+    expect(lienDePage.matches(SELECTEUR_DU_LIEN_DE_PAGE)).toBe(true);
+    expect(document.querySelectorAll(SELECTEUR_DU_LIEN_DE_PAGE)).toHaveLength(1);
+    fireEvent.click(lienDePage);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("F-004-AC42 le tiroir ne reconnaît le lien de page que par le sélecteur que la rangée exporte, jamais par son balisage", () => {
+    const tiroir = lire("src/interface/tiroir.ts");
+    expect(tiroir).toMatch(
+      /import \{ SELECTEUR_DU_LIEN_DE_PAGE \} from "\.\/composants\/Rangee\.tsx";/,
+    );
+    expect(tiroir).toMatch(/\.closest\(SELECTEUR_DU_LIEN_DE_PAGE\)/);
+    expect(tiroir.match(/\.closest\(|querySelector|\.matches\(/g)).toEqual([".closest("]);
+    expect(tiroir).not.toMatch(/a\[href\]|"li\b/);
   });
 });

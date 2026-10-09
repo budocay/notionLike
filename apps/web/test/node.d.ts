@@ -3,6 +3,7 @@
 // importée, même en `?raw` (constaté le 2026-10-09) : les sources se lisent donc sur le disque.
 declare module "node:fs" {
   export function readFileSync(chemin: string, encodage: "utf8"): string;
+  export function readdirSync(chemin: string): string[];
   export function readdirSync(
     chemin: string,
     options: { readonly recursive: true; readonly withFileTypes: true },

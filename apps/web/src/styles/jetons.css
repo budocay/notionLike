@@ -104,8 +104,6 @@
   --spacing-retrait-max: 4.375rem;
   --spacing-barre-haut: 3rem;
   --spacing-halo: 14rem;
-  --spacing-apercu: 30rem;
-  --spacing-apercu-menu: 9.5rem;
   --spacing-touche: 1.25rem;
   --spacing-liste: 18rem;
 
@@ -117,7 +115,6 @@
   --container-lecture: 44rem;
   --container-fil: 12rem;
   --container-fil-courant: 6rem;
-  --container-page: 72rem;
 
   /* Épaisseurs de trait, en pixels pour rester nettes. */
   --epaisseur-filet: 1px;

@@ -36,3 +36,6 @@ export const ANCETRES = [
 ] as const;
 
 export const PAGE_COURANTE = "Décisions à prendre avant jeudi";
+
+/** Entrée du pied de la barre latérale : fictive, F-007 y posera la sienne (F-004-AC30). */
+export const ENTREE_DE_PIED_FICTIVE = "Corbeille";
