@@ -40,7 +40,7 @@ type DesignationDocument =
 type EtatPersistance = "relecture" | "active" | "coupee" | "fermee";
 
 interface Persistance {
-  etat(): EtatPersistance;
+  lireEtat(): EtatPersistance;
   abonner(rappel: () => void): () => void;
   fermer(): void;
 }
@@ -76,6 +76,7 @@ class ErreurPersistance extends Error {} // code "identifiant-invalide"
 - Remplacer `y-indexeddb` ne touche qu'`indexeddb.ts` ; le format stocké (magasins `updates` et `custom`, mises à jour V1) resterait à relire ou à migrer.
 - Chaque ouverture coûte une demande de plus (la sonde). F-002-AC16 nomme les trois cas couverts sans rejet non géré (`indexedDB` absent, ouverture refusée, lecture ou écriture en échec après l'ouverture : parades 1 à 3) et écrit comme limite acceptée la fenêtre que la sonde laisse : une ouverture qui réussit pour la sonde puis échoue aussitôt après pour la bibliothèque donnerait un rejet émis par celle-ci. L'échéance rend quand même la main, comme le critère l'exige ; aucun test ne couvre ce cas.
 - La bibliothèque écrit un enregistrement vide (deux octets `0, 0`) à chaque ouverture, avant de relire. F-002-AC17 l'admet et exige ce qui est tenu : après l'ouverture d'un document de version non prise en charge, la persistance est fermée dès le refus, aucun enregistrement non vide n'est ajouté, et l'état relu de la base est identique octet pour octet à l'état relu avant (essai E10). Ne pas écrire cet enregistrement demanderait de relire la base sans la bibliothèque.
+- `active` suit l'évènement `synced` de la bibliothèque, qui ne prouve pas l'écriture : elle l'émet après avoir appliqué ce qu'elle a relu, sans attendre que l'ajout de l'état complet du document soit validé, donc même quand cet ajout échoue (veille du 2026-10-09, exécutée ; code de la bibliothèque relu). Effet borné dans F-002 : le document est vide à l'ouverture, l'état complet est l'enregistrement de deux octets, et les écouteurs `error` et `abort` de la parade 3 ramènent ensuite à `coupee`. Que ces évènements soient émis par un vrai navigateur dans ce cas n'est pas vérifié, et aucun test de F-002 ne fait échouer cette écriture. La borne tombe dès qu'une persistance s'ouvre sur un document non vide (reprise après coupure) : F-030-AC26 remplace `synced` par une preuve d'écriture comme condition de l'état actif, et sa conception amendera « États et délai ».
 - Après l'échéance, si l'ouverture aboutit tard, la bibliothèque termine la lecture qu'elle avait lancée. F-002-AC24 l'admet et porte sur les effets : rien de ce qu'elle lit n'est appliqué au document ni affiché, et rien n'est écrit (essai E9).
 - L'enveloppe d'écriture dépend de deux champs internes d'une bibliothèque dont la maintenance est incertaine (spec H2) : c'est le prix du rechargement immédiat sans perte. Remplacer la bibliothèque (option B) la ferait disparaître.
 - Un identifiant de page ou de table qui n'est pas un UUID canonique ne peut pas avoir de base : F-003 et F-018 créent leurs identifiants par `crypto.randomUUID`, comme F-001 le fait pour les pages. Un identifiant de page de forme inattendue, inscrit dans une arborescence reçue (cas laissé à F-012 par la spec), donnera à F-003 un refus à l'ouverture de sa base, à traiter par son écran.
