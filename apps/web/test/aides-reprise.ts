@@ -1,0 +1,119 @@
+// Aides des tests de F-030 : pannes du stockage que `fake-indexeddb` ne produit pas de lui-même,
+// et ce que la bibliothèque de persistance laisse voir d'elle sans être importée par les tests
+// (F-030-AC20 : seul `src/persistance/indexeddb.ts` l'importe).
+import { vi } from "vitest";
+import * as Y from "yjs";
+
+import type { EtatPersistance, Persistance } from "../src/persistance/index.ts";
+
+interface TransactionInterne {
+  _abort(nomDeLErreur: string): void;
+}
+
+/** États pris par une persistance, dans l'ordre des diffusions à ses abonnés. */
+export function etatsSuccessifs(persistance: Persistance): EtatPersistance[] {
+  const etats: EtatPersistance[] = [];
+  persistance.abonner(() => etats.push(persistance.lireEtat()));
+  return etats;
+}
+
+/**
+ * Les `fois` prochains ajouts à un magasin réussissent pour la demande, puis leur transaction est
+ * annulée par le moteur, comme un quota atteint : la base ne garde rien, la connexion reçoit
+ * `error` puis `abort`. Les ajouts suivants aboutissent.
+ */
+export function annulerLesProchainsAjouts(fois: number): void {
+  const ajouter = IDBObjectStore.prototype.add;
+  let restants = fois;
+  vi.spyOn(IDBObjectStore.prototype, "add").mockImplementation(function (
+    this: IDBObjectStore,
+    valeur: unknown,
+  ) {
+    const demande = ajouter.call(this, valeur);
+    if (restants > 0) {
+      restants -= 1;
+      const transaction = this.transaction as unknown as TransactionInterne;
+      demande.addEventListener("success", () => transaction._abort("QuotaExceededError"));
+    }
+    return demande;
+  });
+}
+
+/**
+ * Les `fois` prochains ajouts à un magasin sont perdus sans bruit : la demande réussit, rien n'est
+ * écrit, et la connexion ne reçoit ni `error`, ni `abort`, ni `close`.
+ */
+export function perdreLesProchainsAjouts(fois: number): void {
+  const ajouter = IDBObjectStore.prototype.add;
+  let restants = fois;
+  vi.spyOn(IDBObjectStore.prototype, "add").mockImplementation(function (
+    this: IDBObjectStore,
+    valeur: unknown,
+  ) {
+    if (restants > 0) {
+      restants -= 1;
+      return this.count() as unknown as IDBRequest<IDBValidKey>;
+    }
+    return ajouter.call(this, valeur);
+  });
+}
+
+interface InstanceDeLaBibliotheque {
+  readonly synced: boolean;
+}
+
+function estUneInstance(origine: unknown): origine is InstanceDeLaBibliotheque {
+  return typeof origine === "object" && origine !== null && "whenSynced" in origine;
+}
+
+/**
+ * Instances de la bibliothèque qui ont appliqué un état relu à ce document, dans l'ordre : chacune
+ * signe de son identité la transaction où elle l'applique, juste avant d'émettre `synced`.
+ */
+export function instancesAyantRelu(doc: Y.Doc): { readonly synced: boolean }[] {
+  const instances: InstanceDeLaBibliotheque[] = [];
+  doc.on("beforeTransaction", (transaction: Y.Transaction) => {
+    if (estUneInstance(transaction.origin)) {
+      instances.push(transaction.origin);
+    }
+  });
+  return instances;
+}
+
+type LectureBrute = () => IDBRequest<unknown[]>;
+
+/**
+ * Appelle `intercepter` à chaque lecture brute du magasin d'une base de document (un `getAll` sans
+ * borne ; la bibliothèque, elle, borne toujours les siens), avec son rang à partir de 1 et la
+ * lecture réelle. Ce que `intercepter` rend est la demande que le module reçoit.
+ */
+export function intercepterLesLecturesBrutes(
+  intercepter: (rang: number, lire: LectureBrute) => IDBRequest<unknown[]>,
+): void {
+  const toutLire = IDBObjectStore.prototype.getAll;
+  let rang = 0;
+  vi.spyOn(IDBObjectStore.prototype, "getAll").mockImplementation(function (
+    this: IDBObjectStore,
+    ...bornes: unknown[]
+  ) {
+    const lire = (): IDBRequest<unknown[]> =>
+      toutLire.apply(this, bornes as Parameters<typeof toutLire>);
+    if (bornes.length > 0) {
+      return lire();
+    }
+    rang += 1;
+    return intercepter(rang, lire);
+  });
+}
+
+/** Une demande qui ne répond jamais. */
+export function demandeSansReponse(): IDBRequest<unknown[]> {
+  return { onsuccess: null, onerror: null } as unknown as IDBRequest<unknown[]>;
+}
+
+/** État encodé d'un document vierge auquel sont appliqués ces enregistrements. */
+export function etatRelu(lus: readonly number[][]): number[] {
+  const doc = new Y.Doc();
+  lus.forEach((enregistrement) => Y.applyUpdate(doc, Uint8Array.from(enregistrement)));
+  return [...Y.encodeStateAsUpdate(doc)];
+}

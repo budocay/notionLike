@@ -1,9 +1,11 @@
 import { IndexeddbPersistence } from "y-indexeddb";
-import type * as Y from "yjs";
+import * as Y from "yjs";
 
+import { lireLaBase, porteTout, temoinDe } from "./lecture-brute.ts";
 import { type DesignationDocument, nomDeBase } from "./nom-de-base.ts";
 
 const DELAI_RELECTURE_MS = 10_000;
+const MAGASIN_DES_MISES_A_JOUR = "updates";
 
 export type EtatPersistance = "relecture" | "active" | "coupee" | "fermee";
 
@@ -88,39 +90,16 @@ function relire(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeLEtat): void {
   if (suivi.lireEtat() !== "relecture") {
     return;
   }
-  sonder(nomDeLaBase, (ouvrable) => {
-    if (!ouvrable) {
+  // y-indexeddb ne laisse attacher aucun traitement à l'échec de sa propre ouverture : il devient
+  // un rejet non géré. La base est donc d'abord lue ici, sous nos gestionnaires, sans rien écrire.
+  const abandonner = lireLaBase(nomDeLaBase, (lecture) => {
+    if (lecture.issue === "echec" || lecture.issue === "sans-magasin") {
       suivi.passerA("coupee");
     } else if (suivi.lireEtat() === "relecture") {
       brancherLaBibliotheque(doc, nomDeLaBase, suivi);
     }
   });
-}
-
-// y-indexeddb ne laisse attacher aucun traitement à l'échec de sa propre ouverture : il devient un
-// rejet non géré. La base est donc ouverte une première fois ici, sous nos gestionnaires ; si elle
-// n'existe pas, sa création est annulée, ce qui la laisse absente.
-function sonder(nomDeLaBase: string, conclure: (ouvrable: boolean) => void): void {
-  let demande: IDBOpenDBRequest;
-  try {
-    demande = indexedDB.open(nomDeLaBase);
-  } catch {
-    conclure(false);
-    return;
-  }
-  let creationAnnulee = false;
-  demande.onupgradeneeded = () => {
-    creationAnnulee = true;
-    demande.transaction?.abort();
-  };
-  demande.onsuccess = () => {
-    demande.result.close();
-    conclure(true);
-  };
-  demande.onerror = (evenement) => {
-    evenement.preventDefault();
-    conclure(creationAnnulee);
-  };
+  suivi.aLArret(abandonner);
 }
 
 function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeLEtat): void {
@@ -130,7 +109,9 @@ function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeL
   // n'applique ni n'écrit plus rien, même si sa base s'ouvre plus tard. Sa promesse rejette quand
   // l'ouverture a échoué : le rejet est absorbé ici, l'échec étant déjà traduit en « coupee ».
   suivi.aLArret(() => void bibliotheque.destroy().catch(() => undefined));
-  bibliotheque.once("synced", () => suivi.passerA("active"));
+  // `synced` ne prouve pas l'écriture : la bibliothèque l'émet sans attendre que l'ajout de l'état
+  // complet soit validé, donc même quand il échoue (F-030-AC26).
+  bibliotheque.once("synced", () => prouverLEcriture(bibliotheque, nomDeLaBase, suivi));
   bibliotheque._db.then((connexion) => {
     garder(connexion, couper);
     // Une persistance déjà coupée ou fermée a désabonné la bibliothèque : on ne la rebranche pas.
@@ -138,6 +119,53 @@ function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeL
       validerChaqueEcriture(bibliotheque, connexion);
     }
   }, couper);
+}
+
+// Preuve d'écriture (F-030-AC26). L'état retenu est celui que le document porte quand la
+// bibliothèque finit de lui appliquer l'état relu : ce qui est modifié ensuite est écrit par
+// l'instance et n'entre pas dans la comparaison. La première moitié de la preuve est tenue par
+// `garder` : un événement `error`, `abort` ou `close` de la connexion a déjà coupé la persistance.
+function prouverLEcriture(
+  bibliotheque: IndexeddbPersistence,
+  nomDeLaBase: string,
+  suivi: SuiviDeLEtat,
+): void {
+  const connexion = bibliotheque.db;
+  if (connexion === null || suivi.lireEtat() !== "relecture") {
+    return;
+  }
+  const etatEnMemoire = Y.encodeStateAsUpdate(bibliotheque.doc);
+  apresLesEcrituresEnCours(connexion, (ordonnee) => {
+    if (!ordonnee) {
+      suivi.passerA("coupee");
+      return;
+    }
+    const abandonner = lireLaBase(nomDeLaBase, (lecture) => {
+      const temoin = lecture.issue === "lue" ? temoinDe(lecture.enregistrements) : undefined;
+      const prouvee = temoin !== undefined && porteTout(temoin, etatEnMemoire);
+      temoin?.destroy();
+      suivi.passerA(prouvee ? "active" : "coupee");
+    });
+    suivi.aLArret(abandonner);
+  });
+}
+
+// Transaction de barrière : elle ne finit qu'après les écritures déjà demandées sur le magasin,
+// dont celle de l'état complet. Elle ne prouve rien d'autre que l'ordre : elle finit sans erreur
+// même quand cette écriture a été annulée (F-030 H13).
+function apresLesEcrituresEnCours(
+  connexion: IDBDatabase,
+  poursuivre: (ordonnee: boolean) => void,
+): void {
+  let barriere: IDBTransaction;
+  try {
+    barriere = connexion.transaction(MAGASIN_DES_MISES_A_JOUR, "readonly");
+    barriere.objectStore(MAGASIN_DES_MISES_A_JOUR).count();
+  } catch {
+    poursuivre(false);
+    return;
+  }
+  barriere.oncomplete = () => poursuivre(true);
 }
 
 // y-indexeddb écrit chaque mise à jour dans une transaction qu'elle laisse le navigateur valider

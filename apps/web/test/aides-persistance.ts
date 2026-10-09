@@ -134,14 +134,26 @@ export function refuserLesOuverturesParUneException(): void {
   });
 }
 
-// Connexions ouvertes avec succès pendant le test, dans l'ordre (la sonde d'une base absente
-// n'en ouvre aucune : sa création est annulée).
+// Connexions ouvertes avec succès pendant le test et que personne n'a refermées, dans l'ordre :
+// celles que la bibliothèque tient. La sonde d'une base absente n'en ouvre aucune (sa création est
+// annulée), et une lecture brute referme la sienne dès qu'elle a lu (F-030-AC26).
 export function suivreLesConnexions(): IDBDatabase[] {
   const ouvrir = indexedDB.open.bind(indexedDB);
   const connexions: IDBDatabase[] = [];
   vi.spyOn(indexedDB, "open").mockImplementation((nom, version) => {
     const demande = ouvrir(nom, version);
-    demande.addEventListener("success", () => connexions.push(demande.result));
+    demande.addEventListener("success", () => {
+      const connexion = demande.result;
+      const fermer = connexion.close.bind(connexion);
+      connexion.close = () => {
+        const rang = connexions.indexOf(connexion);
+        if (rang !== -1) {
+          connexions.splice(rang, 1);
+        }
+        fermer();
+      };
+      connexions.push(connexion);
+    });
     return demande;
   });
   return connexions;
