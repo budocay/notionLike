@@ -42,6 +42,10 @@ export const TITRE_VERSION_NON_PRISE_EN_CHARGE = "Mise à jour nécessaire";
 export const EXPLICATION_VERSION_NON_PRISE_EN_CHARGE =
   "Cet espace a été enregistré par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";
 
+/** Ajouté à l'explication quand le document portait des modifications non enregistrées (F-030-AC10). */
+export const MODIFICATIONS_NON_ENREGISTREES_PERDUES =
+  "Les modifications faites depuis l'ouverture n'ont pas pu être enregistrées sur cet appareil.";
+
 const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
   "page-introuvable": "Cette page n'existe plus : l'action n'a pas été effectuée.",
   "page-a-la-corbeille": "Cette page a été mise à la corbeille : l'action n'a pas été effectuée.",

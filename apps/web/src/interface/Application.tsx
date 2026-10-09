@@ -31,6 +31,7 @@ import {
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
   FERMER_LA_BARRE_LATERALE,
   messageErreur,
+  MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_DU_TIROIR,
   NON_ENREGISTRE,
   OUVRIR_LA_BARRE_LATERALE,
@@ -68,6 +69,9 @@ export function Application({ session }: { readonly session: SessionEspace }): R
           <EcranBloquant
             titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
             explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
+            precision={
+              etat.modificationsPerdues ? MODIFICATIONS_NON_ENREGISTREES_PERDUES : undefined
+            }
           />
         </EcranPlein>
       );

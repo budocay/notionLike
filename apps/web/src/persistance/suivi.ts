@@ -16,8 +16,13 @@ const SIGNALEMENT_DE_L_ABONNE_FAUTIF =
 export interface Tentative {
   /** Faux dès que la tentative a abouti, échoué, ou a été abandonnée. */
   attendue(): boolean;
-  /** La tentative échoue ; ou, après qu'elle a abouti, ce qu'elle a ouvert tombe en panne. */
-  echouer(): void;
+  /**
+   * La tentative échoue ; ou, après qu'elle a abouti, ce qu'elle a ouvert tombe en panne, et
+   * `ecriturePerdue` dit si la panne est celle de l'écriture d'une modification.
+   */
+  echouer(ecriturePerdue?: boolean): void;
+  /** La base est inutilisable en l'état : la persistance est coupée, la tentative continue. */
+  tenirPourCoupee(): void;
   /** La preuve d'écriture est faite : la persistance devient active. */
   aboutir(): void;
   /** À appeler quand la tentative échoue ou est abandonnée, ou quand ce qu'elle a ouvert s'arrête. */
@@ -38,12 +43,24 @@ export class Suivi {
   #attente: Minuterie | undefined;
   #prochaineAttente = PREMIERE_ATTENTE_MS;
   #dernierLancement = 0;
+  #nonEnregistre = false;
 
   constructor(tenter: (tentative: Tentative) => void) {
     this.#tenter = tenter;
   }
 
   readonly lireEtat = (): EtatPersistance => this.#etat;
+
+  /** Vrai tant qu'une modification du document n'a pas atteint la base (F-030, vocabulaire). */
+  readonly aDesModificationsNonEnregistrees = (): boolean => this.#nonEnregistre;
+
+  /** Le document a reçu une mise à jour : hors de l'état actif, rien ne l'écrit dans la base. */
+  readonly noterUneModification = (): void => {
+    if (this.#etat !== "active" && !this.#nonEnregistre) {
+      this.#nonEnregistre = true;
+      this.#diffuser();
+    }
+  };
 
   readonly abonner = (rappel: () => void): (() => void) => {
     const notifier = (): void => rappel();
@@ -59,7 +76,12 @@ export class Suivi {
     this.#echeance = setTimeout(() => this.#conclure(jeton, false), ECHEANCE_D_UNE_TENTATIVE_MS);
     this.#tenter({
       attendue: () => this.#enCours === jeton,
-      echouer: () => this.#surEchec(jeton),
+      echouer: (ecriturePerdue = false) => this.#surEchec(jeton, ecriturePerdue),
+      tenirPourCoupee: () => {
+        if (this.#enCours === jeton) {
+          this.#passerA("coupee");
+        }
+      },
       aboutir: () => this.#conclure(jeton, true),
       aLArret: (arreter) => this.#aLArret(jeton, arreter),
     });
@@ -99,11 +121,12 @@ export class Suivi {
     this.#arrets.splice(0).forEach((arreter) => arreter());
   }
 
-  #surEchec(jeton: object): void {
+  #surEchec(jeton: object, ecriturePerdue: boolean): void {
     if (this.#enCours === jeton) {
       this.#conclure(jeton, false);
     } else if (this.#ouverte === jeton) {
       this.#ouverte = undefined;
+      this.#nonEnregistre ||= ecriturePerdue;
       this.#couper();
     }
   }
@@ -117,6 +140,7 @@ export class Suivi {
     if (reussie) {
       this.#ouverte = jeton;
       this.#prochaineAttente = PREMIERE_ATTENTE_MS;
+      this.#nonEnregistre = false;
       this.#passerA("active");
     } else {
       this.#couper();

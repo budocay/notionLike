@@ -3,9 +3,15 @@ import * as Y from "yjs";
 
 import { lireLaBase, porteTout, temoinDe } from "./lecture-brute.ts";
 import { type DesignationDocument, nomDeBase } from "./nom-de-base.ts";
+import { creerLesMagasinsManquants } from "./reparation.ts";
 import { type EtatPersistance, Suivi, type Tentative } from "./suivi.ts";
 
 const MAGASIN_DES_MISES_A_JOUR = "updates";
+// Les magasins d'une base de document, tels que `y-indexeddb@9.0.12` les crée (F-030-AC20, AC28).
+const MAGASINS_D_UNE_BASE_DE_DOCUMENT = [
+  { nom: MAGASIN_DES_MISES_A_JOUR, options: { autoIncrement: true } },
+  { nom: "custom" },
+] as const;
 
 export interface Persistance {
   lireEtat(): EtatPersistance;
@@ -14,6 +20,24 @@ export interface Persistance {
   fermer(): void;
   /** Lance aussitôt une tentative de reprise si la persistance est coupée (F-030-AC2). */
   reessayer(): void;
+  /** Vrai tant qu'une modification du document n'a pas atteint la base ; ses changements sont diffusés aux abonnés. */
+  aDesModificationsNonEnregistrees(): boolean;
+  /**
+   * Avant chaque fusion, l'état relu de la base est soumis à ce juge dans un document témoin, que
+   * rien n'affiche ni n'enregistre. S'il le refuse, la persistance se ferme sans avoir rien écrit
+   * dans la base ni rien appliqué au document (F-030-AC10).
+   */
+  soumettreLEtatRelu(juge: Juge): void;
+}
+
+type Juge = (temoin: Y.Doc) => boolean;
+
+/** Ce dont la relecture d'une base a besoin au-delà de sa tentative. */
+interface Relecture {
+  readonly doc: Y.Doc;
+  readonly nomDeLaBase: string;
+  readonly admet: Juge;
+  readonly fermer: () => void;
 }
 
 /** Ce qu'une étape d'une tentative reçoit pour avancer sous l'échéance commune. */
@@ -35,36 +59,110 @@ export function ouvrirSousEcheance(
   doc: Y.Doc,
   commencer: (ouverture: Ouverture) => void,
 ): Persistance {
+  let admet: Juge = () => true;
   const suivi = new Suivi((tentative) =>
     commencer({
       attendue: tentative.attendue,
       couper: tentative.echouer,
-      relire: (nomDeLaBase) => relire(doc, nomDeLaBase, tentative),
+      relire: (nomDeLaBase) =>
+        relire({ doc, nomDeLaBase, admet: (temoin) => admet(temoin), fermer }, tentative),
     }),
   );
+  // Ce que la bibliothèque applique au document en relisant la base n'est pas une modification
+  // à enregistrer : elle signe ses transactions de son instance.
+  const noter = (_miseAJour: Uint8Array, origine: unknown): void => {
+    if (!(origine instanceof IndexeddbPersistence)) {
+      suivi.noterUneModification();
+    }
+  };
+  const fermer = (): void => {
+    doc.off("update", noter);
+    suivi.fermer();
+  };
+  doc.on("update", noter);
   suivi.lancer();
   return {
     lireEtat: suivi.lireEtat,
     abonner: suivi.abonner,
-    fermer: suivi.fermer,
+    fermer,
     reessayer: suivi.reessayer,
+    aDesModificationsNonEnregistrees: suivi.aDesModificationsNonEnregistrees,
+    soumettreLEtatRelu: (juge) => {
+      admet = juge;
+    },
   };
 }
 
-function relire(doc: Y.Doc, nomDeLaBase: string, tentative: Tentative): void {
+function relire(relecture: Relecture, tentative: Tentative): void {
   if (!tentative.attendue()) {
     return;
   }
+  const { doc, nomDeLaBase } = relecture;
+  const brancher = (): void => brancherLaBibliotheque(doc, nomDeLaBase, tentative);
   // y-indexeddb ne laisse attacher aucun traitement à l'échec de sa propre ouverture : il devient
   // un rejet non géré. La base est donc d'abord lue ici, sous nos gestionnaires, sans rien écrire.
   const abandonner = lireLaBase(nomDeLaBase, (lecture) => {
-    if (lecture.issue === "echec" || lecture.issue === "sans-magasin") {
+    if (lecture.issue === "echec") {
       tentative.echouer();
-    } else if (tentative.attendue()) {
-      brancherLaBibliotheque(doc, nomDeLaBase, tentative);
+    } else if (lecture.issue === "sans-magasin") {
+      reparerPuis(nomDeLaBase, lecture.version, tentative, brancher);
+    } else if (lecture.issue === "absente") {
+      brancher();
+    } else {
+      fusionnerSiAdmis(relecture, lecture.enregistrements, tentative, brancher);
     }
   });
   tentative.aLArret(abandonner);
+}
+
+// L'état relu est jugé avant la construction de l'instance, qui écrirait l'état en mémoire dans
+// la base avant de lui appliquer ce qu'elle y lit (F-030-AC10, H3). Des enregistrements qui ne
+// s'appliquent pas à un document sont une lecture en échec : la bibliothèque y lèverait.
+function fusionnerSiAdmis(
+  relecture: Relecture,
+  enregistrements: readonly Uint8Array[],
+  tentative: Tentative,
+  brancher: () => void,
+): void {
+  const temoin = temoinDe(enregistrements);
+  if (temoin === undefined) {
+    tentative.echouer();
+    return;
+  }
+  const admis = relecture.admet(temoin);
+  temoin.destroy();
+  if (!admis) {
+    relecture.fermer();
+  } else if (tentative.attendue()) {
+    brancher();
+  }
+}
+
+// Sur une base sans son magasin, la bibliothèque rejetterait sa relecture et lèverait dans chaque
+// modification du document : elle n'y est jamais construite. La persistance est coupée, et la
+// tentative continue par la réparation (F-030-AC28).
+function reparerPuis(
+  nomDeLaBase: string,
+  version: number,
+  tentative: Tentative,
+  poursuivre: () => void,
+): void {
+  tentative.tenirPourCoupee();
+  creerLesMagasinsManquants(
+    {
+      nomDeLaBase,
+      version,
+      magasins: MAGASINS_D_UNE_BASE_DE_DOCUMENT,
+      attendue: tentative.attendue,
+    },
+    (reparee) => {
+      if (!reparee) {
+        tentative.echouer();
+      } else if (tentative.attendue()) {
+        poursuivre();
+      }
+    },
+  );
 }
 
 // Une instance neuve à chaque tentative, sur le document resté en mémoire : elle écrit son état
@@ -78,13 +176,16 @@ function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, tentative: Tent
   // `synced` ne prouve pas l'écriture : la bibliothèque l'émet sans attendre que l'ajout de l'état
   // complet soit validé, donc même quand il échoue (F-030-AC26).
   bibliotheque.once("synced", () => prouverLEcriture(bibliotheque, nomDeLaBase, tentative));
-  bibliotheque._db.then((connexion) => {
-    garder(connexion, tentative.echouer);
-    // Une tentative abandonnée a désabonné la bibliothèque : on ne la rebranche pas.
-    if (tentative.attendue()) {
-      validerChaqueEcriture(bibliotheque, connexion, tentative.echouer);
-    }
-  }, tentative.echouer);
+  bibliotheque._db.then(
+    (connexion) => {
+      garder(connexion, tentative.echouer);
+      // Une tentative abandonnée a désabonné la bibliothèque : on ne la rebranche pas.
+      if (tentative.attendue()) {
+        validerChaqueEcriture(bibliotheque, connexion, () => tentative.echouer(true));
+      }
+    },
+    () => tentative.echouer(),
+  );
 }
 
 // Preuve d'écriture (F-030-AC26). L'état retenu est celui que le document porte quand la
@@ -195,17 +296,18 @@ function valider(transaction: IDBTransaction): void {
 // peut attacher. L'écouteur en phase de capture arrête l'événement avant la demande : la promesse
 // de la bibliothèque ne se règle jamais, aucun rejet n'est émis. `abort` couvre une transaction
 // annulée sans demande en erreur (quota), `close` une fermeture anormale de la connexion. Tant que
-// la tentative court, c'est son échec ; une fois la persistance active, c'est une coupure.
-function garder(connexion: IDBDatabase, surPanne: () => void): void {
+// la tentative court, c'est son échec ; une fois la persistance active, c'est une coupure, et les
+// deux premiers disent qu'une écriture n'a pas atteint la base.
+function garder(connexion: IDBDatabase, surPanne: (ecriturePerdue: boolean) => void): void {
   const enCapture = true;
   connexion.addEventListener(
     "error",
     (evenement) => {
       evenement.stopPropagation();
-      surPanne();
+      surPanne(true);
     },
     enCapture,
   );
-  connexion.addEventListener("abort", surPanne);
-  connexion.addEventListener("close", surPanne);
+  connexion.addEventListener("abort", () => surPanne(true));
+  connexion.addEventListener("close", () => surPanne(false));
 }

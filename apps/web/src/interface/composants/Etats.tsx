@@ -31,13 +31,16 @@ export function Avertissement({ children }: { readonly children: ReactNode }): R
 interface ProprietesEcranBloquant {
   readonly titre: string;
   readonly explication: string;
+  /** Seconde phrase, quand l'écran a une conséquence de plus à dire. */
+  readonly precision?: string | undefined;
 }
 
-export function EcranBloquant({ titre, explication }: ProprietesEcranBloquant): ReactElement {
+export function EcranBloquant(props: ProprietesEcranBloquant): ReactElement {
   return (
     <div className={ETATS.ecranBloquant} role="alert">
-      <h1 className={ETATS.ecranTitre}>{titre}</h1>
-      <p className={ETATS.ecranExplication}>{explication}</p>
+      <h1 className={ETATS.ecranTitre}>{props.titre}</h1>
+      <p className={ETATS.ecranExplication}>{props.explication}</p>
+      {props.precision !== undefined && <p className={ETATS.ecranExplication}>{props.precision}</p>}
     </div>
   );
 }

@@ -1,21 +1,21 @@
 // Session d'espace (ADR-0007) : créée hors de React, seule abonnée de la façade du document.
-import {
-  type Arborescence,
-  type DocumentEspace,
-  ErreurDocument,
-  ouvrirDocumentEspace,
-} from "@notionlike/document";
+import { type Arborescence, type DocumentEspace, ouvrirDocumentEspace } from "@notionlike/document";
 import * as Y from "yjs";
 
 import { ouvrirEspaceLocal, type Persistance } from "../persistance/index.ts";
 import { suivreLOnglet } from "./garde-onglet.ts";
+import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 
 type OperationsEspace = Pick<DocumentEspace, "creerPage" | "renommerPage" | "mettreALaCorbeille">;
 
 export type EtatSession =
   | { readonly phase: "contexte-non-securise" }
   | { readonly phase: "chargement" }
-  | { readonly phase: "version-non-prise-en-charge" }
+  | {
+      readonly phase: "version-non-prise-en-charge";
+      /** Vrai : des modifications faites depuis l'ouverture ne sont écrites nulle part. */
+      readonly modificationsPerdues: boolean;
+    }
   | {
       readonly phase: "pret";
       readonly arborescence: Arborescence;
@@ -35,7 +35,6 @@ export interface SessionEspace {
 
 const CONTEXTE_NON_SECURISE: EtatSession = { phase: "contexte-non-securise" };
 const CHARGEMENT: EtatSession = { phase: "chargement" };
-const VERSION_NON_PRISE_EN_CHARGE: EtatSession = { phase: "version-non-prise-en-charge" };
 
 const SIGNALEMENT_DE_L_ABONNE_FAUTIF =
   "@notionlike/web : un abonné de la session d'espace a levé pendant la diffusion d'un changement.";
@@ -92,61 +91,89 @@ function creerDiffusion(): Diffusion {
 }
 
 function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
-  const diffusion = creerDiffusion();
-  let ouverte: FacadeOuverte | undefined;
+  const session = new SessionOuverte(doc, persistance);
+  return { lireEtat: session.lireEtat, abonner: session.abonner, doc, fermer: session.fermer };
+}
 
-  // Chacune de ces quatre fermetures est sans effet la seconde fois.
-  const fermerFacadeEtPersistance = (): void => {
-    desabonnerDeLaPersistance();
-    cesserDeSuivreLOnglet();
-    ouverte?.facade.fermer();
-    persistance.fermer();
+class SessionOuverte {
+  readonly #doc: Y.Doc;
+  readonly #persistance: Persistance;
+  readonly #diffusion = creerDiffusion();
+  readonly #arrets: readonly (() => void)[];
+  #ouverte: FacadeOuverte | undefined;
+  #etatReluRefuse = false;
+
+  constructor(doc: Y.Doc, persistance: Persistance) {
+    this.#doc = doc;
+    this.#persistance = persistance;
+    // La base peut porter une version de format que cette application ne prend pas en charge : la
+    // persistance soumet l'état relu avant toute fusion, à l'ouverture comme à chaque reprise, et
+    // se ferme sur un refus (F-030-AC10).
+    persistance.soumettreLEtatRelu((temoin) => {
+      this.#etatReluRefuse = !estDUneVersionAdmise(temoin);
+      return !this.#etatReluRefuse;
+    });
+    this.#arrets = [persistance.abonner(this.#surPersistance), suivreLOnglet(persistance)];
+    this.#surPersistance();
+  }
+
+  readonly lireEtat = (): EtatSession => this.#diffusion.lire();
+
+  readonly abonner = (rappel: () => void): (() => void) => this.#diffusion.abonner(rappel);
+
+  readonly fermer = (): void => {
+    this.#diffusion.oublierLesAbonnes();
+    this.#fermerFacadeEtPersistance();
   };
 
-  const recalculer = ({ facade, operations }: FacadeOuverte): void => {
+  // Chacune de ces fermetures est sans effet la seconde fois. Une session fermée n'écoute plus ni
+  // la persistance ni l'onglet.
+  #fermerFacadeEtPersistance(): void {
+    this.#arrets.forEach((arreter) => arreter());
+    this.#ouverte?.facade.fermer();
+    this.#persistance.fermer();
+  }
+
+  // Définitif jusqu'au rechargement, et sans aucune tentative ultérieure (F-030-AC11). Ce que le
+  // document porte de non enregistré est relevé avant la fermeture : il ne sera écrit nulle part.
+  #bloquerPourVersion(): void {
+    const modificationsPerdues = this.#persistance.aDesModificationsNonEnregistrees();
+    this.#fermerFacadeEtPersistance();
+    this.#diffusion.publier({ phase: "version-non-prise-en-charge", modificationsPerdues });
+  }
+
+  #recalculer({ facade, operations }: FacadeOuverte): void {
     const arborescence = lectureAdmise(facade);
     if (arborescence === undefined) {
-      // Définitif jusqu'au rechargement, et sans aucune tentative ultérieure (F-030-AC11). Après une
-      // mise à jour reçue, la session est ici dans le rappel que la façade est en train d'appeler :
-      // elle la ferme pendant sa diffusion, ce que la façade permet sans rien lever, puis prévient
-      // ses propres abonnés (F-002-AC17, AC30).
-      fermerFacadeEtPersistance();
-      diffusion.publier(VERSION_NON_PRISE_EN_CHARGE);
+      // Après une mise à jour reçue, la session est ici dans le rappel que la façade est en train
+      // d'appeler : elle la ferme pendant sa diffusion, ce que la façade permet sans rien lever,
+      // puis prévient ses propres abonnés (F-002-AC17, AC30).
+      this.#bloquerPourVersion();
       return;
     }
-    const enregistre = persistance.lireEtat() === "active";
-    if (!memeEtatPret(diffusion.lire(), arborescence, enregistre)) {
-      diffusion.publier({ phase: "pret", arborescence, enregistre, operations });
+    const enregistre = this.#persistance.lireEtat() === "active";
+    if (!memeEtatPret(this.#diffusion.lire(), arborescence, enregistre)) {
+      this.#diffusion.publier({ phase: "pret", arborescence, enregistre, operations });
     }
-  };
+  }
 
   // La façade n'existe pas tant que la relecture dure : aucune action de modification n'est alors
-  // possible (F-002-AC3). Une session fermée n'écoute plus la persistance, et n'ouvre donc rien.
-  const surPersistance = (): void => {
-    if (persistance.lireEtat() === "relecture") {
+  // possible (F-002-AC3).
+  readonly #surPersistance = (): void => {
+    if (this.#etatReluRefuse) {
+      this.#bloquerPourVersion();
       return;
     }
-    if (ouverte === undefined) {
-      const facade = ouvrirDocumentEspace(doc);
-      const nouvelle: FacadeOuverte = { facade, operations: operationsDe(facade) };
-      ouverte = nouvelle;
-      facade.abonner(() => recalculer(nouvelle));
+    if (this.#persistance.lireEtat() === "relecture") {
+      return;
     }
-    recalculer(ouverte);
-  };
-
-  const desabonnerDeLaPersistance = persistance.abonner(surPersistance);
-  const cesserDeSuivreLOnglet = suivreLOnglet(persistance);
-  surPersistance();
-
-  return {
-    lireEtat: diffusion.lire,
-    abonner: diffusion.abonner,
-    doc,
-    fermer: () => {
-      diffusion.oublierLesAbonnes();
-      fermerFacadeEtPersistance();
-    },
+    if (this.#ouverte === undefined) {
+      const facade = ouvrirDocumentEspace(this.#doc);
+      const nouvelle: FacadeOuverte = { facade, operations: operationsDe(facade) };
+      this.#ouverte = nouvelle;
+      facade.abonner(() => this.#recalculer(nouvelle));
+    }
+    this.#recalculer(this.#ouverte);
   };
 }
 
@@ -172,18 +199,6 @@ function operationsDe(facade: DocumentEspace): OperationsEspace {
     renommerPage: facade.renommerPage,
     mettreALaCorbeille: facade.mettreALaCorbeille,
   };
-}
-
-// `undefined` : la façade refuse la version du document (F-002-AC17).
-function lectureAdmise(facade: DocumentEspace): Arborescence | undefined {
-  try {
-    return facade.lire();
-  } catch (erreur) {
-    if (erreur instanceof ErreurDocument && erreur.code === "version-non-prise-en-charge") {
-      return undefined;
-    }
-    throw erreur;
-  }
 }
 
 function memeEtatPret(etat: EtatSession, arborescence: Arborescence, enregistre: boolean): boolean {

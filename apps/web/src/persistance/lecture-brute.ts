@@ -8,7 +8,7 @@ const MAGASIN_DES_MISES_A_JOUR = "updates";
 export type LectureBrute =
   | { readonly issue: "echec" }
   | { readonly issue: "absente" }
-  | { readonly issue: "sans-magasin" }
+  | { readonly issue: "sans-magasin"; readonly version: number }
   | { readonly issue: "lue"; readonly enregistrements: readonly Uint8Array[] };
 
 const ECHEC: LectureBrute = { issue: "echec" };
@@ -58,8 +58,10 @@ export function lireLaBase(nom: string, conclure: (lecture: LectureBrute) => voi
 }
 
 function lireLeMagasin(connexion: IDBDatabase, rendre: (lecture: LectureBrute) => void): void {
+  // Cette connexion ne bloque jamais la réparation qu'un autre onglet lance (F-030-AC28).
+  connexion.onversionchange = () => connexion.close();
   if (!connexion.objectStoreNames.contains(MAGASIN_DES_MISES_A_JOUR)) {
-    rendre({ issue: "sans-magasin" });
+    rendre({ issue: "sans-magasin", version: connexion.version });
     return;
   }
   let transaction: IDBTransaction;

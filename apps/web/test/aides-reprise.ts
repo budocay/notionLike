@@ -11,10 +11,20 @@ interface TransactionInterne {
   _abort(nomDeLErreur: string): void;
 }
 
-/** États pris par une persistance, dans l'ordre des diffusions à ses abonnés. */
+/**
+ * États pris par une persistance après l'appel, dans l'ordre. Une diffusion qui ne change pas
+ * l'état (une modification non enregistrée de plus ou de moins) n'y ajoute rien.
+ */
 export function etatsSuccessifs(persistance: Persistance): EtatPersistance[] {
   const etats: EtatPersistance[] = [];
-  persistance.abonner(() => etats.push(persistance.lireEtat()));
+  let dernier = persistance.lireEtat();
+  persistance.abonner(() => {
+    const etat = persistance.lireEtat();
+    if (etat !== dernier) {
+      dernier = etat;
+      etats.push(etat);
+    }
+  });
   return etats;
 }
 
@@ -170,4 +180,96 @@ export function ecouterLesErreursNonInterceptees(): () => unknown[] {
 export function rendreLOnglet(visibilite: DocumentVisibilityState): void {
   vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilite);
   act(() => void document.dispatchEvent(new Event("visibilitychange")));
+}
+
+const BASE_DE_L_APPAREIL = "notionlike:appareil";
+const MAGASIN_DES_REGLAGES = "reglages";
+const CLE_DE_L_ESPACE_LOCAL = "espace-local";
+
+function attendre<T>(demande: IDBRequest<T>): Promise<T> {
+  return new Promise((resoudre, rejeter) => {
+    demande.onsuccess = () => resoudre(demande.result);
+    demande.onerror = () => rejeter(demande.error ?? new Error("demande en échec"));
+  });
+}
+
+/**
+ * Connexion ouverte sur une base, sans numéro de version, et tenue : elle ne se ferme pas à la
+ * réception de `versionchange`, comme le ferait un onglet d'une autre version ou un outil.
+ */
+export function tenirUneConnexion(nom: string): Promise<IDBDatabase> {
+  return attendre(indexedDB.open(nom));
+}
+
+/** Crée une base à sa première version avec ces seuls magasins, chacun portant une valeur. */
+export async function creerUneBase(nom: string, magasins: readonly string[]): Promise<void> {
+  const demande = indexedDB.open(nom);
+  demande.onupgradeneeded = () => {
+    for (const magasin of magasins) {
+      demande.result.createObjectStore(magasin).put("gardée", "valeur");
+    }
+  };
+  (await attendre(demande)).close();
+}
+
+export interface MagasinDecrit {
+  readonly cleAutomatique: boolean;
+  readonly chemin: unknown;
+  readonly valeurs: unknown[];
+}
+
+/** Version de la base et, pour chacun de ses magasins, ses options et ce qu'il porte. */
+export async function decrireLaBase(
+  nom: string,
+): Promise<{ version: number; magasins: Record<string, MagasinDecrit> }> {
+  const connexion = await attendre(indexedDB.open(nom));
+  const magasins: Record<string, MagasinDecrit> = {};
+  for (const nomDuMagasin of connexion.objectStoreNames) {
+    const magasin = connexion.transaction(nomDuMagasin).objectStore(nomDuMagasin);
+    magasins[nomDuMagasin] = {
+      cleAutomatique: magasin.autoIncrement,
+      chemin: magasin.keyPath,
+      valeurs: await attendre(magasin.getAll()),
+    };
+  }
+  const { version } = connexion;
+  connexion.close();
+  return { version, magasins };
+}
+
+/** Inscrit cette valeur à la place de l'identifiant de l'espace local, sans le module. */
+export async function inscrireALaPlaceDeLIdentifiant(valeur: unknown): Promise<void> {
+  const demande = indexedDB.open(BASE_DE_L_APPAREIL);
+  demande.onupgradeneeded = () => demande.result.createObjectStore(MAGASIN_DES_REGLAGES);
+  const connexion = await attendre(demande);
+  const transaction = connexion.transaction(MAGASIN_DES_REGLAGES, "readwrite");
+  transaction.objectStore(MAGASIN_DES_REGLAGES).put(valeur, CLE_DE_L_ESPACE_LOCAL);
+  await new Promise((resoudre) => {
+    transaction.oncomplete = resoudre;
+  });
+  connexion.close();
+}
+
+/** Ce que l'appareil porte à la place de l'identifiant de l'espace local, lu sans le module. */
+export async function identifiantInscrit(): Promise<unknown> {
+  const connexion = await attendre(indexedDB.open(BASE_DE_L_APPAREIL));
+  const lue: unknown = await attendre(
+    connexion
+      .transaction(MAGASIN_DES_REGLAGES)
+      .objectStore(MAGASIN_DES_REGLAGES)
+      .get(CLE_DE_L_ESPACE_LOCAL),
+  );
+  connexion.close();
+  return lue;
+}
+
+/** Toute demande d'ouverture de cette base lève ; les autres bases s'ouvrent. */
+export function refuserLOuvertureDe(nomRefuse: string): void {
+  const ouvrir = indexedDB.open.bind(indexedDB);
+  vi.spyOn(indexedDB, "open").mockImplementation((nom, version) => {
+    if (nom === nomRefuse) {
+      throw new DOMException("refus", "UnknownError");
+    }
+    return ouvrir(nom, version);
+  });
 }
