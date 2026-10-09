@@ -1,5 +1,5 @@
 import type { PageLue } from "@notionlike/document";
-import type { ReactElement, RefObject } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 
 import { CadreDeBarre, TeteDeBarre } from "./composants/BarreLaterale.tsx";
 import { NOM_APPLICATION, NOM_BARRE_LATERALE, NOUVELLE_PAGE } from "./messages.ts";
@@ -13,6 +13,8 @@ interface Proprietes {
   /** Message de la dernière opération refusée par le document. */
   readonly erreur: string | undefined;
   readonly boutonNouvellePage: RefObject<HTMLButtonElement | null>;
+  /** Bouton de fermeture, quand la barre est ouverte en tiroir. */
+  readonly fermeture?: ReactNode | undefined;
 }
 
 // Tête : le sceau et « Nouvelle page ». « Rechercher » y vient avec F-024, « Corbeille » dans le
@@ -25,6 +27,7 @@ export function BarreLaterale(props: Proprietes): ReactElement {
       libelleNouvellePage={NOUVELLE_PAGE}
       surNouvellePage={() => actions.creerPage(null)}
       boutonNouvellePage={props.boutonNouvellePage}
+      fermeture={props.fermeture}
     />
   );
   return (

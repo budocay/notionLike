@@ -3,6 +3,7 @@
 // (F-004-AC53).
 import { createHash } from "node:crypto";
 
+import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
 import { lire, lireDossier } from "./aides-disque.ts";
@@ -94,7 +95,32 @@ function fautesDeLaRegleDeLongueur(configuration: string): string[] {
   return fautes;
 }
 
+/** Fonctions d'`apps/web/src` que la règle signale, mesurées par ESLint lui-même. */
+async function fonctionsTropLongues(): Promise<string[]> {
+  const racine = import.meta.dirname.replace(/[\\/]apps[\\/]web[\\/]test$/, "");
+  const eslint = new ESLint({
+    cwd: racine,
+    overrideConfig: {
+      rules: {
+        "max-lines-per-function": [
+          "error",
+          { max: PLAFOND, skipBlankLines: true, skipComments: true },
+        ],
+      },
+    },
+  });
+  const resultats = await eslint.lintFiles(["apps/web/src"]);
+  expect(resultats.length).toBeGreaterThan(30);
+  return resultats.flatMap(({ filePath, messages }) =>
+    messages.map(({ ruleId, line, message }) => `${filePath}:${line} ${ruleId} ${message}`),
+  );
+}
+
 describe("fonctions bornées", () => {
+  it("F-004-AC58 mesurée par ESLint avec la règle max-lines-per-function à 50, lignes vides et commentaires non comptés, aucune fonction de src/ ne dépasse, et rien d'autre n'y est signalé", async () => {
+    expect(await fonctionsTropLongues()).toEqual([]);
+  }, 30_000);
+
   it("F-004-AC58 aucun fichier de src/ ne porte de directive eslint-disable, de ligne, de bloc ni de fichier", () => {
     expect(directivesDeDesactivation(sources)).toEqual([]);
   });

@@ -5,8 +5,10 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  type CaptureAttendue,
   CAPTURES_ATTENDUES,
   DOSSIER_DES_CAPTURES,
+  ECRANS_DE_REFERENCE,
   LARGEURS_DE_CAPTURE,
   nomDeCapture,
 } from "../e2e/captures-attendues.ts";
@@ -201,22 +203,88 @@ describe("page de démonstration : hors de la production", () => {
   });
 });
 
+// Écrans de référence de la spec pour cette feature : la lettre (f) lui est retirée (F-003).
+const LETTRES_DE_REFERENCE = ["a", "b", "c", "d", "e", "g", "h", "i", "j"];
+
+/** Couples (écran, largeur) que la liste doit porter et qu'elle ne porte pas, ou porte en trop. */
+function ecartsDeLaListe(
+  ecrans: Readonly<Record<string, string>>,
+  captures: readonly CaptureAttendue[],
+): string[] {
+  const attendues = [
+    ...LARGEURS_DE_CAPTURE.map((largeur) => `demonstration-${largeur}`),
+    ...LETTRES_DE_REFERENCE.flatMap((lettre) =>
+      LARGEURS_DE_CAPTURE.filter((largeur) => lettre !== "j" || largeur < 1024).map(
+        (largeur) => `${ecrans[lettre] ?? `(${lettre}) sans nom`}-${largeur}`,
+      ),
+    ),
+  ];
+  const portees = captures.map(({ ecran, largeur }) => `${ecran}-${largeur}`);
+  return [
+    ...attendues.filter((nom) => !portees.includes(nom)).map((nom) => `manque : ${nom}`),
+    ...portees.filter((nom) => !attendues.includes(nom)).map((nom) => `en trop : ${nom}`),
+  ];
+}
+
 describe("captures de référence", () => {
-  it("F-004-AC51 la liste attendue couvre la page de démonstration aux trois largeurs de capture", () => {
+  it("F-004-AC51 la liste attendue couvre la page de démonstration et chaque écran de référence à chaque largeur qui lui revient, le tiroir aux seules largeurs étroites", () => {
     expect(LARGEURS_DE_CAPTURE).toEqual([360, 768, 1280]);
+    expect(Object.keys(ECRANS_DE_REFERENCE)).toEqual(LETTRES_DE_REFERENCE);
+    expect(ecartsDeLaListe(ECRANS_DE_REFERENCE, CAPTURES_ATTENDUES)).toEqual([]);
+    expect(CAPTURES_ATTENDUES).toHaveLength(29);
     expect(
       CAPTURES_ATTENDUES.filter(({ ecran }) => ecran === "demonstration").map(nomDeCapture),
     ).toEqual(["demonstration-360.png", "demonstration-768.png", "demonstration-1280.png"]);
+    expect(
+      CAPTURES_ATTENDUES.filter(({ ecran }) => ecran === "j-tiroir").map(nomDeCapture),
+    ).toEqual(["j-tiroir-360.png", "j-tiroir-768.png"]);
     expect(new Set(CAPTURES_ATTENDUES.map(nomDeCapture)).size).toBe(CAPTURES_ATTENDUES.length);
+    for (const capture of CAPTURES_ATTENDUES) {
+      expect(nomDeCapture(capture)).toMatch(/^[a-z][a-z-]*-(360|768|1280)\.png$/);
+    }
   });
 
-  it("F-004-AC51 le dossier des captures est celui que git ignore, et le scénario lit cette liste", () => {
-    expect(DOSSIER_DES_CAPTURES).toBe("test-results/captures");
-    const scenario = lire("e2e/demonstration.spec.ts");
-    expect(scenario).toMatch(
-      /import \{[^}]*CAPTURES_ATTENDUES[^}]*\} from "\.\/captures-attendues\.ts";/,
+  it("F-004-AC53 F-004-AC51 un écran de référence oublié, une largeur manquante ou le tiroir sur écran large sont nommés", () => {
+    const conforme = [...CAPTURES_ATTENDUES];
+    expect(ecartsDeLaListe(ECRANS_DE_REFERENCE, conforme)).toEqual([]);
+    expect(
+      ecartsDeLaListe(
+        ECRANS_DE_REFERENCE,
+        conforme.filter(({ ecran }) => ecran !== "h-echec-de-persistance"),
+      ),
+    ).toEqual([
+      "manque : h-echec-de-persistance-360",
+      "manque : h-echec-de-persistance-768",
+      "manque : h-echec-de-persistance-1280",
+    ]);
+    expect(
+      ecartsDeLaListe(
+        ECRANS_DE_REFERENCE,
+        conforme.filter(({ ecran, largeur }) => ecran !== "c-arborescence" || largeur !== 768),
+      ),
+    ).toEqual(["manque : c-arborescence-768"]);
+    expect(
+      ecartsDeLaListe(ECRANS_DE_REFERENCE, [...conforme, { ecran: "j-tiroir", largeur: 1280 }]),
+    ).toEqual(["en trop : j-tiroir-1280"]);
+    const sansG = Object.fromEntries(
+      Object.entries(ECRANS_DE_REFERENCE).filter(([lettre]) => lettre !== "g"),
     );
-    expect(scenario).toMatch(/fullPage: true,\s*animations: "disabled",\s*caret: "hide"/);
-    expect(scenario).not.toMatch(/\.png/);
+    expect(ecartsDeLaListe(sansG, conforme)).toHaveLength(6);
+  });
+
+  it("F-004-AC51 le dossier des captures est celui que git ignore, et les deux scénarios de capture lisent cette liste", () => {
+    expect(DOSSIER_DES_CAPTURES).toBe("test-results/captures");
+    for (const chemin of ["e2e/demonstration.spec.ts", "e2e/captures.spec.ts"]) {
+      const scenario = lire(chemin);
+      expect(scenario, chemin).toMatch(
+        /import \{[^}]*CAPTURES_ATTENDUES[^}]*\} from "\.\/captures-attendues\.ts";/,
+      );
+      expect(scenario, chemin).toMatch(/fullPage: true,\s*animations: "disabled",\s*caret: "hide"/);
+      expect(scenario, chemin).not.toMatch(/\.png/);
+      expect(scenario, chemin).toMatch(/existsSync\(chemin\)[^;]*\.toBe\(true\)/);
+      expect(scenario, chemin).toMatch(/statSync\(chemin\)\.size[^;]*\.toBeGreaterThan\(0\)/);
+    }
+    expect(lire("e2e/captures.spec.ts")).toMatch(/ecran !== PAGE_DE_DEMONSTRATION/);
+    expect(lire("e2e/demonstration.spec.ts")).toMatch(/ecran === PAGE_DE_DEMONSTRATION/);
   });
 });

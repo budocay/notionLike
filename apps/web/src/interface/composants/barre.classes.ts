@@ -7,7 +7,7 @@ export const BARRE = {
   sceau: "fond-accent relative size-sceau flex-none overflow-hidden rounded-moyen",
   sceauEncoche: "absolute right-nul bottom-nul size-moyen rounded-tl-petit bg-surface-retrait",
   nouvellePage:
-    "flex min-h-cible w-full cursor-pointer items-center gap-petit rounded-moyen bg-surface-relief px-petit text-left text-interface font-moyen text-texte-principal shadow-relief filet hover:bg-surface-survol etroit:min-h-rangee",
+    "flex min-h-cible w-full cursor-pointer items-center gap-petit rounded-moyen bg-surface-relief px-petit text-left text-interface font-moyen text-texte-principal shadow-relief filet hover:bg-surface-survol etroit:pointer-fine:min-h-rangee",
   nouvellePageLibelle: "extensible truncate",
   defilement: "extensible overflow-y-auto overflow-x-hidden py-mince",
   liste: "flex flex-col gap-infime",

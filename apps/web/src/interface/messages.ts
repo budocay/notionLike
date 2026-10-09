@@ -16,6 +16,9 @@ export const RENOMMER = "Renommer";
 export const AJOUTER_UNE_SOUS_PAGE = "Ajouter une sous-page";
 export const METTRE_A_LA_CORBEILLE = "Mettre à la corbeille";
 
+export const NOM_DU_TIROIR = "Barre latérale";
+export const OUVRIR_LA_BARRE_LATERALE = "Ouvrir la barre latérale";
+export const FERMER_LA_BARRE_LATERALE = "Fermer la barre latérale";
 export const NOM_FIL_D_ARIANE = "Fil d'Ariane";
 export const AFFICHER_LES_PAGES_INTERMEDIAIRES = "Afficher les pages intermédiaires";
 /** Seul état d'enregistrement affiché avant F-030 : l'échec (F-004-AC40). */

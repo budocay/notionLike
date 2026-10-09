@@ -1,7 +1,7 @@
 // Classes d'une rangée de la barre latérale : une ligne, titre coupé, actions révélées, repère de
 // page courante peint avec le dégradé d'accent.
 const LIGNE =
-  "rangee retrait-niveau flex min-h-cible items-center gap-infime rounded-moyen pr-mince text-interface etroit:min-h-rangee";
+  "rangee retrait-niveau flex min-h-cible items-center gap-infime rounded-moyen pr-mince text-interface etroit:pointer-fine:min-h-rangee";
 
 export const RANGEE = {
   element: "list-none px-petit",
@@ -11,8 +11,8 @@ export const RANGEE = {
   repere:
     "fond-accent pointer-events-none absolute left-nul top-mince bottom-mince w-repere rounded-full",
   repli:
-    "inline-flex size-cible flex-none cursor-pointer items-center justify-center rounded-petit text-texte-discret hover:text-texte-principal etroit:size-bouton-icone",
-  sansRepli: "size-cible flex-none etroit:size-bouton-icone",
+    "inline-flex size-cible flex-none cursor-pointer items-center justify-center rounded-petit text-texte-discret hover:text-texte-principal etroit:pointer-fine:size-bouton-icone",
+  sansRepli: "size-cible flex-none etroit:pointer-fine:size-bouton-icone",
   chevronReplie: "chevron inline-flex",
   chevronDeplie: "chevron chevron-ouvert inline-flex",
   lien: "extensible contour-interieur content-center self-stretch truncate rounded-petit px-mince",

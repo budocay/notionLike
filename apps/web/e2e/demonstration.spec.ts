@@ -1,6 +1,6 @@
 // Page de démonstration dans Chromium : ouverture sans bruit de console et captures de référence.
-// Ce fichier vient après `arborescence.spec.ts` dans l'ordre de Playwright : ses captures existent
-// encore quand le lancement se termine.
+// Playwright ne vide le dossier des captures qu'au début d'un lancement : celles-ci existent encore
+// quand il se termine.
 import { existsSync, statSync } from "node:fs";
 
 import { expect, type Page, test } from "@playwright/test";
@@ -12,6 +12,7 @@ import {
   DOSSIER_DES_CAPTURES,
   HAUTEUR_DE_FENETRE,
   nomDeCapture,
+  PAGE_DE_DEMONSTRATION,
 } from "./captures-attendues.ts";
 
 const ADRESSE = "/demo.html";
@@ -83,7 +84,7 @@ test("F-004-AC50 F-004-AC51 la page de démonstration s'ouvre sans bruit de cons
 }, infos) => {
   const messages = ecouterLaConsole(page);
   const racine = infos.config.rootDir.replace(/[\\/]e2e$/, "");
-  const demandees = CAPTURES_ATTENDUES.filter(({ ecran }) => ecran === "demonstration");
+  const demandees = CAPTURES_ATTENDUES.filter(({ ecran }) => ecran === PAGE_DE_DEMONSTRATION);
   expect(demandees.map(({ largeur }) => largeur)).toEqual([360, 768, 1280]);
 
   for (const capture of demandees) {
@@ -91,7 +92,8 @@ test("F-004-AC50 F-004-AC51 la page de démonstration s'ouvre sans bruit de cons
   }
 
   expect(messages).toEqual([]);
-  for (const capture of CAPTURES_ATTENDUES) {
+  // Les captures de l'application sont produites et vérifiées par `captures.spec.ts`.
+  for (const capture of demandees) {
     const chemin = `${racine}/${DOSSIER_DES_CAPTURES}/${nomDeCapture(capture)}`;
     expect(existsSync(chemin), `capture attendue : ${chemin}`).toBe(true);
     expect(statSync(chemin).size, `capture vide : ${chemin}`).toBeGreaterThan(0);

@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type RefObject,
   useEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -20,6 +21,7 @@ import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
 import { BarreDuHaut, ZoneEtat } from "./composants/BarreDuHaut.tsx";
+import { BoutonIcone } from "./composants/Bouton.tsx";
 import { COQUILLE } from "./composants/coquille.classes.ts";
 import { Avertissement, Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -28,8 +30,11 @@ import {
   CHARGEMENT,
   EXPLICATION_CONTEXTE_NON_SECURISE,
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
+  FERMER_LA_BARRE_LATERALE,
   messageErreur,
+  NOM_DU_TIROIR,
   NON_ENREGISTRE,
+  OUVRIR_LA_BARRE_LATERALE,
   TITRE_CONTEXTE_NON_SECURISE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
   titreAffiche,
@@ -38,6 +43,7 @@ import {
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
+import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 
 type EtatPret = Extract<EtatSession, { phase: "pret" }>;
@@ -81,39 +87,101 @@ function EcranPlein({ children }: { readonly children: ReactNode }): ReactElemen
   return <main className={COQUILLE.ecranPlein}>{children}</main>;
 }
 
-// Une seule structure : la barre latérale, puis le reste (avertissement, barre du haut, zone
-// principale). La zone d'état lit l'état de la session, sans autre abonné (F-004-AC40).
+// Une seule structure aux deux largeurs (ADR-0010) : le conteneur de la barre latérale, le voile,
+// puis le reste (avertissement, barre du haut, zone principale). La zone d'état lit l'état de la
+// session, sans autre abonné (F-004-AC40).
 function Coquille({ etat }: { readonly etat: EtatPret }): ReactElement {
   const { racines } = etat.arborescence;
   const route = lireRoute(useSyncExternalStore(abonnerAuFragment, lireFragment));
   const selection = selectionDe(route, etat.arborescence);
   const barre = useBarreLaterale(etat, route, selection);
+  const tiroir = useTiroir();
+  const idBarre = useId();
   useTitreOnglet(selection);
-  const fil =
-    selection.type === "page" ? (
-      <FilDAriane key={selection.page.id} racines={racines} page={selection.page} />
-    ) : undefined;
+  const page = selection.type === "page" ? selection.page : undefined;
 
   return (
     <div className={COQUILLE.cadre}>
-      <div className={COQUILLE.barre}>
+      <ConteneurDeBarre id={idBarre} tiroir={tiroir}>
         <BarreLaterale
           racines={racines}
           ecran={barre.ecran}
           actions={barre.actions}
           erreur={barre.erreur}
           boutonNouvellePage={barre.boutonNouvellePage}
+          fermeture={tiroir.ouvert ? <Fermeture tiroir={tiroir} /> : undefined}
         />
-      </div>
-      <div className={COQUILLE.reste}>
+      </ConteneurDeBarre>
+      {tiroir.ouvert && (
+        <div className={COQUILLE.voile} data-voile="" onClick={tiroir.abandonner} />
+      )}
+      <div className={COQUILLE.reste} inert={tiroir.ouvert}>
         {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
         <BarreDuHaut
-          fil={fil}
+          ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
+          fil={
+            page === undefined ? undefined : (
+              <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
+            )
+          }
           etat={<ZoneEtat echec={etat.enregistre ? undefined : NON_ENREGISTRE} />}
         />
-        <ZonePrincipale selection={selection} espaceVide={racines.length === 0} />
+        <ZonePrincipale
+          ref={tiroir.zonePrincipale}
+          selection={selection}
+          espaceVide={racines.length === 0}
+        />
       </div>
     </div>
+  );
+}
+
+interface ProprietesConteneur {
+  readonly id: string;
+  readonly tiroir: Tiroir;
+  readonly children: ReactNode;
+}
+
+// Ouvert en tiroir, le conteneur de la barre est un dialogue modal ; sinon, un simple bloc.
+function ConteneurDeBarre({ id, tiroir, children }: ProprietesConteneur): ReactElement {
+  return (
+    <div
+      id={id}
+      className={tiroir.ouvert ? COQUILLE.tiroir : COQUILLE.barre}
+      role={tiroir.ouvert ? "dialog" : undefined}
+      aria-modal={tiroir.ouvert ? true : undefined}
+      aria-label={tiroir.ouvert ? NOM_DU_TIROIR : undefined}
+      onKeyDown={tiroir.surTouche}
+      onClick={tiroir.surClic}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string }): ReactElement {
+  return (
+    <BoutonIcone
+      ref={props.tiroir.boutonDOuverture}
+      nom={OUVRIR_LA_BARRE_LATERALE}
+      pictogramme="tiroir"
+      lieu="barre"
+      aria-expanded={props.tiroir.ouvert}
+      aria-controls={props.idBarre}
+      onClick={props.tiroir.ouvrir}
+    />
+  );
+}
+
+function Fermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElement {
+  return (
+    <BoutonIcone
+      ref={tiroir.boutonDeFermeture}
+      nom={FERMER_LA_BARRE_LATERALE}
+      pictogramme="fermer"
+      lieu="barre"
+      onClick={tiroir.abandonner}
+    />
   );
 }
 

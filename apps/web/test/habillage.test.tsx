@@ -124,7 +124,7 @@ describe("états habillés", () => {
     }
   });
 
-  it("F-004-AC17 les textes des états de F-002 n'ont pas changé", () => {
+  it("F-004-AC17 F-004-AC52 les textes des états de F-002 n'ont pas changé", () => {
     expect([
       messages.NOM_APPLICATION,
       messages.NOM_BARRE_LATERALE,

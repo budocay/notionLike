@@ -10,6 +10,7 @@ import {
   recevoir,
   rendreApplication,
 } from "./aides-coquille.tsx";
+import { simulerLaLargeur } from "./aides-largeur.ts";
 import {
   fermerDeForce,
   refuserLesOuverturesParUneErreur,
@@ -177,6 +178,23 @@ describe("fil d'Ariane", () => {
     expect(
       within(fil()).getByRole("button", { name: INTERMEDIAIRES }).getAttribute("aria-expanded"),
     ).toBe("false");
+  });
+
+  it("F-004-AC39 sur écran étroit, la place manque dès deux ancêtres : la racine, la commande et la page courante", async () => {
+    simulerLaLargeur(360);
+    await ouvrirUneLignee(3);
+    window.location.hash = lienDeBarre("Niveau 3").getAttribute("href") ?? "";
+
+    await waitFor(() =>
+      expect(contenuDuFil()).toEqual([
+        "lien Niveau 1",
+        `commande ${INTERMEDIAIRES}`,
+        "courante Niveau 3",
+      ]),
+    );
+    window.location.hash = lienDeBarre("Niveau 2").getAttribute("href") ?? "";
+    await waitFor(() => expect(contenuDuFil()).toEqual(["lien Niveau 1", "courante Niveau 2"]));
+    document.documentElement.style.removeProperty("--breakpoint-etroit");
   });
 
   it("F-004-AC39 avec trois ancêtres au plus, le fil les montre tous, sans commande de repli", async () => {

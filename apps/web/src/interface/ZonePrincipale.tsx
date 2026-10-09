@@ -1,5 +1,5 @@
 import type { PageLue } from "@notionlike/document";
-import type { ReactElement } from "react";
+import type { ReactElement, Ref } from "react";
 
 import { COQUILLE } from "./composants/coquille.classes.ts";
 import { EntetePage } from "./composants/Etats.tsx";
@@ -21,6 +21,8 @@ export type Selection =
 interface Proprietes {
   readonly selection: Selection;
   readonly espaceVide: boolean;
+  /** Le focus y est porté quand une page est choisie dans le tiroir (F-004-AC42). */
+  readonly ref?: Ref<HTMLElement> | undefined;
 }
 
 // La clé rejoue l'apparition du contenu quand la page sélectionnée change (F-004-AC14).
@@ -40,5 +42,9 @@ function entete({ selection, espaceVide }: Proprietes): ReactElement {
 }
 
 export function ZonePrincipale(props: Proprietes): ReactElement {
-  return <main className={COQUILLE.principale}>{entete(props)}</main>;
+  return (
+    <main ref={props.ref} className={COQUILLE.principale} tabIndex={-1}>
+      {entete(props)}
+    </main>
+  );
 }

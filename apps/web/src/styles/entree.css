@@ -85,12 +85,49 @@
   z-index: var(--plan-menu);
 }
 
+@utility plan-voile {
+  z-index: var(--plan-voile);
+}
+
 @utility plan-tiroir {
   z-index: var(--plan-tiroir);
 }
 
+/* Le retrait est borné : au-delà, une arborescence profonde ne laisserait plus de place au titre. */
 @utility retrait-niveau {
-  padding-inline-start: calc((var(--niveau, 1) - 1) * var(--spacing-retrait));
+  padding-inline-start: min(
+    calc((var(--niveau, 1) - 1) * var(--spacing-retrait)),
+    var(--spacing-retrait-max)
+  );
+}
+
+/* Tiroir : jamais plus large que la fenêtre moins une cible, pour que le voile reste atteignable. */
+@utility largeur-tiroir {
+  width: min(var(--container-tiroir), calc(100% - var(--spacing-cible)));
+}
+
+/* Ouverture du tiroir et de son voile : une entrée, sans animation de sortie. L'état final ne
+   porte aucune transformation, pour ne pas devenir le repère des éléments fixes qu'il contient. */
+@utility tiroir {
+  opacity: 1;
+  transform: none;
+  transition:
+    transform var(--duree-moyenne) var(--ease-sortie),
+    opacity var(--duree-moyenne) var(--ease-sortie);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@utility voile {
+  opacity: 1;
+  transition: opacity var(--duree-moyenne) var(--ease-sortie);
+
+  @starting-style {
+    opacity: 0;
+  }
 }
 
 /* Actions de rangée : visibles sans survol possible ou sur écran étroit ; sinon révélées par
