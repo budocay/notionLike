@@ -153,6 +153,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/web/src/**"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 50, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
     files: ["apps/web/src/persistance/**"],
     rules: {
       "no-restricted-globals": [
