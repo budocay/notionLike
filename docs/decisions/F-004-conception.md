@@ -1,9 +1,9 @@
 # F-004 — Conception (mode rapide) : essais, décisions, points de la spec
 
 Date : 2026-10-09
-Spec : `specs/F-004.md` (validée, `7f5b0f5`). ADR : ADR-0010 (jetons, tiroir).
+Spec : `specs/F-004.md`, dans la version que cette conception a lue, validée le 2026-10-09 en `7f5b0f5`. ADR : ADR-0010 (jetons, tiroir).
 
-Document court, sur décision du dev du 2026-10-09 : pas de plan par blocs ni de gate de conception ; le bloc 0 est commité (`4238f25`). Ce document ne décrit pas le code livré.
+Document court, écrit le 2026-10-09 avant le code, sur décision du dev du même jour : pas de plan par blocs ni de gate de conception ; le bloc 0 était alors commité (`4238f25`). Ce document ne décrit pas le code livré : ce qui l'a suivi est daté dans la note de fin.
 
 ## Essais exécutés
 
@@ -71,7 +71,7 @@ Calculé : texte sur surface, minimum 5,72 (secondaire sur filet), maximum 16,29
 
 ## Note de fin (2026-10-09, après le dernier bloc)
 
-`ARCHITECTURE.md` a été aligné une seule fois sur le code livré (`6b5daed`), et l'ADR-0010 mis d'accord avec lui sans changement de décision. Ce qui précède reste la conception d'avant le code : la palette de départ, en particulier, n'est pas celle livrée (`--color-texte-secondaire` renvoie à `--primitif-brume-300`, et un troisième texte, `--color-texte-discret`, a été ajouté).
+À cette date, `ARCHITECTURE.md` a été aligné sur le code livré (`6b5daed`), et l'ADR-0010 mis d'accord avec lui sans changement de décision. Ce qui précède reste la conception d'avant le code : la palette de départ, en particulier, n'est pas celle livrée (`--color-texte-secondaire` renvoie à `--primitif-brume-300`, et un troisième texte, `--color-texte-discret`, a été ajouté).
 
 Constats de l'alignement, détaillés dans `ARCHITECTURE.md` :
 
@@ -116,6 +116,8 @@ Règles proposées au dev pour `.dependency-cruiser.cjs`, fichier protégé. Ess
 
 La feuille d'entrée désigne `demonstration/*.classes.ts` par un `@source` : ce n'est pas un import, aucune de ces règles ne le voit, et les classes de la page restent dans la feuille de production.
 
-Suite (2026-10-09) : le dev a ajouté ces trois règles en `e4f2399` (dix-neuf contrats ; la liste blanche de la démonstration admet en plus `interface/raccourcis.ts`), et les défauts de structure relevés à l'alignement ont été corrigés par `agent-frontend` en `c230381` : un seul composant `Coquille` rendu par l'application et par la page de démonstration, plus aucun texte recopié par la page, un nom par chose (`CheminDePage`, `RepliDeRangee`, `CadreDeBarre.tsx`, `BoutonIcone.tsx`), `Bouton`, `touches` et `portee` supprimés, requête de largeur gardée par montage, une seule aide de graphe pour les tests de F-004, scénario F-004-AC24 stabilisé. Sont reportés : `interface/pages.ts` à deux rôles (parcours de l'arborescence et adresse d'une page), le sélecteur `li a[href]` par lequel le tiroir reconnaît le choix d'une page, et les deux propriétés `menuOuvert` et `menu` de `Rangee`. `ARCHITECTURE.md` a été réaligné sur `c230381`.
+Suite (2026-10-09) : le dev a ajouté ces trois règles en `e4f2399` (dix-neuf contrats ; la liste blanche de la démonstration admet en plus `interface/raccourcis.ts`), et les défauts de structure relevés à l'alignement ont été corrigés par `agent-frontend` en `c230381` : un seul composant `Coquille` rendu par l'application et par la page de démonstration, plus aucun texte recopié par la page, un nom par chose (`CheminDePage`, `RepliDeRangee`, `CadreDeBarre.tsx`, `BoutonIcone.tsx`), `Bouton`, `touches` et `portee` supprimés, requête de largeur gardée par montage, une seule aide de graphe pour les tests de F-004, scénario F-004-AC24 stabilisé. Sont reportés : `interface/pages.ts` à deux rôles (parcours de l'arborescence et adresse d'une page), le sélecteur `li a[href]` par lequel le tiroir reconnaît le choix d'une page, et les deux propriétés `menuOuvert` et `menu` de `Rangee`. `ARCHITECTURE.md` a alors été réaligné sur `c230381`.
 
-Suite (2026-10-09, première revue finale) : les corrections demandées par les gates sont commitées par `agent-frontend` en `0438c8b` (feuille de démonstration séparée de la feuille d'entrée, ce qui périme la phrase ci-dessus sur le `@source` ; enveloppes rendues par des composants ; contrat `data-lien-de-page` à la place du sélecteur `li a[href]` reporté ci-dessus ; contrôles renforcés), et `ARCHITECTURE.md` comme l'ADR-0010 sont réalignés sur ce commit.
+Suite (2026-10-09, première revue finale) : les corrections demandées par les gates sont commitées par `agent-frontend` en `0438c8b` (feuille de démonstration séparée de la feuille d'entrée, ce qui périme la phrase ci-dessus sur le `@source` ; enveloppes rendues par des composants ; contrat `data-lien-de-page` à la place du sélecteur `li a[href]` reporté ci-dessus ; contrôles renforcés), et `ARCHITECTURE.md` comme l'ADR-0010 ont alors été réalignés sur ce commit.
+
+Suite (2026-10-09, seconde revue finale) : les corrections demandées par les gates sont commitées par `agent-frontend` en `07db43f` (Échap écouté sur le document par `useTiroir` tant que le tiroir est ouvert, et rappel `surTouche` retiré de `Tiroir`, de `TiroirDeCoquille` et de leurs appelants ; menu « ⋯ » focalisable par un clic ; types `RepliDesPages` et `BoutonDeRangee` ; un cas fautif par contrôle statique ; scénarios de bout en bout sans sélecteur de classe), puis les types des aides de test sont renommés en `73d6e18` et `0d0a240` (`CoquilleRendue`, `ActionDeRangeeVisee`, `RepliVise`, `RangeeVisee`). `0d0a240` est le dernier commit de code de la branche : `ARCHITECTURE.md` et l'ADR-0010 décrivent ce commit, et la décision de l'ADR-0010 ne change pas.
