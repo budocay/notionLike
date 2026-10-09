@@ -4,15 +4,21 @@
 
 F-001 (arborescence des pages, `packages/document`, tier structurel) est DONE et dans `main` (`7e99266`). Aucune autre feature n'est DONE.
 
-La planification complète est dans `main` (merge `2615352`) : 29 features, 29 specs, 998 critères, `ROADMAP.md`, `MEMORY/VEILLE.md` (64 sections). F-001 est validée ; les 28 autres specs sont en brouillon, F-002 et F-008 comprises. Le dev avait validé F-002 et F-008 sur la branche `planification-reunie`, mais cette branche est bloquée (voir « Pièges actifs ») et ses validations ne valent pas ici : elles sont à refaire sur cette ligne.
+La planification complète est dans `main` (merge `2615352`) : 29 features, 29 specs, 998 critères, `ROADMAP.md`, `MEMORY/VEILLE.md` (64 sections). Validées : F-001, et F-002 sur la branche `F-002`. Les 27 autres specs sont en brouillon, F-008 comprise (sa validation faite sur la branche d'archive `planification-reunie` ne vaut pas ici).
 
-`specs/F-004.md` (identité visuelle) a été réécrite le 2026-10-08 après le retour du dev sur l'interface (« pas stylé, responsive à revoir ») : critères AC24 à AC53 sur la barre latérale, l'éditeur sans cadre, le tiroir sur petit écran, les captures de référence. F-004 vient juste après F-003 sur le chemin client.
+F-002 (application web locale, tier structurel) est DONE sur la branche `F-002` : tous les gates verts sur l'empreinte `d06344502281` au troisième passage de revue (`reviewer-frontend` APPROVED, `SECURITY GATE: PASS`, `ARCHITECTURE GATE: PASS`, `CRAFT GATE: PASS`), `gates-verts.sh main..HEAD` → `RESULTAT GATES: OK`, périmètre code 0. Reste à fusionner dans `main` dès que `agent-planif` a fini de commiter `specs/F-004.md` sur cette branche.
 
-Le dépôt principal (`~/dev/notionLike`) est sur la branche `F-002`, partie de `main`, avec du travail NON COMMITÉ fait en avance : application `apps/web` entière (F-002 et F-003), code F-003 dans `packages/document` (`document-page.ts`, `format-page.ts`, leurs tests, reste de diff dans `erreurs.ts`, `index.ts`, `test/structure.test.ts`), ADR 0007 à 0009, conceptions F-002 et F-003, fichiers protégés ou partagés modifiés (`eslint.config.mjs`, `.dependency-cruiser.cjs`, `pnpm-lock.yaml`, configurations d'`apps/web`). `ARCHITECTURE.md` de l'arbre est une ancienne version : repartir de celle de HEAD.
+Le dev a exigé le 2026-10-09 que les données soient toujours persistées : spec F-030 (reprise de la persistance après une coupure, 28 critères, brouillon ajusté à la veille du 2026-10-09), placée juste après F-002. Le 2026-10-09, le dev a accepté d'alléger le parcours : `ARCHITECTURE.md` aligné une seule fois par feature ; F-019, F-020, F-021 reclassées `standard` ; nouvel ordre du chemin client F-002 → F-004 → F-030 → F-003. F-004 (46 critères) ne dépend plus que de F-002 ; F-003 (44 critères) reçoit les critères d'éditeur de F-004 et livre la barre flottante sans barre provisoire. Décision de l'orchestrateur à inscrire dans F-004 avant sa validation : tant que F-030 n'est pas livrée, F-004 n'affiche que l'état d'échec d'enregistrement, jamais « Enregistré ». Le chemin serveur, qui apporte la base PostgreSQL, n'a pas commencé.
+
+Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008).
+
+`specs/F-004.md` (identité visuelle) a été réécrite le 2026-10-08 après le retour du dev sur l'interface (« pas stylé, responsive à revoir ») : critères AC24 à AC53 sur la barre latérale, l'éditeur sans cadre, le tiroir sur petit écran, les captures de référence.
+
+Le dépôt principal (`~/dev/notionLike`) est sur la branche `F-002`, arbre propre. Le travail fait en avance le 2026-10-08 (application `apps/web` entière pour F-002 et F-003, code F-003 de `packages/document`, ADR-0009, conception de F-003, fichiers de configuration mêlés) est archivé sur la branche `archive-arbre-2026-10-08` (`f1946e2`, 70 chemins), jamais fusionnée : les producteurs y reprennent chaque fichier par `git show archive-arbre-2026-10-08:<chemin>`, en séparant F-002 de F-003 comme le dit la conception.
 
 ## Prochaine action prévue
 
-Le dev valide `specs/F-002.md` sur la branche `F-002` (commit `Agent: dev`, en tranchant H13 et H14). Puis : `agent-architecte-conception` relit `docs/decisions/F-002-conception.md` (non commitée) contre la spec (AC25 réécrit, AC27 à AC32) et la commite avec les ADR 0007 et 0008 ; `dossier-revue.sh --conception F-002` et `gate.sh agent-architecte F-002` dans un worktree propre ; bloc 0 par le dev ; commits d'`agent-frontend` bloc par bloc à partir du code déjà présent ; revue. Ensuite F-003, puis F-004.
+Fusionner `F-002` dans `main` par merge commit (depuis le worktree, après `gates-verts.sh main..F-002` lu en entier). Puis F-004 (identité visuelle) : valider `specs/F-004.md` par délégation (D-008), branche `F-004` depuis `main`, conception par `agent-architecte-conception` (CSS seul, sans Motion ; alignement d'`ARCHITECTURE.md` une seule fois, après le dernier bloc), gate de conception, bloc 0 (Tailwind 4.3.3), blocs d'`agent-frontend`. Montrer au dev les captures de la page de démonstration à la fin du premier bloc, avant d'habiller toute l'application. Ensuite F-030, puis F-003.
 
 F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la branche d'archive `planification-reunie` (`a246106`). À reposer par `agent-architecte-conception` sur une branche `F-008-socle` neuve partie de `main` (le nom `F-008` est pris par une archive), après revalidation de `specs/F-008.md` par le dev ; son gate de conception n'a jamais tourné.
 
@@ -25,6 +31,8 @@ F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la bra
 - D-005 Rang de longueur non bornée et `rangEntre` récursive — depuis F-001 — impact : une mise à jour forgée peut épuiser la pile ; levée par F-029, obligatoire avant F-012.
 - D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — impact : diffusion interrompue, écouteur jamais retiré ; levée par F-002 (AC29, AC30) si le dev retient H13.
 - D-007 Vérification des types hors des contrôles du socle — depuis F-001 — impact : la barrière « sans DOM » de F-001-AC19 n'est prouvée par aucun `checks.txt` ; aggravée par le bloc 0 de F-008, après lequel `tsc` accepte `process` et `Buffer` dans `packages/document` ; à lever par le dev.
+
+- D-008 Commits `Agent: dev` délégués à l'orchestrateur — depuis le 2026-10-09 — impact : le trailer `Agent: dev` ne prouve plus qu'un humain a lu une spec ou un fichier protégé ; à lever par le dev (retirer les règles de `.claude/settings.local.json` ou relire les commits délégués).
 
 ## État des contrôles / gates
 

@@ -4,7 +4,8 @@ export type CodeErreurDocument =
   | "deplacement-cyclique"
   | "titre-trop-long"
   | "position-invalide"
-  | "version-non-prise-en-charge";
+  | "version-non-prise-en-charge"
+  | "facade-fermee";
 
 export class ErreurDocument extends Error {
   readonly code: CodeErreurDocument;

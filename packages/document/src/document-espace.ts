@@ -26,6 +26,11 @@ import {
 import { BORNE_BASSE, BORNE_HAUTE, type Rang, rangEntre, rangsCroissantsEntre } from "./rang.ts";
 
 declare const crypto: { randomUUID(): string };
+// Le paquet compile sans DOM ni types Node ; `console` existe pourtant sous l'un comme sous l'autre.
+declare const console: { error(...donnees: unknown[]): void };
+
+const SIGNALEMENT_DU_RAPPEL_FAUTIF =
+  "@notionlike/document : un rappel d'abonné a levé pendant la diffusion d'un changement.";
 
 export interface Emplacement {
   readonly parent: IdPage | null;
@@ -40,6 +45,7 @@ export interface DocumentEspace {
   renommerPage(id: IdPage, titre: string): void;
   deplacerPage(id: IdPage, ou: Emplacement): void;
   mettreALaCorbeille(id: IdPage): void;
+  fermer(): void;
 }
 
 interface EtatLu extends ArbreLu {
@@ -62,35 +68,79 @@ export function creerDocumentEspace(): DocumentEspace {
 
 export function ouvrirDocumentEspace(doc: Y.Doc): DocumentEspace {
   let lecture = lectureAdmise(doc);
+  let fermee = false;
   const abonnes = new Set<() => void>();
 
-  doc.on("afterTransaction", () => {
+  const apresTransaction = (): void => {
+    // Yjs appelle les écouteurs présents au début de l'émission : celui d'une façade que le rappel
+    // d'une autre façade vient de fermer l'est encore une fois, et ne doit ni relire ni notifier.
+    if (fermee) {
+      return;
+    }
     const relue = lectureAdmise(doc);
     if (!memeLecture(relue, lecture)) {
       lecture = relue;
       // La copie tient à l'écart les abonnés inscrits pendant la diffusion ; le test d'appartenance
-      // écarte ceux qu'un rappel précédent vient de désabonner.
+      // écarte ceux qu'un rappel précédent vient de désabonner, et tous dès que la façade est fermée.
       for (const notifier of [...abonnes]) {
         if (abonnes.has(notifier)) {
-          notifier();
+          notifierSousGarde(notifier);
         }
       }
     }
-  });
+  };
+  doc.on("afterTransaction", apresTransaction);
+
+  // Contrôlé avant tout autre refus, version du document comprise (ADR-0003, amendement F-002).
+  const exigerFacadeOuverte = (): void => {
+    if (fermee) {
+      throw new ErreurDocument("facade-fermee", "La façade du document d'espace est fermée.");
+    }
+  };
 
   return {
     doc,
     lire: () => lecture ?? refuserLaVersion(),
     abonner: (rappel) => {
+      if (fermee) {
+        return () => undefined;
+      }
       const notifier = (): void => rappel();
       abonnes.add(notifier);
       return () => void abonnes.delete(notifier);
     },
-    creerPage: (titre, ou = A_LA_RACINE) => creerPage(doc, titre, ou),
-    renommerPage: (id, titre) => renommerPage(doc, id, titre),
-    deplacerPage: (id, ou) => deplacerPage(doc, id, ou),
-    mettreALaCorbeille: (id) => mettreALaCorbeille(doc, id),
+    creerPage: (titre, ou = A_LA_RACINE) => {
+      exigerFacadeOuverte();
+      return creerPage(doc, titre, ou);
+    },
+    renommerPage: (id, titre) => {
+      exigerFacadeOuverte();
+      renommerPage(doc, id, titre);
+    },
+    deplacerPage: (id, ou) => {
+      exigerFacadeOuverte();
+      deplacerPage(doc, id, ou);
+    },
+    mettreALaCorbeille: (id) => {
+      exigerFacadeOuverte();
+      mettreALaCorbeille(doc, id);
+    },
+    fermer: () => {
+      fermee = true;
+      abonnes.clear();
+      doc.off("afterTransaction", apresTransaction);
+    },
   };
+}
+
+// Un rappel qui lève ne prive pas les abonnés suivants et ne remonte pas par la transaction en
+// cours, `Y.applyUpdate` compris : son exception va à la console d'erreur, seul canal (F-002-AC29).
+function notifierSousGarde(notifier: () => void): void {
+  try {
+    notifier();
+  } catch (exception) {
+    console.error(SIGNALEMENT_DU_RAPPEL_FAUTIF, exception);
+  }
 }
 
 // `undefined` tant que la version du document n'est pas prise en charge : rien n'est alors lu.
