@@ -59,3 +59,15 @@
 - Tests: aucun — état: UNVERIFIED — preuve: aucune
 - Gates: sans objet
 - Mesures: sans objet
+
+## [2026-10-09] F-002 Application web locale : coquille, barre latérale des pages, persistance IndexedDB
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web`, `packages/document` — agents: agent-planif, agent-veille, agent-architecte-conception, agent-frontend, orchestrateur par délégation du dev (validations de la spec, mise à l'abri, bloc 0 : D-008) — commits: d7e5080..6250a0a
+- Détail: première application du dépôt. Identifiants en UUID canonique, persistance du document d'espace dans IndexedDB (`y-indexeddb@9.0.12`), session d'espace, routes par fragment, barre latérale (créer, renommer, sous-page, corbeille, replier), zone principale, écrans d'état. Dans `packages/document` : fermeture de la façade, diffusion sous garde, code `facade-fermee`. Code repris en partie d'un arbre écrit en avance le 2026-10-08, archivé sur la branche `archive-arbre-2026-10-08`, puis retouché contre la spec amendée.
+- Dette: résorbée D-006 (à clore par le dev) ; introduite D-008 ; laissées D-003, D-007
+- ADR: ADR-0003 (amendé), ADR-0007, ADR-0008
+- Tests: ajoutés, 777 tests sur 21 fichiers (256 `document`, 521 `web`), 7 scénarios de bout en bout — état: verts — preuve: checks.txt (empreinte `d06344502281`) pour Vitest, lint, contrats, couverture des critères ; relevé à la main dans `MEMORY/features/F-002.md` pour `typecheck`, `build` et le bout en bout (hors des contrôles du socle)
+- Gates: SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS · revue reviewer-frontend APPROVED
+- Mesures: boucles — architecture conception 2 (1 FAIL, 1 PASS), reviewer-frontend 3 (2 CHANGES_REQUESTED, 1 APPROVED), architecture code 3 (1 UNVERIFIED faute de preuves au dossier, 2 PASS), sécurité 3, craft 3 · constats confirmés — architecture conception 7, reviewer-frontend 3 (preuves de `typecheck` et `build` absentes, test d'AC26 incomplet, titre sans caractère visible), architecture code 1 (format du document écrit en dur dans cinq fichiers de test) · faux positifs 0 · une escalade du hook de vérification (trois lancements sur un arbre en cours d'écriture par un agent en arrière-plan), reprise par le dev · coût non mesuré
