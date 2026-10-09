@@ -106,6 +106,7 @@
   --spacing-apercu: 30rem;
   --spacing-apercu-menu: 9.5rem;
   --spacing-touche: 1.25rem;
+  --spacing-liste: 18rem;
 
   /* Largeurs bornées. */
   --container-barre: 17.5rem;
@@ -114,6 +115,7 @@
   --container-ecran: 34rem;
   --container-lecture: 44rem;
   --container-fil: 12rem;
+  --container-fil-courant: 6rem;
   --container-page: 72rem;
 
   /* Épaisseurs de trait, en pixels pour rester nettes. */
@@ -151,7 +153,7 @@
 
   /* Animations : durée et courbe toujours par renvoi. */
   --animate-apparition: apparition var(--duree-moyenne) var(--ease-sortie) both;
-  --animate-depliage: depliage var(--duree-rapide) var(--ease-sortie) both;
+  --animate-depliage: depliage var(--duree-rapide) var(--ease-sortie) backwards;
   --animate-chargement: pulsation var(--duree-boucle-chargement) var(--ease-va-et-vient) infinite;
 
   @keyframes apparition {

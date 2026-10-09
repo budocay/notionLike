@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import { type ReactElement, type ReactNode, type Ref, useId } from "react";
 
 import { BoutonIcone } from "./Bouton.tsx";
 import { HAUT } from "./haut.classes.ts";
@@ -8,10 +8,13 @@ export interface Ancetre {
   readonly adresse: string;
 }
 
-/** Commande derrière laquelle passent les ancêtres intermédiaires. */
+/** Commande derrière laquelle passent les ancêtres intermédiaires, et la liste qu'elle ouvre. */
 export interface RepliDuFil {
   readonly nom: string;
-  readonly surOuverture: () => void;
+  readonly ouvert: boolean;
+  readonly surBascule: () => void;
+  readonly refCommande?: Ref<HTMLButtonElement> | undefined;
+  readonly refListe?: Ref<HTMLUListElement> | undefined;
 }
 
 interface ProprietesFil {
@@ -43,7 +46,42 @@ function LienAncetre({ ancetre }: { readonly ancetre: Ancetre }): ReactElement {
   );
 }
 
+interface ProprietesIntermediaires {
+  readonly id: string;
+  readonly repli: RepliDuFil;
+  readonly ancetres: readonly Ancetre[];
+}
+
+function Intermediaires({ id, repli, ancetres }: ProprietesIntermediaires): ReactElement {
+  return (
+    <li className={HAUT.elementFixe}>
+      <BoutonIcone
+        ref={repli.refCommande}
+        nom={repli.nom}
+        pictogramme="points"
+        lieu="barre"
+        aria-expanded={repli.ouvert}
+        aria-controls={id}
+        onClick={repli.surBascule}
+      />
+      {repli.ouvert && (
+        <ul ref={repli.refListe} id={id} className={HAUT.intermediaires}>
+          {ancetres.map((ancetre) => (
+            <li key={ancetre.adresse}>
+              <a className={HAUT.intermediaire} href={ancetre.adresse}>
+                {ancetre.titre}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Separateur />
+    </li>
+  );
+}
+
 export function FilAriane({ nom, ancetres, courante, repli }: ProprietesFil): ReactElement {
+  const idListe = useId();
   const replies = repli !== undefined && ancetres.length > 1;
   const visibles = replies ? ancetres.slice(0, 1) : ancetres;
   return (
@@ -52,18 +90,8 @@ export function FilAriane({ nom, ancetres, courante, repli }: ProprietesFil): Re
         {visibles.map((ancetre) => (
           <LienAncetre key={ancetre.adresse} ancetre={ancetre} />
         ))}
-        {replies && (
-          <li className={HAUT.elementFixe}>
-            <BoutonIcone
-              nom={repli.nom}
-              pictogramme="points"
-              lieu="barre"
-              onClick={repli.surOuverture}
-            />
-            <Separateur />
-          </li>
-        )}
-        <li className={HAUT.element}>
+        {replies && <Intermediaires id={idListe} repli={repli} ancetres={ancetres.slice(1)} />}
+        <li className={HAUT.elementCourant}>
           <span className={HAUT.courante} aria-current="page">
             {courante}
           </span>

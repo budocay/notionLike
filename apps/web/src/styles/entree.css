@@ -110,6 +110,17 @@
   }
 }
 
+/* Infobulle du titre coupé : elle attend un instant avant de se montrer, pour ne pas suivre le
+   pointeur d'une rangée à l'autre. */
+@utility infobulle {
+  opacity: 1;
+  transition: opacity var(--duree-rapide) var(--ease-sortie) var(--duree-lente);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
 @utility rangee {
   position: relative;
 }

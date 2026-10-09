@@ -24,6 +24,9 @@ import {
   INVITATION_PREMIERE_PAGE,
   NOM_APPLICATION,
   NOM_BARRE_LATERALE,
+  nomActionsDeLaPage,
+  nomAjouterSousPage,
+  nomSousPages,
   NOUVELLE_PAGE,
   PAGE_INTROUVABLE,
   TITRE_DE_LA_PAGE,
@@ -95,7 +98,7 @@ function RangeeFictive({
     fictive.sousPages === "aucune"
       ? undefined
       : {
-          nom: `Sous-pages de « ${fictive.titre} »`,
+          nom: nomSousPages(fictive.titre),
           deplie: fictive.sousPages === "depliees",
           surBascule: sansEffet,
         };
@@ -106,8 +109,8 @@ function RangeeFictive({
       adresse={ADRESSE_FICTIVE}
       courante={fictive.courante === true}
       repli={repli}
-      ajout={{ nom: `Ajouter une sous-page à « ${fictive.titre} »`, surActivation: sansEffet }}
-      actions={{ nom: `Actions de la page « ${fictive.titre} »`, surActivation: sansEffet }}
+      ajout={{ nom: nomAjouterSousPage(fictive.titre), surActivation: sansEffet }}
+      actions={{ nom: nomActionsDeLaPage(fictive.titre), surActivation: sansEffet }}
       menuOuvert={menuOuvert}
       saisie={saisie}
       menu={menu}
@@ -142,7 +145,11 @@ function Fil({ replie }: { readonly replie: boolean }): ReactElement {
       nom={LIBELLES.filDAriane}
       ancetres={ANCETRES}
       courante={PAGE_COURANTE}
-      repli={replie ? { nom: LIBELLES.pagesIntermediaires, surOuverture: sansEffet } : undefined}
+      repli={
+        replie
+          ? { nom: LIBELLES.pagesIntermediaires, ouvert: false, surBascule: sansEffet }
+          : undefined
+      }
     />
   );
 }
@@ -150,7 +157,7 @@ function Fil({ replie }: { readonly replie: boolean }): ReactElement {
 function MenuFictif({ titre }: { readonly titre: string }): ReactElement {
   return (
     <MenuActions
-      nom={`Actions de la page « ${titre} »`}
+      nom={nomActionsDeLaPage(titre)}
       entrees={[
         { libelle: LIBELLES.renommer, touches: TOUCHES.renommer, surActivation: sansEffet },
         { libelle: LIBELLES.ajouterUneSousPage, surActivation: sansEffet },

@@ -5,6 +5,7 @@ import * as Y from "yjs";
 import {
   activerActionDeRangee,
   atteindreActionDeRangee,
+  commandesDuMenu,
   creerPageNommee,
   docDe,
   etatEncode,
@@ -34,7 +35,7 @@ describe("barre latérale : refus", () => {
     expect(champ.getAttribute("aria-invalid")).toBe("true");
     expect(document.getElementById(champ.getAttribute("aria-describedby") ?? "")).toBe(alerte);
     expect(etatEncode(session)).toEqual(avant);
-    expect(await atteindreActionDeRangee("mettre-a-la-corbeille", "Titre court")).toBeDefined();
+    expect(await commandesDuMenu("Titre court")).toContain("Mettre à la corbeille");
 
     fireEvent.change(champ, { target: { value: "y".repeat(200) } });
     await utilisateur.keyboard("{Enter}");

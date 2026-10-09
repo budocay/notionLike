@@ -272,21 +272,37 @@ describe("barre du haut", () => {
   });
 
   it("F-004-AC39 replié, le fil garde la racine et la page, et passe le reste derrière une commande", async () => {
-    const surOuverture = vi.fn();
-    render(
+    const surBascule = vi.fn();
+    const repli = { nom: "Afficher les pages intermédiaires", ouvert: false, surBascule };
+    const { rerender } = render(
+      <FilAriane nom="Fil d'Ariane" ancetres={ancetres} courante="Page" repli={repli} />,
+    );
+    expect(screen.getAllByRole("link").map((lien) => lien.textContent)).toEqual(["Racine"]);
+    expect(screen.getByText("Page").getAttribute("aria-current")).toBe("page");
+    const commande = screen.getByRole("button", { name: "Afficher les pages intermédiaires" });
+    expect(commande.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(commande);
+    expect(surBascule).toHaveBeenCalledTimes(1);
+
+    rerender(
       <FilAriane
         nom="Fil d'Ariane"
         ancetres={ancetres}
         courante="Page"
-        repli={{ nom: "Afficher les pages intermédiaires", surOuverture }}
+        repli={{ ...repli, ouvert: true }}
       />,
     );
-    expect(screen.getAllByRole("link").map((lien) => lien.textContent)).toEqual(["Racine"]);
-    expect(screen.getByText("Page").getAttribute("aria-current")).toBe("page");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Afficher les pages intermédiaires" }),
-    );
-    expect(surOuverture).toHaveBeenCalledTimes(1);
+    expect(commande.getAttribute("aria-expanded")).toBe("true");
+    const liste = document.getElementById(commande.getAttribute("aria-controls") ?? "");
+    expect(
+      within(liste as HTMLElement)
+        .getAllByRole("link")
+        .map((lien) => [lien.textContent, lien.getAttribute("href")]),
+    ).toEqual([
+      ["Milieu", "#/page/b"],
+      ["Mère", "#/page/c"],
+    ]);
+    expect(liste?.classList.contains("depliage")).toBe(true);
   });
 
   it("F-004-AC39 un seul ancêtre ne se replie pas", () => {
@@ -295,7 +311,7 @@ describe("barre du haut", () => {
         nom="Fil d'Ariane"
         ancetres={ancetres.slice(0, 1)}
         courante="Page"
-        repli={{ nom: "Afficher les pages intermédiaires", surOuverture: vi.fn() }}
+        repli={{ nom: "Afficher les pages intermédiaires", ouvert: false, surBascule: vi.fn() }}
       />,
     );
     expect(screen.queryByRole("button")).toBeNull();

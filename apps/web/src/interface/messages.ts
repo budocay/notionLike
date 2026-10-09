@@ -12,9 +12,14 @@ export const CHARGEMENT = "Chargement…";
 export const PAGE_INTROUVABLE = "Page introuvable";
 export const TITRE_DE_LA_PAGE = "Titre de la page";
 
-export const TEXTE_RENOMMER = "Renommer";
-export const TEXTE_SOUS_PAGE = "Sous-page";
-export const TEXTE_CORBEILLE = "Corbeille";
+export const RENOMMER = "Renommer";
+export const AJOUTER_UNE_SOUS_PAGE = "Ajouter une sous-page";
+export const METTRE_A_LA_CORBEILLE = "Mettre à la corbeille";
+
+export const NOM_FIL_D_ARIANE = "Fil d'Ariane";
+export const AFFICHER_LES_PAGES_INTERMEDIAIRES = "Afficher les pages intermédiaires";
+/** Seul état d'enregistrement affiché avant F-030 : l'échec (F-004-AC40). */
+export const NON_ENREGISTRE = "Non enregistré sur cet appareil";
 
 export const INVITATION_PREMIERE_PAGE =
   "Cet espace ne contient encore aucune page. Créez-en une avec « Nouvelle page », dans la barre latérale.";
@@ -62,22 +67,32 @@ export function titreOnglet(titrePage: string | undefined): string {
   return titrePage === undefined ? NOM_APPLICATION : `${titrePage} · ${NOM_APPLICATION}`;
 }
 
-export function nomRenommer(titre: string): string {
-  return `Renommer « ${titre} »`;
+const BLANCS_DE_BORD = /^\p{White_Space}+|\p{White_Space}+$/gu;
+
+/**
+ * Titre cité dans un nom ou une description accessible : le titre affiché sans ses blancs de tête
+ * et de queue, ses blancs intérieurs intacts. Seule définition : tout nom composé autour d'un titre
+ * passe par elle (F-004-AC57).
+ */
+export function titreCite(titre: string): string {
+  return titreAffiche(titre).replace(BLANCS_DE_BORD, "");
 }
 
 export function nomAjouterSousPage(titre: string): string {
-  return `Ajouter une sous-page à « ${titre} »`;
+  return `Ajouter une sous-page à « ${titreCite(titre)} »`;
 }
 
-export function nomMettreALaCorbeille(titre: string): string {
-  return `Mettre « ${titre} » à la corbeille`;
+/** Nom du bouton « ⋯ » d'une rangée et de son menu, dont les entrées ne portent que leur libellé. */
+export function nomActionsDeLaPage(titre: string): string {
+  return `Actions de la page « ${titreCite(titre)} »`;
 }
 
-export function nomReplier(titre: string): string {
-  return `Replier « ${titre} »`;
+/** Nom de la commande de repli : il ne dit pas l'état, que porte `aria-expanded` (F-004-AC56). */
+export function nomSousPages(titre: string): string {
+  return `Sous-pages de « ${titreCite(titre)} »`;
 }
 
-export function nomDeplier(titre: string): string {
-  return `Déplier « ${titre} »`;
+/** Description du lien d'une rangée de niveau 2 ou plus (F-004-AC55). */
+export function descriptionDeSousPage(niveau: number, titreDeLaMere: string): string {
+  return `Niveau ${niveau}, sous-page de « ${titreCite(titreDeLaMere)} »`;
 }

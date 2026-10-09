@@ -21,13 +21,13 @@ const jetons = lire(FICHIER_DES_JETONS);
 const entree = lire(FEUILLE_D_ENTREE);
 const contexte = contexteDe(jetons, entree);
 
-// Exception du bloc 1 de F-004, décidée par l'orchestrateur le 2026-10-09 : la feuille de F-002
-// vit jusqu'à l'habillage de l'application (bloc 2), qui la supprime et retire cette ligne.
-const EXCEPTION_DU_BLOC_1 = "src/styles.css";
+// Aucune exemption : la feuille de F-002, exception nommée du bloc 1, est supprimée par
+// l'habillage de l'application.
+const FEUILLE_DE_F002 = "src/styles.css";
 
 const GABARITS = ["index.html", "demo.html"];
 const disque = [...GABARITS, ...lister("src")];
-const controles = disque.filter((chemin) => chemin !== EXCEPTION_DU_BLOC_1);
+const controles = disque;
 const analyses = fichiersAnalyses(entree, disque);
 
 function fautesDe(chemin: string, texte: string): string[] {
@@ -39,7 +39,7 @@ function classe(nom: string): string | undefined {
 }
 
 describe("fichiers de style réels", () => {
-  it("F-004-AC3 F-004-AC16 chaque fichier source d'apps/web passe les interdits, sauf l'exception nommée", () => {
+  it("F-004-AC3 F-004-AC16 chaque fichier source d'apps/web passe les interdits, sans aucune exemption", () => {
     expect(controles.length).toBeGreaterThan(30);
     for (const chemin of controles) {
       const attendues = chemin === FICHIER_DES_JETONS ? "sans objet" : [];
@@ -48,14 +48,19 @@ describe("fichiers de style réels", () => {
     }
   });
 
-  it("F-004-AC3 l'exception du bloc 1 existe encore et échoue encore : sinon elle se retire", () => {
-    expect(
-      existe(EXCEPTION_DU_BLOC_1),
-      `${EXCEPTION_DU_BLOC_1} supprimé : retirer l'exception`,
-    ).toBe(true);
-    expect(fautesDe(EXCEPTION_DU_BLOC_1, lire(EXCEPTION_DU_BLOC_1))).toContainEqual(
-      expect.stringContaining("couleur littérale"),
+  it("F-004-AC3 F-004-AC16 la feuille de F-002 est supprimée : la seule feuille que l'entrée importe est la feuille d'entrée, seule à importer Tailwind et les jetons", () => {
+    expect(existe(FEUILLE_DE_F002)).toBe(false);
+    expect(disque.filter((chemin) => chemin.endsWith(".css"))).toEqual([
+      FEUILLE_D_ENTREE,
+      FICHIER_DES_JETONS,
+    ]);
+    expect(lire("src/main.tsx").match(/^import "[^"]*\.css";$/gm)).toEqual([
+      'import "./styles/entree.css";',
+    ]);
+    const quiImportentUneFeuille = disque.filter(
+      (chemin) => /\.tsx?$/.test(chemin) && /import "[^"]*\.css"/.test(lire(chemin)),
     );
+    expect(quiImportentUneFeuille).toEqual(["src/demonstration/entree.tsx", "src/main.tsx"]);
   });
 
   it("F-004-AC3 F-004-AC19 chaque classe d'un fichier analysé par Tailwind est nommée ou bâtie sur un jeton", () => {
@@ -76,10 +81,8 @@ describe("fichiers de style réels", () => {
   });
 
   it("F-004-AC3 hors des fichiers analysés, aucun composant n'écrit une classe en dur", () => {
-    const composants = controles.filter((chemin) =>
-      /^src\/(interface\/composants|demonstration)\/.*\.tsx$/.test(chemin),
-    );
-    expect(composants.length).toBeGreaterThanOrEqual(10);
+    const composants = controles.filter((chemin) => /^src\/.*\.tsx$/.test(chemin));
+    expect(composants.length).toBeGreaterThanOrEqual(18);
     for (const chemin of composants) {
       expect(lire(chemin), chemin).not.toMatch(/className=["'`]|className=\{["'`]/);
     }

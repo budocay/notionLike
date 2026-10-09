@@ -57,23 +57,42 @@ function peutCreerDesIdentifiants(): boolean {
   return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function";
 }
 
-function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
-  let etat: EtatSession = CHARGEMENT;
-  let ouverte: FacadeOuverte | undefined;
-  const abonnes = new Set<() => void>();
+interface Diffusion {
+  lire(): EtatSession;
+  publier(suivant: EtatSession): void;
+  abonner(rappel: () => void): () => void;
+  oublierLesAbonnes(): void;
+}
 
-  // Seule fonction qui prévient les abonnés de la session, que le changement vienne du document ou
-  // de la persistance (F-002-AC29). La copie tient à l'écart les abonnés inscrits pendant la
-  // diffusion ; le test d'appartenance écarte ceux qu'un rappel précédent vient de désabonner, et
-  // tous dès que la session est fermée.
-  const publier = (suivant: EtatSession): void => {
-    etat = suivant;
-    for (const notifier of [...abonnes]) {
-      if (abonnes.has(notifier)) {
-        notifierSousGarde(notifier);
+// État de la session et ses abonnés. `publier` est la seule fonction qui prévient les abonnés de
+// la session, que le changement vienne du document ou de la persistance (F-002-AC29). La copie
+// tient à l'écart les abonnés inscrits pendant la diffusion ; le test d'appartenance écarte ceux
+// qu'un rappel précédent vient de désabonner, et tous dès que la session est fermée.
+function creerDiffusion(): Diffusion {
+  let etat: EtatSession = CHARGEMENT;
+  const abonnes = new Set<() => void>();
+  return {
+    lire: () => etat,
+    publier: (suivant) => {
+      etat = suivant;
+      for (const notifier of [...abonnes]) {
+        if (abonnes.has(notifier)) {
+          notifierSousGarde(notifier);
+        }
       }
-    }
+    },
+    abonner: (rappel) => {
+      const notifier = (): void => rappel();
+      abonnes.add(notifier);
+      return () => void abonnes.delete(notifier);
+    },
+    oublierLesAbonnes: () => abonnes.clear(),
   };
+}
+
+function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
+  const diffusion = creerDiffusion();
+  let ouverte: FacadeOuverte | undefined;
 
   // Chacune de ces trois fermetures est sans effet la seconde fois.
   const fermerFacadeEtPersistance = (): void => {
@@ -89,12 +108,12 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
       // rappel que la façade est en train d'appeler : elle la ferme pendant sa diffusion, ce que
       // la façade permet sans rien lever, puis prévient ses propres abonnés (F-002-AC17, AC30).
       fermerFacadeEtPersistance();
-      publier(VERSION_NON_PRISE_EN_CHARGE);
+      diffusion.publier(VERSION_NON_PRISE_EN_CHARGE);
       return;
     }
     const enregistre = persistance.lireEtat() === "active";
-    if (!memeEtatPret(etat, arborescence, enregistre)) {
-      publier({ phase: "pret", arborescence, enregistre, operations });
+    if (!memeEtatPret(diffusion.lire(), arborescence, enregistre)) {
+      diffusion.publier({ phase: "pret", arborescence, enregistre, operations });
     }
   };
 
@@ -117,15 +136,11 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
   surPersistance();
 
   return {
-    lireEtat: () => etat,
-    abonner: (rappel) => {
-      const notifier = (): void => rappel();
-      abonnes.add(notifier);
-      return () => void abonnes.delete(notifier);
-    },
+    lireEtat: diffusion.lire,
+    abonner: diffusion.abonner,
     doc,
     fermer: () => {
-      abonnes.clear();
+      diffusion.oublierLesAbonnes();
       fermerFacadeEtPersistance();
     },
   };

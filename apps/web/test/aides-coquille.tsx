@@ -1,6 +1,14 @@
 // Aides des tests de la coquille : rendu par le point d'entrée de l'interface, mises à jour reçues.
 import type { DocumentEspace } from "@notionlike/document";
-import { act, cleanup, render, type RenderResult, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  type RenderResult,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { afterEach, expect, vi } from "vitest";
@@ -128,22 +136,61 @@ export async function tabulerJusqua(
 
 export type ActionDeRangee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
 
-const NOM_DE_L_ACTION: Readonly<Record<ActionDeRangee, (titre: string) => string>> = {
-  renommer: (titre) => `Renommer « ${titre} »`,
-  "ajouter-une-sous-page": (titre) => `Ajouter une sous-page à « ${titre} »`,
-  "mettre-a-la-corbeille": (titre) => `Mettre « ${titre} » à la corbeille`,
+/** Entrées du menu « ⋯ » d'une rangée, dans l'ordre où il les affiche (F-004-AC26). */
+export const ENTREES_DU_MENU = ["Renommer", "Ajouter une sous-page", "Mettre à la corbeille"];
+
+const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangee, string>> = {
+  renommer: "Renommer",
+  "ajouter-une-sous-page": "Ajouter une sous-page",
+  "mettre-a-la-corbeille": "Mettre à la corbeille",
 };
+
+// Le nom accessible calculé est mis à plat par l'outil de test : le nom attendu l'est de même.
+function aPlat(texte: string): string {
+  return texte.trim().replace(/\s+/gu, " ");
+}
+
+function nomme(attendu: string): (nom: string) => boolean {
+  return (nom) => aPlat(nom) === aPlat(attendu);
+}
+
+export function nomDuMenu(titre: string): string {
+  return `Actions de la page « ${titre} »`;
+}
+
+export function nomAjouterSousPage(titre: string): string {
+  return `Ajouter une sous-page à « ${titre} »`;
+}
+
+/** Nom de la commande de repli : il ne dit plus l'état, que porte `aria-expanded` (F-004-AC56). */
+export function nomDuRepli(titre: string): string {
+  return `Sous-pages de « ${titre} »`;
+}
+
+/** Bouton « ⋯ » de la page au titre affiché donné. */
+export function boutonDuMenu(titre: string): Promise<HTMLElement> {
+  return screen.findByRole("button", { name: nomme(nomDuMenu(titre)) });
+}
 
 /**
  * Seul chemin des tests vers une action de rangée : la commande de la page au titre affiché donné,
- * retrouvée par son rôle et son nom accessible, prête à être activée. F-004 déplacera ces commandes
- * dans un menu : seul ce chemin changera, pas les tests (conception, « Ce que F-004 remplacera »).
+ * retrouvée par son rôle et son nom accessible, prête à être activée. Depuis F-004, « Renommer » et
+ * « Mettre à la corbeille » sont des entrées du menu « ⋯ » de la rangée, que ce chemin ouvre ;
+ * « Ajouter une sous-page » reste un bouton de la rangée (F-004-AC25, AC26).
  */
-export function atteindreActionDeRangee(
+export async function atteindreActionDeRangee(
   action: ActionDeRangee,
   titre: string,
 ): Promise<HTMLElement> {
-  return screen.findByRole("button", { name: NOM_DE_L_ACTION[action](titre) });
+  if (action === "ajouter-une-sous-page") {
+    return screen.findByRole("button", { name: nomme(nomAjouterSousPage(titre)) });
+  }
+  const bouton = await boutonDuMenu(titre);
+  if (bouton.getAttribute("aria-expanded") !== "true") {
+    fireEvent.click(bouton);
+  }
+  const menu = await screen.findByRole("menu", { name: nomme(nomDuMenu(titre)) });
+  return within(menu).getByRole("menuitem", { name: ENTREE_DE_L_ACTION[action] });
 }
 
 export async function activerActionDeRangee(
@@ -151,7 +198,60 @@ export async function activerActionDeRangee(
   action: ActionDeRangee,
   titre: string,
 ): Promise<void> {
+  if (action !== "ajouter-une-sous-page") {
+    await utilisateur.click(await boutonDuMenu(titre));
+  }
   await utilisateur.click(await atteindreActionDeRangee(action, titre));
+}
+
+/** Même action, au clavier seul : tabulation jusqu'à la commande, flèches dans le menu, Entrée. */
+export async function activerActionDeRangeeAuClavier(
+  utilisateur: UserEvent,
+  action: ActionDeRangee,
+  titre: string,
+  touche = "{Enter}",
+): Promise<void> {
+  if (action === "ajouter-une-sous-page") {
+    const bouton = await atteindreActionDeRangee(action, titre);
+    await tabulerJusqua(utilisateur, () => bouton);
+    await utilisateur.keyboard(touche);
+    return;
+  }
+  const bouton = await boutonDuMenu(titre);
+  await tabulerJusqua(utilisateur, () => bouton);
+  await utilisateur.keyboard("{Enter}");
+  const entrees = within(
+    await screen.findByRole("menu", { name: nomme(nomDuMenu(titre)) }),
+  ).getAllByRole("menuitem");
+  expect(document.activeElement).toBe(entrees[0]);
+  const rang = ENTREES_DU_MENU.indexOf(ENTREE_DE_L_ACTION[action]);
+  for (let pas = 0; pas < rang; pas += 1) {
+    await utilisateur.keyboard("{ArrowDown}");
+  }
+  expect(document.activeElement).toBe(entrees[rang]);
+  await utilisateur.keyboard(touche);
+}
+
+/**
+ * Nom du menu « ⋯ » de la page et libellés de ses entrées, tels que les attributs les portent ; le
+ * menu est refermé par Échap et le focus rendu à l'élément qui l'avait.
+ */
+export async function commandesDuMenu(titre: string): Promise<string[]> {
+  const avant = document.activeElement;
+  const entree = await atteindreActionDeRangee("renommer", titre);
+  const menu = entree.closest('[role="menu"]');
+  const noms = [
+    menu?.getAttribute("aria-label") ?? "",
+    ...within(menu as HTMLElement)
+      .getAllByRole("menuitem")
+      .map((element) => element.firstChild?.textContent ?? ""),
+  ];
+  fireEvent.keyDown(entree, { key: "Escape" });
+  expect(screen.queryByRole("menu")).toBeNull();
+  if (avant instanceof HTMLElement && avant.isConnected) {
+    act(() => avant.focus());
+  }
+  return noms;
 }
 
 /** Crée une page à la racine et lui donne un titre. */

@@ -252,19 +252,20 @@ test("F-002-AC10 un titre sans caractère visible, saisi au clavier puis validé
   const champ = page.getByRole("textbox", { name: "Titre de la page" });
 
   for (const saisi of ["   ", "\u200B\u2060\uFEFF"]) {
-    await page.getByRole("button", { name: /^Renommer « /u }).click();
+    await page.getByRole("button", { name: /^Actions de la page « /u }).click();
+    await page.getByRole("menuitem", { name: "Renommer", exact: true }).click();
     await champ.fill("");
     await page.keyboard.type(saisi);
     await page.keyboard.press("Enter");
 
     await expect(lienDePage(page, "Sans titre")).toBeVisible();
     await expect(lienDePage(page, "Sans titre")).toHaveAttribute("aria-current", "page");
-    await expect(atteindreActionDeRangee(page, "renommer", "Sans titre")).toBeVisible();
+    await expect(await atteindreActionDeRangee(page, "renommer", "Sans titre")).toBeVisible();
     await expect(
-      atteindreActionDeRangee(page, "ajouter-une-sous-page", "Sans titre"),
+      await atteindreActionDeRangee(page, "ajouter-une-sous-page", "Sans titre"),
     ).toBeVisible();
     await expect(
-      atteindreActionDeRangee(page, "mettre-a-la-corbeille", "Sans titre"),
+      await atteindreActionDeRangee(page, "mettre-a-la-corbeille", "Sans titre"),
     ).toBeVisible();
     await expect(titrePrincipal(page)).toHaveText("Sans titre");
     await expect(page).toHaveTitle("Sans titre · notionLike");

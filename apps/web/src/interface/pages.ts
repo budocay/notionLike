@@ -1,9 +1,12 @@
 // Parcours purs de l'arborescence lue. Ils sont itératifs : la profondeur reçue n'est pas bornée.
 import type { IdPage, PageLue } from "@notionlike/document";
 
+import { fragmentDe } from "../navigation/route.ts";
+
 interface Etape {
   readonly page: PageLue;
-  readonly ancetres: readonly IdPage[];
+  /** Pages mères, de la racine vers la page. */
+  readonly ancetres: readonly PageLue[];
 }
 
 function trouverEtape(pages: readonly PageLue[], id: IdPage): Etape | undefined {
@@ -12,7 +15,7 @@ function trouverEtape(pages: readonly PageLue[], id: IdPage): Etape | undefined 
     if (etape.page.id === id) {
       return etape;
     }
-    const ancetres = [...etape.ancetres, etape.page.id];
+    const ancetres = [...etape.ancetres, etape.page];
     etape.page.enfants.forEach((page) => aVoir.push({ page, ancetres }));
   }
   return undefined;
@@ -23,8 +26,13 @@ export function trouverPage(pages: readonly PageLue[], id: IdPage): PageLue | un
 }
 
 /** Ancêtres de la page, de la racine vers elle ; vide si la page est absente ou à la racine. */
-export function ancetresDe(pages: readonly PageLue[], id: IdPage): readonly IdPage[] {
+export function ancetresDe(pages: readonly PageLue[], id: IdPage): readonly PageLue[] {
   return trouverEtape(pages, id)?.ancetres ?? [];
+}
+
+/** Adresse d'une page : celle du lien de sa rangée et de chaque lien du fil d'Ariane. */
+export function adresseDePage(id: IdPage): string {
+  return fragmentDe({ forme: "page", idPage: id });
 }
 
 /** Vrai si `id` est la page elle-même ou l'une de ses descendantes. */
@@ -36,6 +44,8 @@ export function estDansLaDescendance(page: PageLue, id: IdPage): boolean {
 export interface RangeeVisible {
   readonly page: PageLue;
   readonly niveau: number;
+  /** Page mère ; absente à la racine. */
+  readonly mere: PageLue | undefined;
 }
 
 /** Pages à afficher, dans l'ordre de l'arbre ; les sous-pages d'une page repliée sont omises. */
@@ -45,11 +55,11 @@ export function rangeesVisibles(
 ): readonly RangeeVisible[] {
   const visibles: RangeeVisible[] = [];
   const aVoir: RangeeVisible[] = [];
-  const empiler = (pages: readonly PageLue[], niveau: number): void => {
+  const empiler = (pages: readonly PageLue[], niveau: number, mere?: PageLue): void => {
     for (let indice = pages.length - 1; indice >= 0; indice -= 1) {
       const page = pages[indice];
       if (page !== undefined) {
-        aVoir.push({ page, niveau });
+        aVoir.push({ page, niveau, mere });
       }
     }
   };
@@ -57,7 +67,7 @@ export function rangeesVisibles(
   for (let rangee = aVoir.pop(); rangee !== undefined; rangee = aVoir.pop()) {
     visibles.push(rangee);
     if (!repliees.has(rangee.page.id)) {
-      empiler(rangee.page.enfants, rangee.niveau + 1);
+      empiler(rangee.page.enfants, rangee.niveau + 1, rangee.page);
     }
   }
   return visibles;

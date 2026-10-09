@@ -1,5 +1,14 @@
-import { type KeyboardEvent, type ReactElement, useEffect, useId, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactElement,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
+import { ChampTitre } from "./composants/ChampTitre.tsx";
 import { TITRE_DE_LA_PAGE } from "./messages.ts";
 
 interface Proprietes {
@@ -11,17 +20,19 @@ interface Proprietes {
   readonly surAnnuler: () => void;
 }
 
-export function SaisieTitre({
-  titreInitial,
-  erreur,
-  surValider,
-  surAnnuler,
-}: Proprietes): ReactElement {
+interface Saisie {
+  readonly champ: RefObject<HTMLInputElement | null>;
+  readonly texte: string;
+  readonly surChangement: (evenement: ChangeEvent<HTMLInputElement>) => void;
+  readonly surTouche: (evenement: KeyboardEvent<HTMLInputElement>) => void;
+  readonly valider: () => void;
+}
+
+function useSaisie({ titreInitial, surValider, surAnnuler }: Proprietes): Saisie {
   const [texte, setTexte] = useState(titreInitial);
   const champ = useRef<HTMLInputElement>(null);
   // Une saisie close ne valide plus : la sortie du champ qui suit Entrée ou Échap est sans effet.
   const close = useRef(false);
-  const idErreur = useId();
 
   useEffect(() => {
     close.current = false;
@@ -34,7 +45,6 @@ export function SaisieTitre({
       close.current = surValider(texte);
     }
   };
-
   const surTouche = (evenement: KeyboardEvent<HTMLInputElement>): void => {
     if (evenement.key === "Enter") {
       evenement.preventDefault();
@@ -45,25 +55,27 @@ export function SaisieTitre({
       surAnnuler();
     }
   };
+  return {
+    champ,
+    texte,
+    surChangement: (evenement) => setTexte(evenement.target.value),
+    surTouche,
+    valider,
+  };
+}
 
+/** Saisie du titre, à la place du titre dans la rangée, texte entier sélectionné à l'ouverture. */
+export function SaisieTitre(props: Proprietes): ReactElement {
+  const saisie = useSaisie(props);
   return (
-    <span className="saisie-titre">
-      <input
-        ref={champ}
-        type="text"
-        aria-label={TITRE_DE_LA_PAGE}
-        aria-invalid={erreur !== undefined}
-        aria-describedby={erreur === undefined ? undefined : idErreur}
-        value={texte}
-        onChange={(evenement) => setTexte(evenement.target.value)}
-        onKeyDown={surTouche}
-        onBlur={valider}
-      />
-      {erreur !== undefined && (
-        <span role="alert" id={idErreur} className="erreur">
-          {erreur}
-        </span>
-      )}
-    </span>
+    <ChampTitre
+      ref={saisie.champ}
+      nom={TITRE_DE_LA_PAGE}
+      erreur={props.erreur}
+      value={saisie.texte}
+      onChange={saisie.surChangement}
+      onKeyDown={saisie.surTouche}
+      onBlur={saisie.valider}
+    />
   );
 }

@@ -14,3 +14,9 @@ declare module "node:fs" {
 interface ImportMeta {
   readonly dirname: string;
 }
+
+declare module "node:crypto" {
+  export function createHash(algorithme: "sha256"): {
+    update(texte: string): { digest(encodage: "hex"): string };
+  };
+}

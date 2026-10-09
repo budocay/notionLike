@@ -1,4 +1,12 @@
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  useId,
+  useState,
+} from "react";
 
 import { BoutonIcone } from "./Bouton.tsx";
 import { Pictogramme } from "./Pictogramme.tsx";
@@ -24,6 +32,8 @@ export interface ProprietesRangee {
   readonly titre: string;
   readonly adresse: string;
   readonly courante: boolean;
+  /** Description accessible du lien : son niveau et sa page mère ; absente à la racine. */
+  readonly description?: string | undefined;
   /** Absent pour une page sans sous-page. */
   readonly repli?: Repli | undefined;
   readonly ajout: ActionDeRangee;
@@ -33,6 +43,12 @@ export interface ProprietesRangee {
   readonly saisie?: ReactNode | undefined;
   /** Menu de la rangée, quand il est ouvert. */
   readonly menu?: ReactNode | undefined;
+  readonly refLien?: Ref<HTMLAnchorElement> | undefined;
+  /** Bouton « ⋯ » : le focus lui revient à la fermeture du menu. */
+  readonly refActions?: Ref<HTMLButtonElement> | undefined;
+  readonly surDoubleClic?: (() => void) | undefined;
+  /** Frappe dans la rangée, quel que soit celui de ses éléments qui a le focus. */
+  readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
 }
 
 function CommandeDeRepli({ repli }: { readonly repli: Repli | undefined }): ReactElement {
@@ -55,7 +71,7 @@ function CommandeDeRepli({ repli }: { readonly repli: Repli | undefined }): Reac
 }
 
 function ActionsDeRangee(
-  props: Pick<ProprietesRangee, "ajout" | "actions" | "menuOuvert">,
+  props: Pick<ProprietesRangee, "ajout" | "actions" | "menuOuvert" | "refActions">,
 ): ReactElement {
   return (
     <span className={RANGEE.actions}>
@@ -66,6 +82,7 @@ function ActionsDeRangee(
         onClick={props.ajout.surActivation}
       />
       <BoutonIcone
+        ref={props.refActions}
         nom={props.actions.nom}
         pictogramme="points"
         lieu="rangee"
@@ -77,27 +94,74 @@ function ActionsDeRangee(
   );
 }
 
+const AU_REPOS = { survol: false, focus: false };
+
+type ProprietesLien = Pick<
+  ProprietesRangee,
+  "titre" | "adresse" | "courante" | "description" | "refLien" | "surDoubleClic"
+>;
+
+// Le titre tient sur une ligne. Coupé, il s'affiche en entier dans une infobulle au survol et au
+// focus ; elle reste hors de l'arbre d'accessibilité, le nom du lien étant déjà le titre complet.
+function LienDeRangee(props: ProprietesLien): ReactElement {
+  const { titre, description } = props;
+  const idDescription = useId();
+  const [coupe, setCoupe] = useState(AU_REPOS);
+  const mesurer = (lien: HTMLElement, cause: keyof typeof AU_REPOS): void =>
+    setCoupe((avant) => ({ ...avant, [cause]: lien.scrollWidth > lien.clientWidth }));
+  return (
+    <>
+      <a
+        ref={props.refLien}
+        className={RANGEE.lien}
+        href={props.adresse}
+        aria-current={props.courante ? "page" : undefined}
+        aria-describedby={description === undefined ? undefined : idDescription}
+        onMouseEnter={(evenement) => mesurer(evenement.currentTarget, "survol")}
+        onMouseLeave={() => setCoupe((avant) => ({ ...avant, survol: false }))}
+        onFocus={(evenement) => mesurer(evenement.currentTarget, "focus")}
+        onBlur={() => setCoupe((avant) => ({ ...avant, focus: false }))}
+        onDoubleClick={props.surDoubleClic}
+      >
+        {titre}
+      </a>
+      {description !== undefined && (
+        <span id={idDescription} hidden>
+          {description}
+        </span>
+      )}
+      {(coupe.survol || coupe.focus) && (
+        <span className={RANGEE.infobulle} data-infobulle="titre" aria-hidden="true">
+          {titre}
+        </span>
+      )}
+    </>
+  );
+}
+
 // La liste est plate (F-002) : la rangée ne rend pas ses sous-pages, le retrait vient du niveau.
 export function Rangee(props: ProprietesRangee): ReactElement {
-  const { niveau, titre, adresse, courante, menuOuvert } = props;
+  const { niveau, courante, menuOuvert } = props;
   return (
     <li
-      className={RANGEE.element}
+      className={niveau > 1 ? RANGEE.sousPage : RANGEE.element}
       aria-level={niveau}
       style={{ "--niveau": niveau } as CSSProperties}
     >
       <div
         className={courante ? RANGEE.courante : RANGEE.repos}
         data-menu-ouvert={menuOuvert ? "" : undefined}
+        onKeyDown={props.surTouche}
       >
         {courante && <span className={RANGEE.repere} aria-hidden="true" />}
         <CommandeDeRepli repli={props.repli} />
-        {props.saisie ?? (
-          <a className={RANGEE.lien} href={adresse} aria-current={courante ? "page" : undefined}>
-            {titre}
-          </a>
-        )}
-        <ActionsDeRangee ajout={props.ajout} actions={props.actions} menuOuvert={menuOuvert} />
+        {props.saisie ?? <LienDeRangee {...props} />}
+        <ActionsDeRangee
+          ajout={props.ajout}
+          actions={props.actions}
+          menuOuvert={menuOuvert}
+          refActions={props.refActions}
+        />
         {props.menu}
       </div>
     </li>
