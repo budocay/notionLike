@@ -47,3 +47,15 @@
 - Tests: aucun — état: UNVERIFIED — preuve: `pnpm typecheck` lancé à la main le 2026-10-08, vert
 - Gates: sans objet
 - Mesures: sans objet
+
+## [2026-10-09] D-008 Commits `Agent: dev` délégués à l'orchestrateur
+
+- TYPE: DEBT
+- Tier: structurel
+- Scope: socle de contrôle (validation des specs, fichiers protégés, blocs 0) — agents: orchestrateur, sur décision du dev — commits: 86542e8 (dev lui-même), f1946e2, b88f66e (orchestrateur)
+- Détail: le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (validations de spec, blocs 0, mise à l'abri), pour toutes les features, et a ajouté les règles d'autorisation `Bash(git commit:*)` et `Bash(sed -i:*)` dans `.claude/settings.local.json`. Chaque commit délégué le dit dans son message. Conséquence : le trailer `Agent: dev` ne prouve plus qu'un humain a lu ; `spec_validee`, la protection des fichiers de configuration des contrôles et les lignes `REPRISE` ou `DEROGATION` reposent sur la retenue de l'orchestrateur. À lever par le dev : retirer les deux règles, ou relire a posteriori les commits délégués (`git log --grep='délégation explicite du dev'`). L'orchestrateur ne s'en sert ni pour une `DEROGATION`, ni pour une `REPRISE`, ni pour modifier un script de contrôle, un test ou `.agents/outils.env`.
+- Dette: introduite D-008
+- ADR: aucun
+- Tests: aucun — état: UNVERIFIED — preuve: aucune
+- Gates: sans objet
+- Mesures: sans objet
