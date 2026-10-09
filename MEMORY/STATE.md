@@ -6,7 +6,9 @@ F-001 (arborescence des pages, `packages/document`, tier structurel) est DONE et
 
 La planification complète est dans `main` (merge `2615352`) : 29 features, 29 specs, 998 critères, `ROADMAP.md`, `MEMORY/VEILLE.md` (64 sections). Validées : F-001, et F-002 sur la branche `F-002`. Les 27 autres specs sont en brouillon, F-008 comprise (sa validation faite sur la branche d'archive `planification-reunie` ne vaut pas ici).
 
-F-002 (application web locale, tier structurel) est EN COURS sur la branche `F-002` : spec amendée après un premier rejet du gate de conception (AC16, AC17, AC24, AC29, AC30, AC31, H15) puis revalidée (`86542e8`) ; conception en révision 2 (`9bedab4`), `ARCHITECTURE GATE: PASS` sur l'empreinte `b7e7c0b5a59c` au second passage, huit corrections non bloquantes intégrées sans nouveau passage ; bloc 0 commité (`b88f66e`) ; bloc 1 (`packages/document`, levée de D-006) en cours chez `agent-frontend`.
+F-002 (application web locale, tier structurel) est EN REVUE sur la branche `F-002` : blocs 0 à 4 commités (`b88f66e`, `59a070d`, `7a51272`, `3728cc7`, `01cd81e`). Première revue sur l'empreinte `8f7d2995277f` : `reviewer-frontend` CHANGES_REQUESTED (test d'AC26 incomplet, preuves de `typecheck` et `build` absentes du dossier), `agent-architecte` UNVERIFIED (mêmes preuves, plus le bout en bout), `SECURITY GATE: PASS`, `CRAFT GATE: PASS`. Corrections commitées (`ba8edbd`) ; preuves versées dans `MEMORY/features/F-002.md`. Second passage de revue à lancer.
+
+Le dev a exigé le 2026-10-09 que les données soient toujours persistées : spec F-030 (reprise de la persistance après une coupure, 28 critères, brouillon ajusté à la veille du 2026-10-09), placée juste après F-002. F-003 (36 critères) est prête à valider. Le chemin serveur, qui apporte la base PostgreSQL, n'a pas commencé.
 
 Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008).
 
@@ -16,7 +18,7 @@ Le dépôt principal (`~/dev/notionLike`) est sur la branche `F-002`, arbre prop
 
 ## Prochaine action prévue
 
-Suivre le plan de `docs/decisions/F-002-conception.md` : après le bloc 1, `agent-architecte-conception` aligne `ARCHITECTURE.md` (un commit), puis bloc 2 (`identifiants/` et `persistance/`), bloc 3 (session, navigation, interface, entrée ; y corriger le test instable `navigation.test.tsx`, F-002-AC12), bloc 4 (bout en bout), avec un alignement d'`ARCHITECTURE.md` après chacun. Puis revue dans le worktree : `dossier-revue.sh F-002`, `gate.sh reviewer-frontend F-002`, `gate.sh agent-architecte F-002` et `gate.sh agent-securite F-002` en parallèle, `craft.sh F-002`, commit de `MEMORY/gates.log`, `gates-verts.sh main..HEAD`, traçabilité, fusion dans `main`. Ensuite F-003, puis F-004.
+Dans le worktree `scratchpad/revue-F-001` : `git checkout --detach F-002`, `dossier-revue.sh F-002`, `gate.sh reviewer-frontend F-002`, puis `gate.sh agent-architecte F-002` et `gate.sh agent-securite F-002` en parallèle, puis `craft.sh F-002` ; commit de `MEMORY/gates.log` (avec les trailers, y compris sur un merge), `gates-verts.sh main..HEAD`, entrée de `PROJECT_LOG.md`, `MEMORY/INDEX.md`, fusion dans `main`. Ensuite, dans l'ordre : F-030 (valider la spec par délégation, conception, gate, code), F-003, F-004.
 
 F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la branche d'archive `planification-reunie` (`a246106`). À reposer par `agent-architecte-conception` sur une branche `F-008-socle` neuve partie de `main` (le nom `F-008` est pris par une archive), après revalidation de `specs/F-008.md` par le dev ; son gate de conception n'a jamais tourné.
 
