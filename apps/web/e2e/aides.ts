@@ -9,7 +9,7 @@ const MAGASIN_DES_MISES_A_JOUR = "updates";
 const PROTOCOLES_RESEAU = new Set(["http:", "https:", "ws:", "wss:"]);
 
 /** Ce que la barre latérale affiche d'une page : sa profondeur, son titre, son adresse. */
-export interface Rangee {
+export interface RangeeVisee {
   readonly niveau: string | null;
   readonly titre: string;
   readonly adresse: string;
@@ -48,7 +48,7 @@ export async function recharger(page: Page): Promise<void> {
 }
 
 /** Niveau, titre et adresse de chaque page de la barre latérale, dans l'ordre affiché. */
-export function arborescence(page: Page): Promise<Rangee[]> {
+export function arborescence(page: Page): Promise<RangeeVisee[]> {
   return rangees(page).evaluateAll((elements) =>
     elements.map((element) => {
       const lien = element.querySelector("a");
