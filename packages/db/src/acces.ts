@@ -2,6 +2,7 @@
 // en production, PGlite dans les tests (`test/base-embarquee.ts`). Il reste interne au paquet.
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { Pool, type PoolClient } from "pg";
 
@@ -16,6 +17,8 @@ export interface Base {
 
 export interface Pilote {
   readonly db: Base["db"];
+  // Applique, dans une seule transaction, les migrations du dossier qui ne le sont pas encore (H13).
+  appliquerMigrations(dossier: string): Promise<void>;
   fermer(): Promise<void>;
 }
 
@@ -70,7 +73,12 @@ export function ouvrirPilotePg(url: string): Pilote {
   reserve.on("error", ignorerLaConnexionInactivePerdue);
   reserve.on("acquire", (connexion) => empruntees.add(connexion));
   reserve.on("release", (_erreur, connexion) => empruntees.delete(connexion));
-  return { db: drizzle(reserve), fermer: () => fermerLaReserve(reserve, empruntees) };
+  const db = drizzle(reserve);
+  return {
+    db,
+    appliquerMigrations: (dossier) => migrate(db, { migrationsFolder: dossier }),
+    fermer: () => fermerLaReserve(reserve, empruntees),
+  };
 }
 
 export function ouvrirBase(url: string): Base {
