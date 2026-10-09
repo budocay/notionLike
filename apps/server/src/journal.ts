@@ -16,6 +16,8 @@ export interface Journal {
   requete(ligne: LigneDeRequete): void;
   baseIndisponible(idRequete: string, code: string): void;
   erreurInterne(idRequete: string, erreur: unknown): void;
+  ecoute(hote: string, port: number): void;
+  arret(hote: string, port: number): void;
 }
 
 interface ElementDErreur {
@@ -62,6 +64,12 @@ export function creerJournal(sortie: DestinationStream): Journal {
     },
     erreurInterne(idRequete, erreur) {
       lignes.error({ idRequete, erreur: chaineDesCauses(erreur) }, "erreur-interne");
+    },
+    ecoute(hote, port) {
+      lignes.info({ hote, port }, "ecoute");
+    },
+    arret(hote, port) {
+      lignes.info({ hote, port }, "arret");
     },
   };
 }

@@ -52,6 +52,7 @@ describe("appelants des deux paquets", () => {
   it("F-008-AC17 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       "application.ts": ["Base", "ErreurBase"],
+      "main.ts": ["ouvrirBase"],
     });
   });
 
