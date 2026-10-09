@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  type Coquille,
+  type CoquilleRendue,
   creerPageNommee,
   ouvrirCoquille,
   recevoir,
@@ -56,13 +56,13 @@ function contenuDuFil(): string[] {
     });
 }
 
-async function selectionner(coquille: Coquille, titre: string): Promise<void> {
+async function selectionner(coquille: CoquilleRendue, titre: string): Promise<void> {
   await coquille.utilisateur.click(lienDeBarre(titre));
   await waitFor(() => expect(lienDeBarre(titre).getAttribute("aria-current")).toBe("page"));
 }
 
 /** Une lignée de pages « Niveau 1 » à « Niveau n », et une page « Ailleurs » à la racine. */
-async function ouvrirUneLignee(niveaux: number): Promise<Coquille> {
+async function ouvrirUneLignee(niveaux: number): Promise<CoquilleRendue> {
   const coquille = await ouvrirCoquille();
   recevoir(coquille.session, (espace) => {
     let parent: string | null = null;

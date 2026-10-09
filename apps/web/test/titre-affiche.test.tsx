@@ -9,7 +9,7 @@ import {
   activerActionDeRangee,
   activerActionDeRangeeAuClavier,
   commandesDuMenu,
-  type Coquille,
+  type CoquilleRendue,
   creerPageNommee,
   ouvrirCoquille,
   recevoir,
@@ -117,7 +117,7 @@ function nomsDesCommandes(): string[] {
 }
 
 /** Une page au titre donné, mère d'une sous-page « Fille », reçue d'une autre réplique. */
-async function recevoirPageMere(titre: string): Promise<Coquille> {
+async function recevoirPageMere(titre: string): Promise<CoquilleRendue> {
   const coquille = await ouvrirCoquille();
   recevoir(coquille.session, (espace) => {
     const parent = espace.creerPage(titre);

@@ -26,7 +26,7 @@ afterEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
 });
 
-export interface Coquille {
+export interface CoquilleRendue {
   readonly session: SessionEspace;
   readonly utilisateur: UserEvent;
 }
@@ -41,14 +41,14 @@ export function rendreSession(session: SessionEspace): RenderResult {
 }
 
 /** Démarre une session et rend l'application, sans attendre la fin du chargement. */
-export function rendreApplication(): Coquille {
+export function rendreApplication(): CoquilleRendue {
   const session = demarrerSession();
   rendreSession(session);
   return { session, utilisateur: userEvent.setup() };
 }
 
 /** Rend l'application et attend la barre latérale. */
-export async function ouvrirCoquille(): Promise<Coquille> {
+export async function ouvrirCoquille(): Promise<CoquilleRendue> {
   const coquille = rendreApplication();
   await boutonNouvellePage();
   return coquille;
@@ -58,13 +58,13 @@ export async function ouvrirCoquille(): Promise<Coquille> {
  * Fermeture de l'onglet : l'application est démontée et sa session fermée. L'adresse et l'appareil
  * simulé restent, comme dans un navigateur.
  */
-export function fermerLOnglet(coquille: Coquille): void {
+export function fermerLOnglet(coquille: CoquilleRendue): void {
   cleanup();
   coquille.session.fermer();
 }
 
 /** Rechargement de l'onglet : fermeture, puis une nouvelle session démarrée et rendue. */
-export function recharger(coquille: Coquille): Promise<Coquille> {
+export function recharger(coquille: CoquilleRendue): Promise<CoquilleRendue> {
   fermerLOnglet(coquille);
   return ouvrirCoquille();
 }
@@ -134,12 +134,12 @@ export async function tabulerJusqua(
   expect(document.activeElement).toBe(commande());
 }
 
-export type ActionDeRangee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
+export type ActionDeRangeeVisee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
 
 /** Entrées du menu « ⋯ » d'une rangée, dans l'ordre où il les affiche (F-004-AC26). */
 export const ENTREES_DU_MENU = ["Renommer", "Ajouter une sous-page", "Mettre à la corbeille"];
 
-const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangee, string>> = {
+const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangeeVisee, string>> = {
   renommer: "Renommer",
   "ajouter-une-sous-page": "Ajouter une sous-page",
   "mettre-a-la-corbeille": "Mettre à la corbeille",
@@ -179,7 +179,7 @@ export function boutonDuMenu(titre: string): Promise<HTMLElement> {
  * « Ajouter une sous-page » reste un bouton de la rangée (F-004-AC25, AC26).
  */
 export async function atteindreActionDeRangee(
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
 ): Promise<HTMLElement> {
   if (action === "ajouter-une-sous-page") {
@@ -195,7 +195,7 @@ export async function atteindreActionDeRangee(
 
 export async function activerActionDeRangee(
   utilisateur: UserEvent,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
 ): Promise<void> {
   if (action !== "ajouter-une-sous-page") {
@@ -207,7 +207,7 @@ export async function activerActionDeRangee(
 /** Même action, au clavier seul : tabulation jusqu'à la commande, flèches dans le menu, Entrée. */
 export async function activerActionDeRangeeAuClavier(
   utilisateur: UserEvent,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
   touche = "{Enter}",
 ): Promise<void> {

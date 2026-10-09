@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { afficherTouches, RACCOURCIS } from "../src/interface/raccourcis.ts";
 import {
   boutonDuMenu,
-  type Coquille,
+  type CoquilleRendue,
   creerPageNommee,
   ENTREES_DU_MENU,
   etatEncode,
@@ -51,7 +51,7 @@ function nomDe(element: Element | null): string | null {
 }
 
 /** Trois niveaux et une voisine, reçus d'une autre réplique : rien n'est sélectionné. */
-async function ouvrirTroisNiveaux(): Promise<Coquille> {
+async function ouvrirTroisNiveaux(): Promise<CoquilleRendue> {
   const coquille = await ouvrirCoquille();
   recevoir(coquille.session, (espace) => {
     const carnet = espace.creerPage("Carnet");
@@ -62,7 +62,7 @@ async function ouvrirTroisNiveaux(): Promise<Coquille> {
   return coquille;
 }
 
-async function ouvrirLeMenu(coquille: Coquille, titre: string): Promise<HTMLElement> {
+async function ouvrirLeMenu(coquille: CoquilleRendue, titre: string): Promise<HTMLElement> {
   await coquille.utilisateur.click(await boutonDuMenu(titre));
   return screen.getByRole("menu", { name: nomDuMenu(titre) });
 }

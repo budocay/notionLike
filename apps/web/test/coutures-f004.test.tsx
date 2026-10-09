@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EtatSession } from "../src/espace/session-espace.ts";
 import {
   activerActionDeRangeeAuClavier,
-  type Coquille,
+  type CoquilleRendue,
   nomAjouterSousPage,
   nomDuRepli,
   ouvrirCoquille,
@@ -214,7 +214,7 @@ describe("couture : modules qui appellent les actions de F-002", () => {
 
 type Operations = Extract<EtatSession, { phase: "pret" }>["operations"];
 
-function operationsDe(coquille: Coquille): Operations {
+function operationsDe(coquille: CoquilleRendue): Operations {
   const etat = coquille.session.lireEtat();
   if (etat.phase !== "pret") {
     throw new Error("La session n'est pas prête.");
@@ -245,7 +245,7 @@ describe.each([
   ["écran étroit", 360],
 ])("couture : actions de F-002-AC10 au clavier seul, %s", (_ecran, largeur) => {
   /** Ouvre l'application ; sur écran étroit, ouvre le tiroir au clavier. */
-  async function ouvrir(): Promise<Coquille> {
+  async function ouvrir(): Promise<CoquilleRendue> {
     simulerLaLargeur(largeur);
     const coquille = await ouvrirCoquille();
     recevoir(coquille.session, (espace) => {
@@ -256,7 +256,7 @@ describe.each([
     return coquille;
   }
 
-  async function ouvrirLeTiroirSIlYEnAUn(coquille: Coquille): Promise<void> {
+  async function ouvrirLeTiroirSIlYEnAUn(coquille: CoquilleRendue): Promise<void> {
     const ouverture = screen.queryByRole("button", { name: "Ouvrir la barre latérale" });
     expect(ouverture === null).toBe(largeur >= 1024);
     if (ouverture !== null && ouverture.getAttribute("aria-expanded") === "false") {

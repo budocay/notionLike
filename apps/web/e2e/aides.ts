@@ -80,9 +80,9 @@ export async function creerPageNommee(page: Page, titre: string): Promise<void> 
   await expect(lienDePage(page, titre)).toBeVisible();
 }
 
-export type ActionDeRangee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
+export type ActionDeRangeeVisee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
 
-const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangee, string>> = {
+const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangeeVisee, string>> = {
   renommer: "Renommer",
   "ajouter-une-sous-page": "Ajouter une sous-page",
   "mettre-a-la-corbeille": "Mettre à la corbeille",
@@ -119,7 +119,7 @@ export function menuDePage(page: Page, titre: string): Locator {
  */
 export async function atteindreActionDeRangee(
   page: Page,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
 ): Promise<Locator> {
   if (action === "ajouter-une-sous-page") {
@@ -134,16 +134,16 @@ export async function atteindreActionDeRangee(
 
 export async function activerActionDeRangee(
   page: Page,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
 ): Promise<void> {
   await (await atteindreActionDeRangee(page, action, titre)).click();
 }
 
-export type Repli = "replier" | "deplier";
+export type RepliVise = "replier" | "deplier";
 
 /** Replie ou déplie la page au titre donné : la commande, au nom stable, doit être dans l'état inverse. */
-export async function basculerRepli(page: Page, repli: Repli, titre: string): Promise<void> {
+export async function basculerRepli(page: Page, repli: RepliVise, titre: string): Promise<void> {
   const commande = page.getByRole("button", { name: nomDuRepli(titre), exact: true });
   await expect(commande).toHaveAttribute("aria-expanded", repli === "replier" ? "true" : "false");
   await commande.click();
