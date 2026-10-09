@@ -6,7 +6,7 @@ Ce fichier décrit le code présent dans le dépôt, pas une cible. Les décisio
 
 ## Modules réels et dépendances
 
-État décrit : commit `76146f5` (F-001 : bloc 0 du dev, `dd6e018`, puis l'état final des blocs 1 à 4 en un seul commit).
+État décrit : commit `dd6e018` (bloc 0 de F-001) plus les blocs 1 à 4 de F-001, présents dans l'arbre de travail et pas encore commités (`packages/document/src/`, `packages/document/test/`).
 
 Le dépôt est un workspace pnpm (`apps/*`, `packages/*`) qui contient l'outillage (TypeScript, ESLint, Prettier, Vitest, dependency-cruiser) et un paquet, `packages/document`. `apps/` est vide : ni client, ni serveur.
 
@@ -95,7 +95,7 @@ Le refus `deplacement-cyclique` ne voit que l'arbre lu sur la réplique : un cyc
 #### Résultat gardé et abonnement
 
 - À l'ouverture, la façade lit le document une fois et pose un écouteur sur l'événement `afterTransaction` du `Y.Doc`.
-- À chaque fin de transaction, locale ou reçue, l'écouteur relit la version et toutes les entrées, reconstruit l'arborescence et la compare à celle qu'il garde (identifiants, titres, ordre). Si elle diffère, il la remplace puis appelle les abonnés, dans l'ordre d'inscription. Seuls sont appelés les abonnés inscrits au début de la diffusion et encore inscrits au moment de leur tour : un abonné désabonné par un rappel précédent n'est pas appelé, et un abonné inscrit pendant la diffusion ne l'est qu'au changement suivant.
+- À chaque fin de transaction, locale ou reçue, l'écouteur relit la version et toutes les entrées, reconstruit l'arborescence et la compare à celle qu'il garde (identifiants, titres, ordre). Si elle diffère, il la remplace puis appelle les abonnés, dans l'ordre d'inscription.
 - Les opérations ne se servent pas du résultat gardé : chacune relit le document avant de valider et d'écrire.
 
 #### Limites connues
@@ -111,7 +111,7 @@ Le refus `deplacement-cyclique` ne voit que l'arbre lu sur la réplique : un cyc
 
 #### Tests
 
-Six fichiers de test dans `test/`, et un fichier d'aide. `operations`, `abonnement`, `convergence` et `robustesse` passent par `src/index.ts` ; `rang.test.ts` importe `src/rang.ts` directement ; `structure.test.ts` n'importe aucun fichier de `src/` : il lit le manifeste du paquet (`yjs` seule dépendance d'exécution) et vérifie que `window` et `document` sont absents de l'environnement de test. `aides.ts` porte la graine fixe des tests de propriétés (`fast-check`) et les répliques de test qui s'échangent leurs mises à jour dans un ordre choisi. La convergence n'est exercée qu'entre des `Y.Doc` en mémoire.
+Six fichiers dans `test/` : `operations`, `abonnement`, `convergence`, `robustesse` et `structure` passent par `src/index.ts` ; `rang.test.ts` importe `src/rang.ts` directement. `aides.ts` porte la graine fixe des tests de propriétés (`fast-check`) et les répliques de test qui s'échangent leurs mises à jour dans un ordre choisi. La convergence n'est exercée qu'entre des `Y.Doc` en mémoire.
 
 ### Configuration racine
 
@@ -150,7 +150,7 @@ Options qui conditionnent ces règles : `doNotFollow` sur `node_modules` (un paq
 - Les contrats de dépendances ne sont lancés par aucun hook git : ils ne le sont que par `controles.sh` (donc par le dossier de revue) ou à la main.
 - `pnpm typecheck` n'est lancé par aucun hook ni par aucun script du socle : une erreur de type ne bloque ni un commit ni un push. Vitest ne vérifie pas les types. La barrière « ni DOM ni types Node » du `tsconfig.json` ne mord donc que si quelqu'un lance la commande.
 - Les tests passent avec zéro fichier de test (`--passWithNoTests`) : un hook vert ne prouve pas qu'un test a tourné.
-- `controles.sh` lance aussi le périmètre des agents, la recherche de secrets, la couverture des critères d'acceptation, l'âge des dépendances nouvelles, Semgrep, `pnpm audit` et Trivy. La recherche de secrets tourne aussi dans les hooks `pre-commit` et `pre-push`, le périmètre dans `pre-push`. Le hook `commit-msg` contrôle les trailers et le périmètre.
+- `controles.sh` lance aussi le périmètre des agents, la recherche de secrets, la couverture des critères d'acceptation, l'âge des dépendances nouvelles, Semgrep, `pnpm audit` et Trivy. Le hook `commit-msg` contrôle les trailers et le périmètre.
 
 ## Flux de synchronisation
 

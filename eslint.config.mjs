@@ -21,6 +21,60 @@ const GLOBALES_INTERDITES_DOCUMENT = [
   message: "F-001-AC19 : packages/document/src reste sans DOM, sans réseau et sans stockage.",
 }));
 
+const GLOBALES_INTERDITES_WEB = [
+  ["fetch", "F-002-AC19 : aucune requête réseau depuis apps/web."],
+  ["XMLHttpRequest", "F-002-AC19 : aucune requête réseau depuis apps/web."],
+  ["WebSocket", "F-002-AC19 : aucune requête réseau depuis apps/web."],
+  ["EventSource", "F-002-AC19 : aucune requête réseau depuis apps/web."],
+  ["localStorage", "ADR-0008 : rien n'est conservé hors du module de persistance."],
+  ["sessionStorage", "ADR-0008 : rien n'est conservé hors du module de persistance."],
+].map(([name, message]) => ({ name, message }));
+const GLOBALE_INDEXEDDB = {
+  name: "indexedDB",
+  message: "F-002-AC22 : seul apps/web/src/persistance appelle IndexedDB.",
+};
+const PROPRIETES_INTERDITES_WEB = [
+  ["random", "Math", "F-002-AC26 : aucun identifiant ni aléa hors de crypto.randomUUID."],
+  ["getRandomValues", undefined, "F-002-AC26 : aucun générateur de secours."],
+  ["pushState", undefined, "F-002 H4 : le fragment s'écrit par location.hash."],
+  ["replaceState", undefined, "F-002 H4 : le fragment s'écrit par location.hash."],
+  ["sendBeacon", undefined, "F-002-AC19 : aucune requête réseau depuis apps/web."],
+  ["innerHTML", undefined, "F-002-AC18 : un titre s'affiche comme du texte."],
+  ["outerHTML", undefined, "F-002-AC18 : un titre s'affiche comme du texte."],
+  ["insertAdjacentHTML", undefined, "F-002-AC18 : un titre s'affiche comme du texte."],
+  ["transact", undefined, "ADR-0007 : pas de transaction englobante, lire() y serait en retard."],
+  ["getMap", undefined, "F-002-AC22 : le document se lit par @notionlike/document."],
+  ["getArray", undefined, "F-002-AC22 : le document se lit par @notionlike/document."],
+  ["getText", undefined, "F-002-AC22 : le document se lit par @notionlike/document."],
+  ["getXmlFragment", undefined, "F-002-AC22 : le document se lit par @notionlike/document."],
+  ["getXmlElement", undefined, "F-002-AC22 : le document se lit par @notionlike/document."],
+].map(([property, object, message]) =>
+  object === undefined ? { property, message } : { object, property, message },
+);
+const PROPRIETE_RANDOMUUID = {
+  property: "randomUUID",
+  message: "F-002-AC26 : crypto.randomUUID n'est lue que par apps/web/src/espace.",
+};
+const SYNTAXE_HTML_BRUT = {
+  selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+  message: "F-002-AC18 : un titre s'affiche comme du texte.",
+};
+const SYNTAXES_NOM_DE_BASE = [
+  "Literal[value=/notionlike:/]",
+  "TemplateElement[value.raw=/notionlike:/]",
+].map((selector) => ({
+  selector,
+  message: "F-002-AC25 : seul le module de persistance assemble un nom de base.",
+}));
+
+const IMPORTS_DE_L_EDITION = [
+  {
+    group: ["@tiptap/*", "prosemirror-*", "y-prosemirror", "y-protocols", "y-protocols/*"],
+    message:
+      "F-003-AC27 : Tiptap, ProseMirror et leur liaison Yjs ne s'importent que dans apps/web/src/edition.",
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -71,6 +125,39 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    files: ["apps/web/src/**"],
+    languageOptions: { globals: { window: "readonly", self: "readonly" } },
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        { globals: [...GLOBALES_INTERDITES_WEB, GLOBALE_INDEXEDDB], checkGlobalObject: true },
+      ],
+      "no-restricted-properties": ["error", ...PROPRIETES_INTERDITES_WEB, PROPRIETE_RANDOMUUID],
+      "no-restricted-syntax": ["error", SYNTAXE_HTML_BRUT, ...SYNTAXES_NOM_DE_BASE],
+    },
+  },
+  {
+    files: ["apps/web/src/persistance/**"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        { globals: GLOBALES_INTERDITES_WEB, checkGlobalObject: true },
+      ],
+      "no-restricted-syntax": ["error", SYNTAXE_HTML_BRUT],
+    },
+  },
+  {
+    files: ["apps/web/src/espace/**"],
+    rules: {
+      "no-restricted-properties": ["error", ...PROPRIETES_INTERDITES_WEB],
+    },
+  },
+  {
+    files: ["apps/**", "packages/**"],
+    ignores: ["apps/web/src/edition/**", "apps/web/test/edition/**"],
+    rules: { "no-restricted-imports": ["error", { patterns: IMPORTS_DE_L_EDITION }] },
   },
   {
     files: ["**/*.cjs"],

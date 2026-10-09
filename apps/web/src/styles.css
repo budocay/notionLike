@@ -1,0 +1,251 @@
+/* Mise en page sobre : barre latérale et zone principale. F-004 apportera les jetons. */
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  background: #16171a;
+  color: #e8e8ea;
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #4a4c55;
+  border-radius: 4px;
+  background: #26272c;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #33353c;
+}
+
+input {
+  padding: 0.15rem 0.4rem;
+  border: 1px solid #7c8cff;
+  border-radius: 4px;
+  background: #101114;
+}
+
+:focus-visible {
+  outline: 2px solid #9aa7ff;
+  outline-offset: 1px;
+}
+
+.coquille {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.colonnes {
+  display: flex;
+  flex: 1;
+}
+
+.avertissement {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: #4a3410;
+  color: #ffe2a8;
+}
+
+.barre-laterale {
+  flex: 0 0 22rem;
+  box-sizing: border-box;
+  padding: 1rem 0.75rem;
+  border-right: 1px solid #2e3036;
+  background: #1c1d21;
+}
+
+.nouvelle-page {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+}
+
+.barre-laterale ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barre-laterale .pages {
+  margin-top: 0.75rem;
+}
+
+.barre-laterale li {
+  padding-left: calc((var(--niveau, 1) - 1) * 1rem);
+}
+
+.rangee {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.15rem 0;
+}
+
+.repli {
+  flex: 0 0 1.6rem;
+  padding: 0.15rem 0;
+}
+
+span.repli {
+  height: 1px;
+}
+
+.lien-page {
+  flex: 1;
+  min-width: 0;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.lien-page:hover {
+  background: #2a2c32;
+}
+
+.lien-page[aria-current="page"] {
+  background: #343a66;
+  font-weight: 600;
+}
+
+.saisie-titre {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+}
+
+.erreur {
+  margin: 0.5rem 0 0;
+  color: #ffb0b0;
+  font-size: 0.85rem;
+}
+
+.zone-principale {
+  flex: 1;
+  min-width: 0;
+  padding: 2.5rem 3rem;
+}
+
+.ecran-plein {
+  box-sizing: border-box;
+  max-width: 40rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+/* Éditeur de page : contenu lisible, zone de saisie visible. F-004 habillera. */
+.edition {
+  margin-top: 1.5rem;
+  max-width: 46rem;
+}
+
+.barre-de-blocs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.barre-de-blocs button[aria-pressed="true"] {
+  border-color: #7c8cff;
+  background: #343a66;
+}
+
+.edition-saisie {
+  position: relative;
+}
+
+.edition-invite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  color: #a3a5ae;
+  pointer-events: none;
+}
+
+.edition .ProseMirror {
+  min-height: 60vh;
+  padding: 0.75rem 1rem;
+  border: 1px solid #2e3036;
+  border-radius: 6px;
+  background: #1a1b1f;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.edition .ProseMirror:focus-visible {
+  outline: 2px solid #9aa7ff;
+  outline-offset: 1px;
+}
+
+.edition .ProseMirror p {
+  margin: 0 0 0.5rem;
+}
+
+.edition .ProseMirror h1,
+.edition .ProseMirror h2,
+.edition .ProseMirror h3 {
+  margin: 1.25rem 0 0.5rem;
+  line-height: 1.25;
+}
+
+.edition .ProseMirror h1 {
+  font-size: 1.6rem;
+}
+
+.edition .ProseMirror h2 {
+  font-size: 1.3rem;
+}
+
+.edition .ProseMirror h3 {
+  font-size: 1.1rem;
+}
+
+.edition .ProseMirror > :first-child {
+  margin-top: 0;
+}
+
+.edition .ProseMirror ul,
+.edition .ProseMirror ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.edition .ProseMirror li > p {
+  margin-bottom: 0.15rem;
+}
