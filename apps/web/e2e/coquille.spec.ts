@@ -404,7 +404,7 @@ async function constaterLeHalo(page: Page): Promise<void> {
 }
 
 for (const pixels of [ETROIT, LARGE]) {
-  test(`F-004-AC40 F-004-AC48 à ${pixels}, écran (b) : la zone d'état est vide, rien ne dit « enregistré », le halo est peint en tête de zone et un clic le traverse jusqu'au titre`, async ({
+  test(`F-004-AC40 F-004-AC48 F-030-AC29 à ${pixels}, écran (b) : la zone d'état dit « Enregistré sur cet appareil » avec son repère, rien d'autre ne dit « enregistré », le halo est peint en tête de zone et un clic le traverse jusqu'au titre`, async ({
     page,
   }) => {
     await largeur(page, LARGE);
@@ -412,9 +412,10 @@ for (const pixels of [ETROIT, LARGE]) {
     await largeur(page, pixels);
 
     await expect(zoneDEtat(page)).toHaveCount(1);
-    await expect(zoneDEtat(page)).toHaveText("");
-    expect(await zoneDEtat(page).evaluate((zone) => zone.childElementCount)).toBe(0);
-    expect(await page.locator("body").innerText()).not.toMatch(/nregistr/);
+    await expect(zoneDEtat(page)).toHaveText("Enregistré sur cet appareil");
+    expect(await zoneDEtat(page).evaluate((zone) => zone.childElementCount)).toBe(1);
+    expect((await boite(zoneDEtat(page).locator("span"))).width).toBeGreaterThan(0);
+    expect((await page.locator("body").innerText()).match(/nregistr/g)).toHaveLength(1);
     await expect(page.getByRole("alert")).toHaveCount(0);
 
     await constaterLeHalo(page);
@@ -438,7 +439,7 @@ for (const pixels of [ETROIT, LARGE]) {
     expect(repere.width).toBeGreaterThan(0);
     await expect(page.getByRole("alert")).toBeInViewport();
     await expect(page.getByRole("alert")).toContainText(
-      "Vos modifications ne sont pas enregistrées sur cet appareil",
+      "Stockage de l'appareil indisponible : vos modifications ne sont pas encore enregistrées.",
     );
     expect(await page.locator("body").innerText()).not.toMatch(
       /Enregistré|Modifications enregistrées/,

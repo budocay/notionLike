@@ -413,10 +413,18 @@ interface Cible {
   readonly hauteur: number;
 }
 
-/** Éléments activables rendus à l'écran, avec la taille de leur zone d'activation. */
+/**
+ * Éléments activables rendus à l'écran, avec la taille de leur zone d'activation. La mesure attend
+ * la fin des animations finies : prise pendant l'apparition d'une liste, sa transformation rend une
+ * hauteur de 43,99998 pixels pour une cible de 44 (relevé le 2026-10-09, une fois sur trois).
+ */
 function activables(page: Page): Promise<Cible[]> {
-  return page.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>("a[href], button, input, [role='menuitem']")]
+  return page.evaluate(async () => {
+    const finies = document
+      .getAnimations()
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finies.map((animation) => animation.finished.catch(() => undefined)));
+    return [...document.querySelectorAll<HTMLElement>("a[href], button, input, [role='menuitem']")]
       .filter((element) => element.closest("[inert]") === null && element.offsetParent !== null)
       .map((element) => {
         const rectangle = element.getBoundingClientRect();
@@ -425,8 +433,8 @@ function activables(page: Page): Promise<Cible[]> {
           largeur: rectangle.width,
           hauteur: rectangle.height,
         };
-      }),
-  );
+      });
+  });
 }
 
 async function constaterLesCibles(page: Page, ecran: string, auMoins: number): Promise<void> {
