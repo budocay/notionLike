@@ -6,13 +6,13 @@ Ce fichier décrit le code présent dans le dépôt, pas une cible. Les décisio
 
 ## Modules réels et dépendances
 
-État décrit : commit `59a070d` (F-001 entière, puis les blocs 0 et 1 de F-002 : `b88f66e`, commité par le dev, et `59a070d`).
+État décrit : commit `7a51272` (F-001 entière, puis les blocs 0, 1 et 2 de F-002 : `b88f66e`, commité par le dev, `59a070d` et `7a51272`).
 
-Le dépôt est un workspace pnpm (`apps/*`, `packages/*`) qui contient l'outillage (TypeScript, ESLint, Prettier, Vitest, dependency-cruiser) un paquet, `packages/document`, et le squelette d'une application, `apps/web`, sans code. Pas de serveur.
+Le dépôt est un workspace pnpm (`apps/*`, `packages/*`) qui contient l'outillage (TypeScript, ESLint, Prettier, Vitest, dependency-cruiser), un paquet, `packages/document`, et une application, `apps/web`, dont deux modules existent (`identifiants/`, `persistance/`) avec leurs tests : elle n'a ni entrée ni interface et ne se lance pas. Pas de serveur.
 
 ### `packages/document` (`@notionlike/document`)
 
-Modèle du document d'un espace : l'arbre de ses pages, porté par un `Y.Doc`. Il ne porte pas le contenu des pages. Paquet source, sans build : le champ `exports` du manifeste désigne `./src/index.ts`. Le manifeste d'`apps/web` le déclare en dépendance (`workspace:*`), mais aucun fichier ne l'importe ; son chargement par son nom depuis un autre paquet du workspace n'a jamais été essayé.
+Modèle du document d'un espace : l'arbre de ses pages, porté par un `Y.Doc`. Il ne porte pas le contenu des pages. Paquet source, sans build : le champ `exports` du manifeste désigne `./src/index.ts`. Le manifeste d'`apps/web` le déclare en dépendance (`workspace:*`). Il est importé par son nom, `@notionlike/document`, par deux fichiers de test d'`apps/web` (`test/aides-facade.ts`, `test/structure.test.ts`) ; aucun fichier de `src/` hors du paquet ne l'importe. Un test d'`apps/web` fixe ce que ce nom rend (les trois valeurs exportées) et qu'un sous-chemin que le champ `exports` ne déclare pas (`src/arbre.ts`, `src/index.ts`, `package.json`) n'est pas résolu.
 
 - Manifeste : paquet privé, ESM, `sideEffects: false`. Dépendance d'exécution : `yjs` 13.6.33, seule. Dépendances de développement : `fast-check` 4.10.2, `vitest`.
 - `tsconfig.json` : étend `tsconfig.base.json`, `lib` limitée à `ES2023` (pas de DOM), `types` vide (pas de types Node), `noEmit` ; il couvre `src`, `test` et `vitest.config.ts`.
@@ -115,7 +115,7 @@ Le refus `deplacement-cyclique` ne voit que l'arbre lu sur la réplique : un cyc
 - Chaque transaction du `Y.Doc` coûte une relecture de toutes les entrées et une reconstruction de l'arborescence, même sans abonné et même si elle ne touche pas les pages. Chaque opération en ajoute une avant d'écrire. Aucune mesure sur un espace large n'a été faite.
 - La longueur d'un rang et le nombre d'entrées ne sont pas bornés à la lecture. `rangEntre` est récursive sur le préfixe commun de deux rangs : insérer entre deux rangs reçus très longs peut épuiser la pile.
 - Une façade que son appelant ne ferme pas garde son écouteur sur le `Y.Doc` : rien ne la ferme à sa place. Ouvrir plusieurs façades sur le même `Y.Doc` sans les fermer empile autant d'écouteurs et de relectures.
-- La reconnaissance d'une entrée par `instanceof Y.Map` suppose une seule instance de `yjs` chargée. Avec deux instances, toutes les entrées seraient ignorées, en silence. Deux manifestes déclarent `yjs` (`packages/document`, `apps/web`), à la même version exacte 13.6.33, et le verrou n'en résout qu'une ; rien à la racine (catalogue, `overrides`) n'impose cette unicité, et aucun test ne la vérifie.
+- La reconnaissance d'une entrée par `instanceof Y.Map` suppose une seule instance de `yjs` chargée. Avec deux instances, toutes les entrées seraient ignorées, en silence. Deux manifestes déclarent `yjs` (`packages/document`, `apps/web`), à la même version exacte 13.6.33, et le verrou n'en résout qu'une. Rien à la racine (catalogue, `overrides`) n'impose cette unicité ; un test d'`apps/web` la constate (`test/structure.test.ts` : mêmes versions déclarées, une seule résolue par le verrou, et le document de `creerDocumentEspace` est une instance du `Y.Doc` importé par `apps/web`).
 - `doc` permet à un appelant d'écrire dans `pages` ou `meta` sans passer par les validations : rien ne l'empêche, la lecture tolérante en limite l'effet.
 
 #### Tests
@@ -124,17 +124,76 @@ Sept fichiers de test dans `test/` (256 tests), et un fichier d'aide. `operation
 
 ### `apps/web` (`@notionlike/web`)
 
-Squelette posé par le dev, sans code : cinq fichiers de configuration, ni `src/`, ni `test/`, ni `e2e/`, ni `index.html`. L'application ne se lance pas.
+Deux modules sous `src/` (cinq fichiers) et leurs tests. Ni `index.html`, ni entrée, ni interface, ni dossier `e2e/` : l'application ne se lance pas, et les deux modules n'ont pour appelants que leurs tests.
 
 - Manifeste : paquet privé, ESM. Dépendances d'exécution, en versions exactes : `@notionlike/document` (`workspace:*`), `react` et `react-dom` 19.3.0, `yjs` 13.6.33, `y-indexeddb` 9.0.12. Dépendances de développement : Vite, `@vitejs/plugin-react`, Vitest, `jsdom`, `fake-indexeddb`, Testing Library, `@playwright/test`, types React. Scripts : `dev`, `build`, `test`, `test:e2e`, `lint`, `format`, `typecheck`.
 - `tsconfig.json` : étend `tsconfig.base.json`, `lib` `ES2023` avec `DOM`, types `vite/client`, JSX `react-jsx`, `noEmit`, `erasableSyntaxOnly` ; il vise `src`, `test`, `e2e` et les trois fichiers de configuration.
 - `vite.config.ts` : greffon React, serveur sur `127.0.0.1:5173`, port strict.
-- `vitest.config.ts` : projet nommé `web`, environnement `jsdom`, tests dans `test/**/*.test.{ts,tsx}`, fichier de préparation `./test/preparation.ts`, qui n'existe pas.
-- `playwright.config.ts` : tests dans `./e2e`, Chromium seul, serveur Vite lancé sur le port 5174.
+- `vitest.config.ts` : projet nommé `web`, environnement `jsdom`, tests dans `test/**/*.test.{ts,tsx}`, fichier de préparation `./test/preparation.ts`, espions et globales simulées rendus après chaque test (`restoreMocks`, `unstubGlobals`).
+- `playwright.config.ts` : tests dans `./e2e`, qui n'existe pas, Chromium seul, serveur Vite lancé sur le port 5174.
+
+| Fichier de `src/`                | Rôle                                                                                                                                                                                                                                | Importe                                                   |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `identifiants/uuid-canonique.ts` | `estUuidCanonique(valeur: string): boolean`, seule fonction du module : 36 caractères, forme `8-4-4-4-12` en hexadécimal minuscule ; la longueur est comparée avant l'expression régulière                                          | rien                                                      |
+| `persistance/nom-de-base.ts`     | type `DesignationDocument`, classe `ErreurPersistance`, et `nomDeBase`, seule fonction qui assemble le nom d'une base de document ; le fichier ne fait que calculer                                                                 | `identifiants/uuid-canonique.ts`                          |
+| `persistance/indexeddb.ts`       | types `EtatPersistance` et `Persistance`, `ouvrirPersistance` ; pour le module seulement, `ouvrirSousEcheance` et le type `Ouverture` ; suivi de l'état, échéance, sonde, `y-indexeddb`, garde des échecs, validation des écritures | `y-indexeddb`, `yjs` (types seulement), `nom-de-base.ts`  |
+| `persistance/espace-local.ts`    | `ouvrirEspaceLocal` : lit ou inscrit l'identifiant de l'espace local dans la base de l'appareil, puis fait relire la base de cet espace                                                                                             | `yjs` (types seulement), `indexeddb.ts`, `nom-de-base.ts` |
+| `persistance/index.ts`           | interface du module : réexporte par nom, sans code                                                                                                                                                                                  | `espace-local.ts`, `indexeddb.ts`, `nom-de-base.ts`       |
+
+Sens des dépendances : `persistance/index → espace-local → indexeddb → nom-de-base → identifiants/uuid-canonique`, avec `index → indexeddb, nom-de-base` et `espace-local → nom-de-base`. `y-indexeddb` n'est importée que par `indexeddb.ts`. `identifiants/` n'importe rien. Aucun des deux modules n'importe React ni `@notionlike/document`.
+
+#### `identifiants/`
+
+`estUuidCanonique` est la seule définition de la forme d'un identifiant dans `apps/web` : celle que produit `crypto.randomUUID`. La version de l'UUID n'est pas contrôlée. Une chaîne d'une autre longueur que 36 n'atteint aucune expression régulière (un test compte les analyses lancées : aucune). Son seul appelant dans `src/` est `persistance/nom-de-base.ts`.
+
+#### Interface de `persistance/`
+
+`persistance/index.ts` exporte six noms et rien d'autre, aucun type de `y-indexeddb` :
+
+- valeurs : `ouvrirPersistance`, `ouvrirEspaceLocal`, `ErreurPersistance` ;
+- types : `DesignationDocument`, `EtatPersistance`, `Persistance`.
+
+Ne sortent pas du module : `nomDeBase`, `ouvrirSousEcheance`, le type `Ouverture`. Ne sortent pas de leur fichier : le délai (`DELAI_RELECTURE_MS`, `indexeddb.ts`) et l'union des codes d'erreur (`CodeErreurPersistance`, `nom-de-base.ts`).
+
+- `DesignationDocument` : `{ type: "espace", idEspace }`, `{ type: "page", idEspace, idPage }` ou `{ type: "table", idEspace, idTable }`. L'identifiant d'espace est obligatoire pour une page ou une table.
+- `ouvrirPersistance(doc, designation)` : calcule le nom de la base, puis rend une `Persistance` qui relit cette base dans le `Y.Doc` et y enregistre ses mises à jour. Elle lève `ErreurPersistance`, avant toute autre chose, si un identifiant est refusé.
+- `ouvrirEspaceLocal(doc, idCandidat)` : contrôle le candidat (même refus, levé de même), puis rend une `Persistance` pour l'espace local de l'appareil. L'identifiant retenu, le candidat ou celui déjà inscrit sur l'appareil, n'est exposé par aucun membre : les tests le lisent dans le nom de la base énumérée par `indexedDB.databases()`. Le candidat est fourni par l'appelant ; le module ne tire aucun identifiant.
+- `Persistance`, trois membres : `etat()`, `abonner(rappel)` qui rend la fonction de désabonnement, `fermer()`.
+- `EtatPersistance` : `relecture` au retour de l'appel ; `active` quand la relecture a abouti ; `coupee` sur tout échec ou à l'échéance ; `fermee` après `fermer()`. `coupee` et `fermee` sont définitifs : une persistance coupée que l'on ferme reste `coupee`. Les abonnés sont appelés une fois à chaque changement d'état, sans argument.
+- `ErreurPersistance` : un champ `code`, dont la seule valeur est `identifiant-invalide`. Son message est une phrase fixe, qui ne cite pas l'identifiant refusé.
+
+Nom des bases (`nom-de-base.ts`) : `notionlike:espace:<idEspace>`, `notionlike:page:<idEspace>:<idPage>`, `notionlike:table:<idEspace>:<idTable>`. Chaque identifiant reçu passe par `estUuidCanonique` avant d'entrer dans le nom ; un seul refusé lève `identifiant-invalide`, sans base ouverte ni créée. La base de l'appareil, `notionlike:appareil`, n'est pas une base de document : son nom est une constante d'`espace-local.ts`. Le déroulé d'une ouverture est dans « Enregistrement et relecture sur l'appareil ».
+
+#### Limites connues de la persistance
+
+- Aucun fichier de `src/` n'appelle ces deux modules : la session qui les appellera n'existe pas. Les désignations `page` et `table` ne sont atteintes que par les tests.
+- Les abonnés d'une `Persistance` sont appelés sans garde : un rappel qui lève prive les abonnés suivants de ce changement, et son exception s'échappe dans le gestionnaire d'IndexedDB ou le minuteur qui a changé l'état, ou par `fermer()`. Aucun test ne l'exerce.
+- Une ouverture qui réussit pour la sonde puis échoue pour la bibliothèque : le module passe à `coupee`, mais la bibliothèque peut alors émettre un rejet de promesse que personne ne traite. Aucun test ne couvre ce cas (limite admise par F-002-AC16).
+- Après l'échéance, la bibliothèque déjà construite peut finir la lecture qu'elle avait lancée ; rien de ce qu'elle lit n'est appliqué au document ni écrit (tests de F-002-AC24).
+- Une valeur illisible conservée à la place de l'identifiant de l'espace local, ou une base de l'appareil sans son magasin, n'est jamais réparée ni remplacée : chaque ouverture finit `coupee`, document en mémoire, tant que les données du site ne sont pas effacées. Rien dans le code ne les efface.
+- Le module touche deux champs préfixés de `y-indexeddb` (`_db`, `_storeUpdate`) et remplace, le temps d'un appel synchrone, la méthode `transaction` de la connexion de la bibliothèque. La version de la bibliothèque est exacte au manifeste ; les tests de validation et d'échecs cassent si l'un de ces champs change de nom ou de rôle.
+- Un navigateur sans `IDBTransaction.commit()` garde la validation automatique de la bibliothèque. Le rechargement lancé juste après une écriture n'est essayé par aucun test de ce dépôt (pas de test de bout en bout).
+- Les bases ne sont ni chiffrées ni effacées par le code, et rien ne borne leur taille.
+
+#### Tests d'`apps/web`
+
+Six fichiers de test dans `test/` (280 tests), quatre fichiers d'aide et le fichier de préparation.
+
+- `uuid-canonique.test.ts` importe `src/identifiants/uuid-canonique.ts` directement. Les autres tests atteignent la persistance par `src/persistance/index.ts` seulement, `nomDeBase` comprise (par les deux fonctions d'ouverture et l'énumération des bases).
+- `persistance-ouverture.test.ts` : nom des bases, isolation entre deux espaces, table des refus pour chacun des trois identifiants, états, relecture à l'identique d'un document d'espace, espace local (seconde ouverture, deux ouvertures lancées ensemble).
+- `persistance-echecs.test.ts` : `indexedDB` absent, ouverture refusée, identifiant relu illisible, base de l'appareil sans magasin, lecture et écriture en échec, transaction annulée, connexion fermée, document de version non prise en charge (la persistance, fermée par le test, n'a ajouté que l'enregistrement vide), échéance sous horloge simulée.
+- `persistance-validation.test.ts` : une écriture par mise à jour, validée par `commit()` ; navigateur sans `commit()` ; `commit()` qui lève ; format stocké ; compactage.
+- `structure.test.ts` : une seule version de `yjs` déclarée et résolue, instance unique ; exports de `persistance/index.ts` ; dépendances d'exécution du manifeste ; exports de `@notionlike/document` vus par son nom ; liste fermée de six fichiers de configuration, aucun ne portant d'alias ni de chemin vers le paquet ; sous-chemins non résolus.
+- `coutures.test.ts` : énumère, par leurs déclarations d'import, tous les fichiers du workspace qui font entrer `creerDocumentEspace` ou `ouvrirDocumentEspace`, et exige que chacun soit inscrit dans l'une de quatre sortes (définition, aides suivies, import entier sans ouverture, liste fermée de cinq fichiers de test de F-001). Un import dynamique dont l'argument est calculé compte comme ouvrant. Il prouve aussi que la fermeture se lit au nombre d'écouteurs, et que fermer une persistance ne ferme pas la façade ouverte sur le même `Y.Doc`.
+- `aides-coutures.ts` lit comme du texte (`import.meta.glob` en `?raw`) tous les fichiers `.ts` et `.tsx` de `{apps,packages}/*/{src,test,e2e}`, fichiers internes de `packages/document` compris. Les contrats de dépendances ne voient pas cette lecture ; aucun module n'y est évalué. `coutures.test.ts` est son seul appelant, ce qu'aucun contrôle ne tient.
+- `aides-facade.ts` est le seul fichier de test d'`apps/web` qui ouvre une façade de `@notionlike/document` (`ouvrirFacade`, `creerFacade`) ; il relève le nombre d'écouteurs `afterTransaction` du `Y.Doc` avant chaque ouverture, par le champ interne `_observers`. `preparation.ts` donne à chaque test un `IDBFactory` neuf de `fake-indexeddb` et un fragment d'adresse vide ; en fin de chaque test, il rend l'horloge réelle, ferme les façades suivies et exige qu'aucun `Y.Doc` suivi ne garde un écouteur de plus qu'à son départ.
+- `aides-identifiants.ts` porte la table des formes refusées, commune au test de la fonction de forme et à ceux du nom des bases ; `aides-persistance.ts`, les lectures de bases et les pannes simulées d'IndexedDB.
+- `packages/document/test/fermeture.test.ts` est inscrit parmi les aides suivies : la couture y exige deux appels d'ouverture et aucun export des deux fonctions, mais pas, comme pour `aides-facade.ts`, que chaque nom n'y figure qu'à son import et à son appel. Ce fichier passe les deux fonctions en valeur à `expect(…).toHaveLength(…)`.
+- Rien n'est essayé dans un vrai navigateur : IndexedDB est celle de `fake-indexeddb`.
 
 ### Configuration racine
 
-- `vitest.config.ts` : les projets sont les fichiers `packages/*/vitest.config.ts` et `apps/*/vitest.config.ts`. Le motif en désigne deux : `document` et `web`, ce dernier sans aucun fichier de test ni son fichier de préparation ; `pnpm test` depuis la racine n'a pas été relancé sur cet état, seul le projet `document` l'a été. Un paquet sans fichier de ce nom à sa racine n'est pas testé depuis la racine.
+- `vitest.config.ts` : les projets sont les fichiers `packages/*/vitest.config.ts` et `apps/*/vitest.config.ts`. Le motif en désigne deux : `document` (7 fichiers, 256 tests) et `web` (6 fichiers, 280 tests). `pnpm test` depuis la racine, relancé sur cet état : 13 fichiers, 536 tests, verts. Un paquet sans fichier de ce nom à sa racine n'est pas testé depuis la racine.
 - `package.json` : `pnpm test` (`vitest run --passWithNoTests`), `pnpm lint`, `pnpm format`, `pnpm format:check`, `pnpm contrats`, `pnpm typecheck` (`pnpm -r run typecheck`, soit `tsc --noEmit` dans chaque paquet qui déclare ce script ; deux aujourd'hui, `document` et `web`).
 
 ### Contrats de dépendances
@@ -151,7 +210,7 @@ Seize règles dans `.dependency-cruiser.cjs`, toutes de sévérité `error`, vé
 
 Aucune règle ne fixe le sens entre `format.ts`, `document-espace.ts` et `index.ts` : seul `pas-de-cycle` les contraint entre eux.
 
-Les neuf suivantes, `web-*`, visent `apps/web`. Sept d'entre elles partent de `apps/web/src/`, qui n'existe pas ; les deux autres partent de tout `apps/web`, où seuls existent des fichiers de configuration qui n'importent ni `y-indexeddb` ni `packages/document`. Aucune n'a donc encore rien à refuser :
+Les neuf suivantes, `web-*`, visent `apps/web`. Six ont aujourd'hui des fichiers à contrôler : `web-y-indexeddb-confinee`, `web-document-par-ses-exports`, `web-persistance-par-son-interface`, `web-identifiants-pur`, `web-persistance-liste-blanche` et `web-formes-pures` (pour `nom-de-base.ts` seul). Les trois autres partent de `src/espace/`, de `src/navigation/` ou du reste de `src/`, où rien n'existe. `pnpm contrats` sur cet état : aucune violation, 47 modules, 100 dépendances.
 
 - `web-y-indexeddb-confinee` : dans `apps/web`, tests compris, seul `src/persistance/indexeddb.ts` importe `y-indexeddb`.
 - `web-document-par-ses-exports` : `apps/web`, tests compris, n'atteint `packages/document` que par `src/index.ts`.
@@ -171,7 +230,7 @@ Options qui conditionnent ces règles : `doNotFollow` sur `node_modules` (un paq
 
 ### Barrières ESLint d'`apps/web`
 
-Cinq blocs d'`eslint.config.mjs` visent des fichiers d'`apps/web/src/`, dont aucun n'existe. Dans la configuration à plat, un bloc postérieur qui redéfinit une règle la remplace pour ses fichiers : c'est ainsi que les quatre derniers ouvrent ou durcissent le premier.
+Cinq blocs d'`eslint.config.mjs` visent des fichiers d'`apps/web/src/` ; seuls existent ceux d'`identifiants/` et de `persistance/` (ni `espace/`, ni `navigation/route.ts`). Ils ne visent pas `apps/web/test/`. Dans la configuration à plat, un bloc postérieur qui redéfinit une règle la remplace pour ses fichiers : c'est ainsi que les quatre derniers ouvrent ou durcissent le premier.
 
 - `apps/web/src/**` : `no-restricted-globals` interdit `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `localStorage`, `sessionStorage` et `indexedDB` ; `no-restricted-properties` interdit `Math.random`, `getRandomValues`, `randomUUID`, `pushState`, `replaceState`, `sendBeacon`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `transact` et cinq accesseurs de types partagés Yjs (`getMap`, `getArray`, `getText`, `getXmlFragment`, `getXmlElement`) ; `no-restricted-syntax` interdit l'attribut `dangerouslySetInnerHTML` et toute chaîne ou gabarit contenant `notionlike:`.
 - `apps/web/src/persistance/**` : même liste de globales sans `indexedDB`, qui y est donc permise.
@@ -195,7 +254,31 @@ Cinq blocs d'`eslint.config.mjs` visent des fichiers d'`apps/web/src/`, dont auc
 
 ## Flux de synchronisation
 
-Aucun transport dans le dépôt : ni persistance, ni serveur, ni fournisseur de synchronisation. Le seul point de branchement est le membre `doc` de `DocumentEspace` : un `Y.Doc` qu'un appelant remplit par `Y.applyUpdate` et dont il encode les mises à jour. Le paquet n'encode, n'applique ni ne diffuse aucune mise à jour lui-même.
+Aucun transport dans le dépôt : ni serveur, ni fournisseur de synchronisation. Le seul flux hors de la mémoire est l'enregistrement d'un `Y.Doc` sur l'appareil, par `apps/web/src/persistance/` ; aucun code de production ne le relie encore à une façade. Le point de branchement de `packages/document` est le membre `doc` de `DocumentEspace` : un `Y.Doc` qu'un appelant remplit par `Y.applyUpdate` et dont il encode les mises à jour. Le paquet n'encode, n'applique ni ne diffuse aucune mise à jour lui-même.
+
+### Enregistrement et relecture sur l'appareil
+
+Une base IndexedDB par document, nommée par `nom-de-base.ts`, et une base de l'appareil, `notionlike:appareil` (version 1, magasin `reglages`, clé `espace-local`), qui garde l'identifiant de l'espace local. Le format d'une base de document est celui de `y-indexeddb` 9.0.12 : magasins `updates` et `custom`, mises à jour Yjs au format V1.
+
+Ouverture (`ouvrirSousEcheance`, `indexeddb.ts`), commune aux deux fonctions d'ouverture, une fois contrôlés les identifiants reçus :
+
+1. `indexedDB` absent (`typeof`) : `coupee` dès le retour de l'appel ; rien n'est construit, aucune échéance n'est armée.
+2. Sinon une échéance de 10 secondes est armée. Elle couvre tout ce qui précède `active` et passe l'état à `coupee`. Tout changement d'état la désarme.
+3. Espace local seulement (`espace-local.ts`) : la base de l'appareil est ouverte, son magasin créé à la première ouverture ; une seule transaction en écriture lit la clé et, si elle est absente, y inscrit le candidat. La valeur retenue est le candidat si la clé était absente, sinon la valeur lue. Si cette valeur n'est pas une chaîne, ou si `nomDeBase` la refuse, l'état passe à `coupee` et aucune base d'espace n'est ouverte ni créée. Seule l'absence de la clé vaut premier lancement : une valeur nulle est illisible, et elle est laissée telle quelle. Ouverture refusée, magasin absent ou transaction annulée : `coupee`. Une réponse de cette base arrivée après l'échéance n'inscrit rien et ne crée rien.
+4. Sonde (`sonder`) : le module ouvre lui-même la base du document, sous ses propres gestionnaires. Si elle n'existe pas, il annule la transaction de création, ce qui la laisse absente, et tient l'ouverture pour possible. Exception ou erreur de la demande : `coupee`.
+5. Si l'état est encore `relecture`, `new IndexeddbPersistence(nom, doc)` : la bibliothèque ouvre ou crée la base, applique au `Y.Doc` ce qui y est stocké, puis émet `synced`, que le module traduit en `active`. À chaque ouverture, elle ajoute à la base un enregistrement vide de deux octets (constaté par le test de F-002-AC17).
+
+Enregistrement, une fois obtenue la connexion de la bibliothèque (son champ `_db`) :
+
+- La bibliothèque écrit chaque mise à jour du `Y.Doc` dans le magasin `updates`. Le module remplace sa fonction d'écriture (champ `_storeUpdate`) par une enveloppe : la transaction que la bibliothèque ouvre pendant cet appel synchrone, et elle seule, est validée par `commit()` aussitôt la demande posée. Les transactions de la relecture et du compactage gardent la validation automatique. Sans `commit()` dans le navigateur, rien ne change ; un `commit()` qui lève est absorbé.
+- Une mise à jour appliquée par la relecture n'est pas réécrite. Au seuil de la bibliothèque, le journal est compacté en un enregistrement.
+- Garde (`garder`) : sur la connexion, un écouteur `error` en phase de capture arrête la propagation et passe à `coupee` ; des écouteurs `abort` et `close` y passent aussi, comme le rejet de la promesse de connexion.
+
+Arrêt : passer à `coupee` ou à `fermee` appelle `destroy()` de la bibliothèque, si elle a été construite : elle se désabonne du `Y.Doc` et n'applique ni n'écrit plus rien. Le rejet éventuel de `destroy()` est absorbé. Le module ne détruit jamais le `Y.Doc`, qui reste utilisable en mémoire. Une persistance fermée ou coupée pendant la sonde ne construit pas la bibliothèque.
+
+Deux ouvertures de l'espace local lancées ensemble retiennent le même identifiant, parce qu'IndexedDB sérialise les transactions en écriture d'un même magasin ; chacune relit ensuite les pages de l'autre. Le test tourne sur `fake-indexeddb`, dans un seul processus : rien n'est essayé entre deux onglets.
+
+### Mise à jour reçue par `packages/document`
 
 Ce que le paquet fait d'une mise à jour reçue : à la fin de la transaction qui l'applique, la façade relit le document, et notifie ses abonnés si l'arborescence a changé. Deux répliques qui ont reçu les mêmes mises à jour lisent la même arborescence, quel que soit l'ordre de réception : la lecture ne dépend que de l'état du document, et aucune réplique n'écrit pour réparer ce qu'elle lit.
 
@@ -204,23 +287,38 @@ Ce que le paquet fait d'une mise à jour reçue : à la fin de la transaction qu
 - Parent pas encore arrivé : une page reçue avant son parent est lue à la racine, puis sous son parent quand il arrive.
 - Entrée incomplète : quand une réplique reçoit d'un émetteur une mise à jour qui remplace un champ avant celle qui la précède, Yjs applique la suppression de l'ancienne valeur et retient la nouvelle. L'entrée a perdu un champ pendant cette fenêtre. La page est alors absente de la lecture, ses filles sont lues à la racine, et une opération locale sur elle est refusée par `page-introuvable`. Tout revient à l'arrivée de la mise à jour manquante.
 
-Question ouverte, non essayée : la durée de cette fenêtre dépend du transport, qui n'existe pas. Si la mise à jour manquante est perdue, l'entrée reste incomplète, et la page invisible, jusqu'à une synchronisation complète de l'état. À établir par les features qui apportent la persistance et le serveur (F-002, F-012).
+Question ouverte, non essayée : la durée de cette fenêtre dépend du transport, qui n'existe pas. Si la mise à jour manquante est perdue, l'entrée reste incomplète, et la page invisible, jusqu'à une synchronisation complète de l'état. La persistance locale n'y change rien : elle enregistre et relit les mises à jour que le `Y.Doc` émet, dans l'ordre. À établir par la feature qui apporte le serveur (F-012).
 
 ## Menaces du produit
 
-Le dépôt ne contient encore ni donnée persistée, ni point d'entrée réseau, ni affichage : `apps/web` n'est qu'un squelette de configuration. Le seul code est `packages/document` : il ne pare qu'une part d'un seul abus. Cette section fixe ce qui est à protéger et les abus à couvrir ; elle sera complétée à mesure que le code arrive, chaque parade citant alors le fichier qui la porte.
+Le dépôt ne contient encore ni point d'entrée réseau, ni affichage, ni application qui se lance. Deux morceaux de code parent une part des abus : `packages/document` (mise à jour forgée) et `apps/web/src/persistance/` (nom des bases de l'appareil), ce dernier sans appelant de production. Cette section fixe ce qui est à protéger et les abus à couvrir ; elle est complétée à mesure que le code arrive, chaque parade citant le fichier qui la porte.
 
-Actifs : le contenu des espaces (pages, tables), les comptes nominatifs (courriel, nom ; RGPD), les droits d'accès aux espaces.
+Actifs : le contenu des espaces (pages, tables), en mémoire et dans les bases IndexedDB de l'appareil ; les comptes nominatifs (courriel, nom ; RGPD) ; les droits d'accès aux espaces.
 
-Acteurs : membre d'un espace ; ancien membre ; titulaire d'un compte sans droit sur l'espace visé ; inconnu sans compte.
+Acteurs : membre d'un espace ; ancien membre ; titulaire d'un compte sans droit sur l'espace visé ; inconnu sans compte. Sur l'appareil : tout script de la même origine et toute personne qui a la main sur le navigateur lisent et écrivent les bases ; le code ne s'en protège pas, il se protège de ce qu'il y relit.
 
-| Abus plausible                                              | Parade dans le code à ce jour                                                                    |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Accès à un document d'un autre espace                       | aucune (pas de serveur)                                                                          |
-| Membre retiré qui garde une copie locale                    | aucune (pas de client)                                                                           |
-| Mise à jour de synchronisation forgée ou géante             | partielle, détail ci-dessous                                                                     |
-| Invitation rejouée                                          | aucune (pas d'invitation)                                                                        |
-| Contenu de page piégé (titre, bloc, lien interprété à tort) | aucune (pas d'affichage) : `lire()` rend le titre tel qu'écrit, une chaîne de 200 unités au plus |
+| Abus plausible                                                            | Parade dans le code à ce jour                                                                                           |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Accès à un document d'un autre espace                                     | pas de serveur ; sur l'appareil, une base par espace et par document, détail ci-dessous                                 |
+| Membre retiré qui garde une copie locale                                  | aucune : les bases de l'appareil ne sont ni chiffrées ni effacées, et aucun code ne retire une base                     |
+| Mise à jour de synchronisation forgée ou géante                           | partielle, détail ci-dessous                                                                                            |
+| Invitation rejouée                                                        | aucune (pas d'invitation)                                                                                               |
+| Contenu de page piégé (titre, bloc, lien interprété à tort)               | aucune (pas d'affichage) : `lire()` rend le titre tel qu'écrit, une chaîne de 200 unités au plus                        |
+| Identifiant forgé dans un nom de base                                     | paré, détail ci-dessous (`nom-de-base.ts`, `uuid-canonique.ts`)                                                         |
+| Identifiant d'espace illisible relu sur l'appareil, valeur nulle comprise | paré : aucune base d'espace ouverte ni créée, persistance `coupee` (`espace-local.ts`) ; la valeur n'est jamais réparée |
+| Base de l'appareil sans son magasin                                       | paré : persistance `coupee`, sans exception ni attente de l'échéance (`espace-local.ts`) ; la base n'est jamais réparée |
+
+Nom des bases de l'appareil, dans `apps/web/src/persistance/` :
+
+- Paré, identifiant forgé : un identifiant d'espace, de page ou de table n'entre dans un nom de base que s'il est un UUID canonique (`estUuidCanonique`, appliquée à chacun par `nomDeBase`). Une chaîne qui porte `:`, `/`, `%`, du balisage, une espace, des majuscules, ou qui est géante, est refusée par `identifiant-invalide` avant toute ouverture : aucune base n'est ouverte ni créée. La longueur est comparée avant l'expression régulière. Le message du refus ne cite pas la chaîne.
+- Paré, accès à la base d'un autre espace par un identifiant de page : le préfixe `notionlike:page:<idEspace>:` est de longueur fixe et sans autre `:`, et l'identifiant de page ne peut pas en porter. Le même identifiant de page ouvert pour deux espaces donne deux bases, et celle du premier n'est pas touchée (test).
+- Paré, valeur relue : ce que la base de l'appareil a conservé repasse par `nomDeBase` avant de nommer une base. Tout ce qui n'est pas une chaîne (objet, nombre, valeur nulle) et toute chaîne refusée coupent la persistance.
+- Tenu par l'outillage : `nomDeBase` est la seule fonction qui assemble un nom de base de document (ESLint interdit tout littéral `notionlike:` dans `apps/web/src` hors de `nom-de-base.ts` et d'`espace-local.ts`), et `nom-de-base.ts` ne touche à rien d'autre (contrat `web-formes-pures`, globales interdites).
+- Non paré :
+  - aucun appelant de production n'existe encore : ce que la session, l'adresse ou une arborescence reçue passeront comme identifiant n'est pas dans le dépôt ;
+  - la forme des identifiants de page inscrits dans un document d'espace n'est pas contrôlée par `packages/document` : un identifiant reçu qui n'est pas un UUID canonique ne pourra pas avoir de base ;
+  - le contenu d'une base de document relu par `y-indexeddb` est appliqué au `Y.Doc` sans contrôle de taille ni d'origine ; ce qu'il devient ensuite est décrit ci-dessous ;
+  - une valeur illisible ou un magasin manquant laissent l'appareil sans enregistrement à chaque lancement, sans qu'aucun écran ne le dise (pas d'affichage).
 
 Mise à jour forgée ou géante, dans `packages/document/src/` :
 
