@@ -341,9 +341,11 @@ describe("abonnés d'une persistance sous garde", () => {
   it("F-030-AC25 reprise, lancée par la demande de tentative immédiate : même diffusion, l'état actif est atteint, `reessayer` ne lève pas", async () => {
     simulerLHorloge();
     const relever = ecouter();
-    refuserLesOuverturesParUneException();
+    const connexions = suivreLesConnexions();
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
-    expect(persistance.lireEtat()).toBe("coupee");
+    await attendreEtat(persistance, "active");
+    fermerDeForce(connexions[0] as IDBDatabase);
+    await attendreEtat(persistance, "coupee");
     vi.restoreAllMocks();
     const abonnes = abonner(persistance);
 

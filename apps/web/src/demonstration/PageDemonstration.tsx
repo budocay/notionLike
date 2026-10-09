@@ -385,7 +385,7 @@ function SectionEtats(): ReactElement {
     <Section titre="États">
       <Specimen etiquette="Avertissement de persistance">
         <div className={PAGE.fondZone}>
-          <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>
+          <Avertissement phrases={[AVERTISSEMENT_NON_ENREGISTRE]} />
         </div>
       </Specimen>
       <div className={PAGE.grille}>

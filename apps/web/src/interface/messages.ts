@@ -21,8 +21,12 @@ export const OUVRIR_LA_BARRE_LATERALE = "Ouvrir la barre latérale";
 export const FERMER_LA_BARRE_LATERALE = "Fermer la barre latérale";
 export const NOM_FIL_D_ARIANE = "Fil d'Ariane";
 export const AFFICHER_LES_PAGES_INTERMEDIAIRES = "Afficher les pages intermédiaires";
-/** Seul état d'enregistrement affiché avant F-030 : l'échec (F-004-AC40). */
+/** Zone d'état de la barre du haut pendant une coupure (F-004-AC40). */
 export const NON_ENREGISTRE = "Non enregistré sur cet appareil";
+/** Zone d'état, seulement une fois la preuve d'écriture faite (F-030-AC29). */
+export const ENREGISTRE = "Enregistré sur cet appareil";
+/** Annoncé une fois, à la reprise (F-030-AC14). */
+export const ANNONCE_DE_REPRISE = "Modifications enregistrées sur cet appareil.";
 
 export const INVITATION_PREMIERE_PAGE =
   "Cet espace ne contient encore aucune page. Créez-en une avec « Nouvelle page », dans la barre latérale.";
@@ -32,7 +36,14 @@ export const EXPLICATION_PAGE_INTROUVABLE =
   "Cette page n'existe pas dans cet espace, ou elle a été mise à la corbeille.";
 
 export const AVERTISSEMENT_NON_ENREGISTRE =
-  "Vos modifications ne sont pas enregistrées sur cet appareil : le stockage du navigateur est indisponible. Elles seront perdues à la fermeture ou au rechargement de l'onglet.";
+  "Stockage de l'appareil indisponible : vos modifications ne sont pas encore enregistrées. Nouvelle tentative automatique en cours.";
+/** Ajouté tant que la base n'a jamais été relue depuis l'ouverture (F-030-AC13). */
+export const AVERTISSEMENT_BASE_NON_RELUE =
+  "Ce qui était déjà enregistré sur cet appareil n'a pas pu être lu ; il réapparaîtra dès que le stockage reviendra.";
+export const REESSAYER_MAINTENANT = "Réessayer maintenant";
+/** Après la réparation d'un identifiant d'espace illisible qui n'a pu désigner aucune base (F-030-AC23). */
+export const AVERTISSEMENT_BASES_NON_RATTACHEES =
+  "Des pages enregistrées auparavant sur cet appareil n'ont pas pu être rattachées à cet espace. Elles n'ont pas été effacées.";
 
 export const TITRE_CONTEXTE_NON_SECURISE = "Adresse non sécurisée";
 export const EXPLICATION_CONTEXTE_NON_SECURISE =

@@ -23,6 +23,8 @@ export interface Tentative {
   echouer(ecriturePerdue?: boolean): void;
   /** La base est inutilisable en l'état : la persistance est coupée, la tentative continue. */
   tenirPourCoupee(): void;
+  /** La bibliothèque a appliqué au document ce que la base portait. */
+  noterLaRelecture(): void;
   /** La preuve d'écriture est faite : la persistance devient active. */
   aboutir(): void;
   /** À appeler quand la tentative échoue ou est abandonnée, ou quand ce qu'elle a ouvert s'arrête. */
@@ -44,6 +46,8 @@ export class Suivi {
   #prochaineAttente = PREMIERE_ATTENTE_MS;
   #dernierLancement = 0;
   #nonEnregistre = false;
+  #baseRelue = false;
+  #basesNonRattachees = false;
 
   constructor(tenter: (tentative: Tentative) => void) {
     this.#tenter = tenter;
@@ -53,6 +57,16 @@ export class Suivi {
 
   /** Vrai tant qu'une modification du document n'a pas atteint la base (F-030, vocabulaire). */
   readonly aDesModificationsNonEnregistrees = (): boolean => this.#nonEnregistre;
+
+  /** Faux tant que la base n'a jamais été relue depuis l'ouverture (F-030-AC13). */
+  readonly aReluLaBase = (): boolean => this.#baseRelue;
+
+  /** Vrai si l'identifiant d'espace a été réparé sans pouvoir désigner la base d'avant (F-030-AC23). */
+  readonly aLaisseDesBasesNonRattachees = (): boolean => this.#basesNonRattachees;
+
+  readonly signalerDesBasesNonRattachees = (): void => {
+    this.#basesNonRattachees = true;
+  };
 
   /** Le document a reçu une mise à jour : hors de l'état actif, rien ne l'écrit dans la base. */
   readonly noterUneModification = (): void => {
@@ -80,6 +94,16 @@ export class Suivi {
       tenirPourCoupee: () => {
         if (this.#enCours === jeton) {
           this.#passerA("coupee");
+        }
+      },
+      noterLaRelecture: () => {
+        // En relecture, le changement d'état qui suit préviendra les abonnés ; pendant une
+        // coupure, une tentative qui relit puis échoue n'en amène aucun.
+        if (this.#enCours === jeton && !this.#baseRelue) {
+          this.#baseRelue = true;
+          if (this.#etat === "coupee") {
+            this.#diffuser();
+          }
         }
       },
       aboutir: () => this.#conclure(jeton, true),

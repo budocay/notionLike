@@ -103,7 +103,7 @@ const ETATS_NOMMES: Readonly<Record<string, Constat>> = {
     alertes(page).includes(messageErreur("titre-trop-long")) &&
     alertes(page).includes(messageErreur("page-introuvable")),
   "message d'avertissement": (page) =>
-    alertes(page).some((texte) => texte.startsWith("Vos modifications ne sont pas enregistrées")),
+    alertes(page).some((texte) => texte.startsWith("Stockage de l'appareil indisponible")),
 };
 
 function pieds(page: HTMLElement): Element[] {

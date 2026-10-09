@@ -22,6 +22,10 @@ export interface Persistance {
   reessayer(): void;
   /** Vrai tant qu'une modification du document n'a pas atteint la base ; ses changements sont diffusés aux abonnés. */
   aDesModificationsNonEnregistrees(): boolean;
+  /** Faux tant que la base n'a jamais été relue depuis l'ouverture ; son changement est diffusé. */
+  aReluLaBase(): boolean;
+  /** Vrai si l'identifiant de l'espace local a été réparé sans pouvoir désigner les pages d'avant. */
+  aLaisseDesBasesNonRattachees(): boolean;
   /**
    * Avant chaque fusion, l'état relu de la base est soumis à ce juge dans un document témoin, que
    * rien n'affiche ni n'enregistre. S'il le refuse, la persistance se ferme sans avoir rien écrit
@@ -45,6 +49,8 @@ export interface Ouverture {
   attendue(): boolean;
   couper(): void;
   relire(nomDeLaBase: string): void;
+  /** Des bases d'espace restent sur l'appareil sans que rien dise laquelle rattacher. */
+  signalerDesBasesNonRattachees(): void;
 }
 
 export function ouvrirPersistance(doc: Y.Doc, designation: DesignationDocument): Persistance {
@@ -66,6 +72,7 @@ export function ouvrirSousEcheance(
       couper: tentative.echouer,
       relire: (nomDeLaBase) =>
         relire({ doc, nomDeLaBase, admet: (temoin) => admet(temoin), fermer }, tentative),
+      signalerDesBasesNonRattachees: suivi.signalerDesBasesNonRattachees,
     }),
   );
   // Ce que la bibliothèque applique au document en relisant la base n'est pas une modification
@@ -87,6 +94,8 @@ export function ouvrirSousEcheance(
     fermer,
     reessayer: suivi.reessayer,
     aDesModificationsNonEnregistrees: suivi.aDesModificationsNonEnregistrees,
+    aReluLaBase: suivi.aReluLaBase,
+    aLaisseDesBasesNonRattachees: suivi.aLaisseDesBasesNonRattachees,
     soumettreLEtatRelu: (juge) => {
       admet = juge;
     },
@@ -175,7 +184,10 @@ function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, tentative: Tent
   tentative.aLArret(() => void bibliotheque.destroy().catch(() => undefined));
   // `synced` ne prouve pas l'écriture : la bibliothèque l'émet sans attendre que l'ajout de l'état
   // complet soit validé, donc même quand il échoue (F-030-AC26).
-  bibliotheque.once("synced", () => prouverLEcriture(bibliotheque, nomDeLaBase, tentative));
+  bibliotheque.once("synced", () => {
+    tentative.noterLaRelecture();
+    prouverLEcriture(bibliotheque, nomDeLaBase, tentative);
+  });
   bibliotheque._db.then(
     (connexion) => {
       garder(connexion, tentative.echouer);

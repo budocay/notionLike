@@ -19,9 +19,18 @@ export type EtatSession =
   | {
       readonly phase: "pret";
       readonly arborescence: Arborescence;
-      /** Faux : la session ne vit qu'en mémoire, l'avertissement est affiché. */
+      /**
+       * Vrai seulement après la preuve d'écriture (F-030-AC26). Faux : ce qui est saisi n'est pas
+       * encore enregistré, l'avertissement est affiché et des tentatives de reprise se suivent.
+       */
       readonly enregistre: boolean;
+      /** Faux tant que ce que l'appareil portait déjà n'a pas pu être lu (F-030-AC13). */
+      readonly baseRelue: boolean;
+      /** Vrai : des pages d'avant restent sur l'appareil sans être rattachées (F-030-AC23). */
+      readonly basesNonRattachees: boolean;
       readonly operations: OperationsEspace;
+      /** Demande une tentative de reprise immédiate (F-030-AC2). */
+      readonly reessayer: () => void;
     };
 
 export interface SessionEspace {
@@ -151,9 +160,17 @@ class SessionOuverte {
       this.#bloquerPourVersion();
       return;
     }
-    const enregistre = this.#persistance.lireEtat() === "active";
-    if (!memeEtatPret(this.#diffusion.lire(), arborescence, enregistre)) {
-      this.#diffusion.publier({ phase: "pret", arborescence, enregistre, operations });
+    const suivant: EtatPret = {
+      phase: "pret",
+      arborescence,
+      enregistre: this.#persistance.lireEtat() === "active",
+      baseRelue: this.#persistance.aReluLaBase(),
+      basesNonRattachees: this.#persistance.aLaisseDesBasesNonRattachees(),
+      operations,
+      reessayer: this.#persistance.reessayer,
+    };
+    if (!memeEtatPret(this.#diffusion.lire(), suivant)) {
+      this.#diffusion.publier(suivant);
     }
   }
 
@@ -201,8 +218,15 @@ function operationsDe(facade: DocumentEspace): OperationsEspace {
   };
 }
 
-function memeEtatPret(etat: EtatSession, arborescence: Arborescence, enregistre: boolean): boolean {
+type EtatPret = Extract<EtatSession, { phase: "pret" }>;
+
+// Ce que l'écran lit d'un état prêt : les opérations et la demande de tentative ne changent pas.
+function memeEtatPret(etat: EtatSession, suivant: EtatPret): boolean {
   return (
-    etat.phase === "pret" && etat.arborescence === arborescence && etat.enregistre === enregistre
+    etat.phase === "pret" &&
+    etat.arborescence === suivant.arborescence &&
+    etat.enregistre === suivant.enregistre &&
+    etat.baseRelue === suivant.baseRelue &&
+    etat.basesNonRattachees === suivant.basesNonRattachees
   );
 }

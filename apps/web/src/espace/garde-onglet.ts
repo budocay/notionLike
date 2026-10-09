@@ -3,17 +3,50 @@
 import type { Persistance } from "../persistance/index.ts";
 
 const VISIBILITE = "visibilitychange";
+const DEPART = "pagehide";
+const AVANT_DE_QUITTER = "beforeunload";
+
+// `preventDefault()` suffit aux navigateurs récents ; la valeur de retour reste renseignée pour
+// ceux d'avant (F-030 H4). Le texte de la boîte est celui du navigateur.
+function demanderConfirmation(evenement: BeforeUnloadEvent): void {
+  evenement.preventDefault();
+  evenement.returnValue = true;
+}
 
 /**
- * Demande une tentative dès que l'onglet redevient visible (F-030-AC2) : la persistance n'en lance
- * une que si elle est coupée et n'en a pas en cours. Rend de quoi cesser de suivre l'onglet.
+ * Suit l'onglet pour une persistance, et rend de quoi cesser. Une tentative est demandée dès que
+ * l'onglet redevient visible (F-030-AC2), et dès qu'il est masqué ou quitté alors qu'une
+ * modification n'est pas enregistrée (F-030-AC27) : la persistance n'en lance une que si elle est
+ * coupée, n'en a pas en cours, et pas plus d'une par seconde. Tant qu'une modification n'est pas
+ * enregistrée, et seulement alors, le navigateur demande confirmation avant de quitter
+ * (F-030-AC16).
  */
 export function suivreLOnglet(persistance: Persistance): () => void {
   const surVisibilite = (): void => {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "visible" || persistance.aDesModificationsNonEnregistrees()) {
       persistance.reessayer();
     }
   };
+  const surDepart = (): void => {
+    if (persistance.aDesModificationsNonEnregistrees()) {
+      persistance.reessayer();
+    }
+  };
+  // Inscrire deux fois le même écouteur, ou le retirer sans qu'il soit inscrit, est sans effet.
+  const ajusterLaConfirmation = (): void => {
+    if (persistance.aDesModificationsNonEnregistrees()) {
+      window.addEventListener(AVANT_DE_QUITTER, demanderConfirmation);
+    } else {
+      window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);
+    }
+  };
+  const desabonner = persistance.abonner(ajusterLaConfirmation);
   document.addEventListener(VISIBILITE, surVisibilite);
-  return () => document.removeEventListener(VISIBILITE, surVisibilite);
+  window.addEventListener(DEPART, surDepart);
+  return () => {
+    desabonner();
+    document.removeEventListener(VISIBILITE, surVisibilite);
+    window.removeEventListener(DEPART, surDepart);
+    window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);
+  };
 }

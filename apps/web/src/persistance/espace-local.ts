@@ -68,6 +68,9 @@ function remplacerLaValeurIllisible(
     }
     const [seul] = espaces ?? [];
     const idAInscrire = espaces?.length === 1 && seul !== undefined ? seul : idCandidat;
+    if (espaces === undefined || espaces.length > 1) {
+      ouverture.signalerDesBasesNonRattachees();
+    }
     ouvrirLaBaseDeLAppareil(ouverture, (connexion) => {
       // La valeur est relue dans la transaction qui l'écrit, et n'est remplacée que si elle est
       // encore illisible : deux onglets lancés ensemble retiennent le même identifiant.

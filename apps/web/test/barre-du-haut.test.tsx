@@ -1,5 +1,6 @@
 // Barre du haut de F-004 dans l'application réelle, sous jsdom : fil d'Ariane (F-004-AC39) et zone
-// d'état de l'enregistrement local, qui ne dit que l'échec (F-004-AC40).
+// d'état de l'enregistrement local : l'échec (F-004-AC40) et, depuis F-030-AC29, l'affirmation une
+// fois la preuve d'écriture faite.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,6 +20,7 @@ import {
 } from "./aides-persistance.ts";
 
 const ECHEC = "Non enregistré sur cet appareil";
+const AFFIRMATION = "Enregistré sur cet appareil";
 const INTERMEDIAIRES = "Afficher les pages intermédiaires";
 
 function barreDuHaut(): HTMLElement {
@@ -287,8 +289,11 @@ describe("fil d'Ariane", () => {
   });
 });
 
-function sansAffirmation(): void {
-  expect(document.body.textContent).not.toMatch(/nregistr/);
+// Hors de la zone d'état, rien ne dit ni ne laisse entendre « enregistré ».
+function sansAutreAffirmation(): void {
+  const horsZone = document.body.cloneNode(true) as HTMLElement;
+  horsZone.querySelector("header [role='status']")?.remove();
+  expect(horsZone.textContent).not.toMatch(/nregistr/);
   for (const element of document.body.querySelectorAll("[aria-label], [title]")) {
     expect(element.getAttribute("aria-label") ?? "").not.toMatch(/nregistr/);
     expect(element.getAttribute("title") ?? "").not.toMatch(/nregistr/);
@@ -309,17 +314,20 @@ function suivreLaZone(): { readonly textes: string[]; arreter(): void } {
 }
 
 describe("zone d'état de l'enregistrement local", () => {
-  it("F-004-AC40 quand la persistance réussit, la zone est présente et vide, et rien dans le document ne dit ni ne laisse entendre « enregistré »", async () => {
+  it("F-004-AC40 F-030-AC29 quand la persistance réussit, la zone dit « Enregistré sur cet appareil » avec un repère non textuel, sans nom ni titre, et rien d'autre dans le document ne dit ni ne laisse entendre « enregistré »", async () => {
     const { utilisateur } = await ouvrirCoquille();
     await creerPageNommee(utilisateur, "Page écrite");
 
     const zone = zoneDEtat();
-    expect(zone.textContent).toBe("");
-    expect(zone.childElementCount).toBe(0);
+    expect(zone.textContent).toBe(AFFIRMATION);
+    const repere = zone.querySelector("span");
+    expect(repere?.getAttribute("aria-hidden")).toBe("true");
+    expect(repere?.textContent).toBe("");
+    expect(zone.childElementCount).toBe(1);
     expect(zone.getAttribute("aria-label")).toBeNull();
     expect(zone.getAttribute("title")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
-    sansAffirmation();
+    sansAutreAffirmation();
   });
 
   it.each([
@@ -339,7 +347,7 @@ describe("zone d'état de l'enregistrement local", () => {
       expect(repere?.getAttribute("aria-hidden")).toBe("true");
       expect(repere?.textContent).toBe("");
       const alerte = screen.getByRole("alert");
-      expect(alerte.textContent).toMatch(/^Vos modifications ne sont pas enregistrées/);
+      expect(alerte.textContent).toMatch(/^Stockage de l'appareil indisponible/);
       expect(document.body.textContent).not.toMatch(/Enregistré|Modifications enregistrées/);
     },
   );
@@ -355,10 +363,10 @@ describe("zone d'état de l'enregistrement local", () => {
 
     suivi.arreter();
     expect(suivi.textes).toEqual([]);
-    expect(zoneDEtat().textContent).toBe("");
+    expect(zoneDEtat().textContent).toBe(AFFIRMATION);
   });
 
-  it("F-004-AC40 coupure en cours de saisie (connexion fermée par le navigateur) : la zone change une seule fois, de vide au texte d'échec, et n'est pas réécrite à chaque frappe", async () => {
+  it("F-004-AC40 F-030-AC29 coupure en cours de saisie (connexion fermée par le navigateur) : la zone change une seule fois, de l'affirmation au texte d'échec, et n'est pas réécrite à chaque frappe", async () => {
     const connexions = suivreLesConnexions();
     const { utilisateur } = await ouvrirCoquille();
     await utilisateur.click(screen.getByRole("button", { name: "Nouvelle page" }));
@@ -377,7 +385,7 @@ describe("zone d'état de l'enregistrement local", () => {
 
     suivi.arreter();
     expect(suivi.textes).toEqual([ECHEC]);
-    expect(screen.getByRole("alert").textContent).toMatch(/^Vos modifications/);
+    expect(screen.getByRole("alert").textContent).toMatch(/^Stockage de l'appareil indisponible/);
   });
 
   it("F-004-AC40 pendant le chargement, seul l'état de chargement de F-002 est affiché", async () => {

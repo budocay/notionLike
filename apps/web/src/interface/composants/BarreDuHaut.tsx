@@ -102,14 +102,35 @@ export function CheminDePage({ nom, ancetres, courante, repli }: ProprietesChemi
   );
 }
 
-/** Zone d'état de l'enregistrement local : vide tant que rien n'a échoué (F-004-AC40). */
-export function ZoneEtat({ echec }: { readonly echec: string | undefined }): ReactElement {
+interface ProprietesZoneEtat {
+  /** Texte d'échec : il l'emporte sur l'affirmation. */
+  readonly echec: string | undefined;
+  /** Texte affirmatif, que l'appelant ne donne qu'une fois l'enregistrement prouvé (F-030-AC29). */
+  readonly affirmation?: string | undefined;
+  /** Phrase lue par les technologies d'assistance avec l'affirmation, sans être affichée. */
+  readonly annonce?: string | undefined;
+}
+
+/**
+ * Zone d'état de l'enregistrement local, annoncée quand son texte change : l'échec, l'affirmation,
+ * ou rien (F-004-AC40). Chaque texte a son repère non textuel.
+ */
+export function ZoneEtat({ echec, affirmation, annonce }: ProprietesZoneEtat): ReactElement {
+  if (echec !== undefined) {
+    return (
+      <div className={HAUT.etat} role="status">
+        <span className={HAUT.pastille} aria-hidden="true" />
+        {echec}
+      </div>
+    );
+  }
   return (
-    <div className={HAUT.etat} role="status">
-      {echec !== undefined && (
+    <div className={affirmation === undefined ? HAUT.etat : HAUT.etatAffirme} role="status">
+      {affirmation !== undefined && (
         <>
-          <span className={HAUT.pastille} aria-hidden="true" />
-          {echec}
+          <span className={HAUT.pastilleAffirmee} aria-hidden="true" />
+          {affirmation}
+          {annonce !== undefined && <span className={HAUT.annonce}>{annonce}</span>}
         </>
       )}
     </div>

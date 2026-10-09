@@ -17,6 +17,7 @@ import {
   controlerFichier,
   controlerHalo,
   controlerSeulAuteur,
+  controlerSeulLecteur,
   controlerSources,
   EMPLACEMENTS_DE_L_ACCENT,
   ENTREE_DE_LA_DEMONSTRATION,
@@ -58,6 +59,9 @@ function fautesDe(chemin: string, texte: string): string[] {
 function classe(nom: string): string | undefined {
   return fauteDeClasse(nom, contexte);
 }
+
+const MESSAGES = "src/interface/messages.ts";
+const ECRAN_D_ENREGISTREMENT = "src/interface/Enregistrement.tsx";
 
 describe("fichiers de style réels", () => {
   it("F-004-AC3 F-004-AC16 chaque fichier source d'apps/web passe les interdits, sans aucune exemption", () => {
@@ -155,13 +159,19 @@ describe("fichiers de style réels", () => {
     expect(controlerHalo(entree, lire("src/interface/composants/etats.classes.ts"))).toEqual([]);
   });
 
-  it("F-004-AC40 aucun fichier source ne porte de texte affirmatif d'enregistrement, et le texte d'échec n'est écrit qu'une fois, dans les messages", () => {
-    for (const [chemin, texte] of textes) {
-      expect(texte, chemin).not.toMatch(/Enregistré sur cet appareil|Modifications enregistrées/);
+  // F-030-AC29 remplace l'interdit de F-004-AC40 : l'affirmation existe, avec une seule définition
+  // et un seul lecteur, qui ne la donne qu'une fois la preuve d'écriture faite.
+  it("F-004-AC40 F-030-AC29 le texte d'échec, l'affirmation d'enregistrement et l'annonce de reprise ne sont écrits qu'une fois, dans les messages, et l'affirmation et l'annonce n'ont qu'un lecteur, l'écran d'enregistrement", () => {
+    for (const texte of [
+      "Non enregistré sur cet appareil",
+      "Enregistré sur cet appareil",
+      "Modifications enregistrées sur cet appareil.",
+    ]) {
+      expect(controlerSeulAuteur(textes, texte, MESSAGES), texte).toEqual([]);
     }
-    expect(
-      controlerSeulAuteur(textes, "Non enregistré sur cet appareil", "src/interface/messages.ts"),
-    ).toEqual([]);
+    for (const nom of ["ENREGISTRE", "ANNONCE_DE_REPRISE"]) {
+      expect(controlerSeulLecteur(textes, nom, MESSAGES, ECRAN_D_ENREGISTREMENT), nom).toEqual([]);
+    }
   });
 });
 
@@ -327,17 +337,39 @@ describe("interdits : cas conformes et cas fautifs", () => {
     );
   });
 
-  it("F-004-AC53 F-004-AC40 un texte affirmatif d'enregistrement est refusé, l'échec reste permis", () => {
-    expect(fautesDe("src/a.ts", 'const t = "Enregistré sur cet appareil";')).toEqual([
-      "src/a.ts : texte affirmatif d'enregistrement : « Enregistré sur cet appareil »",
+  it("F-004-AC53 F-030-AC29 l'affirmation recopiée hors des messages, lue par un second fichier, lue deux fois par son lecteur, ou définie deux fois, est nommée ; une définition et un lecteur passent", () => {
+    const affirmation = "Enregistré sur cet appareil";
+    const conforme = new Map([
+      [MESSAGES, `export const ENREGISTRE = "${affirmation}";\nexport const NON_ENREGISTRE = "x";`],
+      [
+        ECRAN_D_ENREGISTREMENT,
+        'import { ENREGISTRE, NON_ENREGISTRE } from "./messages.ts";\n<ZoneEtat affirmation={ENREGISTRE} />',
+      ],
+      ["src/interface/Application.tsx", "<ZoneDEnregistrement etat={etat} />"],
     ]);
-    expect(
-      fautesDe("index.html", "<p>Modifications enregistrées sur cet appareil.</p>"),
-    ).toHaveLength(1);
-    expect(fautesDe("src/a.ts", 'const t = "Non enregistré sur cet appareil";')).toEqual([]);
-    expect(fautesDe("src/a.ts", 'const t = "Vos modifications ne sont pas enregistrées";')).toEqual(
+    expect(controlerSeulAuteur(conforme, affirmation, MESSAGES)).toEqual([]);
+    expect(controlerSeulLecteur(conforme, "ENREGISTRE", MESSAGES, ECRAN_D_ENREGISTREMENT)).toEqual(
       [],
     );
+    const recopiee = new Map([...conforme, ["src/interface/A.tsx", `<p>${affirmation}</p>`]]);
+    expect(controlerSeulAuteur(recopiee, affirmation, MESSAGES)).toEqual([
+      `src/interface/A.tsx : écrit « ${affirmation} », que seul ${MESSAGES} doit écrire`,
+    ]);
+    const second = new Map([...conforme, ["src/interface/B.tsx", "<p>{ENREGISTRE}</p>"]]);
+    expect(controlerSeulLecteur(second, "ENREGISTRE", MESSAGES, ECRAN_D_ENREGISTREMENT)).toEqual([
+      `src/interface/B.tsx : nomme ENREGISTRE, que seul ${ECRAN_D_ENREGISTREMENT} doit lire`,
+    ]);
+    const deuxLectures = new Map([
+      ...conforme,
+      [ECRAN_D_ENREGISTREMENT, `${conforme.get(ECRAN_D_ENREGISTREMENT)}\n<p>{ENREGISTRE}</p>`],
+    ]);
+    expect(
+      controlerSeulLecteur(deuxLectures, "ENREGISTRE", MESSAGES, ECRAN_D_ENREGISTREMENT),
+    ).toEqual([`${ECRAN_D_ENREGISTREMENT} : nomme ENREGISTRE 3 fois, 2 attendue(s)`]);
+    const sansLecteur = new Map([[MESSAGES, conforme.get(MESSAGES) ?? ""]]);
+    expect(
+      controlerSeulLecteur(sansLecteur, "ENREGISTRE", MESSAGES, ECRAN_D_ENREGISTREMENT),
+    ).toEqual([`${ECRAN_D_ENREGISTREMENT} : nomme ENREGISTRE 0 fois, 2 attendue(s)`]);
   });
 
   it("F-004-AC53 F-004-AC40 le texte d'échec écrit ailleurs que dans les messages, ou disparu des messages, est nommé", () => {

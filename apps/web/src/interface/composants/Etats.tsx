@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, Ref } from "react";
 
 import { ETATS } from "./etats.classes.ts";
 import { Pictogramme } from "./Pictogramme.tsx";
@@ -17,14 +17,41 @@ export function Chargement({ texte }: { readonly texte: string }): ReactElement 
   );
 }
 
-export function Avertissement({ children }: { readonly children: ReactNode }): ReactElement {
+/** Commande offerte par un avertissement ; un bouton natif, activable à la souris comme au clavier. */
+export interface ActionDAvertissement {
+  readonly libelle: string;
+  readonly surActivation: () => void;
+  readonly refBouton?: Ref<HTMLButtonElement> | undefined;
+}
+
+interface ProprietesAvertissement {
+  /** Une phrase par élément, chacune sur sa ligne. */
+  readonly phrases: readonly string[];
+  readonly action?: ActionDAvertissement | undefined;
+}
+
+export function Avertissement({ phrases, action }: ProprietesAvertissement): ReactElement {
   return (
-    <p className={ETATS.avertissement} role="alert">
+    <div className={ETATS.avertissement} role="alert">
       <span className={ETATS.avertissementRepere}>
         <Pictogramme nom="alerte" />
       </span>
-      <span>{children}</span>
-    </p>
+      <div className={ETATS.avertissementTextes}>
+        {phrases.map((phrase) => (
+          <p key={phrase}>{phrase}</p>
+        ))}
+      </div>
+      {action !== undefined && (
+        <button
+          ref={action.refBouton}
+          type="button"
+          className={ETATS.avertissementAction}
+          onClick={action.surActivation}
+        >
+          {action.libelle}
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -19,13 +19,13 @@ import type { EtatSession, SessionEspace } from "../espace/session-espace.ts";
 import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.ts";
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
-import { BarreDuHaut, ZoneEtat } from "./composants/BarreDuHaut.tsx";
+import { BarreDuHaut } from "./composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "./composants/BoutonIcone.tsx";
 import { Coquille, EcranPlein, type TiroirDeCoquille } from "./composants/Coquille.tsx";
-import { Avertissement, Chargement, EcranBloquant } from "./composants/Etats.tsx";
+import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
+import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
-  AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   EXPLICATION_CONTEXTE_NON_SECURISE,
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
@@ -33,7 +33,6 @@ import {
   messageErreur,
   MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_DU_TIROIR,
-  NON_ENREGISTRE,
   OUVRIR_LA_BARRE_LATERALE,
   TITRE_CONTEXTE_NON_SECURISE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
@@ -87,8 +86,7 @@ export function Application({ session }: { readonly session: SessionEspace }): R
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
-// (avertissement, barre du haut, zone principale). La zone d'état lit l'état de la session, sans
-// autre abonné (F-004-AC40).
+// (avertissement, barre du haut, zone principale).
 function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   const { racines } = etat.arborescence;
   const route = lireRoute(useSyncExternalStore(abonnerAuFragment, lireFragment));
@@ -111,7 +109,7 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   );
   return (
     <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
-      {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
+      <AvertissementDEnregistrement etat={etat} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
         ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
         fil={
@@ -119,7 +117,7 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
             <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
           )
         }
-        etat={<ZoneEtat echec={etat.enregistre ? undefined : NON_ENREGISTRE} />}
+        etat={<ZoneDEnregistrement etat={etat} />}
       />
       <ZonePrincipale
         ref={tiroir.zonePrincipale}
