@@ -200,26 +200,28 @@ describe("sélection et adresse", () => {
       idPetiteFille = espace.creerPage("Petite-fille", { parent: fille });
       espace.creerPage("Autre");
     });
-    await utilisateur.click(commandeDeRepli("Replier « Fille »"));
-    await utilisateur.click(commandeDeRepli("Replier « Parent »"));
+    await utilisateur.click(commandeDeRepli("Sous-pages de « Fille »"));
+    await utilisateur.click(commandeDeRepli("Sous-pages de « Parent »"));
     expect(screen.queryByRole("link", { name: "Petite-fille" })).toBeNull();
 
     allerAuFragment(`${PREFIXE_PAGE}${idPetiteFille}`);
 
     await attendreLaSelection("Petite-fille");
-    expect(commandeDeRepli("Replier « Parent »").getAttribute("aria-expanded")).toBe("true");
-    expect(commandeDeRepli("Replier « Fille »").getAttribute("aria-expanded")).toBe("true");
+    expect(commandeDeRepli("Sous-pages de « Parent »").getAttribute("aria-expanded")).toBe("true");
+    expect(commandeDeRepli("Sous-pages de « Fille »").getAttribute("aria-expanded")).toBe("true");
 
     await utilisateur.click(lien("Autre"));
     await attendreLaSelection("Autre");
-    await utilisateur.click(commandeDeRepli("Replier « Parent »"));
+    await utilisateur.click(commandeDeRepli("Sous-pages de « Parent »"));
     expect(screen.queryByRole("link", { name: "Petite-fille" })).toBeNull();
 
     window.history.back();
 
     await attendreLaSelection("Petite-fille");
     await waitFor(() =>
-      expect(commandeDeRepli("Replier « Parent »").getAttribute("aria-expanded")).toBe("true"),
+      expect(commandeDeRepli("Sous-pages de « Parent »").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
 
     window.history.forward();
@@ -236,7 +238,7 @@ describe("sélection et adresse", () => {
     await utilisateur.click(lien("Fille"));
     await attendreLaSelection("Fille");
 
-    await utilisateur.click(commandeDeRepli("Replier « Parent »"));
+    await utilisateur.click(commandeDeRepli("Sous-pages de « Parent »"));
     recevoir(session, (espace) => void espace.creerPage("Arrivée ensuite"));
 
     expect(screen.queryByRole("link", { name: "Fille" })).toBeNull();

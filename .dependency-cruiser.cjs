@@ -151,6 +151,38 @@ module.exports = {
         ],
       },
     },
+    {
+      name: "web-composants-de-presentation",
+      severity: "error",
+      comment:
+        "F-004 : un composant de présentation n'importe que son dossier et react (ni document, ni session, ni navigation, ni messages).",
+      from: { path: "^apps/web/src/interface/composants/" },
+      to: { pathNot: ["^apps/web/src/interface/composants/", "(^|/)node_modules/react/"] },
+    },
+    {
+      name: "web-demonstration-hors-production",
+      severity: "error",
+      comment: "F-004-AC50 : hors de la page de démonstration, aucun fichier de src/ ne l'importe.",
+      from: { path: "^apps/web/src/", pathNot: "^apps/web/src/demonstration/" },
+      to: { path: "^apps/web/src/demonstration/" },
+    },
+    {
+      name: "web-demonstration-liste-blanche",
+      severity: "error",
+      comment:
+        "F-004-AC50 : la page de démonstration n'importe qu'elle-même, les composants de présentation, les textes et les raccourcis de l'interface, les styles, react et react-dom.",
+      from: { path: "^apps/web/src/demonstration/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/demonstration/",
+          "^apps/web/src/interface/composants/",
+          "^apps/web/src/interface/messages\\.ts$",
+          "^apps/web/src/interface/raccourcis\\.ts$",
+          "^apps/web/src/styles/",
+          "(^|/)node_modules/(react|react-dom)/",
+        ],
+      },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },

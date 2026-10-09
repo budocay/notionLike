@@ -7,7 +7,9 @@ import type { SessionEspace } from "../src/espace/session-espace.ts";
 import { titreAffiche } from "../src/interface/messages.ts";
 import {
   activerActionDeRangee,
-  type Coquille,
+  activerActionDeRangeeAuClavier,
+  commandesDuMenu,
+  type CoquilleRendue,
   creerPageNommee,
   ouvrirCoquille,
   recevoir,
@@ -17,6 +19,13 @@ import {
 const SANS_TITRE = "Sans titre";
 const NOM_APPLICATION = "notionLike";
 const CHAMP_TITRE = { name: "Titre de la page" };
+const MENU_DE_SANS_TITRE = [
+  "Actions de la page « Sans titre »",
+  "Renommer",
+  "Ajouter une sous-page",
+  "Mettre à la corbeille",
+];
+const BLANCS_DE_BORD = /^\p{White_Space}+|\p{White_Space}+$/gu;
 
 const TITRES_SANS_CARACTERE_VISIBLE: readonly (readonly [string, string])[] = [
   ["vide", ""],
@@ -108,7 +117,7 @@ function nomsDesCommandes(): string[] {
 }
 
 /** Une page au titre donné, mère d'une sous-page « Fille », reçue d'une autre réplique. */
-async function recevoirPageMere(titre: string): Promise<Coquille> {
+async function recevoirPageMere(titre: string): Promise<CoquilleRendue> {
   const coquille = await ouvrirCoquille();
   recevoir(coquille.session, (espace) => {
     const parent = espace.creerPage(titre);
@@ -168,8 +177,9 @@ describe("titre affiché : lectures du titre dans le code", () => {
     expect(lectures()).toEqual({
       affichees: [
         '../src/interface/Application.tsx : const titre = selection.type === "page" ? titreAffiche(selection.page.titre) : undefined;',
+        "../src/interface/FilDAriane.tsx : courante={titreAffiche(page.titre)}",
         "../src/interface/RangeePage.tsx : const titre = titreAffiche(page.titre);",
-        "../src/interface/ZonePrincipale.tsx : <h1>{titreAffiche(selection.page.titre)}</h1>",
+        "../src/interface/ZonePrincipale.tsx : return <EntetePage key={selection.page.id} titre={titreAffiche(selection.page.titre)} />;",
       ],
       brutes: ["../src/interface/RangeePage.tsx : titreInitial={page.titre}"],
     });
@@ -188,13 +198,10 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
     const lien = await barre.findByRole("link", { name: SANS_TITRE });
     expect(lien.textContent).toBe(SANS_TITRE);
     expect(lien.getAttribute("aria-current")).toBe("page");
-    expect(barre.getByRole("button", { name: "Renommer « Sans titre »" })).toBeDefined();
     expect(
       barre.getByRole("button", { name: "Ajouter une sous-page à « Sans titre »" }),
     ).toBeDefined();
-    expect(
-      barre.getByRole("button", { name: "Mettre « Sans titre » à la corbeille" }),
-    ).toBeDefined();
+    expect(await commandesDuMenu(SANS_TITRE)).toEqual(MENU_DE_SANS_TITRE);
     expect(elementsSansNom()).toEqual([]);
     expect(titrePrincipal()).toBe(SANS_TITRE);
     await waitFor(() => expect(document.title).toBe(`${SANS_TITRE} · ${NOM_APPLICATION}`));
@@ -215,11 +222,7 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
     const { session, utilisateur } = await ouvrirCoquille();
     await creerPageNommee(utilisateur, "Agenda");
 
-    await utilisateur.tab();
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Renommer « Agenda »" }),
-    );
-    await utilisateur.keyboard("{Enter}");
+    await activerActionDeRangeeAuClavier(utilisateur, "renommer", "Agenda");
     await screen.findByRole("textbox", CHAMP_TITRE);
     await utilisateur.keyboard("  ");
     await utilisateur.tab();
@@ -236,13 +239,13 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
 
       expect(elementsSansNom()).toEqual([]);
       expect(premierLien().textContent).toBe(SANS_TITRE);
-      expect(nomsDesCommandes().slice(0, 5)).toEqual([
+      expect(nomsDesCommandes().slice(0, 4)).toEqual([
         "Nouvelle page",
-        "Replier « Sans titre »",
-        "Renommer « Sans titre »",
+        "Sous-pages de « Sans titre »",
         "Ajouter une sous-page à « Sans titre »",
-        "Mettre « Sans titre » à la corbeille",
+        "Actions de la page « Sans titre »",
       ]);
+      expect(await commandesDuMenu(SANS_TITRE)).toEqual(MENU_DE_SANS_TITRE);
       expect(titresEnregistres(session)).toEqual([titre]);
 
       await utilisateur.click(premierLien());
@@ -252,8 +255,14 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
       });
       expect(premierLien().getAttribute("aria-current")).toBe("page");
 
-      await utilisateur.click(screen.getByRole("button", { name: "Replier « Sans titre »" }));
-      expect(screen.getByRole("button", { name: "Déplier « Sans titre »" })).toBeDefined();
+      const repli = screen.getByRole("button", { name: "Sous-pages de « Sans titre »" });
+      expect(repli.getAttribute("aria-expanded")).toBe("true");
+      await utilisateur.click(repli);
+      expect(
+        screen
+          .getByRole("button", { name: "Sous-pages de « Sans titre »" })
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
       expect(elementsSansNom()).toEqual([]);
     },
   );
@@ -267,16 +276,21 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
       expect(elementsSansNom()).toEqual([]);
       expect(premierLien().textContent).toBe(titre);
       expect(barre.getByRole("link", { name: nomme(titre) })).toBe(premierLien());
+      // Le titre est cité sans ses blancs de bord (F-004-AC57), ses blancs intérieurs intacts.
+      const cite = titre.replace(BLANCS_DE_BORD, "");
       for (const nom of [
-        `Replier « ${titre} »`,
-        `Renommer « ${titre} »`,
-        `Ajouter une sous-page à « ${titre} »`,
-        `Mettre « ${titre} » à la corbeille`,
+        `Sous-pages de « ${cite} »`,
+        `Ajouter une sous-page à « ${cite} »`,
+        `Actions de la page « ${cite} »`,
       ]) {
         expect(barre.getByRole("button", { name: nomme(nom) }).getAttribute("aria-label")).toBe(
           nom,
         );
       }
+      expect(await commandesDuMenu(cite)).toEqual([
+        `Actions de la page « ${cite} »`,
+        ...MENU_DE_SANS_TITRE.slice(1),
+      ]);
       expect(barreLaterale().querySelector("b, img, script")).toBeNull();
       expect(titresEnregistres(session)).toEqual([titre]);
 

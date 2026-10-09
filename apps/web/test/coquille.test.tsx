@@ -2,7 +2,6 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import pageHote from "../index.html?raw";
-import styles from "../src/styles.css?raw";
 import {
   activerActionDeRangee,
   atteindreActionDeRangee,
@@ -16,8 +15,11 @@ import {
   saisirTitre,
   titresParFratrie,
 } from "./aides-coquille.tsx";
+import { lire } from "./aides-disque.ts";
 import { ecouteurs, importerEntree } from "./aides-facade.ts";
 import { nomsDesBases } from "./aides-persistance.ts";
+
+const IMPORTS_LOCAUX = ['@import "tailwindcss" source(none);', '@import "./jetons.css";'];
 
 function barreLaterale(): HTMLElement {
   return screen.getByRole("navigation", { name: "Pages" });
@@ -52,7 +54,7 @@ describe("coquille", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
 
     await boutonNouvellePage();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Chargement…")).toBeNull();
   });
 
   it("F-002-AC5 « Nouvelle page » crée à la racine, en dernière position, une page « Sans titre »", async () => {
@@ -127,7 +129,15 @@ describe("coquille", () => {
     expect(pageHote).toContain('<script type="module" src="/src/main.tsx"></script>');
     expect(pageHote.match(/(src|href)=/g)).toHaveLength(1);
     expect(pageHote).not.toMatch(adresseExterne);
-    expect(styles).not.toMatch(adresseExterne);
+    // Les feuilles sont lues sur le disque : importée sous Vitest, une feuille CSS est une chaîne
+    // vide. Les deux seuls imports de la feuille d'entrée sont locaux ; le reste ne cite rien.
+    const entree = lire("src/styles/entree.css");
+    expect(entree.match(/@import[^;]*;/g)).toEqual(IMPORTS_LOCAUX);
+    const styles = [entree.replace(/@import[^;]*;/g, ""), lire("src/styles/jetons.css")];
+    for (const feuille of styles) {
+      expect(feuille.length).toBeGreaterThan(1_000);
+      expect(feuille).not.toMatch(adresseExterne);
+    }
   });
 
   it("F-002-AC1 F-002-AC31 l'entrée monte l'application dans l'élément « racine » de la page hôte ; sa session, suivie comme les autres, se ferme : un écouteur, puis zéro", async () => {

@@ -1,59 +1,62 @@
-# STATE — notionLike — 2026-10-08
+# STATE — notionLike — 2026-10-09
 
 ## Où on en est
 
-F-001 (arborescence des pages, `packages/document`, tier structurel) est DONE et dans `main` (`7e99266`). Aucune autre feature n'est DONE.
+F-001 (arborescence des pages, `packages/document`), F-002 (application web locale : coquille, barre latérale, persistance IndexedDB) et F-004 (identité visuelle sombre : jetons, application habillée, tiroir sur petit écran) sont DONE et dans `main`. Leurs entrées sont dans `PROJECT_LOG.md` et `MEMORY/features/`. Le dev a vu la page de démonstration de F-004 et répondu « J'aime tout ».
 
-La planification complète est dans `main` (merge `2615352`) : 29 features, 29 specs, 998 critères, `ROADMAP.md`, `MEMORY/VEILLE.md` (64 sections). Validées : F-001, et F-002 sur la branche `F-002`. Les 27 autres specs sont en brouillon, F-008 comprise (sa validation faite sur la branche d'archive `planification-reunie` ne vaut pas ici).
+Le 2026-10-09, le dev a étendu le mode rapide à toutes les features (« le mode rapide est valide pour tout ») : spec validée, code écrit directement depuis la spec et la veille, note de conception courte et ADR seulement pour ce qui est difficile à défaire, pas de gate de conception avant le code ; les gates de fin restent. Contrepartie constatée sur F-004 : faire relire la structure par `agent-architecte-conception` avant la revue, et demander au producteur un témoin jetable par critère exposé.
 
-F-002 (application web locale, tier structurel) est DONE sur la branche `F-002` : tous les gates verts sur l'empreinte `d06344502281` au troisième passage de revue (`reviewer-frontend` APPROVED, `SECURITY GATE: PASS`, `ARCHITECTURE GATE: PASS`, `CRAFT GATE: PASS`), `gates-verts.sh main..HEAD` → `RESULTAT GATES: OK`, périmètre code 0. Reste à fusionner dans `main` dès que `agent-planif` a fini de commiter `specs/F-004.md` sur cette branche.
+F-008 (socle serveur) est EN COURS dans un second worktree, `~/dev/notionLike-F-008`, branche `F-008-socle` partie de `main` : spec validée (`651991f`). Le hook de périmètre accepte depuis le 2026-10-09 les écritures d'agent dans un worktree de ce dépôt (modification du dev dans `.claude/hooks/cc-adapt.sh`, `test-blocage.sh` vert après la modification : `RESULTAT: tous les blocages sont effectifs`) : deux branches peuvent avancer en même temps, une par worktree.
 
-Le dev a exigé le 2026-10-09 que les données soient toujours persistées : spec F-030 (reprise de la persistance après une coupure, 28 critères, brouillon ajusté à la veille du 2026-10-09), placée juste après F-002. Le 2026-10-09, le dev a accepté d'alléger le parcours : `ARCHITECTURE.md` aligné une seule fois par feature ; F-019, F-020, F-021 reclassées `standard` ; nouvel ordre du chemin client F-002 → F-004 → F-030 → F-003. F-004 (46 critères) ne dépend plus que de F-002 ; F-003 (44 critères) reçoit les critères d'éditeur de F-004 et livre la barre flottante sans barre provisoire. Décision de l'orchestrateur à inscrire dans F-004 avant sa validation : tant que F-030 n'est pas livrée, F-004 n'affiche que l'état d'échec d'enregistrement, jamais « Enregistré ». Le chemin serveur, qui apporte la base PostgreSQL, n'a pas commencé.
+La planification complète est dans `main` : 30 features et leurs specs (`ROADMAP.md` porte les comptes et l'ordre), `MEMORY/VEILLE.md`. Le statut de chaque spec est celui de sa ligne `Statut :`. Ordre du chemin client après F-004 : F-030 (reprise de la persistance après une coupure, exigée par le dev le 2026-10-09 : « les données doivent être tout le temps persistées »), puis F-003 (éditeur de page, qui livre directement la barre flottante). Le chemin serveur (F-008, F-009, F-011, F-012, puis F-013), qui apporte la base PostgreSQL, n'a pas commencé.
 
-Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008).
+Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008) et a accepté d'alléger le parcours : `ARCHITECTURE.md` est aligné après le dernier bloc d'une feature et non après chaque bloc ; F-019, F-020 et F-021 sont reclassées `standard`.
 
-`specs/F-004.md` (identité visuelle) a été réécrite le 2026-10-08 après le retour du dev sur l'interface (« pas stylé, responsive à revoir ») : critères AC24 à AC53 sur la barre latérale, l'éditeur sans cadre, le tiroir sur petit écran, les captures de référence.
-
-Le dépôt principal (`~/dev/notionLike`) est sur la branche `F-002`, arbre propre. Le travail fait en avance le 2026-10-08 (application `apps/web` entière pour F-002 et F-003, code F-003 de `packages/document`, ADR-0009, conception de F-003, fichiers de configuration mêlés) est archivé sur la branche `archive-arbre-2026-10-08` (`f1946e2`, 70 chemins), jamais fusionnée : les producteurs y reprennent chaque fichier par `git show archive-arbre-2026-10-08:<chemin>`, en séparant F-002 de F-003 comme le dit la conception.
+Le dépôt principal (`~/dev/notionLike`) sert au chemin client ; un worktree temporaire (`scratchpad/revue-F-001`, nom hérité de la première revue) sert aux revues.
 
 ## Prochaine action prévue
 
-Fusionner `F-002` dans `main` par merge commit (depuis le worktree, après `gates-verts.sh main..F-002` lu en entier). Puis F-004 (identité visuelle) : valider `specs/F-004.md` par délégation (D-008), branche `F-004` depuis `main`, conception par `agent-architecte-conception` (CSS seul, sans Motion ; alignement d'`ARCHITECTURE.md` une seule fois, après le dernier bloc), gate de conception, bloc 0 (Tailwind 4.3.3), blocs d'`agent-frontend`. Montrer au dev les captures de la page de démonstration à la fin du premier bloc, avant d'habiller toute l'application. Ensuite F-030, puis F-003.
+Chemin client, dépôt principal : F-030 (reprise de la persistance après une coupure) — valider `specs/F-030.md` par délégation, branche `F-030` depuis `main`, mode rapide. Puis F-003.
 
-F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la branche d'archive `planification-reunie` (`a246106`). À reposer par `agent-architecte-conception` sur une branche `F-008-socle` neuve partie de `main` (le nom `F-008` est pris par une archive), après revalidation de `specs/F-008.md` par le dev ; son gate de conception n'a jamais tourné.
+Chemin serveur, worktree `~/dev/notionLike-F-008` : faire reposer par `agent-architecte-conception` la conception de F-008 et les ADR-0004 à 0006 depuis la branche d'archive `planification-reunie` (`a246106`), recalés sur `main` ; bloc 0 par délégation (script de la conception) ; blocs d'`agent-backend`, `agent-bdd`, `agent-devops` ; relecture de structure, puis revue (`reviewer-devops`, `reviewer-bdd`, `reviewer-backend`, `reviewer-api`, architecture, sécurité, craft).
+
+À faire par l'orchestrateur après la fusion de F-004 : commiter sur `main` la modification du hook sous `Agent: dev` (délégation), faire inscrire le mode rapide pour toutes les features dans `ROADMAP.md` par `agent-planif`.
+
+Règles de revue : code, puis preuves relevées sur le dernier commit de code, puis `MEMORY/features/<F-id>.md`, puis `ARCHITECTURE.md` en dernier, et seulement alors `dossier-revue.sh` et les gates ; aucun commit de code ni de configuration après le réalignement des documents. Trois rejets consécutifs d'un même gate déclenchent l'escalade (code 3), que seul le dev reprend. Avant une fusion : `gates-verts.sh main..HEAD` depuis la branche, lu en entier, puis la fusion dans une commande séparée.
 
 ## Dettes ouvertes
 
 - D-001 Pas de CI ni de branche protégée — depuis la génération — impact : les hooks git se contournent par `--no-verify`, pas de `CODEOWNERS` ; à lever dès qu'une plateforme git est choisie.
 - D-002 Tests d'intégration du serveur sur PGlite et non sur un PostgreSQL réel — proposée par F-008 (voir `ROADMAP.md`) — pas encore ouverte par le dev.
-- D-003 Tests de bout en bout hors des hooks — proposée par F-002 (voir `ROADMAP.md`) — pas encore ouverte par le dev ; couvre aussi les preuves « navigateur » de F-004.
+- D-003 Tests de bout en bout hors des hooks — depuis F-002 — impact : les scénarios Playwright, les captures et `preuve:construction` ne sont tenus que par des relevés à la main dans `MEMORY/features/` ; à lever par le dev en les branchant dans `.agents/outils.env`.
 - D-004 Citée par le dev dans deux lignes `REPRISE D-004` de `MEMORY/gates.log` — titre et impact écrits nulle part : à faire décrire par le dev dans `PROJECT_LOG.md`.
 - D-005 Rang de longueur non bornée et `rangEntre` récursive — depuis F-001 — impact : une mise à jour forgée peut épuiser la pile ; levée par F-029, obligatoire avant F-012.
-- D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — impact : diffusion interrompue, écouteur jamais retiré ; levée par F-002 (AC29, AC30) si le dev retient H13.
-- D-007 Vérification des types hors des contrôles du socle — depuis F-001 — impact : la barrière « sans DOM » de F-001-AC19 n'est prouvée par aucun `checks.txt` ; aggravée par le bloc 0 de F-008, après lequel `tsc` accepte `process` et `Buffer` dans `packages/document` ; à lever par le dev.
-
-- D-008 Commits `Agent: dev` délégués à l'orchestrateur — depuis le 2026-10-09 — impact : le trailer `Agent: dev` ne prouve plus qu'un humain a lu une spec ou un fichier protégé ; à lever par le dev (retirer les règles de `.claude/settings.local.json` ou relire les commits délégués).
+- D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — levée par F-002 ; à clore par le dev dans `PROJECT_LOG.md`.
+- D-007 Vérification des types hors des contrôles du socle — depuis F-001 — impact : `pnpm typecheck` n'est prouvé par aucun `checks.txt` ; à lever par le dev.
+- D-008 Commits `Agent: dev` délégués à l'orchestrateur — depuis le 2026-10-09 — impact : le trailer `Agent: dev` ne prouve plus qu'un humain a lu une spec ou un fichier protégé ; à lever par le dev (retirer les règles de `.claude/settings.local.json` ou relire les commits délégués, `git log --grep='délégation explicite du dev'`).
 
 ## État des contrôles / gates
 
-2026-10-08, F-001, empreinte `ca4cb0d41fe3` : `checks.txt` → `RESULTAT: OK` (224 tests sur 6 fichiers) ; `reviewer-frontend` APPROVED, `SECURITY GATE: PASS`, `ARCHITECTURE GATE: PASS`, `CRAFT GATE: PASS`.
+Les verdicts font foi dans `MEMORY/gates.log`. F-001 : tous verts sur l'empreinte `ca4cb0d41fe3`. F-002 : tous verts sur l'empreinte `d06344502281`. F-004 : tous verts sur l'empreinte `2fc8bae8471c`. `main` : `gates-verts.sh 275d4ef..main` → `RESULTAT GATES: OK` à la fusion de F-002.
 
-`main` à `2615352` : `gates-verts.sh 275d4ef..main` → `RESULTAT GATES: OK` (F-001 OK, le reste en planification seulement) ; `perimetre.sh --commits` sur les commits d'import → code 0.
+F-004, dernier commit de code `0d0a240` : relevé de l'orchestrateur dans `MEMORY/features/F-004.md` (1078 tests sur 32 fichiers, types, lint, contrats, `preuve:construction`, couverture des critères, bout en bout `46 passed` deux fois, tous en code 0).
 
-UNVERIFIED : arbre de travail du dépôt principal (448 tests verts sur 29 fichiers, lancés à la main, hors de tout dossier de revue) ; `pnpm typecheck` (hors contrôles, D-007) ; tests de bout en bout d'`apps/web` (`pnpm --filter @notionlike/web test:e2e`), non relancés depuis la coupure de courant du 2026-10-08.
+UNVERIFIED pour tout gate, parce que hors des contrôles du socle : `pnpm typecheck` (D-007), la construction, le bout en bout et les captures (D-003). Ce sont des relevés à la main.
 
 ## Pièges actifs
 
-- Dans `~/dev/notionLike`, ne jamais lancer `git stash`, `git clean`, `git restore`, `git checkout -- <fichier>`, `git reset --hard` : le travail non commité de F-002 et F-003 n'existe nulle part ailleurs. Un changement de branche n'est sûr que si les fichiers modifiés sont identiques dans les deux branches et qu'aucun fichier non suivi n'existe dans la cible : le vérifier avant.
-- Branches d'archive, à ne pas fusionner : `planification-reunie` (échoue à `CONTROLE perimetre` sur le merge `d1caf7a`, `HORS : MEMORY/VEILLE.md`, et porte la conception de F-008 sans gate), `F-008` (131 commits de planification, historique détaillé) et `F-001` (déjà fusionnée). Elles gardent l'historique ; l'état final est dans `main`.
-- Les commits de conception d'une feature exigent tous ses gates avant d'entrer dans `main` : ne jamais les mêler à une branche de planification. La planification seule (specs, `ROADMAP.md`, `MEMORY/`) n'exige aucun gate.
-- Un conflit de fusion résolu par un agent compte comme une écriture de cet agent sur chaque fichier en conflit : faire reposer le fichier par son propriétaire.
+- Avant de fusionner une branche dans `main`, lancer `.agents/checks/gates-verts.sh main..HEAD` DEPUIS LA BRANCHE, lire toute la sortie, puis fusionner dans une commande séparée. Lancé depuis un worktree placé sur `main`, le script lit la spec de `main` et peut afficher un `FAIL` qui ne concerne pas la branche ; et une commande enchaînée a déjà fusionné sans que la ligne `FAIL` soit lue.
+- Un commit de merge fait par `git merge` sans message porte aucun trailer : toujours passer `-m` avec `Agent:` et `Feature:`.
+- Aucun commit de code ni de configuration après le réalignement d'`ARCHITECTURE.md` et de `MEMORY/features/<F-id>.md` : le gate d'architecture a rejeté deux fois F-004 pour des documents qui décrivaient un commit antérieur. `ROADMAP.md` ne porte aucun état transitoire : il renvoie aux fichiers qui font foi.
+- Le reviewer rejette toute assertion qui ne peut pas échouer et tout contrôle statique sans cas fautif fourni comme donnée : demander au producteur un témoin jetable par critère exposé avant la revue.
+- Le hook `Stop` lance les tests sur l'arbre courant : ne pas répondre au dev pendant qu'un producteur écrit du code en arrière-plan, sinon trois lancements sur un arbre intermédiaire déclenchent une escalade.
 - Le hook de périmètre ne résout que `CLAUDE_PROJECT_DIR` : il refuse toute écriture d'agent dans un autre worktree et toute écriture de l'orchestrateur hors de la traçabilité. Les scripts de contrôle et les gates, eux, tournent dans un worktree. Une seule branche avance donc à la fois en écriture.
-- Avant de fusionner une branche dans `main`, lancer soi-même `.agents/checks/gates-verts.sh main..<branche>` et lire toute la sortie : un rapport d'agent a annoncé un code 0 en omettant une ligne `FAIL`.
-- Avant toute commande, lister les branches et les worktrees (`git branch -a -vv`, `git worktree list`).
-- Le code de F-002 et F-003 de l'arbre a été écrit contre d'anciennes versions des specs. La spec F-002 réunie a six critères de plus (AC27 à AC32) et un AC25 réécrit (identifiant UUID canonique) : `apps/web/src/persistance/nom-de-base.ts` ne contrôle que l'identifiant d'espace. F-004 remplace la barre d'outils permanente de F-003 et les boutons de rangée de F-002.
-- Trois fichiers de `packages/document` sont commités en version F-001 seule et restent modifiés dans l'arbre (part F-003) : `src/erreurs.ts`, `src/index.ts`, `test/structure.test.ts`.
-- Les fichiers protégés ne se commitent que par le dev (`Agent: dev`) ; un nouveau paquet de workspace aussi ; une validation de spec aussi, et elle ne vaut que sur la ligne où elle est commitée.
+- Tout lancement de Playwright, même partiel, vide `apps/web/test-results/` : copier les captures ailleurs avant de les montrer.
+- Branches d'archive, à ne pas fusionner : `planification-reunie`, `F-008` (planification, historique détaillé), `archive-arbre-2026-10-08` (arbre de travail du 2026-10-08 : code de F-003 écrit en avance, à reprendre fichier par fichier, sa conception est à refaire) ; `F-001` et `F-002` sont déjà fusionnées.
+- Les commits de conception d'une feature exigent tous ses gates avant d'entrer dans `main` : ne jamais les mêler à une branche de planification ni à la branche d'une autre feature.
+- Un conflit de fusion résolu par un agent compte comme une écriture de cet agent sur chaque fichier en conflit : faire reposer le fichier par son propriétaire.
+- Une validation de spec ne vaut que sur la ligne où elle est commitée, et toute retouche de la spec la repasse en brouillon.
+- Avant F-030, l'interface n'affirme jamais « Enregistré » : le code de F-002 passe à l'état actif sur l'évènement `synced` de `y-indexeddb`, émis même si l'écriture échoue (F-030-AC26).
 - `fast-check@4.10.2` n'est pas dans la spec F-001 : à entériner par le dev.
 - `.idea/` est exclu localement par `.git/info/exclude`, pas par `.gitignore`.
 - Un gate dont la ligne de verdict est dans un bloc de code est lu `UNVERIFIED` : relancer le gate.

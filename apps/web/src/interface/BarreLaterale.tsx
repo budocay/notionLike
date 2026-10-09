@@ -1,7 +1,8 @@
 import type { PageLue } from "@notionlike/document";
-import type { ReactElement, RefObject } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 
-import { NOM_BARRE_LATERALE, NOUVELLE_PAGE } from "./messages.ts";
+import { CadreDeBarre, TeteDeBarre } from "./composants/CadreDeBarre.tsx";
+import { NOM_APPLICATION, NOM_BARRE_LATERALE, NOUVELLE_PAGE } from "./messages.ts";
 import { rangeesVisibles } from "./pages.ts";
 import { type ActionsBarre, type EcranBarre, RangeePage } from "./RangeePage.tsx";
 
@@ -12,37 +13,37 @@ interface Proprietes {
   /** Message de la dernière opération refusée par le document. */
   readonly erreur: string | undefined;
   readonly boutonNouvellePage: RefObject<HTMLButtonElement | null>;
+  /** Bouton de fermeture, quand la barre est ouverte en tiroir. */
+  readonly fermeture?: ReactNode | undefined;
 }
 
-export function BarreLaterale({
-  racines,
-  ecran,
-  actions,
-  erreur,
-  boutonNouvellePage,
-}: Proprietes): ReactElement {
+// Tête : le sceau et « Nouvelle page ». « Rechercher » y vient avec F-024, « Corbeille » dans le
+// pied avec F-007 : aucune entrée sans effet d'ici là (F-004-AC29, AC30).
+export function BarreLaterale(props: Proprietes): ReactElement {
+  const { racines, ecran, actions } = props;
+  const tete = (
+    <TeteDeBarre
+      nomEspace={NOM_APPLICATION}
+      libelleNouvellePage={NOUVELLE_PAGE}
+      surNouvellePage={() => actions.creerPage(null)}
+      boutonNouvellePage={props.boutonNouvellePage}
+      fermeture={props.fermeture}
+    />
+  );
   return (
-    <nav className="barre-laterale" aria-label={NOM_BARRE_LATERALE}>
-      <button
-        ref={boutonNouvellePage}
-        type="button"
-        className="nouvelle-page"
-        onClick={() => actions.creerPage(null)}
-      >
-        {NOUVELLE_PAGE}
-      </button>
-      {erreur !== undefined && (
-        <p role="alert" className="erreur">
-          {erreur}
-        </p>
-      )}
-      {racines.length > 0 && (
-        <ul className="pages">
-          {rangeesVisibles(racines, ecran.repliees).map(({ page, niveau }) => (
-            <RangeePage key={page.id} page={page} niveau={niveau} ecran={ecran} actions={actions} />
+    <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={tete} erreur={props.erreur}>
+      {racines.length === 0
+        ? undefined
+        : rangeesVisibles(racines, ecran.repliees).map(({ page, niveau, mere }) => (
+            <RangeePage
+              key={page.id}
+              page={page}
+              niveau={niveau}
+              mere={mere}
+              ecran={ecran}
+              actions={actions}
+            />
           ))}
-        </ul>
-      )}
-    </nav>
+    </CadreDeBarre>
   );
 }

@@ -1,0 +1,32 @@
+/* Feuille de démonstration (F-004-AC23, AC50) : réservée à la page de démonstration, importée par
+   la seule entrée de cette page. Elle importe la feuille d'entrée, dont elle hérite Tailwind borné
+   par source(none) et les jetons, désigne les fichiers de la page et porte ses classes propres. Elle
+   ne déclare aucun jeton : ses dimensions sont bâties sur ceux du fichier des jetons. */
+@import "../styles/entree.css";
+@source "./*.classes.ts";
+@source "../../demo.html";
+
+/* Aperçu de la coquille : il devient le repère des éléments fixes qu'il contient, pour que le
+   tiroir et son voile s'y posent comme dans la fenêtre. */
+@utility repere-des-fixes {
+  contain: layout;
+}
+
+@utility grille-auto {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--container-barre)), 1fr));
+}
+
+/* Colonne de la page : seize pas du plus grand espacement. */
+@utility largeur-de-page {
+  max-width: calc(var(--spacing-immense) * 16);
+}
+
+/* Aperçu de la coquille : la hauteur de quinze rangées compactes. */
+@utility hauteur-apercu {
+  height: calc(var(--spacing-rangee) * 15);
+}
+
+/* Place d'un menu ouvert sous sa rangée : trois entrées, sa marge et ses bords, et un souffle. */
+@utility reserve-du-menu {
+  padding-bottom: calc(var(--spacing-cible) * 3 + var(--spacing-mince) * 3 + var(--spacing-petit));
+}
