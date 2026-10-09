@@ -1,12 +1,18 @@
-// Couture des appelants de la façade de @notionlike/document (F-002-AC31). Les fichiers du
-// workspace sont lus comme du texte : aucun module d'un autre paquet n'est évalué ici, seuls des
-// noms de fichiers et des déclarations d'import en sont tirés (conception, « Règles de dépendances »).
+// Coutures d'apps/web avec @notionlike/document : appelants de la façade (F-002-AC31), modules
+// qui lisent le document (F-002-AC20, AC22), limite de titre et codes d'erreur (F-002-AC14, AC15),
+// instance de yjs (F-002-AC21). Les fichiers du workspace sont lus comme du texte : aucun module
+// d'un autre paquet n'est évalué ici, seuls des noms de fichiers, des déclarations d'import et des
+// occurrences de noms en sont tirés (conception, « Règles de dépendances »).
+import { type CodeErreurDocument, ErreurDocument } from "@notionlike/document";
+import { waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
+import { LONGUEUR_MAX_TITRE, messageErreur } from "../src/interface/messages.ts";
 import { ouvrirPersistance } from "../src/persistance/index.ts";
 import {
   creerFacade,
+  demarrerSession,
   ecouteurs,
   facadesEncoreOuvertes,
   fermerLesFacades,
@@ -25,8 +31,11 @@ const UN_NOM_D_OUVERTURE = `(?:${NOMS_D_OUVERTURE.join("|")})`;
 const DEFINITION = ["packages/document/src/document-espace.ts", "packages/document/src/index.ts"];
 
 // Les sortes d'ouvrants. Un fichier qui fait entrer l'une des deux fonctions, où que ce soit dans
-// le workspace, doit être inscrit dans l'une d'elles, avec ce qu'elle exige. La sorte
-// « production » arrive avec la session d'espace.
+// le workspace, doit être inscrit dans l'une d'elles, avec ce qu'elle exige.
+const SESSION = "apps/web/src/espace/session-espace.ts";
+const ENTREE = "apps/web/src/main.tsx";
+const AIDES_DE_FACADE = "apps/web/test/aides-facade.ts";
+const PRODUCTION = [SESSION];
 const AIDES_SUIVIES = ["apps/web/test/aides-facade.ts", "packages/document/test/fermeture.test.ts"];
 const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [
@@ -227,6 +236,7 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
   it("F-002-AC31 énumère par leurs imports tous les fichiers du workspace qui font entrer une fonction d'ouverture, chacun inscrit dans sa sorte", () => {
     const attendus = [
       ...DEFINITION,
+      ...PRODUCTION,
       ...AIDES_SUIVIES,
       ...IMPORT_ENTIER_SANS_OUVERTURE,
       ...FACADES_DE_TEST_DE_F001_NON_MODIFIABLES,
@@ -237,6 +247,8 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
     expect([...fichiers.keys()]).toEqual(
       expect.arrayContaining([
         "apps/web/src/identifiants/uuid-canonique.ts",
+        "apps/web/src/interface/Application.tsx",
+        "apps/web/src/main.tsx",
         "apps/web/src/persistance/indexeddb.ts",
         "apps/web/test/aides-coutures.ts",
         "apps/web/test/coutures.test.ts",
@@ -247,22 +259,139 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
     );
   });
 
-  it("F-002-AC31 hors de ses deux fichiers de définition, aucun fichier de src/ n'ouvre de façade, et dans apps/web/test seul aides-facade.ts fait entrer une fonction d'ouverture", () => {
+  it("F-002-AC31 hors de ses deux fichiers de définition, aucun fichier de src/ autre que la session n'ouvre de façade, et dans apps/web/test seul aides-facade.ts fait entrer une fonction d'ouverture", () => {
     const horsDefinition = ouvrants().filter((chemin) => !DEFINITION.includes(chemin));
 
     expect(
       horsDefinition.filter((chemin) => /^(apps|packages)\/[^/]+\/src\//.test(chemin)),
-    ).toEqual([]);
+    ).toEqual(PRODUCTION);
     expect(
       horsDefinition.filter(
         (chemin) =>
           chemin.startsWith("apps/web/") && declarationsDe(texteDe(chemin)).some(nommeUneOuverture),
       ),
-    ).toEqual(["apps/web/test/aides-facade.ts"]);
+    ).toEqual([SESSION, AIDES_DE_FACADE]);
   });
 });
 
+// Un fichier fait entrer le démarrage de la session s'il le nomme dans une déclaration, renommage
+// compris, ou s'il prend en entier le module de la session. Un import dynamique à l'argument
+// calculé n'est pas compté ici : l'énumération des ouvrants l'oblige déjà à figurer dans une sorte.
+const NOM_DU_DEMARRAGE = "demarrerSessionEspace";
+function faitEntrerLeDemarrage(chemin: string, texte: string): boolean {
+  const dossier = chemin.slice(0, chemin.lastIndexOf("/"));
+  return declarationsDe(texte).some((declaration) => {
+    const viseLaSession =
+      declaration.source?.startsWith(".") === true &&
+      sansExtension(depuisLaRacine(dossier, declaration.source)) === sansExtension(SESSION);
+    return declaration.noms.includes(NOM_DU_DEMARRAGE) || (declaration.entier && viseLaSession);
+  });
+}
+
+function fichiersQui(critere: (chemin: string, texte: string) => boolean): string[] {
+  return [...fichiers]
+    .filter(([chemin, texte]) => critere(chemin, texte))
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+function sourcesDeLApplication(): [string, string][] {
+  return [...fichiers].filter(([chemin]) => chemin.startsWith("apps/web/src/"));
+}
+
 describe("ce que chaque sorte d'ouvrant exige", () => {
+  it.each(PRODUCTION)(
+    "F-002-AC31 production %s : la session démarrée ouvre une façade, un écouteur ; fermer() rend au Y.Doc le compte d'un document neuf",
+    async (chemin) => {
+      expect(appelsDOuverture(texteDe(chemin))).toBe(1);
+      expect(occurrences(texteDe(chemin), `\\b${NOM_OUVRIR}\\s*\\(`)).toBe(1);
+      const neuf = ecouteurs(new Y.Doc());
+      const session = demarrerSession();
+      const doc = session.doc;
+      if (doc === undefined) {
+        throw new Error("La session n'a pas de document.");
+      }
+      expect(ecouteurs(doc)).toBe(neuf);
+
+      await waitFor(() => expect(session.lireEtat().phase).toBe("pret"));
+
+      expect(ecouteurs(doc)).toBe(neuf + 1);
+      expect(facadesEncoreOuvertes()).toBe(1);
+      session.fermer();
+      expect(ecouteurs(doc)).toBe(neuf);
+      expect(facadesEncoreOuvertes()).toBe(0);
+    },
+  );
+
+  it.each([
+    [
+      "un import nommé",
+      statique("import", `{ ${NOM_DU_DEMARRAGE} }`, "../src/espace/session-espace.ts"),
+    ],
+    ["un import renommé", statique("import", `{ ${NOM_DU_DEMARRAGE} as demarrer }`, "./x.ts")],
+    [
+      "le module de la session entier",
+      statique("import", "* as session", "../src/espace/session-espace.ts"),
+    ],
+    ["le module de la session réexporté", statique("export", "*", "../src/espace/session-espace")],
+    ["l'import dynamique du module de la session", dynamique('"../src/espace/session-espace.ts"')],
+  ])("F-002-AC31 voit comme démarrant une session %s", (_cas, texte) => {
+    expect(faitEntrerLeDemarrage(`${ICI}/essai.ts`, texte)).toBe(true);
+  });
+
+  it.each([
+    [
+      "un import de type du module de la session",
+      statique("import", "type { SessionEspace }", "../src/espace/session-espace.ts"),
+    ],
+    ["l'aide de démarrage", statique("import", "{ demarrerSession }", "./aides-facade.ts")],
+    ["l'import dynamique de l'entrée", dynamique('"../src/main.tsx"')],
+  ])("F-002-AC31 ne prend pas pour un démarrage de session %s", (_cas, texte) => {
+    expect(faitEntrerLeDemarrage(`${ICI}/essai.ts`, texte)).toBe(false);
+  });
+
+  it("F-002-AC31 l'entrée est le seul fichier de src/ qui importe demarrerSessionEspace, et aides-facade.ts le seul de test/ et d'e2e/ : toute session de test est suivie", () => {
+    expect(fichiersQui(faitEntrerLeDemarrage)).toEqual([ENTREE, AIDES_DE_FACADE]);
+
+    // Dans l'aide, le module de la session ne sert qu'à quatre choses : son import, un type, un
+    // appel de démarrage et l'espion de l'entrée. Il n'est ni rendu au dehors, ni passé en valeur.
+    const aide = texteDe(AIDES_DE_FACADE);
+    const nomDuModule =
+      /\*\s+as\s+(\w+)\s+from\s*"\.\.\/src\/espace\/session-espace\.ts"/.exec(aide)?.[1] ?? "";
+    expect(nomDuModule).not.toBe("");
+    expect(occurrences(aide, `\\b${nomDuModule}\\b`)).toBe(4);
+    expect(occurrences(aide, `\\b${nomDuModule}\\.${NOM_DU_DEMARRAGE}\\(\\)`)).toBe(1);
+    expect(occurrences(aide, `vi\\.spyOn\\(${nomDuModule}, "${NOM_DU_DEMARRAGE}"\\)`)).toBe(1);
+    expect(occurrences(aide, `=\\s*${nomDuModule}\\.SessionEspace;`)).toBe(1);
+    expect(declarationsDe(aide).filter((declaration) => declaration.exporte)).toEqual([]);
+    expect(occurrences(aide, `\\b${NOM_DU_DEMARRAGE}\\b`)).toBe(2);
+    // L'entrée est importée par un chemin littéral : un argument calculé en ferait un ouvrant. Et
+    // par cette aide seulement : un autre fichier de test qui l'importerait démarrerait une session
+    // que personne ne suit.
+    expect(aide).toContain(`await ${MOT_IMPORT}("../src/main.tsx")`);
+    expect(
+      fichiersQui((chemin, texte) => {
+        const dossier = chemin.slice(0, chemin.lastIndexOf("/"));
+        return declarationsDe(texte).some(
+          ({ source }) =>
+            source?.startsWith(".") === true &&
+            sansExtension(depuisLaRacine(dossier, source)) === sansExtension(ENTREE),
+        );
+      }),
+    ).toEqual([AIDES_DE_FACADE]);
+  });
+
+  it("F-002-AC31 la session est le seul fichier de src/ qui nomme le type DocumentEspace : elle seule tient une façade entière, donc son abonner et son fermer", () => {
+    const quiNommentLaFacade = sourcesDeLApplication()
+      .filter(([, texte]) => /\bDocumentEspace\b/.test(texte))
+      .map(([chemin]) => chemin);
+
+    expect(quiNommentLaFacade).toEqual([SESSION]);
+    // Le mot est cherché seul : les deux noms d'ouverture ne le contiennent pas à une limite de mot.
+    expect(/\bDocumentEspace\b/.test(`${NOM_CREER}() ${NOM_OUVRIR}(doc)`)).toBe(false);
+    expect(/\bDocumentEspace\b/.test("Pick<DocumentEspace, 'lire'>")).toBe(true);
+  });
+
   it.each(AIDES_SUIVIES)(
     "F-002-AC31 aide suivie %s : exactement deux appels d'ouverture, ceux de ses deux aides, et aucune des deux fonctions rendue au dehors",
     (chemin) => {
@@ -374,5 +503,281 @@ describe("la fermeture se prouve par le compte d'écouteurs", () => {
     facade.fermer();
     expect(facadesEncoreOuvertes()).toBe(0);
     expect(ecouteurs(facade.doc)).toBe(0);
+  });
+});
+
+// Classement de chaque occurrence d'un nom d'ouverture dans un fichier d'aides suivies : seules
+// quatre places sont admises. Une fonction passée en valeur ailleurs pourrait être appelée sous un
+// autre nom, sur un `Y.Doc` que le fichier ne suit pas.
+type Place = "import" | "appel" | "longueur mesurée" | "titre de test" | "autre";
+
+// Premier argument, en chaîne, d'un `it(` ou d'un `describe(`, ou de l'appel qui suit un `.each(…)`.
+const TITRE_DE_TEST = /(?:\b(?:it|describe)|\))\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1\s*,/g;
+
+function plagesDe(texte: string, motif: RegExp): [number, number][] {
+  return [...texte.matchAll(motif)].map((trouve) => [
+    trouve.index,
+    trouve.index + trouve[0].length,
+  ]);
+}
+
+function placesDesNomsDOuverture(texte: string): { nom: string; place: Place }[] {
+  const imports = plagesDe(texte, DECLARATION_STATIQUE);
+  const titres = plagesDe(texte, TITRE_DE_TEST);
+  const dans = (plages: [number, number][], position: number): boolean =>
+    plages.some(([debut, fin]) => debut <= position && position < fin);
+  return [...texte.matchAll(new RegExp(`\\b${UN_NOM_D_OUVERTURE}\\b`, "g"))].map((trouve) => {
+    const nom = trouve[0];
+    const avant = texte.slice(0, trouve.index);
+    const apres = texte.slice(trouve.index + nom.length);
+    let place: Place = "autre";
+    if (dans(imports, trouve.index)) {
+      place = "import";
+    } else if (dans(titres, trouve.index)) {
+      place = "titre de test";
+    } else if (/\bexpect\(\s*$/.test(avant) && /^\s*\)\s*\.toHaveLength\(/.test(apres)) {
+      place = "longueur mesurée";
+    } else if (/^\s*\(/.test(apres)) {
+      place = "appel";
+    }
+    return { nom, place };
+  });
+}
+
+describe("occurrences des noms d'ouverture dans les aides suivies du paquet", () => {
+  const FERMETURE = "packages/document/test/fermeture.test.ts";
+
+  it.each<[string, string, Place]>([
+    [
+      "sa clause d'import",
+      statique("import", `{ ${NOM_CREER}, ${NOM_OUVRIR} }`, "../src/index.ts"),
+      "import",
+    ],
+    ["son appel", `return suivre(${NOM_OUVRIR}(doc), depart);\n`, "appel"],
+    ["la mesure de sa longueur", `expect(${NOM_CREER}).toHaveLength(0);\n`, "longueur mesurée"],
+    [
+      "le titre d'un test",
+      `it("une façade créée par ${NOM_CREER} se ferme", () => {});\n`,
+      "titre de test",
+    ],
+    [
+      "le titre d'un test paramétré",
+      `it.each(cas)("%s par ${NOM_OUVRIR}", () => {});\n`,
+      "titre de test",
+    ],
+    ["une affectation", `const ouvrir = ${NOM_OUVRIR};\n`, "autre"],
+    ["un argument passé en valeur", `ouvrirAutrement(${NOM_OUVRIR}, doc);\n`, "autre"],
+    ["un élément de tableau", `const ouvertures = [${NOM_CREER}];\n`, "autre"],
+    ["une autre assertion que la longueur", `expect(${NOM_CREER}).toBe(creer);\n`, "autre"],
+    ["une chaîne hors d'un titre", `const nom = "${NOM_OUVRIR}";\n`, "autre"],
+    ["une chaîne passée à une autre fonction", `noter("${NOM_OUVRIR}", valeur);\n`, "autre"],
+    ["un commentaire", `// ${NOM_OUVRIR} ouvre une façade\n`, "autre"],
+  ])("F-002-AC31 classement d'un nom d'ouverture : %s", (_cas, texte, attendue) => {
+    const places = placesDesNomsDOuverture(texte).map(({ place }) => place);
+
+    expect(places.length).toBeGreaterThan(0);
+    expect(new Set(places)).toEqual(new Set([attendue]));
+  });
+
+  it("F-002-AC31 fermeture.test.ts : chaque nom d'ouverture n'y figure qu'à son import, à l'appel de son aide, comme longueur mesurée ou dans un titre de test", () => {
+    const places = placesDesNomsDOuverture(texteDe(FERMETURE));
+    const compte = (nom: string, place: Place): number =>
+      places.filter((occurrence) => occurrence.nom === nom && occurrence.place === place).length;
+
+    expect(places.filter(({ place }) => place === "autre")).toEqual([]);
+    for (const nom of NOMS_D_OUVERTURE) {
+      expect(compte(nom, "import"), nom).toBe(1);
+      expect(compte(nom, "appel"), nom).toBe(1);
+    }
+    expect(places.length).toBeGreaterThan(2 * NOMS_D_OUVERTURE.length);
+  });
+});
+
+// Les fichiers de src/ du workspace, hors du paquet du document, qui nomment le type des codes ou
+// lisent le champ `code` d'une erreur. Chacun est inscrit avec ce qu'il fait d'un code du document,
+// ou écarté parce que le code qu'il porte est celui d'une autre erreur.
+const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
+  "apps/web/src/espace/session-espace.ts": "ne lit que « version-non-prise-en-charge »",
+  "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
+  "apps/web/src/interface/messages.ts": "traduit chaque code",
+};
+const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
+  "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
+};
+const TRADUCTEUR = "apps/web/src/interface/messages.ts";
+// Exhaustif par le type : un code ajouté au paquet sans entrée ici ne compile plus.
+const CODES_DU_DOCUMENT = Object.keys({
+  "page-introuvable": true,
+  "page-a-la-corbeille": true,
+  "deplacement-cyclique": true,
+  "titre-trop-long": true,
+  "position-invalide": true,
+  "version-non-prise-en-charge": true,
+  "facade-fermee": true,
+} satisfies Record<CodeErreurDocument, true>) as CodeErreurDocument[];
+
+function litUnCode(texte: string): boolean {
+  return /\bCodeErreurDocument\b|\.code\b/.test(texte);
+}
+
+function codesCites(texte: string): string[] {
+  return CODES_DU_DOCUMENT.filter((code) => texte.includes(`"${code}"`));
+}
+
+function codeDuRefus(operation: () => unknown): string | undefined {
+  try {
+    operation();
+    return undefined;
+  } catch (erreur) {
+    return erreur instanceof ErreurDocument ? erreur.code : "autre erreur";
+  }
+}
+
+describe("codes d'erreur du document", () => {
+  it("F-002-AC31 énumère les modules de src/ qui lisent un code d'erreur, hors du paquet du document : chacun est inscrit, et le traducteur traite « facade-fermee »", () => {
+    const lecteurs = fichiersQui(
+      (chemin, texte) =>
+        /^(apps|packages)\/[^/]+\/src\//.test(chemin) &&
+        !chemin.startsWith("packages/document/") &&
+        litUnCode(texte),
+    );
+
+    expect(lecteurs).toEqual(
+      [
+        ...Object.keys(LECTEURS_D_UN_CODE_DU_DOCUMENT),
+        ...Object.keys(PORTEURS_D_UN_AUTRE_CODE),
+      ].sort(),
+    );
+    for (const chemin of Object.keys(PORTEURS_D_UN_AUTRE_CODE)) {
+      expect(texteDe(chemin), chemin).not.toMatch(/ErreurDocument|@notionlike\/document/);
+    }
+    for (const chemin of Object.keys(LECTEURS_D_UN_CODE_DU_DOCUMENT)) {
+      expect(texteDe(chemin), chemin).toContain(`"${PAQUET}"`);
+    }
+    expect(codesCites(texteDe("apps/web/src/espace/session-espace.ts"))).toEqual([
+      "version-non-prise-en-charge",
+    ]);
+    expect(texteDe("apps/web/src/interface/Application.tsx")).toMatch(/\bmessageErreur\(/);
+    expect(codesCites(texteDe(TRADUCTEUR)).sort()).toEqual([...CODES_DU_DOCUMENT].sort());
+    expect(texteDe(TRADUCTEUR)).toMatch(/"facade-fermee":/);
+  });
+
+  it("F-002-AC31 F-002-AC15 le message de « facade-fermee » est une phrase française, sans le code", () => {
+    const message = messageErreur("facade-fermee");
+
+    expect(message).toMatch(/^[A-ZÀ-Ý][^]*\.$/);
+    expect(message).toMatch(/ (a été|n'a pas été|est) /);
+    expect(message).toMatch(/fermé/);
+    expect(message).not.toContain("facade");
+    expect(message).not.toContain("fermee");
+  });
+
+  it("F-002-AC15 chaque code d'erreur du document, les sept, a un message français distinct, sans code ni identifiant", () => {
+    expect(CODES_DU_DOCUMENT).toHaveLength(7);
+    const messages = CODES_DU_DOCUMENT.map((code) => {
+      const message = messageErreur(code);
+      expect(message.length, code).toBeGreaterThan(20);
+      expect(message, code).toMatch(/^[A-ZÀ-Ý][^]*\.$/);
+      expect(message, code).not.toContain(code);
+      expect(message, code).not.toMatch(/[a-z]+-[a-z]+-[a-z]+|undefined|Error|[0-9a-f]{8}-/);
+      return message;
+    });
+    expect(new Set(messages).size).toBe(messages.length);
+  });
+
+  it("F-002-AC14 la limite citée par le message est celle de la façade : 200 accepté, 201 refusé", () => {
+    const espace = creerFacade();
+
+    expect(LONGUEUR_MAX_TITRE).toBe(200);
+    expect(codeDuRefus(() => espace.creerPage("a".repeat(LONGUEUR_MAX_TITRE)))).toBeUndefined();
+    expect(codeDuRefus(() => espace.creerPage("a".repeat(LONGUEUR_MAX_TITRE + 1)))).toBe(
+      "titre-trop-long",
+    );
+    const id = espace.creerPage("court");
+    expect(
+      codeDuRefus(() => espace.renommerPage(id, "a".repeat(LONGUEUR_MAX_TITRE))),
+    ).toBeUndefined();
+    expect(codeDuRefus(() => espace.renommerPage(id, "a".repeat(LONGUEUR_MAX_TITRE + 1)))).toBe(
+      "titre-trop-long",
+    );
+    expect(messageErreur("titre-trop-long")).toContain(String(LONGUEUR_MAX_TITRE));
+  });
+});
+
+// Chaque fichier de src/ qui importe @notionlike/document, et le fichier de test qui le couvre :
+// le test doit exister et atteindre le module par ses imports. Un module de plus, ou un test qui ne
+// l'atteint plus, fait échouer l'énumération (F-002-AC20).
+const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
+  "apps/web/src/espace/session-espace.ts": "apps/web/test/session-fermeture.test.tsx",
+  "apps/web/src/interface/Application.tsx": "apps/web/test/barre-laterale-erreurs.test.tsx",
+  "apps/web/src/interface/BarreLaterale.tsx": "apps/web/test/barre-laterale.test.tsx",
+  "apps/web/src/interface/RangeePage.tsx": "apps/web/test/barre-laterale.test.tsx",
+  "apps/web/src/interface/ZonePrincipale.tsx": "apps/web/test/navigation.test.tsx",
+  "apps/web/src/interface/messages.ts": "apps/web/test/barre-laterale-erreurs.test.tsx",
+  "apps/web/src/interface/pages.ts": "apps/web/test/navigation.test.tsx",
+};
+
+function importeLePaquet(texte: string, paquet: string): boolean {
+  return declarationsDe(texte).some(
+    ({ source }) => source === paquet || source?.startsWith(`${paquet}/`) === true,
+  );
+}
+
+// Fichiers atteints depuis un fichier en suivant ses imports relatifs, de proche en proche.
+function atteintsDepuis(depart: string): Set<string> {
+  const atteints = new Set<string>([depart]);
+  for (const chemin of atteints) {
+    const dossier = chemin.slice(0, chemin.lastIndexOf("/"));
+    for (const { source } of declarationsDe(fichiers.get(chemin) ?? "")) {
+      if (source?.startsWith(".") === true && !source.includes("?")) {
+        const vise = depuisLaRacine(dossier, source);
+        if (fichiers.has(vise)) {
+          atteints.add(vise);
+        }
+      }
+    }
+  }
+  return atteints;
+}
+
+describe("modules d'apps/web qui lisent le document d'espace", () => {
+  it("F-002-AC20 énumère les fichiers de src/ qui importent @notionlike/document : la liste est exacte, et chacun est atteint par le fichier de test qui le couvre", () => {
+    const importateurs = sourcesDeLApplication()
+      .filter(([, texte]) => importeLePaquet(texte, PAQUET))
+      .map(([chemin]) => chemin)
+      .sort();
+
+    expect(importateurs).toEqual(Object.keys(MODULES_QUI_LISENT_LE_DOCUMENT).sort());
+    for (const [module, test] of Object.entries(MODULES_QUI_LISENT_LE_DOCUMENT)) {
+      expect(fichiers.has(test), test).toBe(true);
+      expect(atteintsDepuis(test).has(module), `${test} atteint ${module}`).toBe(true);
+    }
+    expect(atteintsDepuis("apps/web/test/route.test.ts").has(SESSION)).toBe(false);
+  });
+
+  it("F-002-AC22 hors du module de persistance, seule la session importe yjs, et aucun fichier de src/ ne lit ni n'écrit un type partagé du Y.Doc", () => {
+    const horsPersistance = sourcesDeLApplication().filter(
+      ([chemin]) => !chemin.startsWith("apps/web/src/persistance/"),
+    );
+
+    expect(
+      horsPersistance
+        .filter(([, texte]) => importeLePaquet(texte, "yjs"))
+        .map(([chemin]) => chemin),
+    ).toEqual([SESSION]);
+    expect(importeLePaquet(statique("import", "type * as Y", "yjs"), "yjs")).toBe(true);
+    for (const [chemin, texte] of sourcesDeLApplication()) {
+      expect(texte, chemin).not.toMatch(
+        /\.(getMap|getArray|getText|getXmlFragment|getXmlElement|transact)\(/,
+      );
+      expect(texte, chemin).not.toContain("deplacerPage");
+      expect(importeLePaquet(texte, "y-indexeddb"), chemin).toBe(
+        chemin === "apps/web/src/persistance/indexeddb.ts",
+      );
+    }
+  });
+
+  it("F-002-AC21 le document de la session est un Y.Doc de l'instance de yjs d'apps/web", () => {
+    expect(demarrerSession().doc).toBeInstanceOf(Y.Doc);
   });
 });
