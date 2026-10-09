@@ -50,8 +50,12 @@ export function messageErreur(code: CodeErreurDocument): string {
   return MESSAGE_PAR_CODE[code];
 }
 
+// Visible : tout caractère qui n'est ni un blanc, ni un contrôle, ni un formatage, ni ignorable par défaut, ni le braille vide.
+const CARACTERE_VISIBLE = /[^\p{White_Space}\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}\u2800]/u;
+
+/** Titre à montrer et à nommer : le titre enregistré, ou « Sans titre » s'il n'a aucun caractère visible. */
 export function titreAffiche(titre: string): string {
-  return titre === "" ? SANS_TITRE : titre;
+  return CARACTERE_VISIBLE.test(titre) ? titre : SANS_TITRE;
 }
 
 export function titreOnglet(titrePage: string | undefined): string {

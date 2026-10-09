@@ -6,6 +6,7 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   activerActionDeRangee,
   arborescence,
+  atteindreActionDeRangee,
   barreLaterale,
   basculerRepli,
   boutonNouvellePage,
@@ -241,4 +242,40 @@ test("F-002-AC27 F-002-AC13 l'adresse d'une page porte un UUID canonique ; un fr
   await creerPageNommee(page, "Créée depuis page introuvable");
   expect(await titres(page)).toEqual(["Vraie page", "Créée depuis page introuvable"]);
   expect(await nomsDesBases(page)).toHaveLength(2);
+});
+
+test("F-002-AC10 un titre sans caractère visible, saisi au clavier puis validé, donne un lien et des commandes nommés « Sans titre » dans Chromium ; le titre enregistré reste celui saisi, rechargement compris", async ({
+  page,
+}) => {
+  await ouvrir(page);
+  await creerPageNommee(page, "Agenda");
+  const champ = page.getByRole("textbox", { name: "Titre de la page" });
+
+  for (const saisi of ["   ", "\u200B\u2060\uFEFF"]) {
+    await page.getByRole("button", { name: /^Renommer « /u }).click();
+    await champ.fill("");
+    await page.keyboard.type(saisi);
+    await page.keyboard.press("Enter");
+
+    await expect(lienDePage(page, "Sans titre")).toBeVisible();
+    await expect(lienDePage(page, "Sans titre")).toHaveAttribute("aria-current", "page");
+    await expect(atteindreActionDeRangee(page, "renommer", "Sans titre")).toBeVisible();
+    await expect(
+      atteindreActionDeRangee(page, "ajouter-une-sous-page", "Sans titre"),
+    ).toBeVisible();
+    await expect(
+      atteindreActionDeRangee(page, "mettre-a-la-corbeille", "Sans titre"),
+    ).toBeVisible();
+    await expect(titrePrincipal(page)).toHaveText("Sans titre");
+    await expect(page).toHaveTitle("Sans titre · notionLike");
+
+    await ecrituresAbouties(page);
+    await recharger(page);
+    await expect(lienDePage(page, "Sans titre")).toBeVisible();
+    await expect(page).toHaveTitle("Sans titre · notionLike");
+    await activerActionDeRangee(page, "renommer", "Sans titre");
+    await expect(champ).toHaveValue(saisi);
+    await champ.press("Escape");
+    await expect(lienDePage(page, "Sans titre")).toBeVisible();
+  }
 });
