@@ -2,10 +2,11 @@
 // sur des données fictives. Outil de développement, sans texte d'explication.
 import type { ReactElement, ReactNode } from "react";
 
-import { BarreDuHaut, FilAriane, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
-import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/BarreLaterale.tsx";
-import { Bouton, BoutonIcone } from "../interface/composants/Bouton.tsx";
+import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
+import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
+import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
+import { Coquille } from "../interface/composants/Coquille.tsx";
 import {
   Avertissement,
   Chargement,
@@ -17,30 +18,40 @@ import { NOMS_DE_PICTOGRAMME, Pictogramme } from "../interface/composants/Pictog
 import { Raccourci } from "../interface/composants/Raccourci.tsx";
 import { Rangee } from "../interface/composants/Rangee.tsx";
 import {
+  AFFICHER_LES_PAGES_INTERMEDIAIRES,
+  AJOUTER_UNE_SOUS_PAGE,
   AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   EXPLICATION_PAGE_INTROUVABLE,
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
+  FERMER_LA_BARRE_LATERALE,
   INVITATION_PREMIERE_PAGE,
+  messageErreur,
+  METTRE_A_LA_CORBEILLE,
   NOM_APPLICATION,
   NOM_BARRE_LATERALE,
+  NOM_DU_TIROIR,
+  NOM_FIL_D_ARIANE,
   nomActionsDeLaPage,
   nomAjouterSousPage,
   nomSousPages,
+  NON_ENREGISTRE,
   NOUVELLE_PAGE,
+  OUVRIR_LA_BARRE_LATERALE,
   PAGE_INTROUVABLE,
+  RENOMMER,
   TITRE_DE_LA_PAGE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
 } from "../interface/messages.ts";
+import { afficherTouches, RACCOURCIS } from "../interface/raccourcis.ts";
 import {
   ADRESSE_FICTIVE,
   ANCETRES,
   ARBORESCENCE,
-  LIBELLES,
+  NOM_DE_L_ESPACE_FICTIF,
   PAGE_COURANTE,
   type PageFictive,
   TITRE_LONG,
-  TOUCHES,
 } from "./donnees.ts";
 import { echantillonsDe } from "./Echantillons.tsx";
 import { MARQUEUR_DE_DEMONSTRATION } from "./marqueur.ts";
@@ -121,7 +132,7 @@ function RangeeFictive({
 function Tete({ fermeture }: { readonly fermeture?: ReactNode }): ReactElement {
   return (
     <TeteDeBarre
-      nomEspace={LIBELLES.nomEspace}
+      nomEspace={NOM_DE_L_ESPACE_FICTIF}
       libelleNouvellePage={NOUVELLE_PAGE}
       surNouvellePage={sansEffet}
       fermeture={fermeture}
@@ -139,15 +150,23 @@ function Arborescence(): ReactElement {
   );
 }
 
+function Barre({ fermeture }: { readonly fermeture?: ReactNode }): ReactElement {
+  return (
+    <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={<Tete fermeture={fermeture} />}>
+      <Arborescence />
+    </CadreDeBarre>
+  );
+}
+
 function Fil({ replie }: { readonly replie: boolean }): ReactElement {
   return (
-    <FilAriane
-      nom={LIBELLES.filDAriane}
+    <CheminDePage
+      nom={NOM_FIL_D_ARIANE}
       ancetres={ANCETRES}
       courante={PAGE_COURANTE}
       repli={
         replie
-          ? { nom: LIBELLES.pagesIntermediaires, ouvert: false, surBascule: sansEffet }
+          ? { nom: AFFICHER_LES_PAGES_INTERMEDIAIRES, ouvert: false, surBascule: sansEffet }
           : undefined
       }
     />
@@ -159,9 +178,13 @@ function MenuFictif({ titre }: { readonly titre: string }): ReactElement {
     <MenuActions
       nom={nomActionsDeLaPage(titre)}
       entrees={[
-        { libelle: LIBELLES.renommer, touches: TOUCHES.renommer, surActivation: sansEffet },
-        { libelle: LIBELLES.ajouterUneSousPage, surActivation: sansEffet },
-        { libelle: LIBELLES.mettreALaCorbeille, surActivation: sansEffet },
+        {
+          libelle: RENOMMER,
+          touches: afficherTouches(RACCOURCIS.renommer),
+          surActivation: sansEffet,
+        },
+        { libelle: AJOUTER_UNE_SOUS_PAGE, surActivation: sansEffet },
+        { libelle: METTRE_A_LA_CORBEILLE, surActivation: sansEffet },
       ]}
     />
   );
@@ -170,7 +193,7 @@ function MenuFictif({ titre }: { readonly titre: string }): ReactElement {
 function SectionCoquille(): ReactElement {
   const ouverture = (
     <span className={PAGE.ouvertureEtroite}>
-      <BoutonIcone nom={LIBELLES.ouvrirLaBarre} pictogramme="tiroir" lieu="barre" />
+      <BoutonIcone nom={OUVRIR_LA_BARRE_LATERALE} pictogramme="tiroir" lieu="barre" />
     </span>
   );
   // Sur écran étroit la place manque : le fil se montre replié, comme le fera l'application.
@@ -186,16 +209,11 @@ function SectionCoquille(): ReactElement {
   );
   return (
     <Section titre="Coquille">
-      <div className={PAGE.coquille}>
-        <div className={PAGE.coquilleBarre}>
-          <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={<Tete />}>
-            <Arborescence />
-          </CadreDeBarre>
-        </div>
-        <div className={PAGE.coquilleReste}>
+      <div className={PAGE.apercu}>
+        <Coquille tiroir={{ ouvert: false, nom: NOM_DU_TIROIR }} barre={<Barre />}>
           <BarreDuHaut ouverture={ouverture} fil={fil} etat={<ZoneEtat echec={undefined} />} />
           <EntetePage titre={PAGE_COURANTE} />
-        </div>
+        </Coquille>
       </div>
     </Section>
   );
@@ -260,7 +278,11 @@ function SectionRangees(): ReactElement {
 
 function SectionMenu(): ReactElement {
   const refusee = (
-    <ChampTitre nom={TITRE_DE_LA_PAGE} erreur={LIBELLES.titreTropLong} defaultValue={TITRE_LONG} />
+    <ChampTitre
+      nom={TITRE_DE_LA_PAGE}
+      erreur={messageErreur("titre-trop-long")}
+      defaultValue={TITRE_LONG}
+    />
   );
   return (
     <Section titre="Menu et saisie refusée">
@@ -283,19 +305,12 @@ function SectionMenu(): ReactElement {
             </ul>
           </div>
         </Specimen>
-        <Specimen etiquette="Tête de barre, raccourci affiché">
+        <Specimen etiquette="Tête de barre, opération refusée">
           <div className={PAGE.fondBarre}>
             <CadreDeBarre
               nom={NOM_BARRE_LATERALE}
-              erreur={LIBELLES.operationRefusee}
-              tete={
-                <TeteDeBarre
-                  nomEspace={LIBELLES.nomEspace}
-                  libelleNouvellePage={NOUVELLE_PAGE}
-                  touches={TOUCHES.nouvellePage}
-                  surNouvellePage={sansEffet}
-                />
-              }
+              erreur={messageErreur("page-introuvable")}
+              tete={<Tete />}
             />
           </div>
         </Specimen>
@@ -314,10 +329,7 @@ function SectionBarreDuHaut(): ReactElement {
       </Specimen>
       <Specimen etiquette="Fil d'Ariane replié, enregistrement en échec">
         <div className={PAGE.fondZone}>
-          <BarreDuHaut
-            fil={<Fil replie />}
-            etat={<ZoneEtat echec={LIBELLES.echecDEnregistrement} />}
-          />
+          <BarreDuHaut fil={<Fil replie />} etat={<ZoneEtat echec={NON_ENREGISTRE} />} />
         </div>
       </Specimen>
     </Section>
@@ -325,18 +337,19 @@ function SectionBarreDuHaut(): ReactElement {
 }
 
 function SectionTiroir(): ReactElement {
-  const fermeture = <BoutonIcone nom={LIBELLES.fermerLaBarre} pictogramme="fermer" lieu="barre" />;
+  const fermeture = (
+    <BoutonIcone nom={FERMER_LA_BARRE_LATERALE} pictogramme="fermer" lieu="barre" />
+  );
   return (
     <Section titre="Tiroir et voile">
-      <div className={PAGE.tiroir}>
-        <BarreDuHaut fil={<Fil replie />} etat={<ZoneEtat echec={undefined} />} />
-        <EntetePage titre={PAGE_COURANTE} />
-        <div className={PAGE.voile} />
-        <div className={PAGE.panneau}>
-          <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={<Tete fermeture={fermeture} />}>
-            <Arborescence />
-          </CadreDeBarre>
-        </div>
+      <div className={PAGE.apercuDuTiroir}>
+        <Coquille
+          tiroir={{ ouvert: true, nom: NOM_DU_TIROIR }}
+          barre={<Barre fermeture={fermeture} />}
+        >
+          <BarreDuHaut fil={<Fil replie />} etat={<ZoneEtat echec={undefined} />} />
+          <EntetePage titre={PAGE_COURANTE} />
+        </Coquille>
       </div>
     </Section>
   );
@@ -366,7 +379,7 @@ function SectionEtats(): ReactElement {
         </Specimen>
       </div>
       <div className={PAGE.grille}>
-        <Specimen etiquette="Page introuvable">
+        <Specimen etiquette={PAGE_INTROUVABLE}>
           <div className={PAGE.fondZone}>
             <EntetePage titre={PAGE_INTROUVABLE} explication={EXPLICATION_PAGE_INTROUVABLE} />
           </div>
@@ -383,23 +396,20 @@ function SectionEtats(): ReactElement {
 
 function SectionCommandes(): ReactElement {
   return (
-    <Section titre="Boutons, touches et pictogrammes">
+    <Section titre="Bouton à pictogramme, touches et pictogrammes">
       <div className={PAGE.grille}>
-        <Specimen etiquette="Boutons">
+        <Specimen etiquette="Bouton à pictogramme au focus" force="focus-visible:button">
           <div className={PAGE.fondLibre}>
-            <Bouton variante="principal">{NOUVELLE_PAGE}</Bouton>
-            <Bouton variante="discret">{LIBELLES.renommer}</Bouton>
-          </div>
-        </Specimen>
-        <Specimen etiquette="Bouton au focus" force="focus-visible:button">
-          <div className={PAGE.fondLibre}>
-            <Bouton variante="discret">{LIBELLES.renommer}</Bouton>
+            <BoutonIcone
+              nom={AFFICHER_LES_PAGES_INTERMEDIAIRES}
+              pictogramme="points"
+              lieu="barre"
+            />
           </div>
         </Specimen>
         <Specimen etiquette="Touches">
           <div className={PAGE.fondLibre}>
-            <Raccourci touches={TOUCHES.renommer} />
-            <Raccourci touches={TOUCHES.nouvellePage} />
+            <Raccourci touches={afficherTouches(RACCOURCIS.renommer)} />
           </div>
         </Specimen>
         <Specimen etiquette="Pictogrammes">

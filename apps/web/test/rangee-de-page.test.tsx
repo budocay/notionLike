@@ -405,7 +405,7 @@ describe("tête, pied et raccourcis", () => {
 
   it("F-004-AC31 la déclaration des raccourcis ne porte que F2 ; il agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
     expect(Object.keys(RACCOURCIS)).toEqual(["renommer"]);
-    expect(RACCOURCIS.renommer).toEqual({ touche: "F2", modificateurs: [], portee: "rangee" });
+    expect(RACCOURCIS.renommer).toEqual({ touche: "F2", modificateurs: [] });
     const coquille = await ouvrirTroisNiveaux();
 
     const menu = await ouvrirLeMenu(coquille, "Voisine");
@@ -430,7 +430,7 @@ describe("tête, pied et raccourcis", () => {
   });
 
   it("F-004-AC31 une combinaison se rend selon la plateforme, Ctrl ou ⌘", () => {
-    const combinaison = { touche: "K", modificateurs: ["Mod"], portee: "rangee" } as const;
+    const combinaison = { touche: "K", modificateurs: ["Mod"] } as const;
 
     expect(afficherTouches(combinaison, "MacIntel")).toEqual(["⌘", "K"]);
     expect(afficherTouches(combinaison, "iPhone")).toEqual(["⌘", "K"]);
@@ -443,12 +443,10 @@ describe("tête, pied et raccourcis", () => {
 // Un nom de touche de raccourci écrit en dur : touche de fonction, ou modificateur d'une combinaison.
 const TOUCHE_EN_DUR = /["'`](?:F\d{1,2}|Mod|Ctrl|Cmd|⌘|Alt|Meta|Control)(?:\+[^"'`]*)?["'`]/u;
 const DECLARATION = "src/interface/raccourcis.ts";
-// Données fictives de la page de démonstration : une combinaison y est montrée sans agir.
-const DONNEES_FICTIVES = "src/demonstration/donnees.ts";
 
 function touchesEnDur(fichiers: ReadonlyMap<string, string>): string[] {
   return [...fichiers]
-    .filter(([chemin]) => chemin !== DECLARATION && chemin !== DONNEES_FICTIVES)
+    .filter(([chemin]) => chemin !== DECLARATION)
     .flatMap(([chemin, texte]) => {
       const trouve = TOUCHE_EN_DUR.exec(texte);
       return trouve === null ? [] : [`${chemin} : touche en dur ${trouve[0]}`];

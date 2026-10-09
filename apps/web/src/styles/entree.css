@@ -194,6 +194,12 @@
   animation-delay: calc(var(--duree-boucle-chargement) / 3);
 }
 
+/* Aperçu de la coquille sur la page de démonstration : il devient le repère des éléments fixes
+   qu'il contient, pour que le tiroir et son voile s'y posent comme dans la fenêtre. */
+@utility repere-des-fixes {
+  contain: layout;
+}
+
 @utility grille-auto {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--container-barre)), 1fr));
 }

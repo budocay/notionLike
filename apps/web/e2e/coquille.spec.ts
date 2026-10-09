@@ -60,6 +60,11 @@ function actionsDe(page: Page, titre: string): Locator {
   return rangeeDe(page, titre).locator(".actions-de-rangee");
 }
 
+/** Chevron de la commande de repli d'une page qui a des sous-pages : il tourne quand elle bascule. */
+function chevronDe(page: Page, titre: string): Locator {
+  return page.getByRole("button", { name: nomDuRepli(titre), exact: true }).locator(".chevron");
+}
+
 async function boite(
   cible: Locator,
 ): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -77,6 +82,7 @@ async function dureesALEcranLarge(page: Page): Promise<Record<string, number>> {
     apparition: await style(page.locator("main .apparition"), "animation-duration"),
     depliage: await style(rangeeDe(page, TITRE_DE_5).locator("xpath=.."), "animation-duration"),
     actions: await style(actionsDe(page, "Carnet 1"), "transition-duration"),
+    chevron: await style(chevronDe(page, TITRE_DE_5), "transition-duration"),
     menu: await style(page.getByRole("menu"), "animation-duration"),
     infobulle: "",
   };
@@ -102,7 +108,7 @@ async function dureesALEcranEtroit(page: Page): Promise<Record<string, number>> 
   return durees;
 }
 
-test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contour de focus aux jetons, durées de l'apparition, du dépliage, des actions de rangée, du menu et de l'infobulle égales à leurs jetons ; à 360, celles du tiroir et du voile", async ({
+test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contour de focus aux jetons, durées de l'apparition, du dépliage, des actions de rangée, du chevron de repli, du menu et de l'infobulle égales à leurs jetons ; à 360, celles du tiroir et du voile", async ({
   page,
 }) => {
   await largeur(page, LARGE);
@@ -126,10 +132,12 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
   const rapide = enMillisecondes(await jeton(page, "--duree-rapide"));
   const moyenne = enMillisecondes(await jeton(page, "--duree-moyenne"));
   expect([rapide, moyenne].every((duree) => duree > 0)).toBe(true);
+  expect(await style(chevronDe(page, TITRE_DE_5), "transition-property")).toBe("transform");
   expect(await dureesALEcranLarge(page)).toEqual({
     apparition: moyenne,
     depliage: rapide,
     actions: rapide,
+    chevron: rapide,
     menu: rapide,
     infobulle: rapide,
   });
@@ -137,7 +145,7 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
   expect(await dureesALEcranEtroit(page)).toEqual({ tiroir: moyenne, voile: moyenne });
 });
 
-test("F-004-AC22 F-004-AC49 mouvement réduit émulé : à 1280, la durée de l'apparition, du dépliage, des actions de rangée, du menu et de l'infobulle est nulle ; à 360, celle du tiroir et du voile ; rien n'attend une animation", async ({
+test("F-004-AC22 F-004-AC49 mouvement réduit émulé : à 1280, la durée de l'apparition, du dépliage, des actions de rangée, du chevron de repli, du menu et de l'infobulle est nulle ; à 360, celle du tiroir et du voile ; rien n'attend une animation", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -150,6 +158,7 @@ test("F-004-AC22 F-004-AC49 mouvement réduit émulé : à 1280, la durée de l'
     apparition: 0,
     depliage: 0,
     actions: 0,
+    chevron: 0,
     menu: 0,
     infobulle: 0,
   });

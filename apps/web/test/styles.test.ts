@@ -127,7 +127,11 @@ describe("fichiers de style réels", () => {
         /Enregistré sur cet appareil|Modifications enregistrées/,
       );
     }
-    expect(lire("src/demonstration/donnees.ts")).toContain("Non enregistré sur cet appareil");
+    // Le seul texte d'enregistrement est celui de l'échec, écrit une fois, dans les messages.
+    const quiLEcrivent = disque.filter((chemin) =>
+      lire(chemin).includes("Non enregistré sur cet appareil"),
+    );
+    expect(quiLEcrivent).toEqual(["src/interface/messages.ts"]);
   });
 });
 

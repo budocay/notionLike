@@ -1,21 +1,9 @@
 import type { ComponentProps, ReactElement } from "react";
 
-import { BOUTON, BOUTON_ICONE } from "./bouton.classes.ts";
+import { BOUTON_ICONE } from "./bouton.classes.ts";
 import { type NomDePictogramme, Pictogramme } from "./Pictogramme.tsx";
 
 type ProprietesNatives = Omit<ComponentProps<"button">, "className" | "type">;
-
-interface ProprietesBouton extends ProprietesNatives {
-  readonly variante: keyof typeof BOUTON;
-}
-
-export function Bouton({ variante, children, ...natives }: ProprietesBouton): ReactElement {
-  return (
-    <button type="button" className={BOUTON[variante]} {...natives}>
-      {children}
-    </button>
-  );
-}
 
 interface ProprietesBoutonIcone extends Omit<ProprietesNatives, "children" | "aria-label"> {
   /** Nom accessible : le pictogramme est décoratif. */

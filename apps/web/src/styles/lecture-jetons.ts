@@ -1,6 +1,7 @@
-// Lecture du fichier des jetons comme un texte, et calculs de couleur (F-004 H4, H7) : aucun
-// analyseur CSS, aucune dépendance. Les contrôles statiques et la page de démonstration passent par
-// ce seul lecteur ; rien ici ne touche le DOM.
+// Lecture du fichier des jetons comme un texte, et contraste de deux couleurs (F-004 H4, H7) :
+// aucun analyseur CSS, aucune dépendance. Les contrôles statiques et la page de démonstration
+// passent par ce seul lecteur ; rien ici ne touche le DOM. Les calculs que seuls les contrôles
+// emploient (teinte, saturation, dégradé) sont dans `test/aides-jetons.ts`.
 
 export interface Jeton {
   readonly nom: string;
@@ -31,7 +32,6 @@ const DECLARATION = /(--[\w*-]+)\s*:\s*([^;{}]+);/g;
 const IMAGE_CLE = /@keyframes\s+([\w-]+)\s*\{/g;
 const PROPRIETE = /(?:^|[{;\s])([a-z-]+)\s*:/g;
 const MOUVEMENT_REDUIT = /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)\s*\{\s*:root\s*\{/;
-const RENVOI = /var\(\s*(--[\w-]+)\s*\)/g;
 const HEXADECIMAL = /^#[0-9a-f]{6}$/;
 
 /** Rend le bloc ouvert par l'accolade placée à `debut`, sans ses accolades ; `fin` la suit. */
@@ -92,10 +92,6 @@ export function lireJetons(source: string): JetonsLus {
   };
 }
 
-export function renvoisDe(valeur: string): string[] {
-  return [...valeur.matchAll(RENVOI)].map(([, nom = ""]) => nom);
-}
-
 /** Suit les renvois d'un jeton de couleur jusqu'à sa valeur hexadécimale ; `undefined` sinon. */
 export function couleurDe(jetons: readonly Jeton[], nom: string): string | undefined {
   const valeurs = new Map(jetons.map((jeton) => [jeton.nom, jeton.valeur]));
@@ -149,66 +145,4 @@ export function contraste(premiere: Rvb, seconde: Rvb): number {
   const claire = Math.max(luminance(premiere), luminance(seconde));
   const sombre = Math.min(luminance(premiere), luminance(seconde));
   return (claire + ECLAIRAGE_AMBIANT) / (sombre + ECLAIRAGE_AMBIANT);
-}
-
-const TOUR = 360;
-const SECTEUR = 60;
-const SECTEUR_DU_VERT = 2;
-const SECTEUR_DU_BLEU = 4;
-const NOMBRE_DE_SECTEURS = 6;
-
-function teinteDe([rouge, vert, bleu]: Rvb, max: number, ecart: number): number {
-  if (ecart === 0) {
-    return 0;
-  }
-  if (max === rouge) {
-    return (((vert - bleu) / ecart + NOMBRE_DE_SECTEURS) % NOMBRE_DE_SECTEURS) * SECTEUR;
-  }
-  const secteur =
-    max === vert
-      ? (bleu - rouge) / ecart + SECTEUR_DU_VERT
-      : (rouge - vert) / ecart + SECTEUR_DU_BLEU;
-  return secteur * SECTEUR;
-}
-
-/** Teinte en degrés et saturation de 0 à 1, modèle TSL. */
-export function teinteEtSaturation(rvb: Rvb): {
-  readonly teinte: number;
-  readonly saturation: number;
-} {
-  const parts = rvb.map((canal) => canal / CANAL_MAX) as unknown as Rvb;
-  const max = Math.max(...parts);
-  const min = Math.min(...parts);
-  const ecart = max - min;
-  const clarte = (max + min) / 2;
-  const saturation = ecart === 0 ? 0 : ecart / (1 - Math.abs(2 * clarte - 1));
-  return { teinte: teinteDe(parts, max, ecart), saturation };
-}
-
-/** Plus petit arc, en degrés, qui contient toutes les teintes données. */
-export function arcDesTeintes(teintes: readonly number[]): number {
-  if (teintes.length < 2) {
-    return 0;
-  }
-  const triees = [...teintes].sort((a, b) => a - b);
-  const ecarts = triees.map((teinte, rang) => {
-    const suivante = triees[rang + 1] ?? (triees[0] ?? 0) + TOUR;
-    return suivante - teinte;
-  });
-  return TOUR - Math.max(...ecarts);
-}
-
-/** Couleurs d'un dégradé linéaire à arrêts équidistants, interpolées canal par canal en sRGB. */
-export function echantillonner(arrets: readonly Rvb[], nombre: number): Rvb[] {
-  const dernier = arrets.length - 1;
-  return Array.from({ length: nombre }, (_, rang) => {
-    const position = (rang / (nombre - 1)) * dernier;
-    const debut = Math.min(Math.floor(position), Math.max(dernier - 1, 0));
-    const part = position - debut;
-    const de = arrets[debut] ?? [0, 0, 0];
-    const vers = arrets[debut + 1] ?? de;
-    return de.map(
-      (canal, indice) => canal + ((vers[indice] ?? canal) - canal) * part,
-    ) as unknown as Rvb;
-  });
 }

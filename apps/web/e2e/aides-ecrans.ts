@@ -81,7 +81,25 @@ export function zoneDEtat(page: Page): Locator {
   return page.getByRole("banner").getByRole("status");
 }
 
-/** Sur écran étroit, ouvre le tiroir s'il est fermé ; sans effet sur écran large. */
+/**
+ * Attend la fin des mouvements en cours dans la cible et sous elle. Une boîte mesurée sous une
+ * transformation en cours est rendue à une fraction de pixel près : une mesure exacte attend donc
+ * l'état final. Sous mouvement réduit, les durées sont nulles et rien n'est attendu.
+ */
+export async function attendreLaFinDesMouvements(cible: Locator): Promise<void> {
+  await cible.evaluate(async (element) => {
+    const enCours = element
+      .getAnimations({ subtree: true })
+      .filter((mouvement) => mouvement.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.allSettled(enCours.map((mouvement) => mouvement.finished));
+  });
+}
+
+/**
+ * Sur écran étroit, ouvre le tiroir s'il est fermé ; sans effet sur écran large. Rend la main une
+ * fois le tiroir immobile : son entrée, et le dépliage que ses rangées de sous-page rejouent quand
+ * leur conteneur cesse d'être en `display: none`, sont finis.
+ */
 export async function montrerLaBarre(page: Page): Promise<void> {
   const ouverture = boutonDOuverture(page);
   if (
@@ -90,6 +108,7 @@ export async function montrerLaBarre(page: Page): Promise<void> {
   ) {
     await ouverture.click();
     await expect(tiroir(page)).toBeVisible();
+    await attendreLaFinDesMouvements(tiroir(page));
   }
 }
 

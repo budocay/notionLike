@@ -1,19 +1,18 @@
-// Déclaration des raccourcis (F-004-AC31) : la liste unique des combinaisons de touches et de la
-// portée de chacune. Aucun composant n'écrit un nom de touche : il lit cette déclaration. F-024 en
-// fera son registre.
+// Déclaration des raccourcis (F-004-AC31) : la liste unique des combinaisons de touches, chacune
+// sous le nom de son action. Aucun composant n'écrit un nom de touche : il lit cette déclaration.
+// La portée d'une combinaison est celle de l'élément qui l'écoute (F2 : la rangée de la barre
+// latérale qui a le focus) ; F-024 en fera son registre, portées comprises.
 
-export interface Raccourci {
+export interface Combinaison {
   /** Valeur de `KeyboardEvent.key`. */
   readonly touche: string;
   /** « Mod » vaut ⌘ sur les appareils d'Apple, Ctrl ailleurs. */
   readonly modificateurs: readonly ("Mod" | "Alt" | "Maj")[];
-  /** Où la combinaison agit : ici, quand une rangée de la barre latérale a le focus. */
-  readonly portee: "rangee";
 }
 
 export const RACCOURCIS = {
-  renommer: { touche: "F2", modificateurs: [], portee: "rangee" },
-} as const satisfies Readonly<Record<string, Raccourci>>;
+  renommer: { touche: "F2", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
 
 const PLATEFORME_D_APPLE = /^(Mac|iPhone|iPad|iPod)/;
 const MODIFICATEUR_D_APPLE = { Mod: "⌘", Alt: "⌥", Maj: "⇧" } as const;
@@ -27,19 +26,25 @@ function plateformeCourante(): string {
 
 /** Touches à afficher, une par élément `kbd`, selon la plateforme. */
 export function afficherTouches(
-  raccourci: Raccourci,
+  combinaison: Combinaison,
   plateforme: string = plateformeCourante(),
 ): readonly string[] {
   const noms = PLATEFORME_D_APPLE.test(plateforme) ? MODIFICATEUR_D_APPLE : MODIFICATEUR_COURANT;
-  return [...raccourci.modificateurs.map((modificateur) => noms[modificateur]), raccourci.touche];
+  return [
+    ...combinaison.modificateurs.map((modificateur) => noms[modificateur]),
+    combinaison.touche,
+  ];
 }
 
 /** Valeur d'`aria-keyshortcuts` : la combinaison est exposée sans entrer dans le nom accessible. */
-export function cleAria(raccourci: Raccourci, plateforme: string = plateformeCourante()): string {
+export function cleAria(
+  combinaison: Combinaison,
+  plateforme: string = plateformeCourante(),
+): string {
   const noms = PLATEFORME_D_APPLE.test(plateforme) ? MODIFICATEUR_ARIA_D_APPLE : MODIFICATEUR_ARIA;
   return [
-    ...raccourci.modificateurs.map((modificateur) => noms[modificateur]),
-    raccourci.touche,
+    ...combinaison.modificateurs.map((modificateur) => noms[modificateur]),
+    combinaison.touche,
   ].join("+");
 }
 
@@ -52,10 +57,10 @@ interface Frappe {
 }
 
 /** Vrai si la frappe est exactement la combinaison déclarée. */
-export function estLaFrappe(frappe: Frappe, raccourci: Raccourci): boolean {
-  const voulus = new Set<string>(raccourci.modificateurs);
+export function estLaFrappe(frappe: Frappe, combinaison: Combinaison): boolean {
+  const voulus = new Set<string>(combinaison.modificateurs);
   return (
-    frappe.key === raccourci.touche &&
+    frappe.key === combinaison.touche &&
     (frappe.ctrlKey || frappe.metaKey) === voulus.has("Mod") &&
     frappe.altKey === voulus.has("Alt") &&
     frappe.shiftKey === voulus.has("Maj")

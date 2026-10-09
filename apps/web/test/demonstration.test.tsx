@@ -16,6 +16,7 @@ import { MARQUEUR_DE_DEMONSTRATION } from "../src/demonstration/marqueur.ts";
 import { PageDemonstration } from "../src/demonstration/PageDemonstration.tsx";
 import { lireJetons } from "../src/styles/lecture-jetons.ts";
 import { lire, lireDossier } from "./aides-disque.ts";
+import { type Aretes, atteintsDepuis, graphe } from "./aides-graphe.ts";
 
 const sources = lireDossier("src");
 const jetons = lire("src/styles/jetons.css");
@@ -36,34 +37,6 @@ function composantsManquants(fichiers: ReadonlyMap<string, string>, page: string
   return composantsExportes(fichiers).filter((nom) => !new RegExp(`<${nom}[\\s/>]`).test(page));
 }
 
-function resoudre(depuis: string, relatif: string): string {
-  const segments = depuis.split("/").slice(0, -1);
-  for (const segment of relatif.replace(/\?.*$/, "").split("/")) {
-    if (segment === "..") {
-      segments.pop();
-    } else if (segment !== ".") {
-      segments.push(segment);
-    }
-  }
-  return segments.join("/");
-}
-
-/** Fichiers atteints depuis une entrée par ses imports relatifs, statiques ou dynamiques. */
-function atteintsDepuis(entree: string, fichiers: ReadonlyMap<string, string>): Set<string> {
-  const atteints = new Set<string>();
-  const file = [entree];
-  for (let chemin = file.pop(); chemin !== undefined; chemin = file.pop()) {
-    if (!atteints.has(chemin)) {
-      atteints.add(chemin);
-      const texte = fichiers.get(chemin) ?? "";
-      for (const [, relatif = ""] of texte.matchAll(/(?:from\s+|import\s*\(?\s*)"(\.[^"]+)"/g)) {
-        file.push(resoudre(chemin, relatif));
-      }
-    }
-  }
-  return atteints;
-}
-
 function dansLaDemonstration(chemins: Iterable<string>): string[] {
   return [...chemins].filter((chemin) => chemin.startsWith("src/demonstration/"));
 }
@@ -73,14 +46,14 @@ describe("page de démonstration : ce qu'elle montre", () => {
     expect(composantsExportes(sources).sort()).toEqual([
       "Avertissement",
       "BarreDuHaut",
-      "Bouton",
       "BoutonIcone",
       "CadreDeBarre",
       "ChampTitre",
       "Chargement",
+      "CheminDePage",
+      "Coquille",
       "EcranBloquant",
       "EntetePage",
-      "FilAriane",
       "MenuActions",
       "Pictogramme",
       "Raccourci",
@@ -158,10 +131,14 @@ describe("page de démonstration : ce qu'elle montre", () => {
   });
 });
 
+const ENTREE_DE_LA_PAGE = "src/demonstration/entree.tsx";
+const IMPORT_DYNAMIQUE = "test/fixtures/import-dynamique";
+
 describe("page de démonstration : hors de la production", () => {
-  it("F-004-AC50 rien d'atteint depuis l'entrée de production n'importe la page ni son code", () => {
-    const atteints = atteintsDepuis(ENTREE_DE_PRODUCTION, sources);
+  it("F-004-AC50 d'après le graphe de dependency-cruiser, rien d'atteint depuis l'entrée de production n'importe la page ni son code", async () => {
+    const atteints = atteintsDepuis(await graphe(), ENTREE_DE_PRODUCTION);
     expect(atteints.has("src/interface/Application.tsx")).toBe(true);
+    expect(atteints.has("src/interface/composants/Coquille.tsx")).toBe(true);
     expect(dansLaDemonstration(atteints)).toEqual([]);
     expect(lire("index.html").match(/<script[^>]*>/g)).toEqual([
       '<script type="module" src="/src/main.tsx">',
@@ -175,23 +152,37 @@ describe("page de démonstration : hors de la production", () => {
   });
 
   it("F-004-AC53 F-004-AC50 un import de la page depuis la production est détecté, même indirect", () => {
-    const fichiers = new Map([
-      ["src/main.tsx", 'import { A } from "./interface/A.tsx";'],
-      ["src/interface/A.tsx", 'const page = import("../demonstration/Page.tsx");'],
-      ["src/demonstration/Page.tsx", 'import "./donnees.ts";'],
-      ["src/demonstration/donnees.ts", ""],
+    const fautif: Aretes = new Map([
+      ["src/main.tsx", ["src/interface/A.tsx"]],
+      ["src/interface/A.tsx", ["src/demonstration/Page.tsx"]],
+      ["src/demonstration/Page.tsx", ["src/demonstration/donnees.ts"]],
+      ["src/demonstration/donnees.ts", []],
     ]);
-    expect(dansLaDemonstration(atteintsDepuis("src/main.tsx", fichiers))).toEqual([
+    expect(dansLaDemonstration(atteintsDepuis(fautif, "src/main.tsx"))).toEqual([
       "src/demonstration/Page.tsx",
       "src/demonstration/donnees.ts",
     ]);
-    fichiers.set("src/interface/A.tsx", "export const A = 1;");
-    expect(dansLaDemonstration(atteintsDepuis("src/main.tsx", fichiers))).toEqual([]);
+    const conforme: Aretes = new Map([...fautif, ["src/interface/A.tsx", []]]);
+    expect(dansLaDemonstration(atteintsDepuis(conforme, "src/main.tsx"))).toEqual([]);
   });
 
-  it("F-004-AC50 la page vit sous src/, sans document Yjs, session ni persistance", () => {
-    const atteints = atteintsDepuis("src/demonstration/entree.tsx", sources);
+  it("F-004-AC53 F-004-AC50 le graphe voit un module atteint par un seul import dynamique", async () => {
+    const atteints = atteintsDepuis(await graphe(), `${IMPORT_DYNAMIQUE}/entree.ts`);
+    expect(lire(`${IMPORT_DYNAMIQUE}/entree.ts`)).toMatch(/return import\("\.\/atteint\.ts"\);/);
+    expect(lire(`${IMPORT_DYNAMIQUE}/entree.ts`)).not.toMatch(/\bfrom\b/);
+    expect([...atteints].sort()).toEqual([
+      `${IMPORT_DYNAMIQUE}/atteint.ts`,
+      `${IMPORT_DYNAMIQUE}/entree.ts`,
+    ]);
+  });
+
+  it("F-004-AC50 la page vit sous src/, sans document Yjs, session ni persistance, et rend la coquille de l'application", async () => {
+    const aretes = await graphe();
+    const atteints = [...atteintsDepuis(aretes, ENTREE_DE_LA_PAGE)].filter((chemin) =>
+      chemin.startsWith("src/"),
+    );
     expect(dansLaDemonstration(atteints).length).toBeGreaterThanOrEqual(5);
+    expect(atteints).toContain("src/interface/composants/Coquille.tsx");
     for (const chemin of atteints) {
       expect(chemin, chemin).not.toMatch(/^src\/(espace|persistance|navigation)\//);
       expect(sources.get(chemin) ?? "", chemin).not.toMatch(/from "(yjs|y-indexeddb)"/);
@@ -200,6 +191,26 @@ describe("page de démonstration : hors de la production", () => {
     for (const chemin of dansLaDemonstration(sources.keys())) {
       expect(sources.get(chemin), chemin).not.toMatch(/@notionlike\/document/);
     }
+  });
+
+  it("F-004-AC50 la page ne recopie ni la structure de la coquille, ni un texte de l'interface, ni une combinaison de touches", () => {
+    const classes = lire("src/demonstration/page.classes.ts");
+    expect(classes).not.toMatch(
+      /\b(?:fixed|shadow-voile|w-barre|w-tiroir|filet-droit|plan-(?:voile|tiroir))\b/,
+    );
+    const messages = lire("src/interface/messages.ts");
+    const textes = [...messages.matchAll(/^(?:export )?const [A-Z_]+ =\s*"([^"]+)";/gm)].map(
+      ([, texte = ""]) => texte,
+    );
+    expect(textes.length).toBeGreaterThanOrEqual(20);
+    for (const chemin of dansLaDemonstration(sources.keys())) {
+      const source = sources.get(chemin) ?? "";
+      for (const texte of textes.filter((un) => un !== "notionLike")) {
+        expect(source.includes(`"${texte}"`), `${chemin} recopie « ${texte} »`).toBe(false);
+      }
+      expect(source, chemin).not.toMatch(/touches=\{\[|touches: \[/);
+    }
+    expect(lire(PAGE)).toContain("afficherTouches(RACCOURCIS.renommer)");
   });
 });
 

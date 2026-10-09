@@ -1,6 +1,6 @@
 import { type ReactElement, type ReactNode, type Ref, useId } from "react";
 
-import { BoutonIcone } from "./Bouton.tsx";
+import { BoutonIcone } from "./BoutonIcone.tsx";
 import { HAUT } from "./haut.classes.ts";
 
 export interface Ancetre {
@@ -17,7 +17,7 @@ export interface RepliDuFil {
   readonly refListe?: Ref<HTMLUListElement> | undefined;
 }
 
-interface ProprietesFil {
+interface ProprietesChemin {
   /** Nom accessible de la navigation. */
   readonly nom: string;
   /** Ancêtres de la page, de la racine à sa mère. */
@@ -80,7 +80,8 @@ function Intermediaires({ id, repli, ancetres }: ProprietesIntermediaires): Reac
   );
 }
 
-export function FilAriane({ nom, ancetres, courante, repli }: ProprietesFil): ReactElement {
+/** Chemin de la page dans l'arbre : ses ancêtres, chacun un lien, puis elle, non activable. */
+export function CheminDePage({ nom, ancetres, courante, repli }: ProprietesChemin): ReactElement {
   const idListe = useId();
   const replies = repli !== undefined && ancetres.length > 1;
   const visibles = replies ? ancetres.slice(0, 1) : ancetres;

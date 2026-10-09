@@ -1,5 +1,6 @@
-// Données fictives de la page de démonstration : aucun document, aucune persistance. Les textes
-// des états viennent de l'interface ; ceux des commandes à venir sont posés ici pour l'aperçu.
+// Données fictives de la page de démonstration : aucun document, aucune persistance. Seul ce qui
+// est propre à la page est ici ; les textes de l'interface viennent de `interface/messages.ts`, les
+// combinaisons de touches de `interface/raccourcis.ts`.
 export const ADRESSE_FICTIVE = "#apercu";
 
 export const TITRE_LONG =
@@ -7,24 +8,7 @@ export const TITRE_LONG =
     2,
   );
 
-export const LIBELLES = {
-  nomEspace: "Carnets d'Inès",
-  filDAriane: "Fil d'Ariane",
-  pagesIntermediaires: "Afficher les pages intermédiaires",
-  ouvrirLaBarre: "Ouvrir la barre latérale",
-  fermerLaBarre: "Fermer la barre latérale",
-  echecDEnregistrement: "Non enregistré sur cet appareil",
-  renommer: "Renommer",
-  ajouterUneSousPage: "Ajouter une sous-page",
-  mettreALaCorbeille: "Mettre à la corbeille",
-  titreTropLong: "Le titre est trop long : la limite est de 200 caractères.",
-  operationRefusee: "Cette page n'existe plus : l'action n'a pas été effectuée.",
-} as const;
-
-export const TOUCHES = {
-  renommer: ["F2"],
-  nouvellePage: ["⌘", "N"],
-} as const;
+export const NOM_DE_L_ESPACE_FICTIF = "Carnets d'Inès";
 
 export interface PageFictive {
   readonly titre: string;

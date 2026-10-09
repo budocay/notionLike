@@ -1,7 +1,7 @@
 import type { PageLue } from "@notionlike/document";
 import type { ReactElement, ReactNode, RefObject } from "react";
 
-import { CadreDeBarre, TeteDeBarre } from "./composants/BarreLaterale.tsx";
+import { CadreDeBarre, TeteDeBarre } from "./composants/CadreDeBarre.tsx";
 import { NOM_APPLICATION, NOM_BARRE_LATERALE, NOUVELLE_PAGE } from "./messages.ts";
 import { rangeesVisibles } from "./pages.ts";
 import { type ActionsBarre, type EcranBarre, RangeePage } from "./RangeePage.tsx";

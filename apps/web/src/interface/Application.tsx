@@ -21,7 +21,8 @@ import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
 import { BarreDuHaut, ZoneEtat } from "./composants/BarreDuHaut.tsx";
-import { BoutonIcone } from "./composants/Bouton.tsx";
+import { BoutonIcone } from "./composants/BoutonIcone.tsx";
+import { Coquille, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { COQUILLE } from "./composants/coquille.classes.ts";
 import { Avertissement, Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -79,7 +80,7 @@ export function Application({ session }: { readonly session: SessionEspace }): R
         </EcranPlein>
       );
     case "pret":
-      return <Coquille etat={etat} />;
+      return <EspacePret etat={etat} />;
   }
 }
 
@@ -87,10 +88,10 @@ function EcranPlein({ children }: { readonly children: ReactNode }): ReactElemen
   return <main className={COQUILLE.ecranPlein}>{children}</main>;
 }
 
-// Une seule structure aux deux largeurs (ADR-0010) : le conteneur de la barre latérale, le voile,
-// puis le reste (avertissement, barre du haut, zone principale). La zone d'état lit l'état de la
-// session, sans autre abonné (F-004-AC40).
-function Coquille({ etat }: { readonly etat: EtatPret }): ReactElement {
+// L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
+// (avertissement, barre du haut, zone principale). La zone d'état lit l'état de la session, sans
+// autre abonné (F-004-AC40).
+function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   const { racines } = etat.arborescence;
   const route = lireRoute(useSyncExternalStore(abonnerAuFragment, lireFragment));
   const selection = selectionDe(route, etat.arborescence);
@@ -100,22 +101,19 @@ function Coquille({ etat }: { readonly etat: EtatPret }): ReactElement {
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
 
+  const barreLaterale = (
+    <BarreLaterale
+      racines={racines}
+      ecran={barre.ecran}
+      actions={barre.actions}
+      erreur={barre.erreur}
+      boutonNouvellePage={barre.boutonNouvellePage}
+      fermeture={tiroir.ouvert ? <Fermeture tiroir={tiroir} /> : undefined}
+    />
+  );
   return (
-    <div className={COQUILLE.cadre}>
-      <ConteneurDeBarre id={idBarre} tiroir={tiroir}>
-        <BarreLaterale
-          racines={racines}
-          ecran={barre.ecran}
-          actions={barre.actions}
-          erreur={barre.erreur}
-          boutonNouvellePage={barre.boutonNouvellePage}
-          fermeture={tiroir.ouvert ? <Fermeture tiroir={tiroir} /> : undefined}
-        />
-      </ConteneurDeBarre>
-      {tiroir.ouvert && (
-        <div className={COQUILLE.voile} data-voile="" onClick={tiroir.abandonner} />
-      )}
-      <div className={COQUILLE.reste} inert={tiroir.ouvert}>
+    <div className={COQUILLE.fenetre}>
+      <Coquille tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
         {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
         <BarreDuHaut
           ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
@@ -131,32 +129,20 @@ function Coquille({ etat }: { readonly etat: EtatPret }): ReactElement {
           selection={selection}
           espaceVide={racines.length === 0}
         />
-      </div>
+      </Coquille>
     </div>
   );
 }
 
-interface ProprietesConteneur {
-  readonly id: string;
-  readonly tiroir: Tiroir;
-  readonly children: ReactNode;
-}
-
-// Ouvert en tiroir, le conteneur de la barre est un dialogue modal ; sinon, un simple bloc.
-function ConteneurDeBarre({ id, tiroir, children }: ProprietesConteneur): ReactElement {
-  return (
-    <div
-      id={id}
-      className={tiroir.ouvert ? COQUILLE.tiroir : COQUILLE.barre}
-      role={tiroir.ouvert ? "dialog" : undefined}
-      aria-modal={tiroir.ouvert ? true : undefined}
-      aria-label={tiroir.ouvert ? NOM_DU_TIROIR : undefined}
-      onKeyDown={tiroir.surTouche}
-      onClick={tiroir.surClic}
-    >
-      {children}
-    </div>
-  );
+function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {
+  return {
+    id,
+    ouvert: tiroir.ouvert,
+    nom: NOM_DU_TIROIR,
+    surTouche: tiroir.surTouche,
+    surClic: tiroir.surClic,
+    surVoile: tiroir.abandonner,
+  };
 }
 
 function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string }): ReactElement {

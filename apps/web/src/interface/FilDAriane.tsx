@@ -1,7 +1,7 @@
 import type { PageLue } from "@notionlike/document";
 import type { ReactElement } from "react";
 
-import { FilAriane } from "./composants/BarreDuHaut.tsx";
+import { CheminDePage } from "./composants/BarreDuHaut.tsx";
 import { useFlottant } from "./flottant.ts";
 import { AFFICHER_LES_PAGES_INTERMEDIAIRES, NOM_FIL_D_ARIANE, titreAffiche } from "./messages.ts";
 import { adresseDePage, ancetresDe } from "./pages.ts";
@@ -36,7 +36,7 @@ export function FilDAriane({ racines, page, etroit }: Proprietes): ReactElement 
         }
       : undefined;
   return (
-    <FilAriane
+    <CheminDePage
       nom={NOM_FIL_D_ARIANE}
       ancetres={ancetres}
       courante={titreAffiche(page.titre)}

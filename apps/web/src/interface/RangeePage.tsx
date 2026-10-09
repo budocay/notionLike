@@ -2,7 +2,7 @@ import type { IdPage, PageLue } from "@notionlike/document";
 import { type KeyboardEvent, type ReactElement, type RefObject, useEffect, useRef } from "react";
 
 import { type EntreeDeMenu, MenuActions } from "./composants/MenuActions.tsx";
-import { Rangee, type Repli } from "./composants/Rangee.tsx";
+import { Rangee, type RepliDeRangee } from "./composants/Rangee.tsx";
 import { useFlottant } from "./flottant.ts";
 import {
   AJOUTER_UNE_SOUS_PAGE,
@@ -111,7 +111,7 @@ function repliDe(
   titre: string,
   ecran: EcranBarre,
   actions: ActionsBarre,
-): Repli | undefined {
+): RepliDeRangee | undefined {
   if (page.enfants.length === 0) {
     return undefined;
   }

@@ -8,12 +8,12 @@ import {
   useState,
 } from "react";
 
-import { BoutonIcone } from "./Bouton.tsx";
+import { BoutonIcone } from "./BoutonIcone.tsx";
 import { Pictogramme } from "./Pictogramme.tsx";
 import { RANGEE } from "./rangee.classes.ts";
 
 /** Commande de repli : son nom ne change pas, l'état est porté par `aria-expanded`. */
-export interface Repli {
+export interface RepliDeRangee {
   readonly nom: string;
   readonly deplie: boolean;
   readonly surBascule: () => void;
@@ -35,7 +35,7 @@ export interface ProprietesRangee {
   /** Description accessible du lien : son niveau et sa page mère ; absente à la racine. */
   readonly description?: string | undefined;
   /** Absent pour une page sans sous-page. */
-  readonly repli?: Repli | undefined;
+  readonly repli?: RepliDeRangee | undefined;
   readonly ajout: ActionDeRangee;
   readonly actions: ActionDeRangee;
   readonly menuOuvert: boolean;
@@ -51,7 +51,7 @@ export interface ProprietesRangee {
   readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
 }
 
-function CommandeDeRepli({ repli }: { readonly repli: Repli | undefined }): ReactElement {
+function CommandeDeRepli({ repli }: { readonly repli: RepliDeRangee | undefined }): ReactElement {
   if (repli === undefined) {
     return <span className={RANGEE.sansRepli} aria-hidden="true" />;
   }

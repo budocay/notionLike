@@ -1,12 +1,5 @@
-// Classes des boutons. Cible de 44 pixels sous le seuil étroit, compacte au-dessus.
-const BASE =
-  "inline-flex min-h-cible cursor-pointer items-center justify-center gap-petit whitespace-nowrap rounded-moyen px-moyen text-interface font-moyen etroit:pointer-fine:min-h-rangee";
-
-export const BOUTON = {
-  principal: `${BASE} bg-texte-principal text-surface-retrait hover:bg-texte-secondaire`,
-  discret: `${BASE} bg-surface-relief text-texte-principal shadow-relief filet hover:bg-surface-survol`,
-} as const;
-
+// Classes des boutons à pictogramme. Cible de 44 pixels sous le seuil étroit, compacte au-dessus
+// pour un pointeur fin.
 const ICONE =
   "inline-flex size-cible flex-none cursor-pointer items-center justify-center rounded-petit text-texte-discret hover:text-texte-principal etroit:pointer-fine:size-bouton-icone";
 

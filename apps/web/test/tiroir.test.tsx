@@ -95,6 +95,34 @@ describe("seuil étroit", () => {
     }
   });
 
+  it("F-004-AC41 la requête est bâtie une seule fois par montage : ni les rendus suivants ni les changements de largeur ne la redemandent à la fenêtre", async () => {
+    const fenetre = simulerLaLargeur(ETROIT);
+    const coquille = await ouvrirAvecDeuxPages();
+    await ouvrirLeTiroir(coquille);
+
+    fenetre.changer(LARGE);
+    expect(screen.queryByRole("button", { name: OUVRIR })).toBeNull();
+    fenetre.changer(ETROIT);
+    recevoir(coquille.session, (espace) => espace.creerPage("Gamma"));
+
+    expect(boutonDOuverture()).toBeDefined();
+    expect(fenetre.requetes).toEqual([`(width >= ${seuilEtroit()})`]);
+  });
+
+  it("F-004-AC41 tant que le jeton manque, la lecture est retentée : la requête est bâtie au premier rendu qui le trouve", async () => {
+    const fenetre = simulerLaLargeur(ETROIT);
+    document.documentElement.style.removeProperty("--breakpoint-etroit");
+    const coquille = await ouvrirCoquille();
+    expect(screen.queryByRole("button", { name: OUVRIR })).toBeNull();
+    expect(fenetre.requetes).toEqual([]);
+
+    document.documentElement.style.setProperty("--breakpoint-etroit", seuilEtroit());
+    recevoir(coquille.session, (espace) => espace.creerPage("Alpha"));
+
+    expect(boutonDOuverture()).toBeDefined();
+    expect(fenetre.requetes).toHaveLength(1);
+  });
+
   it("F-004-AC41 sans le jeton sur la racine (feuille non chargée), la barre reste permanente", async () => {
     await ouvrirCoquille();
 

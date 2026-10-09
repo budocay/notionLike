@@ -2,7 +2,6 @@ import type { ReactElement, ReactNode, Ref } from "react";
 
 import { BARRE } from "./barre.classes.ts";
 import { Pictogramme } from "./Pictogramme.tsx";
-import { Raccourci } from "./Raccourci.tsx";
 
 /** Sceau de l'espace : un motif sans texte, seul emplacement du dégradé d'accent avec le repère de
  * page courante (F-004-AC47). */
@@ -17,8 +16,6 @@ export function Sceau(): ReactElement {
 interface ProprietesTete {
   readonly nomEspace: string;
   readonly libelleNouvellePage: string;
-  /** Combinaison affichée, si « Nouvelle page » en a une dans la déclaration des raccourcis. */
-  readonly touches?: readonly string[] | undefined;
   readonly surNouvellePage: () => void;
   readonly boutonNouvellePage?: Ref<HTMLButtonElement> | undefined;
   /** Bouton de fermeture du tiroir, sur écran étroit seulement. */
@@ -41,7 +38,6 @@ export function TeteDeBarre(props: ProprietesTete): ReactElement {
       >
         <Pictogramme nom="plus" />
         <span className={BARRE.nouvellePageLibelle}>{props.libelleNouvellePage}</span>
-        {props.touches !== undefined && <Raccourci touches={props.touches} />}
       </button>
     </>
   );

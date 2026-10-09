@@ -1,4 +1,5 @@
-// Classes de la page de démonstration : sa mise en page, pas celle des composants montrés.
+// Classes de la page de démonstration : sa mise en page, pas celle des composants montrés. La
+// coquille est le composant de l'application, posé dans un aperçu qui lui donne sa hauteur.
 export const PAGE = {
   cadre:
     "mx-auto flex w-full max-w-page flex-col gap-vaste px-normal py-grand etroit:px-grand etroit:py-vaste",
@@ -17,15 +18,11 @@ export const PAGE = {
   fondLibre:
     "flex flex-wrap items-center gap-moyen rounded-grand bg-surface-application p-normal filet",
   liste: "flex flex-col gap-infime",
-  coquille: "flex h-apercu overflow-hidden rounded-grand bg-surface-application shadow-menu filet",
-  coquilleBarre: "filet-droit hidden w-barre flex-none etroit:flex",
-  coquilleReste: "extensible flex flex-col",
+  apercu: "h-apercu overflow-hidden rounded-grand shadow-menu filet",
+  apercuDuTiroir: "repere-des-fixes h-apercu overflow-hidden rounded-grand filet",
   filLarge: "extensible hidden etroit:flex",
   filEtroit: "extensible flex etroit:hidden",
   ouvertureEtroite: "flex flex-none etroit:hidden",
-  tiroir: "relative h-apercu overflow-hidden rounded-grand bg-surface-application filet",
-  voile: "absolute inset-nul shadow-voile",
-  panneau: "filet-droit absolute inset-y-nul left-nul w-tiroir max-w-full shadow-menu",
   ecran: "flex justify-center rounded-grand bg-surface-application p-normal filet",
 } as const;
 

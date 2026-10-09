@@ -1,6 +1,7 @@
-// Liste unique des captures de référence (F-004-AC51) : lue par les scénarios de capture et par
-// `test/demonstration.test.tsx`. Le dossier est ignoré par git ; Playwright le vide au début de
-// chaque lancement, même partiel.
+// Liste unique des captures de référence (F-004-AC51) : lue par les scénarios de capture, et
+// vérifiée par `test/demonstration.test.tsx`, qui l'importe d'ici comme tout test importe ce qu'il
+// contrôle. Donnée pure : ce fichier n'importe rien, ni Playwright ni Vitest. Le dossier est ignoré
+// par git ; Playwright le vide au début de chaque lancement, même partiel.
 export const DOSSIER_DES_CAPTURES = "test-results/captures";
 
 export const LARGEURS_DE_CAPTURE = [360, 768, 1280] as const;

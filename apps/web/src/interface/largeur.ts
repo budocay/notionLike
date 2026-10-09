@@ -1,7 +1,7 @@
 // Largeur de la fenêtre : seul module qui l'interroge (F-004-AC41). Le seuil étroit n'est écrit
 // qu'une fois, dans le fichier des jetons ; il est lu ici sur la racine du document, où la feuille
 // compilée le pose, et sert à bâtir la requête que les classes `etroit:` emploient elles aussi.
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const JETON_DU_SEUIL = "--breakpoint-etroit";
 const CHANGEMENT = "change";
@@ -16,17 +16,31 @@ function requeteDEcranLarge(): MediaQueryList | undefined {
   return window.matchMedia(`(width >= ${seuil})`);
 }
 
-function abonner(rappel: () => void): () => void {
-  const requete = requeteDEcranLarge();
-  requete?.addEventListener(CHANGEMENT, rappel);
-  return () => requete?.removeEventListener(CHANGEMENT, rappel);
+interface SourceDeLargeur {
+  readonly abonner: (rappel: () => void) => () => void;
+  readonly estEtroit: () => boolean;
 }
 
-function estEtroit(): boolean {
-  return requeteDEcranLarge()?.matches === false;
+// La requête est gardée après la première lecture réussie : ni le style calculé de la racine ni
+// `matchMedia` ne sont redemandés à chaque lecture d'état. Tant qu'elle échoue, elle est retentée.
+function creerLaSource(): SourceDeLargeur {
+  let gardee: MediaQueryList | undefined;
+  const requete = (): MediaQueryList | undefined => {
+    gardee ??= requeteDEcranLarge();
+    return gardee;
+  };
+  return {
+    abonner: (rappel) => {
+      const ecoutee = requete();
+      ecoutee?.addEventListener(CHANGEMENT, rappel);
+      return () => ecoutee?.removeEventListener(CHANGEMENT, rappel);
+    },
+    estEtroit: () => requete()?.matches === false,
+  };
 }
 
 /** Vrai tant que la fenêtre est plus étroite que le seuil étroit. */
 export function useEcranEtroit(): boolean {
-  return useSyncExternalStore(abonner, estEtroit);
+  const [source] = useState(creerLaSource);
+  return useSyncExternalStore(source.abonner, source.estEtroit);
 }

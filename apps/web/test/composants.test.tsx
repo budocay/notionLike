@@ -5,8 +5,8 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { BarreDuHaut, FilAriane, ZoneEtat } from "../src/interface/composants/BarreDuHaut.tsx";
-import { CadreDeBarre, TeteDeBarre } from "../src/interface/composants/BarreLaterale.tsx";
+import { BarreDuHaut, CheminDePage, ZoneEtat } from "../src/interface/composants/BarreDuHaut.tsx";
+import { CadreDeBarre, TeteDeBarre } from "../src/interface/composants/CadreDeBarre.tsx";
 import { ChampTitre } from "../src/interface/composants/ChampTitre.tsx";
 import { Chargement, EntetePage } from "../src/interface/composants/Etats.tsx";
 import { MenuActions } from "../src/interface/composants/MenuActions.tsx";
@@ -192,12 +192,11 @@ describe("MenuActions", () => {
 });
 
 describe("barre latérale", () => {
-  function tete(touches?: readonly string[]): ReactElement {
+  function tete(): ReactElement {
     return (
       <TeteDeBarre
         nomEspace="Espace"
         libelleNouvellePage="Nouvelle page"
-        touches={touches}
         surNouvellePage={vi.fn()}
       />
     );
@@ -216,12 +215,6 @@ describe("barre latérale", () => {
     expect(sceau?.textContent).toBe("");
     expect(within(barre).queryByText("Rechercher")).toBeNull();
     expect(barre.querySelector("kbd")).toBeNull();
-  });
-
-  it("F-004-AC31 un raccourci déclaré s'affiche à côté de « Nouvelle page » sans entrer dans son nom", () => {
-    render(<CadreDeBarre nom="Pages" tete={tete(["Mod", "N"])} />);
-    const bouton = screen.getByRole("button", { name: "Nouvelle page" });
-    expect(bouton.querySelectorAll("kbd kbd")).toHaveLength(2);
   });
 
   it("F-004-AC30 sans entrée, le pied n'est pas rendu ; avec une entrée, il suit l'arborescence", () => {
@@ -257,7 +250,7 @@ describe("barre du haut", () => {
   ];
 
   it("F-004-AC39 le fil liste les ancêtres de la racine à la page, la page courante non activable", () => {
-    render(<FilAriane nom="Fil d'Ariane" ancetres={ancetres} courante="Page" />);
+    render(<CheminDePage nom="Fil d'Ariane" ancetres={ancetres} courante="Page" />);
     const fil = screen.getByRole("navigation", { name: "Fil d'Ariane" });
     const liens = within(fil).getAllByRole("link");
     expect(liens.map((lien) => [lien.textContent, lien.getAttribute("href")])).toEqual([
@@ -275,7 +268,7 @@ describe("barre du haut", () => {
     const surBascule = vi.fn();
     const repli = { nom: "Afficher les pages intermédiaires", ouvert: false, surBascule };
     const { rerender } = render(
-      <FilAriane nom="Fil d'Ariane" ancetres={ancetres} courante="Page" repli={repli} />,
+      <CheminDePage nom="Fil d'Ariane" ancetres={ancetres} courante="Page" repli={repli} />,
     );
     expect(screen.getAllByRole("link").map((lien) => lien.textContent)).toEqual(["Racine"]);
     expect(screen.getByText("Page").getAttribute("aria-current")).toBe("page");
@@ -285,7 +278,7 @@ describe("barre du haut", () => {
     expect(surBascule).toHaveBeenCalledTimes(1);
 
     rerender(
-      <FilAriane
+      <CheminDePage
         nom="Fil d'Ariane"
         ancetres={ancetres}
         courante="Page"
@@ -307,7 +300,7 @@ describe("barre du haut", () => {
 
   it("F-004-AC39 un seul ancêtre ne se replie pas", () => {
     render(
-      <FilAriane
+      <CheminDePage
         nom="Fil d'Ariane"
         ancetres={ancetres.slice(0, 1)}
         courante="Page"

@@ -3,17 +3,13 @@
 // chacune nommant le jeton et la valeur en cause : une liste vide vaut conformité. Ils lisent les
 // sources, jamais la feuille compilée, qui réécrit les valeurs (H7).
 import {
-  arcDesTeintes,
   contraste,
   couleurDe,
-  echantillonner,
   type Jeton,
   lireJetons,
   luminance,
-  renvoisDe,
   type Rvb,
   rvbDe,
-  teinteEtSaturation,
 } from "../src/styles/lecture-jetons.ts";
 
 export const CATEGORIES: Readonly<Record<string, RegExp>> = {
@@ -354,4 +350,75 @@ export function controlerJetons(source: string): string[] {
     ...controlerMouvement(source),
     ...controlerTeinte(source),
   ];
+}
+
+// ── Calculs que seuls ces contrôles emploient : renvois, teinte, saturation, dégradé ─────────────
+
+const RENVOI = /var\(\s*(--[\w-]+)\s*\)/g;
+const CANAL_MAX = 255;
+
+function renvoisDe(valeur: string): string[] {
+  return [...valeur.matchAll(RENVOI)].map(([, nom = ""]) => nom);
+}
+
+const TOUR = 360;
+const SECTEUR = 60;
+const SECTEUR_DU_VERT = 2;
+const SECTEUR_DU_BLEU = 4;
+const NOMBRE_DE_SECTEURS = 6;
+
+function teinteDe([rouge, vert, bleu]: Rvb, max: number, ecart: number): number {
+  if (ecart === 0) {
+    return 0;
+  }
+  if (max === rouge) {
+    return (((vert - bleu) / ecart + NOMBRE_DE_SECTEURS) % NOMBRE_DE_SECTEURS) * SECTEUR;
+  }
+  const secteur =
+    max === vert
+      ? (bleu - rouge) / ecart + SECTEUR_DU_VERT
+      : (rouge - vert) / ecart + SECTEUR_DU_BLEU;
+  return secteur * SECTEUR;
+}
+
+/** Teinte en degrés et saturation de 0 à 1, modèle TSL. */
+function teinteEtSaturation(rvb: Rvb): {
+  readonly teinte: number;
+  readonly saturation: number;
+} {
+  const parts = rvb.map((canal) => canal / CANAL_MAX) as unknown as Rvb;
+  const max = Math.max(...parts);
+  const min = Math.min(...parts);
+  const ecart = max - min;
+  const clarte = (max + min) / 2;
+  const saturation = ecart === 0 ? 0 : ecart / (1 - Math.abs(2 * clarte - 1));
+  return { teinte: teinteDe(parts, max, ecart), saturation };
+}
+
+/** Plus petit arc, en degrés, qui contient toutes les teintes données. */
+function arcDesTeintes(teintes: readonly number[]): number {
+  if (teintes.length < 2) {
+    return 0;
+  }
+  const triees = [...teintes].sort((a, b) => a - b);
+  const ecarts = triees.map((teinte, rang) => {
+    const suivante = triees[rang + 1] ?? (triees[0] ?? 0) + TOUR;
+    return suivante - teinte;
+  });
+  return TOUR - Math.max(...ecarts);
+}
+
+/** Couleurs d'un dégradé linéaire à arrêts équidistants, interpolées canal par canal en sRGB. */
+function echantillonner(arrets: readonly Rvb[], nombre: number): Rvb[] {
+  const dernier = arrets.length - 1;
+  return Array.from({ length: nombre }, (_, rang) => {
+    const position = (rang / (nombre - 1)) * dernier;
+    const debut = Math.min(Math.floor(position), Math.max(dernier - 1, 0));
+    const part = position - debut;
+    const de = arrets[debut] ?? [0, 0, 0];
+    const vers = arrets[debut + 1] ?? de;
+    return de.map(
+      (canal, indice) => canal + ((vers[indice] ?? canal) - canal) * part,
+    ) as unknown as Rvb;
+  });
 }

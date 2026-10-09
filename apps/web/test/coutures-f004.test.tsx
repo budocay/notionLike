@@ -1,9 +1,8 @@
 // Couture de F-004 avec F-002 (F-004-AC52) : chaque action de F-002-AC10 reste atteinte et
 // déclenchée au clavier seul, sous son nom accessible, sur écran large comme sur écran étroit, et
 // appelle la même fonction du document ; les modules qui appellent ces fonctions sont énumérés
-// d'après le graphe que dependency-cruiser calcule, sans analyseur d'imports écrit ici.
+// d'après le graphe que dependency-cruiser calcule (`aides-graphe.ts`), sans analyseur d'imports.
 import { screen, waitFor, within } from "@testing-library/react";
-import { cruise } from "dependency-cruiser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EtatSession } from "../src/espace/session-espace.ts";
@@ -17,43 +16,11 @@ import {
   tabulerJusqua,
 } from "./aides-coquille.tsx";
 import { lire } from "./aides-disque.ts";
+import { type Aretes, atteintsDepuis, graphe } from "./aides-graphe.ts";
 import { simulerLaLargeur } from "./aides-largeur.ts";
 
 const CE_TEST = "test/coutures-f004.test.tsx";
 const POINT_D_ENTREE = "src/interface/Application.tsx";
-
-interface Module {
-  readonly source: string;
-  readonly dependencies: readonly { readonly resolved: string }[];
-}
-
-/** Graphe des modules d'`apps/web`, par chemin depuis `apps/web` : dépendances directes de chacun. */
-async function graphe(): Promise<Map<string, readonly string[]>> {
-  const racine = import.meta.dirname.replace(/[\\/]test$/, "");
-  const resultat = await cruise(["src", "test"], {
-    baseDir: racine,
-    tsPreCompilationDeps: true,
-    doNotFollow: { path: "node_modules" },
-    outputType: "json",
-  });
-  const sortie: unknown =
-    typeof resultat.output === "string" ? JSON.parse(resultat.output) : resultat.output;
-  const { modules } = sortie as { readonly modules: readonly Module[] };
-  return new Map(
-    modules.map(({ source, dependencies }) => [source, dependencies.map((un) => un.resolved)]),
-  );
-}
-
-function atteintsDepuis(
-  aretes: ReadonlyMap<string, readonly string[]>,
-  depart: string,
-): Set<string> {
-  const atteints = new Set([depart]);
-  for (const module of atteints) {
-    (aretes.get(module) ?? []).forEach((suivant) => atteints.add(suivant));
-  }
-  return atteints;
-}
 
 // Les fonctions de F-002-AC10 : celles du document, que la session expose, et celles de la barre,
 // qui les enveloppent ; la sélection passe par l'adresse de la page.
@@ -69,10 +36,7 @@ const APPELANTS: Readonly<Record<string, string>> = {
   "src/interface/pages.ts": "définit l'adresse d'une page",
 };
 
-function appelants(
-  aretes: ReadonlyMap<string, readonly string[]>,
-  textes: (chemin: string) => string,
-): string[] {
+function appelants(aretes: Aretes, textes: (chemin: string) => string): string[] {
   return [...atteintsDepuis(aretes, POINT_D_ENTREE)]
     .filter((chemin) => chemin.startsWith("src/") && APPEL_D_UNE_ACTION.test(textes(chemin)))
     .sort();
