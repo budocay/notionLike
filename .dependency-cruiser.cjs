@@ -53,6 +53,104 @@ module.exports = {
       from: { path: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
       to: { pathNot: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
     },
+    {
+      name: "web-y-indexeddb-confinee",
+      severity: "error",
+      comment:
+        "F-002-AC22 : dans apps/web (tests compris), seul src/persistance/indexeddb.ts importe y-indexeddb.",
+      from: { path: "^apps/web/", pathNot: "^apps/web/src/persistance/indexeddb\\.ts$" },
+      to: { path: "(^|/)node_modules/y-indexeddb/" },
+    },
+    {
+      name: "web-document-par-ses-exports",
+      severity: "error",
+      comment:
+        "F-002-AC22 : apps/web (tests compris) n'atteint packages/document que par son point d'entrée.",
+      from: { path: "^apps/web/" },
+      to: {
+        path: "^(packages|@notionlike)/document/",
+        pathNot: "^packages/document/src/index\\.ts$",
+      },
+    },
+    {
+      name: "web-persistance-par-son-interface",
+      severity: "error",
+      comment:
+        "F-002-AC22 : hors du module de persistance, seul son index.ts est importable (tests compris).",
+      from: { path: "^apps/web/", pathNot: "^apps/web/src/persistance/" },
+      to: { path: "^apps/web/src/persistance/", pathNot: "^apps/web/src/persistance/index\\.ts$" },
+    },
+    {
+      name: "web-identifiants-pur",
+      severity: "error",
+      comment:
+        "F-002-AC27 : le contrôle de forme des identifiants n'importe que lui-même (ni paquet, ni le reste de l'application).",
+      from: { path: "^apps/web/src/identifiants/" },
+      to: { pathNot: "^apps/web/src/identifiants/" },
+    },
+    {
+      name: "web-persistance-liste-blanche",
+      severity: "error",
+      comment:
+        "ADR-0008 : le module de persistance n'importe que lui-même, le contrôle de forme des identifiants, yjs et y-indexeddb (ni React, ni façade, ni le reste de l'application).",
+      from: { path: "^apps/web/src/persistance/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/persistance/",
+          "^apps/web/src/identifiants/",
+          "(^|/)node_modules/yjs/",
+          "(^|/)node_modules/y-indexeddb/",
+        ],
+      },
+    },
+    {
+      name: "web-espace-liste-blanche",
+      severity: "error",
+      comment:
+        "ADR-0007 : la session d'espace n'importe qu'elle-même, l'interface de la persistance, les exports de @notionlike/document et yjs (pas React).",
+      from: { path: "^apps/web/src/espace/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/espace/",
+          "^apps/web/src/persistance/index\\.ts$",
+          "^packages/document/src/index\\.ts$",
+          "(^|/)node_modules/yjs/",
+        ],
+      },
+    },
+    {
+      name: "web-navigation-liste-blanche",
+      severity: "error",
+      comment:
+        "ADR-0007 : le module de navigation n'importe que lui-même et le contrôle de forme des identifiants.",
+      from: { path: "^apps/web/src/navigation/" },
+      to: { pathNot: ["^apps/web/src/navigation/", "^apps/web/src/identifiants/"] },
+    },
+    {
+      name: "web-formes-pures",
+      severity: "error",
+      comment:
+        "ADR-0007, ADR-0008 : la forme des routes et le nom des bases sont des calculs purs ; ces deux fichiers n'importent que le contrôle de forme des identifiants (ni leur propre module, ni aucun paquet).",
+      from: { path: "^apps/web/src/(navigation/route|persistance/nom-de-base)\\.ts$" },
+      to: { pathNot: "^apps/web/src/identifiants/" },
+    },
+    {
+      name: "web-src-liste-blanche",
+      severity: "error",
+      comment:
+        "ADR-0007 : hors persistance, espace, navigation et identifiants, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+      from: {
+        path: "^apps/web/src/",
+        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants)/",
+      },
+      to: {
+        pathNot: [
+          "^apps/web/src/(?!(persistance|identifiants)/)",
+          "^packages/document/src/index\\.ts$",
+          "(^|/)node_modules/(react|react-dom)/",
+        ],
+      },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
