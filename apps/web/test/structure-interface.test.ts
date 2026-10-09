@@ -163,6 +163,12 @@ describe("fonctions bornées", () => {
       fautesDeLaRegleDeLongueur(conforme.replace("apps/web/src/**", "packages/document/src/**")),
     ).toHaveLength(1);
   });
+
+  it("F-004-AC58 eslint.config.mjs borne les fonctions d'apps/web/src à 50 lignes", () => {
+    const configuration = lire("../../eslint.config.mjs");
+    expect(configuration).toContain("max-lines-per-function");
+    expect(fautesDeLaRegleDeLongueur(configuration)).toEqual([]);
+  });
 });
 
 // ── F-004-AC17, AC58 : les tests de session et de persistance de F-002 sont intacts ──────────────
