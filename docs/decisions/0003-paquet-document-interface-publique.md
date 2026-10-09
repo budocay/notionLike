@@ -1,6 +1,6 @@
 # ADR-0003 — Paquet `@notionlike/document` : interface publique et outillage
 
-Statut : accepté pour tout ce que F-001 a livré ; la section « Amendement F-002 » est proposée, et passe à « accepté » quand le dev revalide `specs/F-002.md` amendée (commit `Agent: dev` qui la remet à « validée »)
+Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`)
 Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception
 
 ## Contexte et problème
@@ -107,7 +107,7 @@ Rien d'autre n'est exporté : ni constantes de format, ni fonction de rang, ni f
 
 ### Amendement F-002 : fermeture de la façade, rappel d'abonné qui lève
 
-**Statut de cette section : proposé.** Elle est écrite contre `specs/F-002.md` amendée au commit `3a1253a` (F-002-AC29 à AC31, H15), que le dev n'a pas encore revalidée : les décisions qu'elle porte ont été prises par l'orchestrateur à la demande du dev. Elle devient acceptée, sans changement de texte, quand le dev revalide cette spec ; si la revalidation modifie l'un des trois critères, la section est reprise avant le bloc 1 de F-002. Aucun code ne la réalise d'ici là : le code est celui de F-001 et `ARCHITECTURE.md` le décrit tel quel.
+**Statut de cette section : accepté.** Elle est écrite contre `specs/F-002.md` amendée au commit `3a1253a` (F-002-AC29 à AC31, H15) ; les décisions qu'elle porte ont été prises par l'orchestrateur à la demande du dev. Écrite « proposée », elle est acceptée sans changement de texte depuis que le dev a revalidé cette spec au commit `86542e8`, qui ne modifie aucun des trois critères. Aucun code ne la réalise avant le bloc 1 de F-002 : d'ici là le code est celui de F-001 et `ARCHITECTURE.md` le décrit tel quel.
 
 Elle lève la dette D-006, ouverte par les gates de F-001 : un rappel d'abonné qui levait interrompait la diffusion et remontait par `Y.applyUpdate`, et la façade ne retirait jamais son écouteur du `Y.Doc`. F-002 est le premier appelant réel de la façade.
 
@@ -157,7 +157,7 @@ Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`, « 
 
 ## Conséquences
 
-- Les consommateurs dépendent de deux fonctions, d'une façade de six méthodes (sept avec `fermer`, amendement F-002 proposé) et d'une classe d'erreur ; le format de l'ADR-0002 peut évoluer derrière eux.
+- Les consommateurs dépendent de deux fonctions, d'une façade de six méthodes (sept avec `fermer`, amendement F-002) et d'une classe d'erreur ; le format de l'ADR-0002 peut évoluer derrière eux.
 - Exposer `doc` permet à un consommateur d'écrire dans les types partagés en contournant les validations. C'est une convention, pas une barrière : la lecture tolérante (F-001-AC16, AC17) en limite l'effet, et les revues refusent tout accès aux types partagés hors de `packages/document`.
 - **Une seule instance de `yjs` dans le workspace.** Exposer `doc` fait importer `yjs` par chaque consommateur. Si deux copies de `yjs` étaient chargées, une `Y.Map` créée par l'une ne serait pas reconnue par l'autre : la validation « la valeur est une `Y.Map` » (ADR-0002, lecture, étape 2) écarterait toutes les entrées, et F-001-AC16 demande de les ignorer sans erreur. L'arborescence serait vide, en silence.
   - Parade retenue : l'unicité de l'instance, pas une validation tolérante. `format.ts` peut reconnaître une `Y.Map` par `instanceof`, parce que ce test n'est fragile qu'entre deux instances et que deux instances sont interdites. Une reconnaissance par la forme (présence de `get`, `has`…) ne couvrirait que la lecture : rien n'établit que l'écriture d'une `Y.Map` d'une instance dans le document d'une autre fonctionne (non vérifié : aucun essai à deux instances), et elle accepterait des valeurs qui ne sont pas des types partagés. Avec une seule instance, une entrée reçue par `Y.applyUpdate` est bien reconnue par `instanceof` (essai I du plan).
@@ -167,4 +167,4 @@ Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`, « 
 - Un paquet source lie les consommateurs aux options TypeScript du paquet (extensions `.ts`). Passer à un paquet compilé resterait un changement local : `exports` et un script de build.
 - Une graine fixe explore moins de cas qu'une graine aléatoire. Un contre-exemple trouvé à la main ou en changeant la graine s'ajoute comme test par l'exemple.
 - `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant. Avec l'amendement F-002, l'appelant la ferme quand il cesse de s'en servir, et l'écouteur est retiré.
-- Amendement F-002 (proposé) : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant et n'est visible que sur la console d'erreur. Un appelant qui veut la traiter autrement la rattrape dans son propre rappel. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant. Un consommateur qui énumère les codes d'erreur a un code de plus à traiter.
+- Amendement F-002 : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant et n'est visible que sur la console d'erreur. Un appelant qui veut la traiter autrement la rattrape dans son propre rappel. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant. Un consommateur qui énumère les codes d'erreur a un code de plus à traiter.
