@@ -18,6 +18,12 @@ import {
   fermerLesFacades,
   ouvrirFacade,
 } from "./aides-facade.ts";
+import {
+  ecrireLaVersion,
+  NOMS_DU_FORMAT,
+  VERSION_NON_PRISE_EN_CHARGE,
+  VERSION_PRISE_EN_CHARGE,
+} from "./aides-format.ts";
 import { attendreEtat, ESPACE_A } from "./aides-persistance.ts";
 import texteDesAidesDeCouture from "./aides-coutures.ts?raw";
 import { depuisLaRacine, lireLesFichiersDuWorkspace } from "./aides-coutures.ts";
@@ -498,7 +504,7 @@ describe("la fermeture se prouve par le compte d'écouteurs", () => {
 
     persistance.fermer();
 
-    expect(persistance.etat()).toBe("fermee");
+    expect(persistance.lireEtat()).toBe("fermee");
     expect(facadesEncoreOuvertes()).toBe(1);
     facade.fermer();
     expect(facadesEncoreOuvertes()).toBe(0);
@@ -779,5 +785,55 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
 
   it("F-002-AC21 le document de la session est un Y.Doc de l'instance de yjs d'apps/web", () => {
     expect(demarrerSession().doc).toBeInstanceOf(Y.Doc);
+  });
+});
+
+// Un fichier nomme le format du document s'il écrit en chaîne le nom d'un type partagé ou de la clé
+// de version. Les noms cherchés viennent de l'aide : ce fichier ne les écrit donc pas lui-même.
+const AIDES_DE_FORMAT = "apps/web/test/aides-format.ts";
+const FORMAT_DU_DOCUMENT = "packages/document/src/format.ts";
+const UN_NOM_DU_FORMAT = `(?:${Object.values(NOMS_DU_FORMAT).join("|")})`;
+
+function chainesDuFormat(texte: string): number {
+  return occurrences(texte, `(["'\`])${UN_NOM_DU_FORMAT}\\1`);
+}
+
+function ecritUneVersion(doc: Y.Doc, version: number): boolean {
+  ecrireLaVersion(doc, version);
+  try {
+    ouvrirFacade(doc).lire();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+describe("noms internes du format du document dans les tests", () => {
+  it("F-002-AC22 aides-format.ts est le seul fichier d'apps/web/test et d'apps/web/e2e qui nomme un type partagé ou la clé de version du format", () => {
+    const quiNommentLeFormat = fichiersQui(
+      (chemin, texte) =>
+        /^apps\/web\/(?:test|e2e)\//.test(chemin) &&
+        (chainesDuFormat(texte) > 0 || /\.getMap\(\s*NOMS_DU_FORMAT\b/.test(texte)),
+    );
+
+    expect(quiNommentLeFormat).toEqual([AIDES_DE_FORMAT]);
+    expect(fichiers.has("apps/web/e2e/aides.ts")).toBe(true);
+    // Chaque nom n'est écrit qu'une fois dans l'aide, et la recherche voit les trois guillemets.
+    expect(chainesDuFormat(texteDe(AIDES_DE_FORMAT))).toBe(Object.keys(NOMS_DU_FORMAT).length);
+    for (const nom of Object.values(NOMS_DU_FORMAT)) {
+      expect(chainesDuFormat(`doc.getMap('${nom}')`), nom).toBe(1);
+      expect(chainesDuFormat(`doc.getMap(\`${nom}\`)`), nom).toBe(1);
+      expect(chainesDuFormat(`doc.getMap("${nom}s")`), nom).toBe(0);
+    }
+  });
+
+  it("F-002-AC22 F-002-AC17 les noms et les versions que l'aide forge sont ceux du paquet : chaque nom est écrit dans son fichier de format, la version prise en charge est lue, la suivante refusée", () => {
+    const format = texteDe(FORMAT_DU_DOCUMENT);
+
+    for (const nom of Object.values(NOMS_DU_FORMAT)) {
+      expect(occurrences(format, `= "${nom}";`), nom).toBe(1);
+    }
+    expect(ecritUneVersion(new Y.Doc(), VERSION_PRISE_EN_CHARGE)).toBe(true);
+    expect(ecritUneVersion(new Y.Doc(), VERSION_NON_PRISE_EN_CHARGE)).toBe(false);
   });
 });

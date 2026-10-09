@@ -188,7 +188,7 @@ describe("états d'une persistance", () => {
     persistance.abonner(abonne);
     persistance.abonner(desabonne)();
 
-    expect(persistance.etat()).toBe("relecture");
+    expect(persistance.lireEtat()).toBe("relecture");
     await attendreEtat(persistance, "active");
 
     expect(abonne).toHaveBeenCalledTimes(1);
@@ -206,7 +206,7 @@ describe("états d'une persistance", () => {
     persistance.fermer();
     doc.getMap("temoin").set("contenu", "après fermeture");
 
-    expect(persistance.etat()).toBe("fermee");
+    expect(persistance.lireEtat()).toBe("fermee");
     expect(abonne).toHaveBeenCalledTimes(1);
     expect(await enregistrements(`notionlike:espace:${ESPACE_A}`)).toEqual(avant);
   });
@@ -218,8 +218,8 @@ describe("états d'une persistance", () => {
     persistance.fermer();
     const suivante = await ouvrirEtAttendre(new Y.Doc(), { type: "espace", idEspace: ESPACE_A });
 
-    expect(suivante.etat()).toBe("active");
-    expect(persistance.etat()).toBe("fermee");
+    expect(suivante.lireEtat()).toBe("active");
+    expect(persistance.lireEtat()).toBe("fermee");
   });
 });
 

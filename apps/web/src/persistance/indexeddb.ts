@@ -8,7 +8,7 @@ const DELAI_RELECTURE_MS = 10_000;
 export type EtatPersistance = "relecture" | "active" | "coupee" | "fermee";
 
 export interface Persistance {
-  etat(): EtatPersistance;
+  lireEtat(): EtatPersistance;
   abonner(rappel: () => void): () => void;
   fermer(): void;
 }
@@ -36,12 +36,16 @@ export function ouvrirSousEcheance(
   } else {
     suivi.armerLEcheance();
     commencer({
-      attendue: () => suivi.etat() === "relecture",
+      attendue: () => suivi.lireEtat() === "relecture",
       couper,
       relire: (nomDeLaBase) => relire(doc, nomDeLaBase, suivi),
     });
   }
-  return { etat: suivi.etat, abonner: suivi.abonner, fermer: () => suivi.passerA("fermee") };
+  return {
+    lireEtat: suivi.lireEtat,
+    abonner: suivi.abonner,
+    fermer: () => suivi.passerA("fermee"),
+  };
 }
 
 class SuiviDeLEtat {
@@ -50,7 +54,7 @@ class SuiviDeLEtat {
   readonly #abonnes = new Set<() => void>();
   readonly #arrets: (() => void)[] = [];
 
-  readonly etat = (): EtatPersistance => this.#etat;
+  readonly lireEtat = (): EtatPersistance => this.#etat;
 
   readonly abonner = (rappel: () => void): (() => void) => {
     const notifier = (): void => rappel();
@@ -81,13 +85,13 @@ class SuiviDeLEtat {
 }
 
 function relire(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeLEtat): void {
-  if (suivi.etat() !== "relecture") {
+  if (suivi.lireEtat() !== "relecture") {
     return;
   }
   sonder(nomDeLaBase, (ouvrable) => {
     if (!ouvrable) {
       suivi.passerA("coupee");
-    } else if (suivi.etat() === "relecture") {
+    } else if (suivi.lireEtat() === "relecture") {
       brancherLaBibliotheque(doc, nomDeLaBase, suivi);
     }
   });
@@ -130,7 +134,7 @@ function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeL
   bibliotheque._db.then((connexion) => {
     garder(connexion, couper);
     // Une persistance déjà coupée ou fermée a désabonné la bibliothèque : on ne la rebranche pas.
-    if (suivi.etat() === "relecture") {
+    if (suivi.lireEtat() === "relecture") {
       validerChaqueEcriture(bibliotheque, connexion);
     }
   }, couper);

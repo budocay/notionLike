@@ -19,6 +19,7 @@ import {
   versionInconnueVenueDAilleurs,
 } from "./aides-coquille.tsx";
 import { demarrerSession, ecouteurs } from "./aides-facade.ts";
+import { ecrireLaVersion, VERSION_PRISE_EN_CHARGE } from "./aides-format.ts";
 import {
   enregistrements,
   fermerDeForce,
@@ -314,7 +315,7 @@ describe("session d'espace : fermeture", () => {
     expect(consoleErreur).not.toHaveBeenCalled();
 
     // La phase est définitive : une transaction suivante ne rouvre rien et ne prévient personne.
-    act(() => void doc.getMap("meta").set("version", 1));
+    act(() => ecrireLaVersion(doc, VERSION_PRISE_EN_CHARGE));
     expect(session.lireEtat().phase).toBe("version-non-prise-en-charge");
     expect(phasesLues).toHaveLength(1);
     expect(ecouteurs(doc)).toBe(depart);

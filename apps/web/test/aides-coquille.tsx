@@ -3,12 +3,13 @@ import type { DocumentEspace } from "@notionlike/document";
 import { act, cleanup, render, type RenderResult, screen, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { StrictMode } from "react";
-import { afterEach, vi } from "vitest";
+import { afterEach, expect, vi } from "vitest";
 import * as Y from "yjs";
 
 import type { SessionEspace } from "../src/espace/session-espace.ts";
 import { Application } from "../src/interface/Application.tsx";
 import { demarrerSession, ouvrirFacade } from "./aides-facade.ts";
+import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
 
 afterEach(() => {
   cleanup();
@@ -94,7 +95,7 @@ export function versionInconnueVenueDAilleurs(session: SessionEspace): Uint8Arra
   const replique = new Y.Doc();
   Y.applyUpdate(replique, Y.encodeStateAsUpdate(docDe(session)));
   const etatAvant = Y.encodeStateVector(replique);
-  replique.getMap("meta").set("version", 2);
+  ecrireLaVersion(replique, VERSION_NON_PRISE_EN_CHARGE);
   return Y.encodeStateAsUpdate(replique, etatAvant);
 }
 
@@ -110,6 +111,19 @@ export async function saisirTitre(utilisateur: UserEvent, titre: string): Promis
     await utilisateur.type(champ, titre);
   }
   await utilisateur.keyboard("{Enter}");
+}
+
+// Avance au clavier seul jusqu'à la commande voulue, où qu'elle soit dans l'ordre de tabulation.
+const TABULATIONS_MAX = 20;
+export async function tabulerJusqua(
+  utilisateur: UserEvent,
+  commande: () => HTMLElement,
+  sens: { shift?: boolean } = {},
+): Promise<void> {
+  for (let pas = 0; pas < TABULATIONS_MAX && document.activeElement !== commande(); pas += 1) {
+    await utilisateur.tab(sens);
+  }
+  expect(document.activeElement).toBe(commande());
 }
 
 export type ActionDeRangee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";

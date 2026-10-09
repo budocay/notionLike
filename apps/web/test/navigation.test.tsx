@@ -1,7 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type * as Y from "yjs";
-
 import {
   activerActionDeRangee,
   boutonNouvellePage,
@@ -10,7 +8,9 @@ import {
   recevoir,
   recharger,
   saisirTitre,
+  tabulerJusqua,
 } from "./aides-coquille.tsx";
+import { changerLaCleDUnePage } from "./aides-format.ts";
 import { FORMES_REFUSEES, UUID_AVEC_LETTRES } from "./aides-identifiants.ts";
 
 const PREFIXE_PAGE = "#/page/";
@@ -171,9 +171,7 @@ describe("sélection et adresse", () => {
     const { session, utilisateur } = await ouvrirCoquille();
     recevoir(session, (espace) => void espace.creerPage("Au clavier"));
 
-    await utilisateur.tab();
-    await utilisateur.tab();
-    expect(document.activeElement).toBe(lien("Au clavier"));
+    await tabulerJusqua(utilisateur, () => lien("Au clavier"));
     expect(lien("Au clavier").tagName).toBe("A");
     await utilisateur.keyboard("{Enter}");
 
@@ -332,10 +330,7 @@ describe("sélection et adresse", () => {
     const { session, utilisateur } = await ouvrirCoquille();
     const idForge = UUID_AVEC_LETTRES.toUpperCase();
     recevoir(session, (espace) => {
-      const modele = espace.creerPage("Forgée");
-      const pages = espace.doc.getMap("pages");
-      pages.set(idForge, (pages.get(modele) as Y.Map<unknown>).clone());
-      pages.delete(modele);
+      changerLaCleDUnePage(espace.doc, espace.creerPage("Forgée"), idForge);
     });
     expect(lien("Forgée").getAttribute("href")).toBe(`${PREFIXE_PAGE}${idForge}`);
 

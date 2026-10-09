@@ -92,7 +92,7 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
       publier(VERSION_NON_PRISE_EN_CHARGE);
       return;
     }
-    const enregistre = persistance.etat() === "active";
+    const enregistre = persistance.lireEtat() === "active";
     if (!memeEtatPret(etat, arborescence, enregistre)) {
       publier({ phase: "pret", arborescence, enregistre, operations });
     }
@@ -101,7 +101,7 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
   // La façade n'existe pas tant que la relecture dure : aucune action de modification n'est alors
   // possible (F-002-AC3). Une session fermée n'écoute plus la persistance, et n'ouvre donc rien.
   const surPersistance = (): void => {
-    if (persistance.etat() === "relecture") {
+    if (persistance.lireEtat() === "relecture") {
       return;
     }
     if (ouverte === undefined) {

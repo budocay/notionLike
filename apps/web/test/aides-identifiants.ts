@@ -1,5 +1,5 @@
 // Table des formes qu'un identifiant ne doit jamais avoir (F-002-AC27, AC28). Elle sert au test de
-// la fonction de forme, à celui du nom des bases, et servira à celui de la route.
+// la fonction de forme, à celui du nom des bases, à celui de la route et à celui de la navigation.
 export const UUID_AVEC_LETTRES = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
 export const PAGE_P = "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e";
 export const TABLE_T = "c1d2e3f4-a5b6-4c7d-9e8f-0a1b2c3d4e5f";

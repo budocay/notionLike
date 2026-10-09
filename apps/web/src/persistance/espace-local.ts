@@ -61,7 +61,9 @@ function lireOuInscrire(
     const reglages = transaction.objectStore(MAGASIN_REGLAGES);
     const lecture = reglages.get(CLE_ESPACE_LOCAL);
     lecture.onsuccess = () => {
-      if (lecture.result === undefined) {
+      // L'échéance peut tomber entre l'ouverture et cette lecture : rien n'est inscrit après elle
+      // (F-002-AC24).
+      if (lecture.result === undefined && ouverture.attendue()) {
         reglages.put(idCandidat, CLE_ESPACE_LOCAL);
       }
     };

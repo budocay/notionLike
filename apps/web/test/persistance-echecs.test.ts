@@ -3,6 +3,7 @@ import * as Y from "yjs";
 
 import { ouvrirEspaceLocal, ouvrirPersistance } from "../src/persistance/index.ts";
 import { ouvrirFacade } from "./aides-facade.ts";
+import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
 import { UUID_AVEC_LETTRES } from "./aides-identifiants.ts";
 import {
   attendreEtat,
@@ -25,7 +26,6 @@ const MAGASIN_DES_REGLAGES = "reglages";
 const CLE_DE_L_ESPACE_LOCAL = "espace-local";
 const CLE_DEJA_PRISE = 1;
 const JUSTE_AVANT_L_ECHEANCE_MS = 9_999;
-const VERSION_NON_PRISE_EN_CHARGE = 2;
 // Ce que `y-indexeddb@9.0.12` écrit à chaque ouverture, avant de relire (F-002-AC17, H15).
 const ENREGISTREMENT_VIDE = [0, 0];
 
@@ -125,13 +125,13 @@ describe("IndexedDB indisponible", () => {
     persistance.abonner(abonne);
     const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
 
-    expect(persistance.etat()).toBe("coupee");
-    expect(espaceLocal.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
+    expect(espaceLocal.lireEtat()).toBe("coupee");
     facade.creerPage("En mémoire");
     expect(facade.lire().racines.map((page) => page.titre)).toEqual(["En mémoire"]);
     await laisserIndexedDbTravailler();
     persistance.fermer();
-    expect(persistance.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
     expect(abonne).not.toHaveBeenCalled();
   });
 
@@ -141,8 +141,8 @@ describe("IndexedDB indisponible", () => {
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
 
-    expect(persistance.etat()).toBe("coupee");
-    expect(espaceLocal.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
+    expect(espaceLocal.lireEtat()).toBe("coupee");
     await laisserIndexedDbTravailler();
     expect(await nomsDesBases()).toEqual([]);
   });
@@ -152,7 +152,7 @@ describe("IndexedDB indisponible", () => {
 
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
-    expect(persistance.etat()).toBe("relecture");
+    expect(persistance.lireEtat()).toBe("relecture");
     await Promise.all([attendreEtat(persistance, "coupee"), attendreEtat(espaceLocal, "coupee")]);
 
     expect(await nomsDesBases()).toEqual([]);
@@ -175,7 +175,7 @@ describe("identifiant de l'espace local relu sur l'appareil", () => {
       const facade = ouvrirFacade(new Y.Doc());
 
       const espaceLocal = ouvrirEspaceLocal(facade.doc, ESPACE_B);
-      expect(espaceLocal.etat()).toBe("relecture");
+      expect(espaceLocal.lireEtat()).toBe("relecture");
       await attendreEtat(espaceLocal, "coupee");
       facade.creerPage("En mémoire");
       await laisserIndexedDbTravailler();
@@ -234,7 +234,7 @@ describe("lecture ou écriture en échec après l'ouverture", () => {
       "Après la coupure",
     ]);
     persistance.fermer();
-    expect(persistance.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
   });
 
   it("F-002-AC16 (c) une lecture en échec pendant la relecture coupe la persistance et laisse le document vide", async () => {
@@ -289,7 +289,7 @@ describe("document de version non prise en charge", () => {
     const premiere = ouvrirPersistance(ancien.doc, ESPACE);
     await attendreEtat(premiere, "active");
     ancien.creerPage("Écrite par une version plus récente");
-    ancien.doc.getMap("meta").set("version", VERSION_NON_PRISE_EN_CHARGE);
+    ecrireLaVersion(ancien.doc, VERSION_NON_PRISE_EN_CHARGE);
     await laisserIndexedDbTravailler();
     premiere.fermer();
     const avant = await enregistrements(BASE_DE_L_ESPACE);
@@ -305,7 +305,7 @@ describe("document de version non prise en charge", () => {
     await laisserIndexedDbTravailler();
     const apres = await enregistrements(BASE_DE_L_ESPACE);
 
-    expect(persistance.etat()).toBe("fermee");
+    expect(persistance.lireEtat()).toBe("fermee");
     expect(avant.filter((enregistrement) => enregistrement.length > 2).length).toBeGreaterThan(0);
     expect(apres).toEqual([...avant, ENREGISTREMENT_VIDE]);
     expect(etatRelu(apres)).toEqual(etatRelu(avant));
@@ -325,16 +325,16 @@ describe("échéance de la relecture", () => {
     persistance.abonner(abonne);
     vi.advanceTimersByTime(JUSTE_AVANT_L_ECHEANCE_MS);
     await laisserIndexedDbTravailler();
-    expect(persistance.etat()).toBe("relecture");
+    expect(persistance.lireEtat()).toBe("relecture");
     vi.advanceTimersByTime(1);
-    expect(persistance.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
     expect(abonne).toHaveBeenCalledTimes(1);
 
     facade.creerPage("En mémoire");
     ouvertures.repondre();
     await laisserIndexedDbTravailler();
 
-    expect(persistance.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
     expect(facade.lire().racines.map((page) => page.titre)).toEqual(["En mémoire"]);
     ouvertures.cesser();
     expect(await enregistrements(BASE_DE_L_ESPACE)).toEqual(avant);
@@ -350,9 +350,9 @@ describe("échéance de la relecture", () => {
     const persistance = ouvrirPersistance(facade.doc, ESPACE);
     await laisserIndexedDbTravailler();
     vi.advanceTimersByTime(JUSTE_AVANT_L_ECHEANCE_MS);
-    expect(persistance.etat()).toBe("relecture");
+    expect(persistance.lireEtat()).toBe("relecture");
     vi.advanceTimersByTime(1);
-    expect(persistance.etat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("coupee");
 
     facade.creerPage("En mémoire");
     ouvertures.repondre();
@@ -369,14 +369,38 @@ describe("échéance de la relecture", () => {
 
     const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
     vi.advanceTimersByTime(JUSTE_AVANT_L_ECHEANCE_MS);
-    expect(espaceLocal.etat()).toBe("relecture");
+    expect(espaceLocal.lireEtat()).toBe("relecture");
     vi.advanceTimersByTime(1);
-    expect(espaceLocal.etat()).toBe("coupee");
+    expect(espaceLocal.lireEtat()).toBe("coupee");
 
     ouvertures.repondre();
     await laisserIndexedDbTravailler();
 
     expect(await nomsDesBases()).toEqual([]);
+  });
+
+  it("F-002-AC24 l'échéance tombée entre l'ouverture de la base de l'appareil et la lecture de l'identifiant : le candidat n'est pas inscrit, aucune base d'espace n'est créée", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    // La lecture est demandée dans le tour même où l'ouverture aboutit, et sa réponse vient au
+    // tour suivant : l'échéance est avancée entre les deux.
+    const lire = IDBObjectStore.prototype.get;
+    const lectures = vi.spyOn(IDBObjectStore.prototype, "get").mockImplementation(function (
+      this: IDBObjectStore,
+      cle: IDBValidKey | IDBKeyRange,
+    ) {
+      vi.advanceTimersByTime(JUSTE_AVANT_L_ECHEANCE_MS + 1);
+      return lire.call(this, cle);
+    });
+
+    const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
+    expect(espaceLocal.lireEtat()).toBe("relecture");
+    await attendreEtat(espaceLocal, "coupee");
+    await laisserIndexedDbTravailler();
+
+    expect(lectures).toHaveBeenCalledTimes(1);
+    lectures.mockRestore();
+    expect(await lireSurLAppareil()).toBeUndefined();
+    expect(await nomsDesBases()).toEqual([BASE_DE_L_APPAREIL]);
   });
 
   it("F-002-AC24 une relecture aboutie désarme l'échéance : la persistance reste active au-delà de 10 secondes", async () => {
@@ -386,7 +410,7 @@ describe("échéance de la relecture", () => {
 
     vi.advanceTimersByTime(JUSTE_AVANT_L_ECHEANCE_MS + 1);
 
-    expect(persistance.etat()).toBe("active");
+    expect(persistance.lireEtat()).toBe("active");
     expect(vi.getTimerCount()).toBe(0);
   });
 });

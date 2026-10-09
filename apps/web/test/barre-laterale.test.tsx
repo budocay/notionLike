@@ -1,5 +1,4 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import type { UserEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,6 +9,7 @@ import {
   ouvrirCoquille,
   recevoir,
   saisirTitre,
+  tabulerJusqua,
   titresParFratrie,
 } from "./aides-coquille.tsx";
 
@@ -29,19 +29,6 @@ function bouton(nom: string): HTMLElement {
 
 function rangees(): HTMLElement[] {
   return within(barreLaterale()).getAllByRole("listitem");
-}
-
-// Avance au clavier seul jusqu'à la commande voulue, où qu'elle soit dans l'ordre de tabulation.
-const TABULATIONS_MAX = 20;
-async function tabulerJusqua(
-  utilisateur: UserEvent,
-  commande: () => HTMLElement,
-  sens: { shift?: boolean } = {},
-): Promise<void> {
-  for (let pas = 0; pas < TABULATIONS_MAX && document.activeElement !== commande(); pas += 1) {
-    await utilisateur.tab(sens);
-  }
-  expect(document.activeElement).toBe(commande());
 }
 
 describe("barre latérale", () => {

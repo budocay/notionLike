@@ -4,7 +4,6 @@ import * as Y from "yjs";
 
 import { ouvrirPersistance } from "../src/persistance/index.ts";
 import {
-  boutonNouvellePage,
   creerPageNommee,
   docDe,
   fermerLOnglet,
@@ -13,6 +12,11 @@ import {
   versionInconnueVenueDAilleurs,
 } from "./aides-coquille.tsx";
 import { ecouteurs, facadesEncoreOuvertes, importerEntree } from "./aides-facade.ts";
+import {
+  ecrireLaVersion,
+  ecrireUneEntreeDePage,
+  VERSION_NON_PRISE_EN_CHARGE,
+} from "./aides-format.ts";
 import {
   attendreEtat,
   enregistrements,
@@ -70,8 +74,8 @@ function ecranBloquantSansAction(): HTMLElement {
 // place de l'espace local par le module de persistance lui-même.
 async function enregistrerUneVersionInconnue(idEspace: string): Promise<void> {
   const doc = new Y.Doc();
-  doc.getMap("meta").set("version", 2);
-  doc.getMap("pages").set("page-d-une-autre-version", new Y.Map());
+  ecrireLaVersion(doc, VERSION_NON_PRISE_EN_CHARGE);
+  ecrireUneEntreeDePage(doc, "page-d-une-autre-version");
   const persistance = ouvrirPersistance(doc, { type: "espace", idEspace });
   await attendreEtat(persistance, "active");
   persistance.fermer();
@@ -199,7 +203,7 @@ describe("coquille : échecs et limites", () => {
 
     // La persistance est fermée dès le refus : ce que le document reçoit ensuite n'atteint plus
     // IndexedDB.
-    act(() => void docDe(session).getMap("pages").set("ecrite-apres-le-blocage", new Y.Map()));
+    act(() => ecrireUneEntreeDePage(docDe(session), "ecrite-apres-le-blocage"));
     await laisserIndexedDbTravailler();
     expect(await enregistrements(base)).toEqual(apres);
   });
@@ -219,7 +223,7 @@ describe("coquille : échecs et limites", () => {
     // La persistance est fermée : ce que le document reçoit ensuite n'atteint plus IndexedDB.
     await laisserIndexedDbTravailler();
     const avant = await enregistrements(base);
-    act(() => void docDe(session).getMap("pages").set("ecrite-apres-le-blocage", new Y.Map()));
+    act(() => ecrireUneEntreeDePage(docDe(session), "ecrite-apres-le-blocage"));
     await laisserIndexedDbTravailler();
     expect(await enregistrements(base)).toEqual(avant);
     expect(session.lireEtat().phase).toBe("version-non-prise-en-charge");
@@ -238,6 +242,7 @@ describe("coquille : échecs et limites", () => {
 
   it("F-002-AC26 sans crypto.randomUUID : écran d'explication annoncé, aucune base, aucune action", async () => {
     vi.stubGlobal("crypto", {});
+    const hasard = vi.spyOn(Math, "random");
 
     const { session } = rendreApplication();
 
@@ -253,6 +258,7 @@ describe("coquille : échecs et limites", () => {
     await laisserIndexedDbTravailler();
     expect(within(document.body).getByRole("alert")).toBe(alerte);
     expect(await nomsDesBases()).toEqual([]);
+    expect(hasard).not.toHaveBeenCalled();
   });
 
   it("F-002-AC26 sans l'objet crypto lui-même : même écran, aucune base", async () => {
@@ -266,15 +272,56 @@ describe("coquille : échecs et limites", () => {
     expect(await nomsDesBases()).toEqual([]);
   });
 
-  it("F-002-AC26 crypto.randomUUID présente et isSecureContext faux : premier lancement de F-002-AC1", async () => {
-    vi.stubGlobal("isSecureContext", false);
-    expect(window.isSecureContext).toBe(false);
+  it("F-002-AC26 sans crypto.randomUUID alors que isSecureContext est vrai : l'écran s'affiche quand même, la détection porte sur la fonction", async () => {
+    vi.stubGlobal("crypto", {});
+    vi.stubGlobal("isSecureContext", true);
+    expect(window.isSecureContext).toBe(true);
 
-    await ouvrirCoquille();
+    const { session } = rendreApplication();
 
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(await boutonNouvellePage()).toBeDefined();
-    expect(screen.getByRole("main").textContent).toContain("Créez-en une");
-    expect(await nomsDesBases()).toHaveLength(2);
+    expect(screen.getByRole("alert").textContent).toContain("https");
+    expect(screen.queryAllByRole("button")).toEqual([]);
+    expect(session.doc).toBeUndefined();
+    await laisserIndexedDbTravailler();
+    expect(await nomsDesBases()).toEqual([]);
   });
+
+  it.each([
+    [
+      "absent",
+      (): void => {
+        expect("isSecureContext" in window).toBe(false);
+      },
+    ],
+    [
+      "faux",
+      (): void => {
+        vi.stubGlobal("isSecureContext", false);
+        expect("isSecureContext" in window).toBe(true);
+        expect(window.isSecureContext).toBe(false);
+      },
+    ],
+  ])(
+    "F-002-AC26 crypto.randomUUID présente et isSecureContext %s : pas d'écran d'explication, premier lancement de F-002-AC1",
+    async (_cas, poserLeContexte) => {
+      poserLeContexte();
+      expect(typeof crypto.randomUUID).toBe("function");
+
+      const { session } = await ouvrirCoquille();
+
+      // Premier lancement de F-002-AC1 : espace local créé, barre latérale sans page avec
+      // « Nouvelle page », zone principale qui invite à créer une page.
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(session.lireEtat().phase).toBe("pret");
+      const barre = screen.getByRole("navigation", { name: "Pages" });
+      expect(within(barre).getByRole("button", { name: "Nouvelle page" })).toBeDefined();
+      expect(within(barre).queryAllByRole("listitem")).toEqual([]);
+      expect(screen.queryAllByRole("link")).toEqual([]);
+      expect(screen.getByRole("main").textContent).toContain("Créez-en une");
+      const bases = await nomsDesBases();
+      expect(bases).toHaveLength(2);
+      expect(bases[0]).toBe("notionlike:appareil");
+      expect(bases[1]?.startsWith(PREFIXE_BASE_ESPACE)).toBe(true);
+    },
+  );
 });

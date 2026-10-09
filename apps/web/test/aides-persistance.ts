@@ -14,12 +14,12 @@ const TOURS_POUR_VIDER_LA_FILE = 20;
 
 export function attendreEtat(persistance: Persistance, attendu: EtatPersistance): Promise<void> {
   return new Promise((resoudre) => {
-    if (persistance.etat() === attendu) {
+    if (persistance.lireEtat() === attendu) {
       resoudre();
       return;
     }
     const desabonner = persistance.abonner(() => {
-      if (persistance.etat() === attendu) {
+      if (persistance.lireEtat() === attendu) {
         desabonner();
         resoudre();
       }

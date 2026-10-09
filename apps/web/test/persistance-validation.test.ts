@@ -80,7 +80,7 @@ describe("validation de chaque écriture", () => {
       Array(3).fill(["updates"]),
     );
     expect(new Set(validees).size).toBe(3);
-    expect(persistance.etat()).toBe("active");
+    expect(persistance.lireEtat()).toBe("active");
   });
 
   it("F-002-AC2 la connexion retrouve sa méthode d'origine après chaque écriture", async () => {
@@ -112,7 +112,7 @@ describe("validation de chaque écriture", () => {
       expect(() => ecrire(doc, 2)).not.toThrow();
       await laisserIndexedDbTravailler();
 
-      expect(persistance.etat()).toBe("active");
+      expect(persistance.lireEtat()).toBe("active");
       expect(await enregistrements(BASE_DE_LA_PAGE)).toEqual([DOCUMENT_VIDE, ...emises]);
     } finally {
       Object.defineProperty(IDBTransaction.prototype, "commit", commit as PropertyDescriptor);
@@ -131,7 +131,7 @@ describe("validation de chaque écriture", () => {
     await laisserIndexedDbTravailler();
 
     expect(validations).toHaveBeenCalledTimes(2);
-    expect(persistance.etat()).toBe("active");
+    expect(persistance.lireEtat()).toBe("active");
     expect(await enregistrements(BASE_DE_LA_PAGE)).toEqual([DOCUMENT_VIDE, ...emises]);
   });
 
@@ -212,7 +212,7 @@ describe("compactage du journal", () => {
     ecrire(doc, 1);
     await laisserIndexedDbTravailler();
     expect(await enregistrements(BASE_DE_LA_PAGE)).toHaveLength(2);
-    expect(persistance.etat()).toBe("active");
+    expect(persistance.lireEtat()).toBe("active");
     persistance.fermer();
     vi.useRealTimers();
     expect(etat(await relireDansUnDocumentVierge())).toEqual(etat(doc));
