@@ -2,25 +2,27 @@
 
 ## Où on en est
 
-F-001 (arborescence des pages, `packages/document`) et F-002 (application web locale : coquille, barre latérale, persistance IndexedDB) sont DONE et dans `main`. Leurs entrées sont dans `PROJECT_LOG.md` et `MEMORY/features/`.
+F-001 (arborescence des pages, `packages/document`), F-002 (application web locale : coquille, barre latérale, persistance IndexedDB) et F-004 (identité visuelle sombre : jetons, application habillée, tiroir sur petit écran) sont DONE et dans `main`. Leurs entrées sont dans `PROJECT_LOG.md` et `MEMORY/features/`. Le dev a vu la page de démonstration de F-004 et répondu « J'aime tout ».
 
-F-004 (identité visuelle sombre, tier structurel) est codée sur la branche `F-004` et en revue finale. Elle a été menée en mode rapide, décidé par le dev le 2026-10-09 pour cette seule feature : pas de plan détaillé ni de gate de conception avant le code, les quatre gates de fin restent. Les verdicts font foi dans `MEMORY/gates.log` ; les commits, les preuves lancées à la main et les limites sont dans `MEMORY/features/F-004.md`. Le dev a vu la page de démonstration à la fin du bloc 1 et répondu « J'aime tout ».
+Le 2026-10-09, le dev a étendu le mode rapide à toutes les features (« le mode rapide est valide pour tout ») : spec validée, code écrit directement depuis la spec et la veille, note de conception courte et ADR seulement pour ce qui est difficile à défaire, pas de gate de conception avant le code ; les gates de fin restent. Contrepartie constatée sur F-004 : faire relire la structure par `agent-architecte-conception` avant la revue, et demander au producteur un témoin jetable par critère exposé.
+
+F-008 (socle serveur) est EN COURS dans un second worktree, `~/dev/notionLike-F-008`, branche `F-008-socle` partie de `main` : spec validée (`651991f`). Le hook de périmètre accepte depuis le 2026-10-09 les écritures d'agent dans un worktree de ce dépôt (modification du dev dans `.claude/hooks/cc-adapt.sh`, `test-blocage.sh` vert après la modification : `RESULTAT: tous les blocages sont effectifs`) : deux branches peuvent avancer en même temps, une par worktree.
 
 La planification complète est dans `main` : 30 features et leurs specs (`ROADMAP.md` porte les comptes et l'ordre), `MEMORY/VEILLE.md`. Le statut de chaque spec est celui de sa ligne `Statut :`. Ordre du chemin client après F-004 : F-030 (reprise de la persistance après une coupure, exigée par le dev le 2026-10-09 : « les données doivent être tout le temps persistées »), puis F-003 (éditeur de page, qui livre directement la barre flottante). Le chemin serveur (F-008, F-009, F-011, F-012, puis F-013), qui apporte la base PostgreSQL, n'a pas commencé.
 
 Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008) et a accepté d'alléger le parcours : `ARCHITECTURE.md` est aligné après le dernier bloc d'une feature et non après chaque bloc ; F-019, F-020 et F-021 sont reclassées `standard`.
 
-Le dépôt principal (`~/dev/notionLike`) est sur la branche `F-004`, arbre propre. Un worktree temporaire (`scratchpad/revue-F-001`, nom hérité de la première revue) sert aux revues.
+Le dépôt principal (`~/dev/notionLike`) sert au chemin client ; un worktree temporaire (`scratchpad/revue-F-001`, nom hérité de la première revue) sert aux revues.
 
 ## Prochaine action prévue
 
-REPRISE IMMÉDIATE (2026-10-09, session interrompue par la limite d'usage) : troisième passage de revue de F-004 sur l'empreinte `2fc8bae8471c` — `reviewer-frontend` APPROVED et `CRAFT GATE: PASS` ; `agent-architecte` et `agent-securite` sont `UNVERIFIED` parce que leur commande de gate a été coupée par la limite d'usage (« You've hit your session limit »), ce n'est pas un rejet. À faire, sans aucun commit de code ni de document avant : dans le worktree `scratchpad/revue-F-001` (détaché sur la tête de `F-004`), relancer `.agents/checks/gate.sh agent-architecte F-004` et `.agents/checks/gate.sh agent-securite F-004` (même empreinte : `MEMORY/` n'y entre pas ; sinon refaire `dossier-revue.sh F-004` puis les quatre gates), commiter `MEMORY/gates.log`, puis suivre le cas « verte » ci-dessous. Le dev a étendu le mode rapide à toutes les features le 2026-10-09 (« le mode rapide est valide pour tout ») : à inscrire dans `ROADMAP.md` après la fusion. `.claude/hooks/cc-adapt.sh` est modifié par le dev et non commité (périmètre évalué depuis la racine d'un worktree du même dépôt) : à commiter sur `main` sous `Agent: dev` après la fusion, une fois `test-blocage.sh` lancé par le dev et vert ; aucune écriture d'agent dans un second worktree avant ce test.
+Chemin client, dépôt principal : F-030 (reprise de la persistance après une coupure) — valider `specs/F-030.md` par délégation, branche `F-030` depuis `main`, mode rapide. Puis F-003.
 
-Si la revue finale de F-004 n'est pas verte : faire corriger par le propriétaire, puis reprendre dans cet ordre strict — code, preuves relevées sur le dernier commit de code, `MEMORY/features/F-004.md`, `ARCHITECTURE.md` en dernier, et seulement alors `dossier-revue.sh F-004` et les gates (aucun commit de code ni de configuration après le réalignement des documents). Trois rejets consécutifs d'un même gate déclenchent l'escalade (code 3), que seul le dev reprend.
+Chemin serveur, worktree `~/dev/notionLike-F-008` : faire reposer par `agent-architecte-conception` la conception de F-008 et les ADR-0004 à 0006 depuis la branche d'archive `planification-reunie` (`a246106`), recalés sur `main` ; bloc 0 par délégation (script de la conception) ; blocs d'`agent-backend`, `agent-bdd`, `agent-devops` ; relecture de structure, puis revue (`reviewer-devops`, `reviewer-bdd`, `reviewer-backend`, `reviewer-api`, architecture, sécurité, craft).
 
-Si elle est verte : commit de `MEMORY/gates.log`, `gates-verts.sh main..HEAD` lancé depuis la branche et lu en entier, entrée de `PROJECT_LOG.md`, `MEMORY/INDEX.md`, puis fusion dans `main` par merge commit, en une commande séparée de la vérification. Ensuite F-030 : valider `specs/F-030.md` par délégation, branche `F-030` depuis `main`, parcours structurel complet (le mode rapide ne valait que pour F-004, sauf nouvelle décision du dev).
+À faire par l'orchestrateur après la fusion de F-004 : commiter sur `main` la modification du hook sous `Agent: dev` (délégation), faire inscrire le mode rapide pour toutes les features dans `ROADMAP.md` par `agent-planif`.
 
-F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la branche d'archive `planification-reunie` (`a246106`). À reposer par `agent-architecte-conception` sur une branche `F-008-socle` neuve partie de `main` (le nom `F-008` est pris par une archive), après validation de `specs/F-008.md` ; son gate de conception n'a jamais tourné.
+Règles de revue : code, puis preuves relevées sur le dernier commit de code, puis `MEMORY/features/<F-id>.md`, puis `ARCHITECTURE.md` en dernier, et seulement alors `dossier-revue.sh` et les gates ; aucun commit de code ni de configuration après le réalignement des documents. Trois rejets consécutifs d'un même gate déclenchent l'escalade (code 3), que seul le dev reprend. Avant une fusion : `gates-verts.sh main..HEAD` depuis la branche, lu en entier, puis la fusion dans une commande séparée.
 
 ## Dettes ouvertes
 
@@ -35,7 +37,7 @@ F-008 (serveur) : conception terminée et ADR-0004 à 0006 acceptés, sur la bra
 
 ## État des contrôles / gates
 
-Les verdicts font foi dans `MEMORY/gates.log`. F-001 : tous verts sur l'empreinte `ca4cb0d41fe3`. F-002 : tous verts sur l'empreinte `d06344502281`. `main` : `gates-verts.sh 275d4ef..main` → `RESULTAT GATES: OK` à la fusion de F-002.
+Les verdicts font foi dans `MEMORY/gates.log`. F-001 : tous verts sur l'empreinte `ca4cb0d41fe3`. F-002 : tous verts sur l'empreinte `d06344502281`. F-004 : tous verts sur l'empreinte `2fc8bae8471c`. `main` : `gates-verts.sh 275d4ef..main` → `RESULTAT GATES: OK` à la fusion de F-002.
 
 F-004, dernier commit de code `0d0a240` : relevé de l'orchestrateur dans `MEMORY/features/F-004.md` (1078 tests sur 32 fichiers, types, lint, contrats, `preuve:construction`, couverture des critères, bout en bout `46 passed` deux fois, tous en code 0).
 
