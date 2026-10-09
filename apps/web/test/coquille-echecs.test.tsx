@@ -87,7 +87,7 @@ describe("coquille : échecs et limites", () => {
 
     const { utilisateur } = await ouvrirCoquille();
 
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Chargement…")).toBeNull();
     avertissementDePersistance();
     await creerPageNommee(utilisateur, "En mémoire");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("En mémoire");
@@ -104,7 +104,7 @@ describe("coquille : échecs et limites", () => {
 
       const { utilisateur } = await ouvrirCoquille();
 
-      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.queryByText("Chargement…")).toBeNull();
       avertissementDePersistance();
       await creerPageNommee(utilisateur, "Malgré le refus");
       avertissementDePersistance();
@@ -144,7 +144,7 @@ describe("coquille : échecs et limites", () => {
 
     act(() => void vi.advanceTimersByTime(1));
 
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Chargement…")).toBeNull();
     avertissementDePersistance();
     expect(screen.getByRole("button", { name: "Nouvelle page" })).toBeDefined();
   });

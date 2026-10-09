@@ -9,7 +9,7 @@ const MAGASIN_DES_MISES_A_JOUR = "updates";
 const PROTOCOLES_RESEAU = new Set(["http:", "https:", "ws:", "wss:"]);
 
 /** Ce que la barre latérale affiche d'une page : sa profondeur, son titre, son adresse. */
-export interface Rangee {
+export interface RangeeVisee {
   readonly niveau: string | null;
   readonly titre: string;
   readonly adresse: string;
@@ -48,7 +48,7 @@ export async function recharger(page: Page): Promise<void> {
 }
 
 /** Niveau, titre et adresse de chaque page de la barre latérale, dans l'ordre affiché. */
-export function arborescence(page: Page): Promise<Rangee[]> {
+export function arborescence(page: Page): Promise<RangeeVisee[]> {
   return rangees(page).evaluateAll((elements) =>
     elements.map((element) => {
       const lien = element.querySelector("a");
@@ -80,46 +80,74 @@ export async function creerPageNommee(page: Page, titre: string): Promise<void> 
   await expect(lienDePage(page, titre)).toBeVisible();
 }
 
-export type ActionDeRangee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
+export type ActionDeRangeeVisee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
 
-const NOM_DE_L_ACTION: Readonly<Record<ActionDeRangee, (titre: string) => string>> = {
-  renommer: (titre) => `Renommer « ${titre} »`,
-  "ajouter-une-sous-page": (titre) => `Ajouter une sous-page à « ${titre} »`,
-  "mettre-a-la-corbeille": (titre) => `Mettre « ${titre} » à la corbeille`,
+const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangeeVisee, string>> = {
+  renommer: "Renommer",
+  "ajouter-une-sous-page": "Ajouter une sous-page",
+  "mettre-a-la-corbeille": "Mettre à la corbeille",
 };
+
+export function nomDuMenu(titre: string): string {
+  return `Actions de la page « ${titre} »`;
+}
+
+export function nomAjouterSousPage(titre: string): string {
+  return `Ajouter une sous-page à « ${titre} »`;
+}
+
+/** Nom de la commande de repli : il ne dit plus l'état, que porte `aria-expanded` (F-004-AC56). */
+export function nomDuRepli(titre: string): string {
+  return `Sous-pages de « ${titre} »`;
+}
+
+/** Bouton « ⋯ » de la page au titre affiché donné. */
+export function boutonDuMenu(page: Page, titre: string): Locator {
+  return page.getByRole("button", { name: nomDuMenu(titre), exact: true });
+}
+
+export function menuDePage(page: Page, titre: string): Locator {
+  return page.getByRole("menu", { name: nomDuMenu(titre), exact: true });
+}
 
 /**
  * Seul chemin des scénarios vers une action de rangée, le même que celui de
  * `test/aides-coquille.tsx` : la commande de la page au titre affiché donné, retrouvée par son rôle
- * et son nom accessible, jamais par sa place. F-004 déplacera ces commandes dans un menu : seul ce
- * chemin changera, pas les scénarios (conception, « Ce que F-004 remplacera »).
+ * et son nom accessible, jamais par sa place. Depuis F-004, « Renommer » et « Mettre à la
+ * corbeille » sont des entrées du menu « ⋯ » de la rangée, que ce chemin ouvre ; « Ajouter une
+ * sous-page » reste un bouton de la rangée (F-004-AC25, AC26).
  */
-export function atteindreActionDeRangee(
+export async function atteindreActionDeRangee(
   page: Page,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
-): Locator {
-  return page.getByRole("button", { name: NOM_DE_L_ACTION[action](titre), exact: true });
+): Promise<Locator> {
+  if (action === "ajouter-une-sous-page") {
+    return page.getByRole("button", { name: nomAjouterSousPage(titre), exact: true });
+  }
+  const menu = menuDePage(page, titre);
+  if (!(await menu.isVisible())) {
+    await boutonDuMenu(page, titre).click();
+  }
+  return menu.getByRole("menuitem", { name: ENTREE_DE_L_ACTION[action], exact: true });
 }
 
 export async function activerActionDeRangee(
   page: Page,
-  action: ActionDeRangee,
+  action: ActionDeRangeeVisee,
   titre: string,
 ): Promise<void> {
-  await atteindreActionDeRangee(page, action, titre).click();
+  await (await atteindreActionDeRangee(page, action, titre)).click();
 }
 
-export type Repli = "replier" | "deplier";
+export type RepliVise = "replier" | "deplier";
 
-const NOM_DU_REPLI: Readonly<Record<Repli, (titre: string) => string>> = {
-  replier: (titre) => `Replier « ${titre} »`,
-  deplier: (titre) => `Déplier « ${titre} »`,
-};
-
-/** Replie ou déplie la page au titre donné, par la commande nommée ainsi. */
-export async function basculerRepli(page: Page, repli: Repli, titre: string): Promise<void> {
-  await page.getByRole("button", { name: NOM_DU_REPLI[repli](titre), exact: true }).click();
+/** Replie ou déplie la page au titre donné : la commande, au nom stable, doit être dans l'état inverse. */
+export async function basculerRepli(page: Page, repli: RepliVise, titre: string): Promise<void> {
+  const commande = page.getByRole("button", { name: nomDuRepli(titre), exact: true });
+  await expect(commande).toHaveAttribute("aria-expanded", repli === "replier" ? "true" : "false");
+  await commande.click();
+  await expect(commande).toHaveAttribute("aria-expanded", repli === "replier" ? "false" : "true");
 }
 
 /** Noms des bases IndexedDB de l'origine, triés. */

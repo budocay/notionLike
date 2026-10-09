@@ -1,0 +1,194 @@
+/* Feuille d'entrée d'apps/web (F-004, ADR-0010) : la seule qui importe Tailwind et le fichier des
+   jetons, et la seule que l'entrée de production atteint. Tailwind ne lit que les fichiers désignés
+   ci-dessous ; test/styles.test.ts contrôle chacun d'eux classe par classe. La page de
+   démonstration a sa propre feuille, qui importe celle-ci. */
+@import "tailwindcss" source(none);
+@source "../interface/composants/*.classes.ts";
+@import "./jetons.css";
+
+@custom-variant sans-survol (@media (hover: none));
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    background-color: var(--color-surface-application);
+    color: var(--color-texte-principal);
+  }
+
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-courant);
+    line-height: var(--text-courant--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: var(--epaisseur-contour) solid var(--color-repere-focus);
+    outline-offset: var(--epaisseur-contour);
+  }
+
+  ::selection {
+    background-color: var(--color-surface-filet);
+  }
+}
+
+/* Classes nommées : ce qu'aucun jeton ne donne à Tailwind (épaisseurs, plans, dégradés,
+   mouvements), déclaré une seule fois. */
+
+@utility extensible {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+@utility filet {
+  border: var(--epaisseur-filet) solid var(--color-surface-filet);
+}
+
+@utility filet-bas {
+  border-bottom: var(--epaisseur-filet) solid var(--color-surface-filet);
+}
+
+@utility filet-haut {
+  border-top: var(--epaisseur-filet) solid var(--color-surface-filet);
+}
+
+@utility filet-droit {
+  border-right: var(--epaisseur-filet) solid var(--color-surface-filet);
+}
+
+@utility contour-champ {
+  border: var(--epaisseur-filet) solid var(--color-repere-contour);
+}
+
+@utility contour-erreur {
+  border: var(--epaisseur-filet) solid var(--color-repere-erreur);
+}
+
+@utility contour-interieur {
+  outline-offset: calc(var(--epaisseur-contour) * -1);
+}
+
+@utility fond-accent {
+  background-image: var(--degrade-accent);
+}
+
+@utility fond-halo {
+  background-image: var(--degrade-halo);
+}
+
+@utility plan-barre-haut {
+  z-index: var(--plan-barre-haut);
+}
+
+@utility plan-menu {
+  z-index: var(--plan-menu);
+}
+
+@utility plan-voile {
+  z-index: var(--plan-voile);
+}
+
+@utility plan-tiroir {
+  z-index: var(--plan-tiroir);
+}
+
+/* Le retrait est borné : au-delà, une arborescence profonde ne laisserait plus de place au titre. */
+@utility retrait-niveau {
+  padding-inline-start: min(
+    calc((var(--niveau, 1) - 1) * var(--spacing-retrait)),
+    var(--spacing-retrait-max)
+  );
+}
+
+/* Tiroir : jamais plus large que la fenêtre moins une cible, pour que le voile reste atteignable. */
+@utility largeur-tiroir {
+  width: min(var(--container-tiroir), calc(100% - var(--spacing-cible)));
+}
+
+/* Ouverture du tiroir et de son voile : une entrée, sans animation de sortie. L'état final ne
+   porte aucune transformation, pour ne pas devenir le repère des éléments fixes qu'il contient. */
+@utility tiroir {
+  opacity: 1;
+  transform: none;
+  transition:
+    transform var(--duree-moyenne) var(--ease-sortie),
+    opacity var(--duree-moyenne) var(--ease-sortie);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@utility voile {
+  opacity: 1;
+  transition: opacity var(--duree-moyenne) var(--ease-sortie);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+/* Actions de rangée : visibles sans survol possible ou sur écran étroit ; sinon révélées par
+   l'opacité seule, au survol, au focus ou quand le menu de la rangée est ouvert. */
+@utility actions-de-rangee {
+  opacity: 1;
+  transition: opacity var(--duree-rapide) var(--ease-sortie);
+
+  @media (hover: hover) {
+    @variant etroit {
+      opacity: 0;
+
+      .rangee:is(:hover, :focus-within, [data-menu-ouvert]) & {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+/* Infobulle du titre coupé : elle attend un instant avant de se montrer, pour ne pas suivre le
+   pointeur d'une rangée à l'autre. */
+@utility infobulle {
+  opacity: 1;
+  transition: opacity var(--duree-rapide) var(--ease-sortie) var(--duree-lente);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+@utility rangee {
+  position: relative;
+}
+
+@utility chevron {
+  transition: transform var(--duree-rapide) var(--ease-sortie);
+}
+
+@utility chevron-ouvert {
+  transform: rotate(90deg);
+}
+
+@utility apparition {
+  animation: var(--animate-apparition);
+}
+
+@utility depliage {
+  animation: var(--animate-depliage);
+}
+
+@utility indicateur-chargement {
+  animation: var(--animate-chargement);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility retard-court {
+  animation-delay: calc(var(--duree-boucle-chargement) / 6);
+}
+
+@utility retard-long {
+  animation-delay: calc(var(--duree-boucle-chargement) / 3);
+}

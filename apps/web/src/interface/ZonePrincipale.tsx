@@ -1,6 +1,8 @@
 import type { PageLue } from "@notionlike/document";
-import type { ReactElement } from "react";
+import type { ReactElement, Ref } from "react";
 
+import { Principale } from "./composants/Coquille.tsx";
+import { EntetePage } from "./composants/Etats.tsx";
 import {
   EXPLICATION_PAGE_INTROUVABLE,
   INVITATION_CHOISIR_UNE_PAGE,
@@ -19,28 +21,26 @@ export type Selection =
 interface Proprietes {
   readonly selection: Selection;
   readonly espaceVide: boolean;
+  /** Le focus y est porté quand une page est choisie dans le tiroir (F-004-AC42). */
+  readonly ref?: Ref<HTMLElement> | undefined;
 }
 
-export function ZonePrincipale({ selection, espaceVide }: Proprietes): ReactElement {
+// La clé rejoue l'apparition du contenu quand la page sélectionnée change (F-004-AC14).
+function entete({ selection, espaceVide }: Proprietes): ReactElement {
   if (selection.type === "page") {
-    return (
-      <main className="zone-principale">
-        <h1>{titreAffiche(selection.page.titre)}</h1>
-      </main>
-    );
+    return <EntetePage key={selection.page.id} titre={titreAffiche(selection.page.titre)} />;
   }
   if (selection.type === "introuvable") {
-    return (
-      <main className="zone-principale">
-        <h1>{PAGE_INTROUVABLE}</h1>
-        <p>{EXPLICATION_PAGE_INTROUVABLE}</p>
-      </main>
-    );
+    return <EntetePage titre={PAGE_INTROUVABLE} explication={EXPLICATION_PAGE_INTROUVABLE} />;
   }
   return (
-    <main className="zone-principale">
-      <h1>{NOM_APPLICATION}</h1>
-      <p>{espaceVide ? INVITATION_PREMIERE_PAGE : INVITATION_CHOISIR_UNE_PAGE}</p>
-    </main>
+    <EntetePage
+      titre={NOM_APPLICATION}
+      explication={espaceVide ? INVITATION_PREMIERE_PAGE : INVITATION_CHOISIR_UNE_PAGE}
+    />
   );
+}
+
+export function ZonePrincipale(props: Proprietes): ReactElement {
+  return <Principale ref={props.ref}>{entete(props)}</Principale>;
 }

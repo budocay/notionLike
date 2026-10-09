@@ -3,9 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   activerActionDeRangee,
+  activerActionDeRangeeAuClavier,
+  atteindreActionDeRangee,
   boutonNouvellePage,
+  commandesDuMenu,
   creerPageNommee,
+  ENTREES_DU_MENU,
   etatEncode,
+  nomDuMenu,
   ouvrirCoquille,
   recevoir,
   saisirTitre,
@@ -39,7 +44,7 @@ describe("barre latérale", () => {
       const parent = espace.lire().racines[0]?.id ?? "";
       espace.creerPage("Aînée", { parent });
     });
-    await utilisateur.click(bouton("Replier « Parent »"));
+    await utilisateur.click(bouton("Sous-pages de « Parent »"));
     expect(screen.queryByRole("link", { name: "Aînée" })).toBeNull();
 
     await activerActionDeRangee(utilisateur, "ajouter-une-sous-page", "Parent");
@@ -47,7 +52,7 @@ describe("barre latérale", () => {
     const champ = await screen.findByRole("textbox", CHAMP_TITRE);
     expect(document.activeElement).toBe(champ);
     expect((champ as HTMLInputElement).value).toBe("");
-    expect(bouton("Replier « Parent »").getAttribute("aria-expanded")).toBe("true");
+    expect(bouton("Sous-pages de « Parent »").getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("link", { name: "Aînée" })).toBeDefined();
     // La nouvelle rangée est la dernière sous le parent : troisième de la liste, de niveau 2.
     expect(rangees()).toHaveLength(3);
@@ -163,13 +168,13 @@ describe("barre latérale", () => {
       espace.creerPage("Feuille");
     });
     const avant = etatEncode(session);
-    const repli = bouton("Replier « Parent »");
+    const repli = bouton("Sous-pages de « Parent »");
     expect(repli.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("link", { name: "Petite-fille" })).toBeDefined();
 
     await utilisateur.click(repli);
 
-    const depli = bouton("Déplier « Parent »");
+    const depli = bouton("Sous-pages de « Parent »");
     expect(depli.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(depli);
     expect(screen.queryByRole("link", { name: "Fille" })).toBeNull();
@@ -192,9 +197,9 @@ describe("barre latérale", () => {
       espace.creerPage("Feuille");
     });
 
-    expect(screen.queryByRole("button", { name: /(Replier|Déplier) « Feuille »/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /(Replier|Déplier) « Fille »/ })).toBeNull();
-    expect(screen.getAllByRole("button", { name: /^(Replier|Déplier) / })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Sous-pages de « Feuille »/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Sous-pages de « Fille »/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Sous-pages de / })).toHaveLength(1);
   });
 
   it("F-002-AC10 créer, renommer, ajouter une sous-page, replier, déplier et mettre à la corbeille au clavier seul", async () => {
@@ -206,8 +211,7 @@ describe("barre latérale", () => {
     await utilisateur.keyboard("Agenda{Enter}");
     expect(document.activeElement).toBe(await screen.findByRole("link", { name: "Agenda" }));
 
-    await tabulerJusqua(utilisateur, () => bouton("Renommer « Agenda »"));
-    await utilisateur.keyboard("{Enter}");
+    await activerActionDeRangeeAuClavier(utilisateur, "renommer", "Agenda");
     expect(document.activeElement).toBe(await screen.findByRole("textbox", CHAMP_TITRE));
     await utilisateur.keyboard("Planning{Enter}");
     expect(document.activeElement).toBe(await screen.findByRole("link", { name: "Planning" }));
@@ -218,16 +222,15 @@ describe("barre latérale", () => {
     await utilisateur.keyboard("Lundi{Enter}");
     expect(document.activeElement).toBe(await screen.findByRole("link", { name: "Lundi" }));
 
-    await tabulerJusqua(utilisateur, () => bouton("Replier « Planning »"), { shift: true });
+    await tabulerJusqua(utilisateur, () => bouton("Sous-pages de « Planning »"), { shift: true });
     await utilisateur.keyboard("{Enter}");
     expect(screen.queryByRole("link", { name: "Lundi" })).toBeNull();
-    expect(document.activeElement).toBe(bouton("Déplier « Planning »"));
+    expect(document.activeElement).toBe(bouton("Sous-pages de « Planning »"));
     await utilisateur.keyboard(" ");
     expect(screen.getByRole("link", { name: "Lundi" })).toBeDefined();
-    expect(document.activeElement).toBe(bouton("Replier « Planning »"));
+    expect(document.activeElement).toBe(bouton("Sous-pages de « Planning »"));
 
-    await tabulerJusqua(utilisateur, () => bouton("Mettre « Planning » à la corbeille"));
-    await utilisateur.keyboard("{Enter}");
+    await activerActionDeRangeeAuClavier(utilisateur, "mettre-a-la-corbeille", "Planning");
     await waitFor(() => expect(screen.queryAllByRole("link")).toEqual([]));
     expect(document.activeElement).toBe(await boutonNouvellePage());
   });
@@ -250,14 +253,22 @@ describe("barre latérale", () => {
 
     expect(noms).toEqual([
       "Nouvelle page",
-      "Replier « Parent »",
-      "Renommer « Parent »",
+      "Sous-pages de « Parent »",
       "Ajouter une sous-page à « Parent »",
-      "Mettre « Parent » à la corbeille",
-      "Renommer « Sans titre »",
+      "Actions de la page « Parent »",
       "Ajouter une sous-page à « Sans titre »",
-      "Mettre « Sans titre » à la corbeille",
+      "Actions de la page « Sans titre »",
     ]);
+    // Renommer et mettre à la corbeille sont des entrées du menu de la page, natives elles aussi.
+    for (const titre of ["Parent", "Sans titre"]) {
+      const menu = (await atteindreActionDeRangee("renommer", titre)).parentElement as HTMLElement;
+      for (const entree of within(menu).getAllByRole("menuitem")) {
+        expect(entree.tagName).toBe("BUTTON");
+        expect((entree as HTMLButtonElement).type).toBe("button");
+        expect(entree.tabIndex).toBe(0);
+      }
+      expect(await commandesDuMenu(titre)).toEqual([nomDuMenu(titre), ...ENTREES_DU_MENU]);
+    }
     expect(
       within(barreLaterale())
         .getAllByRole("link")
@@ -295,7 +306,7 @@ describe("barre latérale : profondeur", () => {
       ),
     );
 
-    await utilisateur.click(bouton("Replier « Niveau 1 »"));
+    await utilisateur.click(bouton("Sous-pages de « Niveau 1 »"));
 
     expect(titresDesListes()).toEqual([["Niveau 1"]]);
   }, 60_000);
