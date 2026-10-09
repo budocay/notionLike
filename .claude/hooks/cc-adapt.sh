@@ -8,6 +8,8 @@ case "$1" in
   perimetre)       # PreToolUse Edit|Write|NotebookEdit
     f="$(j '.tool_input.file_path // .tool_input.notebook_path')"; [ -n "$f" ] || exit 0
     agent="$(j .agent_type)"; agent="${agent:-orchestrateur}"   # conversation principale = orchestrateur
+    d="$(dirname "$f")"; while [ ! -d "$d" ] && [ "$d" != / ]; do d="$(dirname "$d")"; done   # worktree du même dépôt : périmètre évalué depuis sa racine
+    if [ "$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" = "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --path-format=absolute --git-common-dir)" ]; then cd "$(git -C "$d" rev-parse --show-toplevel)" || exit 2; fi
     "$C/perimetre.sh" --fichiers "$agent" "$f" || exit 2 ;;    # agent sans périmètre => bloqué aussi
   format-lint)     # PostToolUse Edit|Write (ne peut pas bloquer : retour au modèle)
     f="$(j .tool_input.file_path)"; [ -n "$f" ] || exit 0
