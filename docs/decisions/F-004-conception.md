@@ -68,3 +68,50 @@ Calculé : texte sur surface, minimum 5,72 (secondaire sur filet), maximum 16,29
 3. **F-004-AC43 et AC44.** L'émulation tient par un contexte tactile, pas par une requête émulée seule (essai B3) : à 1280, `hover: none` s'obtient par un contexte `hasTouch` et `isMobile` de 1280 de large, non essayé.
 4. **F-004-AC11 et tiroir.** Aucune animation de sortie n'est possible sans transiter `display` : le tiroir, le menu et le voile se ferment sans mouvement. Conforme à la spec, à dire au dev avant les captures.
 5. **F-004-AC19.** Toute classe à nombre nu est refusée, `opacity-0`, `flex-1` et `z-10` comprises : la feuille d'entrée portera donc plus de classes nommées qu'un projet Tailwind habituel.
+
+## Note de fin (2026-10-09, après le dernier bloc)
+
+`ARCHITECTURE.md` a été aligné une seule fois sur le code livré (`6b5daed`), et l'ADR-0010 mis d'accord avec lui sans changement de décision. Ce qui précède reste la conception d'avant le code : la palette de départ, en particulier, n'est pas celle livrée (`--color-texte-secondaire` renvoie à `--primitif-brume-300`, et un troisième texte, `--color-texte-discret`, a été ajouté).
+
+Constats de l'alignement, détaillés dans `ARCHITECTURE.md` :
+
+- Les seize contrats de dépendances passent (138 modules, 372 dépendances) mais ne disent rien de F-004 : la frontière des composants de présentation et l'exclusion de la page de démonstration ne sont tenues par aucun d'eux (essai sur une copie jetable).
+- Bout en bout relancé : `2 failed`, `41 passed` ; le scénario F-004-AC24 à 360 et 768 est instable (deux échecs sur neuf relances), par une égalité stricte de hauteurs mesurées.
+
+Règles proposées au dev pour `.dependency-cruiser.cjs`, fichier protégé. Essayées sur une copie jetable de `HEAD` : aucune violation sur le code livré, et chacune refuse l'import fautif qui la concerne.
+
+```js
+{
+  name: "web-composants-de-presentation",
+  severity: "error",
+  comment:
+    "F-004 : un composant de présentation n'importe que son dossier et react (ni document, ni session, ni navigation, ni messages).",
+  from: { path: "^apps/web/src/interface/composants/" },
+  to: { pathNot: ["^apps/web/src/interface/composants/", "(^|/)node_modules/react/"] },
+},
+{
+  name: "web-demonstration-hors-production",
+  severity: "error",
+  comment: "F-004-AC50 : hors de la page de démonstration, aucun fichier de src/ ne l'importe.",
+  from: { path: "^apps/web/src/", pathNot: "^apps/web/src/demonstration/" },
+  to: { path: "^apps/web/src/demonstration/" },
+},
+{
+  name: "web-demonstration-liste-blanche",
+  severity: "error",
+  comment:
+    "F-004-AC50 : la page de démonstration n'importe qu'elle-même, les composants de présentation, les textes de l'interface, les styles, react et react-dom.",
+  from: { path: "^apps/web/src/demonstration/" },
+  to: {
+    pathNot: [
+      "^apps/web/src/demonstration/",
+      "^apps/web/src/interface/composants/",
+      "^apps/web/src/interface/messages\\.ts$",
+      "^apps/web/src/styles/",
+      "(^|/)node_modules/(react|react-dom)/",
+    ],
+  },
+},
+```
+
+La feuille d'entrée désigne `demonstration/*.classes.ts` par un `@source` : ce n'est pas un import, aucune de ces règles ne le voit, et les classes de la page restent dans la feuille de production.
