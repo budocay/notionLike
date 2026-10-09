@@ -6,6 +6,7 @@ import { existsSync, statSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 
 import { ecouterLaConsole } from "./aides.ts";
+import { constaterSansDefilementHorizontal } from "./aides-ecrans.ts";
 import {
   CAPTURES_ATTENDUES,
   type CaptureAttendue,
@@ -64,13 +65,7 @@ async function capturer(page: Page, racine: string, capture: CaptureAttendue): P
   await expect(page.locator("[data-demonstration]")).toHaveCount(1);
   expect(await forcerLesEtats(page)).toBeGreaterThan(0);
   await page.evaluate(() => document.fonts.ready);
-  const debordement = await page.evaluate(() => ({
-    contenu: document.documentElement.scrollWidth,
-    fenetre: document.documentElement.clientWidth,
-  }));
-  expect(debordement.contenu, `défilement horizontal à ${capture.largeur}`).toBeLessThanOrEqual(
-    debordement.fenetre,
-  );
+  await constaterSansDefilementHorizontal(page, `page de démonstration à ${capture.largeur}`);
   await page.screenshot({
     path: `${racine}/${DOSSIER_DES_CAPTURES}/${nomDeCapture(capture)}`,
     fullPage: true,

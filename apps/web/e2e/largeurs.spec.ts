@@ -6,6 +6,8 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { barreLaterale, lienDePage, titrePrincipal } from "./aides.ts";
 import {
+  actionsDeRangee,
+  attendreLaFinDesMouvements,
   boutonDOuverture,
   construireLArborescence,
   construireUnePage,
@@ -27,6 +29,8 @@ import {
 
 const CIBLE = 44;
 const TABULATIONS = 12;
+const PIXELS_PAR_REM = 16;
+const HAUTEUR = 800;
 
 declare global {
   interface Window {
@@ -135,6 +139,13 @@ async function constaterSansEffet(
   await expect(page.getByRole("banner").locator("ul")).toHaveCount(0);
 }
 
+// La plus petite du jeton de largeur du tiroir et de la fenêtre moins une cible tactile.
+async function largeurAttendueDuTiroir(page: Page, pixels: number): Promise<number> {
+  const enRem = Number.parseFloat(await jeton(page, "--container-tiroir"));
+  expect(enRem).toBeGreaterThan(0);
+  return Math.min(enRem * PIXELS_PAR_REM, pixels - CIBLE);
+}
+
 // (1) et (2) : tiroir par-dessus le contenu, voile sur le reste, focus dans le tiroir, aussitôt.
 async function constaterLOuverture(page: Page, pixels: number): Promise<void> {
   await boutonDOuverture(page).click();
@@ -145,8 +156,8 @@ async function constaterLOuverture(page: Page, pixels: number): Promise<void> {
   // L'entrée glisse : la position finale est attendue, l'usage ne l'a pas attendue.
   await expect.poll(async () => (await tiroir(page).boundingBox())?.x).toBe(0);
   const panneau = await tiroir(page).boundingBox();
-  expect(panneau?.height).toBe(800);
-  expect(panneau?.width ?? pixels).toBeLessThanOrEqual(pixels - CIBLE);
+  expect(panneau?.height).toBe(HAUTEUR);
+  expect(panneau?.width).toBe(await largeurAttendueDuTiroir(page, pixels));
   expect((await voile(page).boundingBox())?.width).toBe(pixels);
   expect((await page.getByRole("main").boundingBox())?.width).toBe(pixels);
 }
@@ -284,8 +295,83 @@ for (const pixels of [360, 768]) {
     await expect(titrePrincipal(page)).toHaveText("Carnet 2");
     await constaterLeTiroirFerme(page);
     await expect(page.getByRole("main")).toBeFocused();
+
+    // De même par Entrée sur le lien d'une rangée, au clavier seul.
+    await boutonDOuverture(page).click();
+    await lienDePage(page, "Carnet 3").focus();
+    await page.keyboard.press("Enter");
+    await expect(titrePrincipal(page)).toHaveText("Carnet 3");
+    await constaterLeTiroirFerme(page);
+    await expect(page.getByRole("main")).toBeFocused();
   });
 }
+
+for (const pixels of [360, 768]) {
+  test(`F-004-AC42 à ${pixels}, Échap ferme le tiroir où que soit le focus : dans une saisie ou un menu il ne ferme que ceux-ci, puis, le focus tombé sur body après un clic dans une zone vide du tiroir, il ferme le tiroir et rend le focus au bouton d'ouverture`, async ({
+    page,
+  }) => {
+    await largeur(page, 1280);
+    await construireUnePage(page, "Carnet de bord");
+    await largeur(page, pixels);
+    await montrerLaBarre(page);
+
+    await ouvrirLeRenommage(page, "Carnet de bord");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await expect(tiroir(page)).toBeVisible();
+    await ouvrirLeMenu(page, "Carnet de bord");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(tiroir(page)).toBeVisible();
+
+    // Une zone vide du tiroir : sous la seule rangée de l'arborescence, rien ne prend le focus.
+    await attendreLaFinDesMouvements(tiroir(page));
+    const panneau = await tiroir(page).boundingBox();
+    const point = { x: (panneau?.width ?? 0) / 2, y: HAUTEUR - CIBLE };
+    const vise = await page.evaluate(({ x, y }) => {
+      const element = document.elementFromPoint(x, y);
+      return {
+        dansLeTiroir: element?.closest('[role="dialog"]') !== null,
+        activable: element?.closest("a, button, input, [tabindex]") !== null,
+      };
+    }, point);
+    expect(vise).toEqual({ dansLeTiroir: true, activable: false });
+    await page.mouse.click(point.x, point.y);
+    expect(await lieuDuFocus(page)).toBe("navigateur");
+    await expect(tiroir(page)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await constaterLeTiroirFerme(page);
+    await expect(boutonDOuverture(page)).toBeFocused();
+  });
+}
+
+test("F-004-AC42 à 320, le tiroir est moins large que son jeton : il laisse une cible de voile, qui le ferme", async ({
+  page,
+}) => {
+  const pixels = 320;
+  await largeur(page, 1280);
+  await construireUnePage(page);
+  await largeur(page, pixels);
+
+  await constaterLOuverture(page, pixels);
+  const panneau = await tiroir(page).boundingBox();
+  expect(panneau?.width).toBe(pixels - CIBLE);
+  expect(panneau?.width).toBeLessThan(
+    Number.parseFloat(await jeton(page, "--container-tiroir")) * PIXELS_PAR_REM,
+  );
+  const bande = { x: pixels - CIBLE / 2, y: HAUTEUR / 2 };
+  expect(
+    await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.hasAttribute("data-voile"),
+      bande,
+    ),
+  ).toBe(true);
+  await page.mouse.click(bande.x, bande.y);
+  await constaterLeTiroirFerme(page);
+  await expect(boutonDOuverture(page)).toBeFocused();
+});
 
 test("F-004-AC42 à 1024 et 1280, la barre est permanente, sans bouton d'ouverture ni voile ; de 768 à 1024, tiroir ouvert, elle le redevient sans voile ni reste inerte", async ({
   page,
@@ -380,6 +466,11 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
 
   await largeur(page, 360);
   await constaterLesCibles(page, "(c)", 3);
+  // Les éléments du fil d'Ariane, liste des pages intermédiaires ouverte.
+  await page.getByRole("button", { name: "Afficher les pages intermédiaires" }).click();
+  await expect(page.getByRole("banner").locator("ul").getByRole("link")).toHaveCount(10);
+  await constaterLesCibles(page, "(c), liste des pages intermédiaires ouverte", 13);
+  await toutRefermer(page);
   await montrerLaBarre(page);
   await constaterLesCibles(page, "(j)", 60);
   await ouvrirLeMenu(page, TITRE_DU_NIVEAU_12);
@@ -397,10 +488,7 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
 });
 
 function opaciteDesActions(page: Page, titre: string): Promise<string> {
-  const actions: Locator = lienDePage(page, titre)
-    .locator("xpath=..")
-    .locator(".actions-de-rangee");
-  return style(actions, "opacity");
+  return style(actionsDeRangee(page, titre), "opacity");
 }
 
 test("F-004-AC44 à 360, les actions de rangée sont visibles au repos, le titre restant sur une ligne", async ({

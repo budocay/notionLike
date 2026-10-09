@@ -1,7 +1,7 @@
 // Barre latérale habillée par F-004, dans l'application réelle sous jsdom : rangée, menu « ⋯ »,
 // renommage sur place, repère de page courante, tête et pied, raccourcis, structure accessible de
 // l'arbre. Les styles, les dimensions et le survol ne se voient que dans un navigateur.
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { afficherTouches, RACCOURCIS } from "../src/interface/raccourcis.ts";
@@ -223,6 +223,80 @@ describe("menu « ⋯ »", () => {
     expect(titresDeLaBarre()).toEqual(["Carnet", "Semaine", "Lundi", "Voisine"]);
   });
 
+  it("F-004-AC26 Échap ferme le menu quand le focus est sur body, et rend le focus au bouton « ⋯ »", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    await ouvrirLeMenu(coquille, "Carnet");
+    act(() => (document.activeElement as HTMLElement).blur());
+    expect(document.activeElement).toBe(document.body);
+    expect(screen.getByRole("menu")).toBeDefined();
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(await boutonDuMenu("Carnet"));
+  });
+
+  it("F-004-AC26 un clic sur le bord du menu, hors de ses entrées, y garde le focus : Flèche bas mène alors à la première entrée, Flèche haut à la dernière", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    const menu = await ouvrirLeMenu(coquille, "Carnet");
+    const entrees = within(menu).getAllByRole("menuitem");
+
+    await coquille.utilisateur.click(menu);
+    expect(document.activeElement).toBe(menu);
+    expect(screen.getByRole("menu")).toBe(menu);
+    await coquille.utilisateur.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(entrees[2]);
+
+    await coquille.utilisateur.click(menu);
+    await coquille.utilisateur.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(entrees[0]);
+    // Le menu lui-même reste hors de l'ordre de tabulation.
+    expect(menu.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("F-004-AC26 le focus porté dans un autre conteneur ferme le menu sans le reprendre", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    await ouvrirLeMenu(coquille, "Carnet");
+    const ailleurs = screen.getByRole("button", { name: "Nouvelle page" });
+
+    act(() => ailleurs.focus());
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(ailleurs);
+    expect((await boutonDuMenu("Carnet")).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("F-004-AC26 la page dont le menu est ouvert disparaît par une mise à jour reçue : plus de menu, et le premier clic qui suit atteint ce qu'il vise", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    await ouvrirLeMenu(coquille, "Voisine");
+
+    recevoir(coquille.session, (espace) => {
+      const voisine = espace.lire().racines.find(({ titre }) => titre === "Voisine");
+      espace.mettreALaCorbeille(voisine?.id ?? "");
+    });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(titresDeLaBarre()).toEqual(["Carnet", "Semaine", "Lundi"]);
+    // L'écoute du dehors a cessé avec le menu : ni le clic ni Échap ne sont plus retenus.
+    const frappe = createEvent.keyDown(document.body, { key: "Escape" });
+    fireEvent(document.body, frappe);
+    expect(frappe.defaultPrevented).toBe(false);
+    await coquille.utilisateur.click(lien("Semaine"));
+    await waitFor(() => expect(lien("Semaine").getAttribute("aria-current")).toBe("page"));
+  });
+
+  it("F-004-AC27 F-004-AC26 F2 pressée dans le menu ouvert de la rangée ferme le menu et ouvre la saisie de cette page", async () => {
+    const coquille = await ouvrirTroisNiveaux();
+    await ouvrirLeMenu(coquille, "Semaine");
+
+    await coquille.utilisateur.keyboard(`{${RACCOURCIS.renommer.touche}}`);
+
+    const champ = await screen.findByRole<HTMLInputElement>("textbox", CHAMP_TITRE);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(champ.value).toBe("Semaine");
+    expect(document.activeElement).toBe(champ);
+  });
+
   it("F-004-AC26 un clic hors du menu le ferme, n'active pas ce qui est cliqué et rend le focus au bouton « ⋯ »", async () => {
     const coquille = await ouvrirTroisNiveaux();
     const avant = etatEncode(coquille.session);
@@ -379,6 +453,7 @@ describe("renommage sur place", () => {
       expect(champ.closest("li")?.getAttribute("aria-level")).toBe("1");
       expect(champ.value).toBe("Carnet");
       expect(document.activeElement).toBe(champ);
+      expect([champ.selectionStart, champ.selectionEnd]).toEqual([0, "Carnet".length]);
     },
   );
 
@@ -400,6 +475,27 @@ describe("renommage sur place", () => {
     expect(document.activeElement).toBe(champ);
     await utilisateur.keyboard("{Escape}");
     expect(etatEncode(session)).toEqual(avant);
+  });
+
+  it("F-004-AC27 la page en cours de renommage disparaît par une mise à jour reçue : la saisie s'en va sans message, et F2 ouvre celle d'une autre rangée", async () => {
+    const { session, utilisateur } = await ouvrirTroisNiveaux();
+    act(() => lien("Voisine").focus());
+    await utilisateur.keyboard("{F2}");
+    await screen.findByRole("textbox", CHAMP_TITRE);
+
+    recevoir(session, (espace) => {
+      const voisine = espace.lire().racines.find(({ titre }) => titre === "Voisine");
+      espace.mettreALaCorbeille(voisine?.id ?? "");
+    });
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(titresDeLaBarre()).toEqual(["Carnet", "Semaine", "Lundi"]);
+    act(() => lien("Semaine").focus());
+    await utilisateur.keyboard("{F2}");
+    const champ = await screen.findByRole<HTMLInputElement>("textbox", CHAMP_TITRE);
+    expect(champ.value).toBe("Semaine");
+    expect(document.activeElement).toBe(champ);
   });
 
   it("F-004-AC27 la validation, l'annulation et le refus d'un titre trop long restent ceux de F-002-AC6 et AC14", async () => {

@@ -14,6 +14,10 @@ import {
   versionInconnueVenueDAilleurs,
 } from "./aides-coquille.tsx";
 import { lire } from "./aides-disque.ts";
+import { controlerAnimationsDeBase } from "./aides-styles.ts";
+
+/** Les trois animations de base de F-004-AC14 : apparition, dépliage, indicateur de chargement. */
+const ANIMATIONS_DE_BASE = ["apparition", "depliage", "indicateur-chargement"];
 
 function classesDe(element: Element | null | undefined): string[] {
   return [...(element?.classList ?? [])];
@@ -118,10 +122,21 @@ describe("états habillés", () => {
   });
 
   it("F-004-AC14 chacune des trois animations de base est une classe nommée déclarée une seule fois", () => {
-    const entree = lire("src/styles/entree.css");
-    for (const nom of ["apparition", "depliage", "indicateur-chargement"]) {
-      expect(entree.match(new RegExp(`@utility ${nom} \\{`, "g")), nom).toHaveLength(1);
-    }
+    expect(controlerAnimationsDeBase(lire("src/styles/entree.css"), ANIMATIONS_DE_BASE)).toEqual(
+      [],
+    );
+  });
+
+  it("F-004-AC21 F-004-AC14 une animation de base déclarée deux fois, ou qui n'est plus déclarée, est nommée", () => {
+    const conforme =
+      "@utility apparition {\n}\n@utility depliage {\n}\n@utility indicateur-chargement {\n}\n/* @utility depliage { */";
+    expect(controlerAnimationsDeBase(conforme, ANIMATIONS_DE_BASE)).toEqual([]);
+    expect(
+      controlerAnimationsDeBase(`${conforme}\n@utility depliage {\n}`, ANIMATIONS_DE_BASE),
+    ).toEqual(["src/styles/entree.css : la classe depliage est déclarée 2 fois, une attendue"]);
+    expect(
+      controlerAnimationsDeBase(conforme.replace("@utility apparition {", ""), ANIMATIONS_DE_BASE),
+    ).toEqual(["src/styles/entree.css : la classe apparition est déclarée 0 fois, une attendue"]);
   });
 
   it("F-004-AC17 F-004-AC52 les textes des états de F-002 n'ont pas changé", () => {

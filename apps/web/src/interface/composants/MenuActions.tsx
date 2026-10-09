@@ -22,7 +22,8 @@ interface Proprietes {
 const PAS_DES_FLECHES: Readonly<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 };
 
 // Flèche bas et Flèche haut parcourent les entrées, en boucle ; Entrée et Espace sont ceux d'un
-// bouton natif.
+// bouton natif. Quand le focus est sur le menu lui-même (clic sur son bord), Flèche bas mène à la
+// première entrée et Flèche haut à la dernière.
 function surFleche(evenement: KeyboardEvent<HTMLDivElement>): void {
   const pas = PAS_DES_FLECHES[evenement.key];
   if (pas === undefined) {
@@ -31,12 +32,21 @@ function surFleche(evenement: KeyboardEvent<HTMLDivElement>): void {
   evenement.preventDefault();
   const entrees = [...evenement.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];
   const rang = entrees.findIndex((entree) => entree === evenement.target);
-  entrees[(rang + pas + entrees.length) % entrees.length]?.focus();
+  const depart = rang === -1 && pas < 0 ? 0 : rang;
+  entrees[(depart + pas + entrees.length) % entrees.length]?.focus();
 }
 
 export function MenuActions({ nom, entrees, ref }: Proprietes): ReactElement {
   return (
-    <div ref={ref} className={MENU.cadre} role="menu" aria-label={nom} onKeyDown={surFleche}>
+    <div
+      ref={ref}
+      className={MENU.cadre}
+      role="menu"
+      aria-label={nom}
+      // Focalisable par un clic, hors de l'ordre de tabulation : le focus ne retombe pas sur `body`.
+      tabIndex={-1}
+      onKeyDown={surFleche}
+    >
       {entrees.map(({ libelle, touches, raccourci, surActivation }) => (
         <button
           key={libelle}

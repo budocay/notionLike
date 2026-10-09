@@ -15,6 +15,7 @@ import {
   creerPageNommee,
   lienDePage,
   menuDePage,
+  nomAjouterSousPage,
   ouvrir,
   saisirTitre,
   titrePrincipal,
@@ -77,6 +78,16 @@ export function fil(page: Page): Locator {
   return page.getByRole("navigation", { name: "Fil d'Ariane", exact: true });
 }
 
+/**
+ * Conteneur des deux actions de la rangée, dont l'opacité les révèle : trouvé par le bouton
+ * « Ajouter une sous-page » qu'il porte, non par une classe de style.
+ */
+export function actionsDeRangee(page: Page, titre: string): Locator {
+  return page
+    .getByRole("button", { name: nomAjouterSousPage(titre), exact: true })
+    .locator("xpath=..");
+}
+
 export function zoneDEtat(page: Page): Locator {
   return page.getByRole("banner").getByRole("status");
 }
@@ -112,9 +123,15 @@ export async function montrerLaBarre(page: Page): Promise<void> {
   }
 }
 
-/** Referme ce qui est ouvert : menu, saisie, tiroir. */
+/** Referme ce qui est ouvert : liste du fil d'Ariane, menu, saisie, tiroir. */
 export async function toutRefermer(page: Page): Promise<void> {
-  for (const ouvert of [page.getByRole("menu"), page.getByRole("textbox"), tiroir(page)]) {
+  const listeDuFil = page.getByRole("banner").locator("ul");
+  for (const ouvert of [
+    listeDuFil,
+    page.getByRole("menu"),
+    page.getByRole("textbox"),
+    tiroir(page),
+  ]) {
     if ((await ouvert.count()) > 0) {
       await page.keyboard.press("Escape");
       await expect(ouvert).toHaveCount(0);
@@ -203,29 +220,92 @@ export function contexteTactile(
   });
 }
 
+/** Un élément qui rogne ou fait défiler ce qui le dépasse en largeur, et ce qu'il contient. */
+export interface Conteneur {
+  readonly nom: string;
+  /** Largeur de défilement et largeur intérieure : la première dépasse quand un contenu déborde. */
+  readonly contenu: number;
+  readonly largeur: number;
+}
+
 export interface Debordement {
   readonly contenu: number;
   readonly fenetre: number;
   /** `overflow-x` calculé de `html` et de `body` : `hidden` ou `clip` cacherait un débordement. */
   readonly masques: readonly string[];
+  /**
+   * Chaque élément rendu dont l'`overflow-x` calculé n'est pas `visible` : un débordement y est
+   * rogné, ou défile, sans élargir le document. Deux sortes d'éléments en sont écartées, par leur
+   * nature et non par leur nom : les textes coupés par des points de suspension, où déborder est le
+   * rôle du texte, constaté à part (F-004-AC24), et les champs de saisie, qui font défiler leur
+   * valeur.
+   */
+  readonly conteneurs: readonly Conteneur[];
 }
 
-/** F-004-AC45 : largeur de défilement du document, jamais les rectangles des éléments. */
+/**
+ * F-004-AC45 : largeurs de défilement, jamais les rectangles des éléments. Les conteneurs sont
+ * trouvés par leur style calculé, non par une liste : le cadre de la coquille, la zone principale,
+ * la zone de défilement de la barre latérale, le tiroir, et tout autre qui viendrait à rogner.
+ */
 export function debordement(page: Page): Promise<Debordement> {
-  return page.evaluate(() => ({
-    contenu: document.documentElement.scrollWidth,
-    fenetre: document.documentElement.clientWidth,
-    masques: [document.documentElement, document.body].map(
-      (element) => getComputedStyle(element).overflowX,
-    ),
-  }));
+  return page.evaluate(() => {
+    const nomDe = (element: Element): string =>
+      [
+        element.tagName.toLowerCase(),
+        element.getAttribute("role") ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.className.toString().split(" ").slice(0, 3).join("."),
+      ]
+        .filter((partie) => partie !== "")
+        .join(" ");
+    const rogne = (element: Element): boolean => {
+      const calcule = getComputedStyle(element);
+      const champ = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement;
+      return (
+        calcule.overflowX !== "visible" &&
+        calcule.textOverflow !== "ellipsis" &&
+        !champ &&
+        element.getClientRects().length > 0
+      );
+    };
+    return {
+      contenu: document.documentElement.scrollWidth,
+      fenetre: document.documentElement.clientWidth,
+      masques: [document.documentElement, document.body].map(
+        (element) => getComputedStyle(element).overflowX,
+      ),
+      conteneurs: [...document.body.querySelectorAll("*")].filter(rogne).map((element) => ({
+        nom: nomDe(element),
+        contenu: element.scrollWidth,
+        largeur: element.clientWidth,
+      })),
+    };
+  });
 }
 
+/**
+ * Ni le document ni aucun conteneur qui rogne ne porte un contenu plus large que lui. Dans la
+ * coquille, le cadre et la zone principale rognent : constater le document seul n'y prouverait
+ * rien, et la liste calculée doit donc les avoir trouvés.
+ */
 export async function constaterSansDefilementHorizontal(page: Page, ou: string): Promise<void> {
   const mesure = await debordement(page);
   expect(mesure.contenu, `défilement horizontal, ${ou}`).toBeLessThanOrEqual(mesure.fenetre);
   for (const masque of mesure.masques) {
     expect(["visible", "auto"], `overflow-x de la page, ${ou}`).toContain(masque);
+  }
+  expect(
+    mesure.conteneurs.filter(({ contenu, largeur }) => contenu > largeur),
+    `conteneurs dont le contenu déborde en largeur, ${ou}`,
+  ).toEqual([]);
+  if ((await page.getByRole("banner").count()) > 0) {
+    const noms = mesure.conteneurs.map(({ nom }) => nom);
+    expect(
+      noms.filter((nom) => nom.startsWith("main")).length,
+      `la zone principale rogne : elle est mesurée, ${ou} : ${noms.join(" | ")}`,
+    ).toBeGreaterThanOrEqual(1);
+    expect(noms.length, `conteneurs qui rognent, ${ou}`).toBeGreaterThan(1);
   }
 }
 

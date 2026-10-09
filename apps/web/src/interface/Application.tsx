@@ -131,7 +131,6 @@ function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {
     id,
     ouvert: tiroir.ouvert,
     nom: NOM_DU_TIROIR,
-    surTouche: tiroir.surTouche,
     surClic: tiroir.surClic,
     surVoile: tiroir.abandonner,
   };

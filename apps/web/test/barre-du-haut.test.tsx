@@ -1,6 +1,6 @@
 // Barre du haut de F-004 dans l'application réelle, sous jsdom : fil d'Ariane (F-004-AC39) et zone
 // d'état de l'enregistrement local, qui ne dit que l'échec (F-004-AC40).
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -178,6 +178,47 @@ describe("fil d'Ariane", () => {
     expect(
       within(fil()).getByRole("button", { name: INTERMEDIAIRES }).getAttribute("aria-expanded"),
     ).toBe("false");
+  });
+
+  it("F-004-AC39 la liste des pages intermédiaires se ferme par Échap quand le focus est sur body, et quand le focus passe dans un autre conteneur", async () => {
+    const coquille = await ouvrirUneLignee(12);
+    await selectionner(coquille, "Niveau 12");
+    const commande = within(fil()).getByRole("button", { name: INTERMEDIAIRES });
+
+    await coquille.utilisateur.click(commande);
+    expect(document.activeElement?.textContent).toBe("Niveau 2");
+    act(() => (document.activeElement as HTMLElement).blur());
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(commande.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(commande);
+
+    await coquille.utilisateur.click(commande);
+    expect(commande.getAttribute("aria-expanded")).toBe("true");
+    act(() => lienDeBarre("Ailleurs").focus());
+    expect(commande.getAttribute("aria-expanded")).toBe("false");
+    expect(within(fil()).getAllByRole("link")).toHaveLength(1);
+    expect(document.activeElement).toBe(lienDeBarre("Ailleurs"));
+  });
+
+  it("F-004-AC39 la page courante change par l'adresse, liste ouverte : le nouveau fil est fermé, et le premier clic qui suit atteint ce qu'il vise", async () => {
+    const coquille = await ouvrirUneLignee(12);
+    await selectionner(coquille, "Niveau 12");
+    await coquille.utilisateur.click(within(fil()).getByRole("button", { name: INTERMEDIAIRES }));
+    expect(within(fil()).getAllByRole("link")).toHaveLength(11);
+
+    act(() => {
+      window.location.hash = lienDeBarre("Niveau 11").getAttribute("href") ?? "";
+    });
+    await waitFor(() => expect(contenuDuFil()).toContain("courante Niveau 11"));
+
+    expect(
+      within(fil()).getByRole("button", { name: INTERMEDIAIRES }).getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(within(fil()).getAllByRole("link")).toHaveLength(1);
+    // L'écoute du dehors a cessé avec l'ancien fil : le clic n'est pas retenu.
+    await coquille.utilisateur.click(lienDeBarre("Ailleurs"));
+    await waitFor(() => expect(lienDeBarre("Ailleurs").getAttribute("aria-current")).toBe("page"));
   });
 
   it("F-004-AC39 sur écran étroit, la place manque dès deux ancêtres : la racine, la commande et la page courante", async () => {

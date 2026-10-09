@@ -1,5 +1,5 @@
-// Contrôles statiques des fichiers de style d'`apps/web` (F-004-AC3, AC4, AC6, AC10, AC11, AC13,
-// AC18, AC19, AC23, AC40, AC41, AC50). Chaque contrôle reçoit des textes et rend la liste des fautes,
+// Contrôles statiques des fichiers de style d'`apps/web` (F-004-AC3, AC4, AC5, AC6, AC10, AC11, AC13,
+// AC14, AC18, AC19, AC23, AC40, AC41, AC47, AC48, AC50). Chaque contrôle reçoit des textes et rend la liste des fautes,
 // chacune nommant le fichier et la valeur en cause. Deux régimes : tout fichier source passe les
 // interdits (`controlerFichier`) ; les fichiers que Tailwind analyse passent en plus une liste
 // blanche, où chaque classe doit être une classe nommée du projet ou bâtie sur un jeton
@@ -116,6 +116,12 @@ const INTERDITS: readonly Interdit[] = [
     motif: new RegExp(String.raw`["'\`](?:${COULEUR_LITTERALE.source})["'\`]`),
     faute: "couleur littérale",
     pour: HORS_CSS,
+  },
+  {
+    // Une taille de texte ou une hauteur de ligne en unité absolue, en CSS comme en style en ligne.
+    motif:
+      /(?<![\w-])(?:font-size|fontSize|line-height|lineHeight|font)\s*:\s*[^;{}\n]*?\d(?:px|pt)\b|\bfontSize\s*:\s*\d/,
+    faute: "taille de texte ou hauteur de ligne en pixels, hors des unités relatives",
   },
   { motif: DUREE_LITTERALE, faute: "durée littérale", pour: HORS_CSS },
   {
@@ -725,4 +731,111 @@ export function controlerCouleurDeTheme(chemin: string, gabarit: string, jetons:
   return lue === fond && fond !== undefined
     ? []
     : [`${chemin} : theme-color « ${lue} », le fond de l'application vaut « ${fond} »`];
+}
+
+// ── Emplacements fermés : dégradé d'accent, halo, texte d'échec, classes en dur, animations ──────
+
+// Une feuille consomme le jeton, qu'elle y déclare ou non la classe nommée ; tout autre fichier
+// consomme le jeton ou cette classe.
+const JETON_DE_L_ACCENT = /--degrade-accent(?![\w-])/g;
+const JETON_OU_CLASSE_DE_L_ACCENT = /--degrade-accent(?![\w-])|(?<![\w-])fond-accent(?![\w-])/g;
+
+function emploisDeLAccent(chemin: string, texte: string): number {
+  const motif = extensionDe(chemin) === "css" ? JETON_DE_L_ACCENT : JETON_OU_CLASSE_DE_L_ACCENT;
+  return texte.match(motif)?.length ?? 0;
+}
+
+/**
+ * F-004-AC47 : fichiers admis à consommer le dégradé d'accent, liste fermée. La feuille d'entrée le
+ * lit une fois, pour en faire la classe nommée ; le repère de page courante et le sceau de l'espace
+ * emploient cette classe, une fois chacun. Une case cochée s'y inscrira avec sa feature.
+ */
+export const EMPLACEMENTS_DE_L_ACCENT: readonly string[] = [
+  "src/interface/composants/barre.classes.ts",
+  "src/interface/composants/rangee.classes.ts",
+  FEUILLE_D_ENTREE,
+];
+
+/** F-004-AC47 : tout consommateur hors de la liste est nommé, comme un second emploi ou un absent. */
+export function controlerConsommateursDeLAccent(
+  fichiers: ReadonlyMap<string, string>,
+  admis: readonly string[] = EMPLACEMENTS_DE_L_ACCENT,
+): string[] {
+  const emplois = new Map(
+    [...fichiers]
+      .filter(([chemin]) => chemin !== FICHIER_DES_JETONS)
+      .map(([chemin, texte]) => [chemin, emploisDeLAccent(chemin, texte)] as const),
+  );
+  return [
+    ...[...emplois]
+      .filter(([chemin, nombre]) => nombre > 0 && !admis.includes(chemin))
+      .map(([chemin]) => `${chemin} : consomme le dégradé d'accent hors de la liste fermée`),
+    ...admis
+      .filter((chemin) => (emplois.get(chemin) ?? 0) !== 1)
+      .map(
+        (chemin) =>
+          `${chemin} : ${emplois.get(chemin) ?? 0} emplois du dégradé d'accent, un seul attendu`,
+      ),
+  ];
+}
+
+const UTILITAIRE_DU_HALO = /@utility fond-halo \{\s*background-image: var\(--degrade-halo\);\s*\}/;
+const CLASSES_DU_HALO = /\bhalo: "([^"]*)"/;
+
+/** F-004-AC48 : le halo est une classe nommée au jeton, immobile, qui ne reçoit aucun pointeur. */
+export function controlerHalo(entree: string, classesDesEtats: string): string[] {
+  const fautes: string[] = [];
+  if (!UTILITAIRE_DU_HALO.test(sansCommentaires(entree))) {
+    fautes.push(
+      `${FEUILLE_D_ENTREE} : la classe fond-halo ne peint pas le seul jeton --degrade-halo`,
+    );
+  }
+  const classes = (CLASSES_DU_HALO.exec(classesDesEtats)?.[1] ?? "").split(/\s+/);
+  for (const attendue of ["fond-halo", "pointer-events-none", "absolute"]) {
+    if (!classes.includes(attendue)) {
+      fautes.push(`halo : la classe « ${attendue} » manque`);
+    }
+  }
+  const mouvement = classes.find((classe) =>
+    /^(?:animate-|transition|apparition|depliage)/.test(classe),
+  );
+  if (mouvement !== undefined) {
+    fautes.push(`halo : il doit rester immobile, « ${mouvement} » l'anime`);
+  }
+  return fautes;
+}
+
+/** F-004-AC40 : fichiers qui écrivent le texte donné, hors de celui qui en a la charge. */
+export function controlerSeulAuteur(
+  fichiers: ReadonlyMap<string, string>,
+  texte: string,
+  auteur: string,
+): string[] {
+  const auteurs = [...fichiers].filter(([, source]) => source.includes(texte)).map(([un]) => un);
+  return [
+    ...auteurs
+      .filter((chemin) => chemin !== auteur)
+      .map((chemin) => `${chemin} : écrit « ${texte} », que seul ${auteur} doit écrire`),
+    ...(auteurs.includes(auteur) ? [] : [`${auteur} : n'écrit plus « ${texte} »`]),
+  ];
+}
+
+const CLASSE_EN_DUR = /className=\{?["'`]/;
+
+/** F-004-AC3 : composants qui écrivent une classe en dur, hors des fichiers que Tailwind analyse. */
+export function controlerClassesEnDur(fichiers: ReadonlyMap<string, string>): string[] {
+  return [...fichiers]
+    .filter(([chemin, texte]) => /\.tsx$/.test(chemin) && CLASSE_EN_DUR.test(texte))
+    .map(([chemin]) => `${chemin} : classe écrite en dur dans un composant`);
+}
+
+/** F-004-AC14 : chaque animation de base est une classe nommée, déclarée une seule fois. */
+export function controlerAnimationsDeBase(entree: string, noms: readonly string[]): string[] {
+  const texte = sansCommentaires(entree);
+  return noms.flatMap((nom) => {
+    const declarations = texte.match(new RegExp(`@utility ${nom} \\{`, "g"))?.length ?? 0;
+    return declarations === 1
+      ? []
+      : [`${FEUILLE_D_ENTREE} : la classe ${nom} est déclarée ${declarations} fois, une attendue`];
+  });
 }

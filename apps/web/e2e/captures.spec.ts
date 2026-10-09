@@ -91,15 +91,48 @@ function cheminDe(racine: string, ecran: string, pixels: number): string {
   return `${racine}/${DOSSIER_DES_CAPTURES}/${nomDeCapture({ ecran, largeur: pixels })}`;
 }
 
+// Dans la zone principale, le titre de 200 caractères sans espace est entier et non rogné : il se
+// replie sur plusieurs lignes, son texte tient dans sa boîte et dans la zone, rien ne le coupe. Le
+// texte est mesuré par une plage, qui voit les caractères là où la boîte de l'élément ne les voit
+// pas.
+async function constaterLeTitreDeLaZone(page: Page, ou: string): Promise<void> {
+  await expect(titrePrincipal(page)).toHaveText(TITRE_DU_NIVEAU_12);
+  const mesure = await titrePrincipal(page).evaluate((titre) => {
+    const texte = document.createRange();
+    texte.selectNodeContents(titre);
+    const lettres = texte.getBoundingClientRect();
+    const zone = (titre.closest("main") ?? titre).getBoundingClientRect();
+    const calcule = getComputedStyle(titre);
+    return {
+      deborde: titre.scrollWidth - titre.clientWidth,
+      horsDeLaZone: Math.max(zone.left - lettres.left, lettres.right - zone.right),
+      rognage: [calcule.overflowX, calcule.textOverflow, calcule.whiteSpace],
+      lignes: Math.round(lettres.height / Number.parseFloat(calcule.lineHeight)),
+    };
+  });
+  expect(
+    mesure.deborde,
+    `le titre de la zone principale déborde de sa boîte, ${ou}`,
+  ).toBeLessThanOrEqual(0);
+  expect(mesure.horsDeLaZone, `le titre sort de la zone principale, ${ou}`).toBeLessThanOrEqual(0);
+  expect(mesure.rognage, `le titre de la zone principale est rogné, ${ou}`).toEqual([
+    "visible",
+    "clip",
+    "normal",
+  ]);
+  expect(mesure.lignes, `le titre de 200 caractères se replie, ${ou}`).toBeGreaterThan(1);
+}
+
 // Le titre de 200 caractères reste lisible : coupé par des points de suspension dans sa rangée et
 // dans le fil d'Ariane, entier dans son nom accessible et dans la zone principale.
-async function constaterLeTitreLong(page: Page): Promise<void> {
-  await expect(titrePrincipal(page)).toHaveText(TITRE_DU_NIVEAU_12);
+async function constaterLeTitreLong(page: Page, ou: string): Promise<void> {
+  await constaterLeTitreDeLaZone(page, ou);
   await expect(fil(page).locator('[aria-current="page"]')).toHaveText(TITRE_DU_NIVEAU_12);
   expect(await style(fil(page).locator('[aria-current="page"]'), "text-overflow")).toBe("ellipsis");
   await montrerLaBarre(page);
   const rangee = lienDePage(page, TITRE_DE_200);
   await expect(rangee).toHaveText(TITRE_DE_200);
+  await expect(rangee).toHaveAccessibleName(TITRE_DE_200);
   expect(await style(rangee, "text-overflow")).toBe("ellipsis");
   expect(await style(rangee, "white-space")).toBe("nowrap");
   const mesure = await rangee.evaluate((lien) => [lien.scrollWidth, lien.clientWidth]);
@@ -135,7 +168,7 @@ for (const [lettre, ecran] of Object.entries(ECRANS) as [LettreDEcran, Ecran][])
         captures.push(pixels);
       }
       if (lettre === "c") {
-        await constaterLeTitreLong(page);
+        await constaterLeTitreLong(page, `écran (c) à ${pixels}`);
         await constaterSansDefilementHorizontal(page, `écran (c), barre montrée, à ${pixels}`);
       }
     }

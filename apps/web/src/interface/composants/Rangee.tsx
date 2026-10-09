@@ -25,8 +25,8 @@ export interface RepliDeRangee {
   readonly surBascule: () => void;
 }
 
-/** Une action de rangée : un bouton sans libellé visible, nommé pour les technologies d'assistance. */
-export interface ActionDeRangee {
+/** Un bouton d'action de rangée : sans libellé visible, nommé pour les technologies d'assistance. */
+export interface BoutonDeRangee {
   readonly nom: string;
   readonly surActivation: () => void;
 }
@@ -42,8 +42,8 @@ export interface ProprietesRangee {
   readonly description?: string | undefined;
   /** Absent pour une page sans sous-page. */
   readonly repli?: RepliDeRangee | undefined;
-  readonly ajout: ActionDeRangee;
-  readonly actions: ActionDeRangee;
+  readonly ajout: BoutonDeRangee;
+  readonly actions: BoutonDeRangee;
   readonly menuOuvert: boolean;
   /** Saisie du titre, affichée à la place du lien. */
   readonly saisie?: ReactNode | undefined;

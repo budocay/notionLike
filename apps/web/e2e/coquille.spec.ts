@@ -15,6 +15,7 @@ import {
   titrePrincipal,
 } from "./aides.ts";
 import {
+  actionsDeRangee,
   constaterSansDefilementHorizontal,
   construireLArborescence,
   construireLEchecDePersistance,
@@ -39,6 +40,8 @@ const LARGE = 1280;
 const ETROIT = 360;
 const PIXELS_PAR_REM = 16;
 const HUIT_REM = 8 * PIXELS_PAR_REM;
+/** 199 caractères en cinquante mots : un titre que rien n'empêche de se replier, sinon la rangée. */
+const TITRE_EN_MOTS = "mot ".repeat(50).trim();
 
 /** Couleur calculée d'un jeton de couleur, telle que le navigateur la rend. */
 function couleurDuJeton(page: Page, nom: string): Promise<string> {
@@ -52,17 +55,25 @@ function couleurDuJeton(page: Page, nom: string): Promise<string> {
   }, nom);
 }
 
+/** Image de fond calculée d'un jeton de dégradé, telle que le navigateur la rend. */
+function imageDuJeton(page: Page, nom: string): Promise<string> {
+  return page.evaluate((jetonDeDegrade) => {
+    const sonde = document.createElement("span");
+    sonde.style.backgroundImage = `var(${jetonDeDegrade})`;
+    document.body.append(sonde);
+    const image = getComputedStyle(sonde).backgroundImage;
+    sonde.remove();
+    return image;
+  }, nom);
+}
+
 function rangeeDe(page: Page, titre: string): Locator {
   return lienDePage(page, titre).locator("xpath=..");
 }
 
-function actionsDe(page: Page, titre: string): Locator {
-  return rangeeDe(page, titre).locator(".actions-de-rangee");
-}
-
 /** Chevron de la commande de repli d'une page qui a des sous-pages : il tourne quand elle bascule. */
 function chevronDe(page: Page, titre: string): Locator {
-  return page.getByRole("button", { name: nomDuRepli(titre), exact: true }).locator(".chevron");
+  return page.getByRole("button", { name: nomDuRepli(titre), exact: true }).locator("> span");
 }
 
 async function boite(
@@ -79,12 +90,13 @@ async function boite(
 async function dureesALEcranLarge(page: Page): Promise<Record<string, number>> {
   await ouvrirLeMenu(page, "Carnet 1");
   const durees = {
-    apparition: await style(page.locator("main .apparition"), "animation-duration"),
+    apparition: await style(page.getByRole("main").locator("> div"), "animation-duration"),
     depliage: await style(rangeeDe(page, TITRE_DE_5).locator("xpath=.."), "animation-duration"),
-    actions: await style(actionsDe(page, "Carnet 1"), "transition-duration"),
+    actions: await style(actionsDeRangee(page, "Carnet 1"), "transition-duration"),
     chevron: await style(chevronDe(page, TITRE_DE_5), "transition-duration"),
     menu: await style(page.getByRole("menu"), "animation-duration"),
     infobulle: "",
+    delaiDeLInfobulle: "",
   };
   await toutRefermer(page);
   // L'infobulle du titre coupé : elle se montre au survol, hors de l'arbre d'accessibilité.
@@ -92,6 +104,8 @@ async function dureesALEcranLarge(page: Page): Promise<Record<string, number>> {
   const infobulle = rangeeDe(page, TITRE_DE_200).locator('[data-infobulle="titre"]');
   await expect(infobulle).toHaveText(TITRE_DE_200);
   durees.infobulle = await style(infobulle, "transition-duration");
+  durees.delaiDeLInfobulle = await style(infobulle, "transition-delay");
+  expect(await style(infobulle, "transition-property")).toBe("opacity");
   await page.mouse.move(700, 500);
   return Object.fromEntries(
     Object.entries(durees).map(([nom, duree]) => [nom, enMillisecondes(duree)]),
@@ -131,8 +145,15 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
 
   const rapide = enMillisecondes(await jeton(page, "--duree-rapide"));
   const moyenne = enMillisecondes(await jeton(page, "--duree-moyenne"));
-  expect([rapide, moyenne].every((duree) => duree > 0)).toBe(true);
+  const lente = enMillisecondes(await jeton(page, "--duree-lente"));
+  expect([rapide, moyenne, lente].every((duree) => duree > 0)).toBe(true);
+  expect(new Set([rapide, moyenne, lente]).size).toBe(3);
   expect(await style(chevronDe(page, TITRE_DE_5), "transition-property")).toBe("transform");
+  expect(await style(page.getByRole("main").locator("> div"), "animation-name")).toBe("apparition");
+  expect(await style(rangeeDe(page, TITRE_DE_5).locator("xpath=.."), "animation-name")).toBe(
+    "depliage",
+  );
+  expect(await style(actionsDeRangee(page, "Carnet 1"), "transition-property")).toBe("opacity");
   expect(await dureesALEcranLarge(page)).toEqual({
     apparition: moyenne,
     depliage: rapide,
@@ -140,6 +161,7 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
     chevron: rapide,
     menu: rapide,
     infobulle: rapide,
+    delaiDeLInfobulle: lente,
   });
   await largeur(page, ETROIT);
   expect(await dureesALEcranEtroit(page)).toEqual({ tiroir: moyenne, voile: moyenne });
@@ -161,6 +183,7 @@ test("F-004-AC22 F-004-AC49 mouvement réduit émulé : à 1280, la durée de l'
     chevron: 0,
     menu: 0,
     infobulle: 0,
+    delaiDeLInfobulle: 0,
   });
   await largeur(page, ETROIT);
   expect(await dureesALEcranEtroit(page)).toEqual({ tiroir: 0, voile: 0 });
@@ -175,6 +198,8 @@ for (const pixels of [ETROIT, 768, LARGE]) {
   }) => {
     await largeur(page, LARGE);
     await construireLArborescence(page);
+    // Un titre long fait de mots : sans coupure, lui se replierait sur plusieurs lignes.
+    await creerPageNommee(page, TITRE_EN_MOTS);
     await largeur(page, pixels);
     await montrerLaBarre(page);
 
@@ -182,6 +207,17 @@ for (const pixels of [ETROIT, 768, LARGE]) {
     const courte = await boite(rangeeDe(page, TITRE_DE_5));
     expect(longue.height).toBe(courte.height);
     expect(longue.height).toBeGreaterThan(0);
+    expect((await boite(rangeeDe(page, TITRE_EN_MOTS))).height).toBe(courte.height);
+    for (const titre of [TITRE_DE_200, TITRE_EN_MOTS]) {
+      const lien = lienDePage(page, titre);
+      expect(
+        await Promise.all(
+          ["white-space", "text-overflow", "overflow-x"].map((propriete) => style(lien, propriete)),
+        ),
+      ).toEqual(["nowrap", "ellipsis", "hidden"]);
+      const coupe = await lien.evaluate((element) => element.scrollWidth > element.clientWidth);
+      expect(coupe, `le titre « ${titre.slice(0, 12)}… » est coupé`).toBe(true);
+    }
     const hauteurs = await barreLaterale(page)
       .locator("li > div")
       .evaluateAll((rangees) => [...new Set(rangees.map((rangee) => rangee.clientHeight))]);
@@ -200,7 +236,7 @@ test("F-004-AC25 à 1280, les actions de rangée ont une opacité nulle au repos
   await largeur(page, LARGE);
   await construireLArborescence(page);
   const titre = lienDePage(page, "Carnet 3");
-  const actions = actionsDe(page, "Carnet 3");
+  const actions = actionsDeRangee(page, "Carnet 3");
   const opacite = (): Promise<string> => style(actions, "opacity");
 
   await page.mouse.move(700, 500);
@@ -232,15 +268,32 @@ for (const pixels of [ETROIT, LARGE]) {
     await largeur(page, pixels);
     await montrerLaBarre(page);
 
-    const reperes = barreLaterale(page).locator("li .fond-accent");
-    await expect(reperes).toHaveCount(1);
-    const repere = await boite(reperes);
-    expect(repere.width).toBeGreaterThan(0);
-    expect(repere.height).toBeGreaterThan(0);
-    expect(await style(reperes, "background-image")).toContain("gradient");
-    await expect(
-      reperes.locator("xpath=ancestor::li").locator('a[aria-current="page"]'),
-    ).toHaveText(TITRE_DU_NIVEAU_12);
+    // Le repère est trouvé par ce qu'il peint, non par sa classe : dans l'arborescence, un seul
+    // élément a une image de fond, celle du dégradé d'accent, et il est dans la rangée courante.
+    const peints = await barreLaterale(page)
+      .locator("ul *")
+      .evaluateAll((elements) =>
+        elements
+          .filter((element) => getComputedStyle(element).backgroundImage !== "none")
+          .map((element) => {
+            const mesure = element.getBoundingClientRect();
+            return {
+              image: getComputedStyle(element).backgroundImage,
+              largeur: mesure.width,
+              hauteur: mesure.height,
+              decoratif: element.getAttribute("aria-hidden"),
+              titre: element.closest("li")?.querySelector('a[aria-current="page"]')?.textContent,
+            };
+          }),
+      );
+    expect(peints).toHaveLength(1);
+    const repere = peints[0];
+    expect(repere?.largeur).toBeGreaterThan(0);
+    expect(repere?.hauteur).toBeGreaterThan(0);
+    expect(repere?.image).toBe(await imageDuJeton(page, "--degrade-accent"));
+    expect(repere?.decoratif).toBe("true");
+    expect(repere?.titre).toBe(TITRE_DU_NIVEAU_12);
+    await expect(barreLaterale(page).locator('[aria-current="page"]')).toHaveCount(1);
 
     const defilement = barreLaterale(page).locator("ul").locator("xpath=..");
     const avant = await boite(boutonNouvellePage(page));
@@ -316,6 +369,40 @@ for (const pixels of [320, LARGE]) {
   });
 }
 
+// F-004-AC48 : le halo est le premier enfant, décoratif, de la tête de la zone principale. Il est
+// peint par son jeton, immobile, et un clic le traverse : sur le titre, puis en un point du halo que
+// rien d'autre ne couvre, où le clic atteint la tête de zone placée dessous, jamais le halo.
+async function constaterLeHalo(page: Page): Promise<void> {
+  const halo = page.getByRole("main").locator("[aria-hidden='true']").first();
+  expect(await style(halo, "background-image")).toBe(await imageDuJeton(page, "--degrade-halo"));
+  expect(await style(halo, "pointer-events")).toBe("none");
+  expect(await style(halo, "animation-name")).toBe("none");
+  expect(enMillisecondes(await style(halo, "transition-duration"))).toBe(0);
+  expect(await style(halo, "position")).toBe("absolute");
+  const surface = await boite(halo);
+  const titre = await boite(titrePrincipal(page));
+  const surLeTitre = { x: titre.x + 10, y: titre.y + titre.height / 2 };
+  const aCote = { x: surface.x + surface.width - 4, y: surface.y + 4 };
+  for (const point of [surLeTitre, aCote]) {
+    expect(point.x).toBeGreaterThan(surface.x);
+    expect(point.x).toBeLessThan(surface.x + surface.width);
+    expect(point.y).toBeGreaterThan(surface.y);
+    expect(point.y).toBeLessThan(surface.y + surface.height);
+  }
+  await page.getByRole("main").evaluate((zone) => {
+    zone.addEventListener("click", ({ target }) => {
+      const cible = target instanceof Element ? target : zone;
+      const nature = cible.matches("h1")
+        ? "titre"
+        : (cible.getAttribute("aria-hidden") ?? "dessous");
+      zone.setAttribute("data-clics", `${zone.getAttribute("data-clics") ?? ""}${nature} `);
+    });
+  });
+  await page.mouse.click(surLeTitre.x, surLeTitre.y);
+  await page.mouse.click(aCote.x, aCote.y);
+  await expect(page.getByRole("main")).toHaveAttribute("data-clics", "titre dessous ");
+}
+
 for (const pixels of [ETROIT, LARGE]) {
   test(`F-004-AC40 F-004-AC48 à ${pixels}, écran (b) : la zone d'état est vide, rien ne dit « enregistré », le halo est peint en tête de zone et un clic le traverse jusqu'au titre`, async ({
     page,
@@ -330,19 +417,7 @@ for (const pixels of [ETROIT, LARGE]) {
     expect(await page.locator("body").innerText()).not.toMatch(/nregistr/);
     await expect(page.getByRole("alert")).toHaveCount(0);
 
-    const halo = page.locator("main .fond-halo");
-    expect(await style(halo, "background-image")).toContain("gradient");
-    expect(await style(halo, "pointer-events")).toBe("none");
-    expect(await style(halo, "animation-name")).toBe("none");
-    const titre = await boite(titrePrincipal(page));
-    const surface = await boite(halo);
-    const point = { x: titre.x + 10, y: titre.y + titre.height / 2 };
-    expect(point.y).toBeLessThan(surface.y + surface.height);
-    await titrePrincipal(page).evaluate((element) => {
-      element.addEventListener("click", () => element.setAttribute("data-clic", "atteint"));
-    });
-    await page.mouse.click(point.x, point.y);
-    await expect(titrePrincipal(page)).toHaveAttribute("data-clic", "atteint");
+    await constaterLeHalo(page);
   });
 
   test(`F-004-AC40 à ${pixels}, écran (h), IndexedDB indisponible avant le chargement : la zone d'état dit l'échec sur une ligne dans la barre du haut, l'avertissement de F-002 est visible`, async ({

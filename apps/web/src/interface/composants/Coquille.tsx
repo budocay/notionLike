@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode, Ref } from "react";
+import type { MouseEvent, ReactElement, ReactNode, Ref } from "react";
 
 import { COQUILLE } from "./coquille.classes.ts";
 
@@ -9,7 +9,6 @@ export interface TiroirDeCoquille {
   readonly nom: string;
   /** Identifiant du conteneur : le bouton d'ouverture le commande. */
   readonly id?: string | undefined;
-  readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
   readonly surClic?: ((evenement: MouseEvent<HTMLElement>) => void) | undefined;
   /** Clic sur le voile, qui couvre le reste tant que le tiroir est ouvert. */
   readonly surVoile?: (() => void) | undefined;
@@ -39,7 +38,6 @@ export function Coquille({ tiroir, barre, fenetre = false, children }: Propriete
         role={ouvert ? "dialog" : undefined}
         aria-modal={ouvert ? true : undefined}
         aria-label={ouvert ? tiroir.nom : undefined}
-        onKeyDown={tiroir.surTouche}
         onClick={tiroir.surClic}
       >
         {barre}

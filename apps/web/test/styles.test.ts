@@ -9,11 +9,16 @@ import {
   contexteDe,
   controlerBase,
   controlerClasses,
+  controlerClassesEnDur,
+  controlerConsommateursDeLAccent,
   controlerCouleurDeTheme,
   controlerFeuilleDeDemonstration,
   controlerFeuilles,
   controlerFichier,
+  controlerHalo,
+  controlerSeulAuteur,
   controlerSources,
+  EMPLACEMENTS_DE_L_ACCENT,
   ENTREE_DE_LA_DEMONSTRATION,
   fauteDeClasse,
   FEUILLE_D_ENTREE,
@@ -57,10 +62,11 @@ function classe(nom: string): string | undefined {
 describe("fichiers de style réels", () => {
   it("F-004-AC3 F-004-AC16 chaque fichier source d'apps/web passe les interdits, sans aucune exemption", () => {
     expect(controles.length).toBeGreaterThan(30);
-    for (const chemin of controles) {
-      const attendues = chemin === FICHIER_DES_JETONS ? "sans objet" : [];
-      const fautes = chemin === FICHIER_DES_JETONS ? "sans objet" : fautesDe(chemin, lire(chemin));
-      expect(fautes, chemin).toEqual(attendues);
+    // Le fichier des jetons a ses propres contrôles (jetons.test.ts) : lui seul déclare des valeurs.
+    const consommateurs = controles.filter((chemin) => chemin !== FICHIER_DES_JETONS);
+    expect(consommateurs).toHaveLength(controles.length - 1);
+    for (const chemin of consommateurs) {
+      expect(fautesDe(chemin, lire(chemin)), chemin).toEqual([]);
     }
   });
 
@@ -120,11 +126,10 @@ describe("fichiers de style réels", () => {
   });
 
   it("F-004-AC3 hors des fichiers analysés, aucun composant n'écrit une classe en dur", () => {
-    const composants = controles.filter((chemin) => /^src\/.*\.tsx$/.test(chemin));
-    expect(composants.length).toBeGreaterThanOrEqual(18);
-    for (const chemin of composants) {
-      expect(lire(chemin), chemin).not.toMatch(/className=["'`]|className=\{["'`]/);
-    }
+    expect(
+      [...textes.keys()].filter((chemin) => /^src\/.*\.tsx$/.test(chemin)).length,
+    ).toBeGreaterThanOrEqual(18);
+    expect(controlerClassesEnDur(textes)).toEqual([]);
   });
 
   it("F-004-AC6 F-004-AC10 thème sombre sur la racine, contour de focus global au jeton", () => {
@@ -137,40 +142,26 @@ describe("fichiers de style réels", () => {
     }
   });
 
-  it("F-004-AC47 le dégradé d'accent n'est consommé qu'aux emplacements de la liste fermée", () => {
-    const consommateurs = controles.filter(
-      (chemin) =>
-        chemin !== FICHIER_DES_JETONS && /--degrade-accent|fond-accent/.test(lire(chemin)),
-    );
-    expect(consommateurs).toEqual([
+  it("F-004-AC47 le dégradé d'accent n'est consommé qu'aux emplacements de la liste fermée, une fois chacun", () => {
+    expect(EMPLACEMENTS_DE_L_ACCENT).toEqual([
       "src/interface/composants/barre.classes.ts",
       "src/interface/composants/rangee.classes.ts",
       "src/styles/entree.css",
     ]);
-    expect(lire("src/interface/composants/barre.classes.ts").match(/fond-accent/g)).toHaveLength(1);
-    expect(lire("src/interface/composants/rangee.classes.ts").match(/fond-accent/g)).toHaveLength(
-      1,
-    );
-    expect(entree.match(/--degrade-accent/g)).toHaveLength(1);
+    expect(controlerConsommateursDeLAccent(textes)).toEqual([]);
   });
 
   it("F-004-AC48 le halo est une classe nommée, immobile, qui ne reçoit aucun pointeur", () => {
-    expect(entree).toMatch(/@utility fond-halo \{\s*background-image: var\(--degrade-halo\);\s*\}/);
-    const etats = lire("src/interface/composants/etats.classes.ts");
-    expect(etats).toMatch(/halo: "fond-halo pointer-events-none absolute /);
+    expect(controlerHalo(entree, lire("src/interface/composants/etats.classes.ts"))).toEqual([]);
   });
 
-  it("F-004-AC40 aucun fichier source ne porte de texte affirmatif d'enregistrement", () => {
-    for (const chemin of disque) {
-      expect(lire(chemin), chemin).not.toMatch(
-        /Enregistré sur cet appareil|Modifications enregistrées/,
-      );
+  it("F-004-AC40 aucun fichier source ne porte de texte affirmatif d'enregistrement, et le texte d'échec n'est écrit qu'une fois, dans les messages", () => {
+    for (const [chemin, texte] of textes) {
+      expect(texte, chemin).not.toMatch(/Enregistré sur cet appareil|Modifications enregistrées/);
     }
-    // Le seul texte d'enregistrement est celui de l'échec, écrit une fois, dans les messages.
-    const quiLEcrivent = disque.filter((chemin) =>
-      lire(chemin).includes("Non enregistré sur cet appareil"),
-    );
-    expect(quiLEcrivent).toEqual(["src/interface/messages.ts"]);
+    expect(
+      controlerSeulAuteur(textes, "Non enregistré sur cet appareil", "src/interface/messages.ts"),
+    ).toEqual([]);
   });
 });
 
@@ -347,6 +338,118 @@ describe("interdits : cas conformes et cas fautifs", () => {
     expect(fautesDe("src/a.ts", 'const t = "Vos modifications ne sont pas enregistrées";')).toEqual(
       [],
     );
+  });
+
+  it("F-004-AC53 F-004-AC40 le texte d'échec écrit ailleurs que dans les messages, ou disparu des messages, est nommé", () => {
+    const echec = "Non enregistré sur cet appareil";
+    const messages = "src/interface/messages.ts";
+    const conforme = new Map([
+      [messages, `export const NON_ENREGISTRE = "${echec}";`],
+      ["src/interface/Application.tsx", "<ZoneEtat echec={NON_ENREGISTRE} />"],
+    ]);
+    expect(controlerSeulAuteur(conforme, echec, messages)).toEqual([]);
+    const recopie = new Map([...conforme, ["src/interface/A.tsx", `<p>${echec}</p>`]]);
+    expect(controlerSeulAuteur(recopie, echec, messages)).toEqual([
+      `src/interface/A.tsx : écrit « ${echec} », que seul ${messages} doit écrire`,
+    ]);
+    expect(controlerSeulAuteur(new Map([[messages, ""]]), echec, messages)).toEqual([
+      `${messages} : n'écrit plus « ${echec} »`,
+    ]);
+  });
+
+  it("F-004-AC53 F-004-AC47 un troisième consommateur du dégradé d'accent est nommé, comme un second emploi dans un fichier admis ou un emplacement de la liste qui ne l'emploie plus", () => {
+    const conforme = new Map([
+      [FICHIER_DES_JETONS, "--degrade-accent: linear-gradient(var(--a), var(--b));"],
+      [FEUILLE_D_ENTREE, "@utility fond-accent { background-image: var(--degrade-accent); }"],
+      ["src/interface/composants/barre.classes.ts", 'sceau: "fond-accent relative size-sceau",'],
+      ["src/interface/composants/rangee.classes.ts", 'repere: "fond-accent absolute w-repere",'],
+      ["src/interface/composants/menu.classes.ts", 'cadre: "bg-surface-relief fond-accentue",'],
+    ]);
+    expect(controlerConsommateursDeLAccent(conforme)).toEqual([]);
+
+    const troisieme = "src/interface/composants/bouton.classes.ts";
+    expect(
+      controlerConsommateursDeLAccent(
+        new Map([...conforme, [troisieme, 'export const BOUTON = "fond-accent rounded-petit";']]),
+      ),
+    ).toEqual([`${troisieme} : consomme le dégradé d'accent hors de la liste fermée`]);
+    expect(
+      controlerConsommateursDeLAccent(
+        new Map([
+          ...conforme,
+          ["src/demonstration/demonstration.css", ".a { background: var(--degrade-accent); }"],
+        ]),
+      ),
+    ).toEqual([
+      "src/demonstration/demonstration.css : consomme le dégradé d'accent hors de la liste fermée",
+    ]);
+    const barre = "src/interface/composants/barre.classes.ts";
+    expect(
+      controlerConsommateursDeLAccent(
+        new Map([
+          ...conforme,
+          [barre, 'sceau: "fond-accent",\n  nouvellePage: "fond-accent px-petit",'],
+        ]),
+      ),
+    ).toEqual([`${barre} : 2 emplois du dégradé d'accent, un seul attendu`]);
+    expect(
+      controlerConsommateursDeLAccent(new Map([...conforme, [barre, 'sceau: "size-sceau",']])),
+    ).toEqual([`${barre} : 0 emplois du dégradé d'accent, un seul attendu`]);
+  });
+
+  it("F-004-AC53 F-004-AC48 un halo qui reçoit le pointeur, qui s'anime, ou dont la classe peint autre chose que son jeton est nommé", () => {
+    const feuille = "@utility fond-halo {\n  background-image: var(--degrade-halo);\n}";
+    const classes = 'halo: "fond-halo pointer-events-none absolute inset-x-nul top-nul h-halo",';
+    expect(controlerHalo(feuille, classes)).toEqual([]);
+    expect(controlerHalo(feuille, classes.replace("pointer-events-none ", ""))).toEqual([
+      "halo : la classe « pointer-events-none » manque",
+    ]);
+    expect(controlerHalo(feuille, classes.replace("absolute", "apparition"))).toEqual([
+      "halo : la classe « absolute » manque",
+      "halo : il doit rester immobile, « apparition » l'anime",
+    ]);
+    expect(controlerHalo(feuille.replace("--degrade-halo", "--degrade-accent"), classes)).toEqual([
+      "src/styles/entree.css : la classe fond-halo ne peint pas le seul jeton --degrade-halo",
+    ]);
+    expect(controlerHalo(feuille, 'zone: "relative",')).toHaveLength(3);
+  });
+
+  it("F-004-AC21 F-004-AC3 une classe écrite en dur dans un composant est nommée, sous ses trois écritures ; une classe lue d'un fichier de classes est permise", () => {
+    const conforme = new Map([
+      ["src/interface/A.tsx", "<div className={A.cadre} />"],
+      ["src/interface/a.classes.ts", 'export const A = { cadre: "flex" };'],
+    ]);
+    expect(controlerClassesEnDur(conforme)).toEqual([]);
+    for (const ecriture of ['className="flex"', "className={'flex'}", "className={`flex ${a}`}"]) {
+      expect(
+        controlerClassesEnDur(new Map([...conforme, ["src/interface/B.tsx", `<p ${ecriture} />`]])),
+        ecriture,
+      ).toEqual(["src/interface/B.tsx : classe écrite en dur dans un composant"]);
+    }
+  });
+
+  it("F-004-AC21 F-004-AC5 F-004-AC3 une taille de texte ou une hauteur de ligne en pixels est refusée dans une feuille, dans un @utility comme ailleurs, et en style en ligne", () => {
+    const conforme =
+      "@utility legende {\n  font-size: var(--text-petit);\n  line-height: var(--text-petit--line-height);\n}\nbody { font-size: 1rem; line-height: 1.5; padding: 1px; }";
+    expect(fautesDe("src/styles/entree.css", conforme)).toEqual([]);
+    expect(fautesDe("src/demonstration/demonstration.css", conforme)).toEqual([]);
+    const faute = "taille de texte ou hauteur de ligne en pixels, hors des unités relatives";
+    expect(
+      fautesDe("src/styles/entree.css", conforme.replace("var(--text-petit);", "14px;")),
+    ).toEqual([`src/styles/entree.css : ${faute} : « font-size: 14px »`]);
+    expect(
+      fautesDe(
+        "src/demonstration/demonstration.css",
+        conforme.replace("var(--text-petit--line-height)", "20px"),
+      ),
+    ).toEqual([`src/demonstration/demonstration.css : ${faute} : « line-height: 20px »`]);
+    expect(fautesDe("src/a.css", "p { font: 12pt/1.5 serif; }")).toEqual([
+      `src/a.css : ${faute} : « font: 12pt »`,
+    ]);
+    expect(fautesDe("src/a.tsx", "<p style={{ fontSize: 14 }} />")).toEqual([
+      `src/a.tsx : ${faute} : « fontSize: 1 »`,
+    ]);
+    expect(fautesDe("src/a.tsx", '<p style={{ lineHeight: "20px" }} />')).toHaveLength(1);
   });
 
   it("F-004-AC53 F-004-AC41 une requête de largeur à valeur littérale est refusée", () => {

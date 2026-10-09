@@ -231,6 +231,71 @@ describe("page de démonstration : ce qu'elle montre", () => {
 const ENTREE_DE_LA_PAGE = "src/demonstration/entree.tsx";
 const IMPORT_DYNAMIQUE = "test/fixtures/import-dynamique";
 
+/** F-004-AC50 : le gabarit de production ne charge que son entrée, et rien hors de la page ne la nomme. */
+function fautesDeProduction(gabarit: string, fichiers: ReadonlyMap<string, string>): string[] {
+  const entrees = gabarit.match(/<script[^>]*>/g) ?? [];
+  return [
+    ...(entrees.length === 1 && entrees[0] === '<script type="module" src="/src/main.tsx">'
+      ? []
+      : [`index.html : entrées chargées : ${entrees.join(", ")}`]),
+    ...(/demo/.test(gabarit) ? ["index.html : cite la page de démonstration"] : []),
+    ...[...fichiers]
+      .filter(
+        ([chemin, texte]) =>
+          !chemin.startsWith("src/demonstration/") && /demonstration\//.test(texte),
+      )
+      .map(([chemin]) => `${chemin} : nomme un fichier de la page de démonstration`),
+  ];
+}
+
+/** F-004-AC50 : la page vit de données fictives, sans document Yjs, session ni persistance. */
+function fautesDeDonneesReelles(
+  atteints: readonly string[],
+  fichiers: ReadonlyMap<string, string>,
+): string[] {
+  return [
+    ...atteints
+      .filter((chemin) => /^src\/(espace|persistance|navigation)\//.test(chemin))
+      .map((chemin) => `${chemin} : atteint depuis la page de démonstration`),
+    ...atteints.flatMap((chemin) => {
+      const importe = /from "(yjs|y-indexeddb)"/.exec(fichiers.get(chemin) ?? "");
+      return importe === null ? [] : [`${chemin} : importe ${importe[1]}, atteint depuis la page`];
+    }),
+    ...dansLaDemonstration(fichiers.keys())
+      .filter((chemin) => /@notionlike\/document/.test(fichiers.get(chemin) ?? ""))
+      .map((chemin) => `${chemin} : importe le document d'espace`),
+  ];
+}
+
+const STRUCTURE_DE_LA_COQUILLE =
+  /\b(?:fixed|shadow-voile|w-barre|w-tiroir|filet-droit|plan-(?:voile|tiroir))\b/;
+
+/** Textes que l'interface déclare en constantes ; le nom de l'application est une donnée de la page. */
+function textesDeLInterface(messages: string): string[] {
+  return [...messages.matchAll(/^(?:export )?const [A-Z_]+ =\s*"([^"]+)";/gm)]
+    .map(([, texte = ""]) => texte)
+    .filter((texte) => texte !== "notionLike");
+}
+
+/** F-004-AC50 : la page rend la coquille et les textes de l'interface, elle ne les recopie pas. */
+function fautesDeRecopie(page: ReadonlyMap<string, string>, messages: string): string[] {
+  const textes = textesDeLInterface(messages);
+  return [...page].flatMap(([chemin, source]) => {
+    const structure = /\.classes\.ts$/.test(chemin) ? STRUCTURE_DE_LA_COQUILLE.exec(source) : null;
+    return [
+      ...(structure === null
+        ? []
+        : [`${chemin} : recopie la structure de la coquille : ${structure[0]}`]),
+      ...textes
+        .filter((texte) => source.includes(`"${texte}"`))
+        .map((texte) => `${chemin} : recopie le texte « ${texte} »`),
+      ...(/touches=\{\[|touches: \[/.test(source)
+        ? [`${chemin} : écrit une combinaison de touches`]
+        : []),
+    ];
+  });
+}
+
 describe("page de démonstration : hors de la production", () => {
   it("F-004-AC50 d'après le graphe de dependency-cruiser, rien d'atteint depuis l'entrée de production n'importe la page, son code ni la feuille de démonstration", async () => {
     const aretes = await graphe();
@@ -241,15 +306,34 @@ describe("page de démonstration : hors de la production", () => {
     expect(atteints.has(FEUILLE_D_ENTREE)).toBe(true);
     expect(atteints.has(FEUILLE_DE_DEMONSTRATION)).toBe(false);
     expect(atteintsDepuis(aretes, ENTREE_DE_LA_PAGE).has(FEUILLE_DE_DEMONSTRATION)).toBe(true);
-    expect(lire("index.html").match(/<script[^>]*>/g)).toEqual([
-      '<script type="module" src="/src/main.tsx">',
+    expect(fautesDeProduction(lire("index.html"), sources)).toEqual([]);
+  });
+
+  it("F-004-AC53 F-004-AC50 un gabarit de production qui charge une autre entrée ou cite la démonstration, et un module hors de la page qui la nomme, sont nommés", () => {
+    const gabarit = '<div id="root"></div><script type="module" src="/src/main.tsx"></script>';
+    const conforme = new Map([
+      ["src/main.tsx", 'import { Application } from "./interface/Application.tsx";'],
+      ["src/demonstration/entree.tsx", 'import "./demonstration.css";'],
     ]);
-    expect(lire("index.html")).not.toMatch(/demo/);
-    const importateurs = [...sources].filter(
-      ([chemin, texte]) =>
-        !chemin.startsWith("src/demonstration/") && /demonstration\//.test(texte),
-    );
-    expect(importateurs.map(([chemin]) => chemin)).toEqual([]);
+    expect(fautesDeProduction(gabarit, conforme)).toEqual([]);
+    expect(
+      fautesDeProduction(
+        gabarit.replace("/src/main.tsx", "/src/demonstration/entree.tsx"),
+        conforme,
+      ),
+    ).toEqual([
+      'index.html : entrées chargées : <script type="module" src="/src/demonstration/entree.tsx">',
+      "index.html : cite la page de démonstration",
+    ]);
+    expect(fautesDeProduction(`${gabarit}<a href="/demo.html">Démo</a>`, conforme)).toEqual([
+      "index.html : cite la page de démonstration",
+    ]);
+    expect(
+      fautesDeProduction(
+        gabarit,
+        new Map([...conforme, ["src/interface/A.tsx", 'import("../demonstration/Page.tsx");']]),
+      ),
+    ).toEqual(["src/interface/A.tsx : nomme un fichier de la page de démonstration"]);
   });
 
   it("F-004-AC53 F-004-AC50 un import de la page depuis la production est détecté, même indirect", () => {
@@ -285,34 +369,75 @@ describe("page de démonstration : hors de la production", () => {
     );
     expect(dansLaDemonstration(atteints).length).toBeGreaterThanOrEqual(5);
     expect(atteints).toContain("src/interface/composants/Coquille.tsx");
-    for (const chemin of atteints) {
-      expect(chemin, chemin).not.toMatch(/^src\/(espace|persistance|navigation)\//);
-      expect(sources.get(chemin) ?? "", chemin).not.toMatch(/from "(yjs|y-indexeddb)"/);
-    }
+    expect(fautesDeDonneesReelles(atteints, sources)).toEqual([]);
     expect(lire("demo.html")).toContain('src="/src/demonstration/entree.tsx"');
-    for (const chemin of dansLaDemonstration(sources.keys())) {
-      expect(sources.get(chemin), chemin).not.toMatch(/@notionlike\/document/);
-    }
+  });
+
+  it("F-004-AC53 F-004-AC50 une page de démonstration qui atteint la session, la persistance ou la navigation, ou qui importe Yjs ou le document, est nommée", () => {
+    const conforme = new Map([
+      [
+        "src/demonstration/Page.tsx",
+        'import { Rangee } from "../interface/composants/Rangee.tsx";',
+      ],
+      ["src/interface/composants/Rangee.tsx", 'import { useId } from "react";'],
+    ]);
+    const atteints = [...conforme.keys()];
+    expect(fautesDeDonneesReelles(atteints, conforme)).toEqual([]);
+    expect(fautesDeDonneesReelles([...atteints, "src/espace/session-espace.ts"], conforme)).toEqual(
+      ["src/espace/session-espace.ts : atteint depuis la page de démonstration"],
+    );
+    expect(
+      fautesDeDonneesReelles([...atteints, "src/persistance/indexeddb.ts"], conforme),
+    ).toHaveLength(1);
+    expect(
+      fautesDeDonneesReelles(
+        atteints,
+        new Map([
+          ...conforme,
+          ["src/interface/composants/Rangee.tsx", 'import * as Y from "yjs";'],
+        ]),
+      ),
+    ).toEqual(["src/interface/composants/Rangee.tsx : importe yjs, atteint depuis la page"]);
+    expect(
+      fautesDeDonneesReelles(
+        atteints,
+        new Map([
+          ...conforme,
+          ["src/demonstration/Page.tsx", 'import type { PageLue } from "@notionlike/document";'],
+        ]),
+      ),
+    ).toEqual(["src/demonstration/Page.tsx : importe le document d'espace"]);
   });
 
   it("F-004-AC50 la page ne recopie ni la structure de la coquille, ni un texte de l'interface, ni une combinaison de touches", () => {
-    const classes = lire("src/demonstration/page.classes.ts");
-    expect(classes).not.toMatch(
-      /\b(?:fixed|shadow-voile|w-barre|w-tiroir|filet-droit|plan-(?:voile|tiroir))\b/,
+    const page = new Map(
+      dansLaDemonstration(sources.keys()).map((chemin) => [chemin, sources.get(chemin) ?? ""]),
     );
-    const messages = lire("src/interface/messages.ts");
-    const textes = [...messages.matchAll(/^(?:export )?const [A-Z_]+ =\s*"([^"]+)";/gm)].map(
-      ([, texte = ""]) => texte,
-    );
-    expect(textes.length).toBeGreaterThanOrEqual(20);
-    for (const chemin of dansLaDemonstration(sources.keys())) {
-      const source = sources.get(chemin) ?? "";
-      for (const texte of textes.filter((un) => un !== "notionLike")) {
-        expect(source.includes(`"${texte}"`), `${chemin} recopie « ${texte} »`).toBe(false);
-      }
-      expect(source, chemin).not.toMatch(/touches=\{\[|touches: \[/);
-    }
+    expect(textesDeLInterface(lire("src/interface/messages.ts")).length).toBeGreaterThanOrEqual(20);
+    expect(fautesDeRecopie(page, lire("src/interface/messages.ts"))).toEqual([]);
     expect(lire(PAGE)).toContain("afficherTouches(RACCOURCIS.renommer)");
+  });
+
+  it("F-004-AC53 F-004-AC50 une page qui recopie une classe de structure de la coquille, un texte de l'interface ou une combinaison de touches est nommée", () => {
+    const messages =
+      'export const NOM_APPLICATION = "notionLike";\nexport const NOUVELLE_PAGE = "Nouvelle page";';
+    const conforme = new Map([
+      ["src/demonstration/page.classes.ts", 'export const PAGE = { apercu: "relative flex" };'],
+      ["src/demonstration/Page.tsx", "<Tete nom={NOM_APPLICATION} libelle={NOUVELLE_PAGE} />"],
+      ["src/demonstration/donnees.ts", 'export const NOM = "notionLike";'],
+    ]);
+    expect(fautesDeRecopie(conforme, messages)).toEqual([]);
+    const avec = (chemin: string, texte: string): string[] =>
+      fautesDeRecopie(new Map([...conforme, [chemin, texte]]), messages);
+    expect(
+      avec("src/demonstration/page.classes.ts", 'export const PAGE = { tiroir: "fixed" };'),
+    ).toEqual(["src/demonstration/page.classes.ts : recopie la structure de la coquille : fixed"]);
+    expect(avec("src/demonstration/Page.tsx", '<Tete libelle="Nouvelle page" />')).toEqual([
+      "src/demonstration/Page.tsx : recopie le texte « Nouvelle page »",
+    ]);
+    expect(avec("src/demonstration/Page.tsx", '<Raccourci touches={["F2"]} />')).toEqual([
+      "src/demonstration/Page.tsx : écrit une combinaison de touches",
+    ]);
   });
 });
 
@@ -337,6 +462,32 @@ function ecartsDeLaListe(
     ...attendues.filter((nom) => !portees.includes(nom)).map((nom) => `manque : ${nom}`),
     ...portees.filter((nom) => !attendues.includes(nom)).map((nom) => `en trop : ${nom}`),
   ];
+}
+
+const SCENARIOS_DE_CAPTURE = ["e2e/demonstration.spec.ts", "e2e/captures.spec.ts"];
+
+/** F-004-AC51 : un scénario de capture lit la liste unique, capture comme prescrit, et vérifie. */
+function fautesDeScenarioDeCapture(chemin: string, scenario: string): string[] {
+  const exigences: readonly (readonly [boolean, string])[] = [
+    [
+      /import \{[^}]*CAPTURES_ATTENDUES[^}]*\} from "\.\/captures-attendues\.ts";/.test(scenario),
+      "n'importe pas la liste des captures attendues",
+    ],
+    [!/\.png/.test(scenario), "écrit un nom de capture au lieu de le lire dans la liste"],
+    [
+      /fullPage: true,\s*animations: "disabled",\s*caret: "hide"/.test(scenario),
+      "capture sans fullPage, animations désactivées et curseur masqué",
+    ],
+    [
+      /existsSync\(chemin\)[^;]*\.toBe\(true\)/.test(scenario),
+      "ne vérifie pas que chaque capture attendue existe",
+    ],
+    [
+      /statSync\(chemin\)\.size[^;]*\.toBeGreaterThan\(0\)/.test(scenario),
+      "ne vérifie pas qu'aucune capture n'est vide",
+    ],
+  ];
+  return exigences.filter(([tenue]) => !tenue).map(([, faute]) => `${chemin} : ${faute}`);
 }
 
 describe("captures de référence", () => {
@@ -387,17 +538,39 @@ describe("captures de référence", () => {
 
   it("F-004-AC51 le dossier des captures est celui que git ignore, et les deux scénarios de capture lisent cette liste", () => {
     expect(DOSSIER_DES_CAPTURES).toBe("test-results/captures");
-    for (const chemin of ["e2e/demonstration.spec.ts", "e2e/captures.spec.ts"]) {
-      const scenario = lire(chemin);
-      expect(scenario, chemin).toMatch(
-        /import \{[^}]*CAPTURES_ATTENDUES[^}]*\} from "\.\/captures-attendues\.ts";/,
-      );
-      expect(scenario, chemin).toMatch(/fullPage: true,\s*animations: "disabled",\s*caret: "hide"/);
-      expect(scenario, chemin).not.toMatch(/\.png/);
-      expect(scenario, chemin).toMatch(/existsSync\(chemin\)[^;]*\.toBe\(true\)/);
-      expect(scenario, chemin).toMatch(/statSync\(chemin\)\.size[^;]*\.toBeGreaterThan\(0\)/);
+    for (const chemin of SCENARIOS_DE_CAPTURE) {
+      expect(fautesDeScenarioDeCapture(chemin, lire(chemin))).toEqual([]);
     }
     expect(lire("e2e/captures.spec.ts")).toMatch(/ecran !== PAGE_DE_DEMONSTRATION/);
     expect(lire("e2e/demonstration.spec.ts")).toMatch(/ecran === PAGE_DE_DEMONSTRATION/);
+  });
+
+  it("F-004-AC53 F-004-AC51 un scénario de capture qui ne lit pas la liste, écrit un nom de fichier, capture sans les trois options ou ne vérifie pas ses captures est nommé", () => {
+    const conforme = [
+      'import { CAPTURES_ATTENDUES, nomDeCapture } from "./captures-attendues.ts";',
+      'await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "hide" });',
+      "expect(existsSync(chemin), chemin).toBe(true);",
+      "expect(statSync(chemin).size, chemin).toBeGreaterThan(0);",
+    ].join("\n");
+    const fautes = (avant: string, apres: string): string[] => {
+      expect(conforme).toContain(avant);
+      return fautesDeScenarioDeCapture("e2e/x.spec.ts", conforme.replace(avant, apres));
+    };
+    expect(fautesDeScenarioDeCapture("e2e/x.spec.ts", conforme)).toEqual([]);
+    expect(fautes("CAPTURES_ATTENDUES, ", "")).toEqual([
+      "e2e/x.spec.ts : n'importe pas la liste des captures attendues",
+    ]);
+    expect(fautes("path,", 'path: "a-accueil-360.png",')).toEqual([
+      "e2e/x.spec.ts : écrit un nom de capture au lieu de le lire dans la liste",
+    ]);
+    expect(fautes(' caret: "hide"', "")).toEqual([
+      "e2e/x.spec.ts : capture sans fullPage, animations désactivées et curseur masqué",
+    ]);
+    expect(fautes("expect(existsSync(chemin), chemin).toBe(true);", "")).toEqual([
+      "e2e/x.spec.ts : ne vérifie pas que chaque capture attendue existe",
+    ]);
+    expect(fautes(".toBeGreaterThan(0)", ".toBeDefined()")).toEqual([
+      "e2e/x.spec.ts : ne vérifie pas qu'aucune capture n'est vide",
+    ]);
   });
 });

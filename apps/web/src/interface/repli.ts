@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { ancetresDe } from "./pages.ts";
 
-export interface Repli {
+/** Les pages repliées, et de quoi les déplier ou basculer le repli de l'une d'elles. */
+export interface RepliDesPages {
   readonly repliees: ReadonlySet<IdPage>;
   readonly deplier: (pages: readonly IdPage[]) => void;
   readonly basculer: (id: IdPage) => void;
@@ -43,7 +44,10 @@ function avecBascule(repliees: ReadonlySet<IdPage>, id: IdPage): ReadonlySet<IdP
  * le rendu même qui affiche la sélection : l'état est ajusté pendant le rendu, jamais dans un effet
  * postérieur, de sorte qu'aucune validation ne montre la page sans sa rangée (F-004-AC54).
  */
-export function useRepli(racines: readonly PageLue[], idPageDesignee: IdPage | undefined): Repli {
+export function useRepli(
+  racines: readonly PageLue[],
+  idPageDesignee: IdPage | undefined,
+): RepliDesPages {
   const [etat, setEtat] = useState(AU_DEPART);
   let { repliees } = etat;
   if (etat.designee !== idPageDesignee) {

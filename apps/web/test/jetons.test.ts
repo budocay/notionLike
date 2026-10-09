@@ -232,7 +232,7 @@ describe("fichier des jetons : identité", () => {
     expect(halo?.valeur).toMatch(/var\(--color-surface-halo\).*var\(--color-surface-application\)/);
   });
 
-  it("F-004-AC21 F-004-AC9 un dégradé qui porte un repère, un littéral ou du vide est refusé", () => {
+  it("F-004-AC21 F-004-AC53 F-004-AC9 F-004-AC48 un dégradé de halo qui porte un repère, un littéral ou du vide est refusé", () => {
     const halo =
       "radial-gradient(var(--color-surface-application), var(--color-surface-application))";
     expect(

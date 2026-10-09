@@ -95,11 +95,10 @@ function fautesDeLaRegleDeLongueur(configuration: string): string[] {
   return fautes;
 }
 
-/** Fonctions d'`apps/web/src` que la règle signale, mesurées par ESLint lui-même. */
-async function fonctionsTropLongues(): Promise<string[]> {
-  const racine = import.meta.dirname.replace(/[\\/]apps[\\/]web[\\/]test$/, "");
-  const eslint = new ESLint({
-    cwd: racine,
+/** ESLint de la racine, la règle de longueur imposée ici : la mesure ne dépend pas de sa configuration. */
+function mesureur(): ESLint {
+  return new ESLint({
+    cwd: import.meta.dirname.replace(/[\\/]apps[\\/]web[\\/]test$/, ""),
     overrideConfig: {
       rules: {
         "max-lines-per-function": [
@@ -109,16 +108,53 @@ async function fonctionsTropLongues(): Promise<string[]> {
       },
     },
   });
-  const resultats = await eslint.lintFiles(["apps/web/src"]);
-  expect(resultats.length).toBeGreaterThan(30);
+}
+
+function signalements(resultats: readonly ESLint.LintResult[]): string[] {
   return resultats.flatMap(({ filePath, messages }) =>
     messages.map(({ ruleId, line, message }) => `${filePath}:${line} ${ruleId} ${message}`),
   );
 }
 
+/** Fonctions d'`apps/web/src` que la règle signale, mesurées par ESLint lui-même. */
+async function fonctionsTropLongues(): Promise<string[]> {
+  const resultats = await mesureur().lintFiles(["apps/web/src"]);
+  expect(resultats.length).toBeGreaterThan(30);
+  return signalements(resultats);
+}
+
+/** Même mesure, sur un texte donné comme s'il était un fichier d'`apps/web/src`. */
+async function mesurer(texte: string): Promise<string[]> {
+  return signalements(await mesureur().lintText(texte, { filePath: "apps/web/src/mesure.ts" }));
+}
+
+const LIGNES_HORS_DU_CORPS = ["export function somme(): number {", "let", "return", "}"].length;
+
+/** Une fonction de tant de lignes de code, avec une ligne vide et un commentaire en plus. */
+function fonctionDe(lignes: number): string {
+  const corps = Array.from({ length: lignes - LIGNES_HORS_DU_CORPS }, () => "  total += 1;");
+  return [
+    "export function somme(): number {",
+    "  let total = 0;",
+    "",
+    "  // Ni cette ligne ni la ligne vide ne comptent.",
+    ...corps,
+    "  return total;",
+    "}",
+    "",
+  ].join("\n");
+}
+
 describe("fonctions bornées", () => {
   it("F-004-AC58 mesurée par ESLint avec la règle max-lines-per-function à 50, lignes vides et commentaires non comptés, aucune fonction de src/ ne dépasse, et rien d'autre n'y est signalé", async () => {
     expect(await fonctionsTropLongues()).toEqual([]);
+  }, 30_000);
+
+  it("F-004-AC53 F-004-AC58 la mesure : une fonction de 50 lignes passe, lignes vides et commentaires non comptés ; une fonction de 51 lignes est signalée", async () => {
+    expect(await mesurer(fonctionDe(PLAFOND))).toEqual([]);
+    expect(await mesurer(fonctionDe(PLAFOND + 1))).toEqual([
+      expect.stringMatching(/mesure\.ts:1 max-lines-per-function .*\b51\b/),
+    ]);
   }, 30_000);
 
   it("F-004-AC58 aucun fichier de src/ ne porte de directive eslint-disable, de ligne, de bloc ni de fichier", () => {
@@ -189,16 +225,59 @@ function empreinte(texte: string): string {
   return createHash("sha256").update(texte).digest("hex");
 }
 
+const INTOUCHABLE = /^test\/(session-fermeture|persistance-[^/]+)\.test\.tsx?$/;
+
+/** Écarts entre les fichiers de test donnés et les empreintes attendues : liste et contenu. */
+function ecartsDesIntouchables(
+  fichiers: ReadonlyMap<string, string>,
+  attendues: Readonly<Record<string, string>>,
+): string[] {
+  const presents = [...fichiers.keys()].filter((chemin) => INTOUCHABLE.test(chemin));
+  return [
+    ...presents
+      .filter((chemin) => !(chemin in attendues))
+      .map((chemin) => `${chemin} : test de session ou de persistance hors de la liste`),
+    ...Object.entries(attendues).flatMap(([chemin, attendue]) => {
+      const texte = fichiers.get(chemin);
+      if (texte === undefined) {
+        return [`${chemin} : fichier de la liste absent du disque`];
+      }
+      return empreinte(texte) === attendue ? [] : [`${chemin} : contenu modifié depuis F-002`];
+    }),
+  ];
+}
+
 describe("tests de F-002 que cette feature ne modifie pas", () => {
   it("F-004-AC17 F-004-AC58 les tests de session et de persistance sont ceux de la tête de F-002, à l'octet près", () => {
-    const intouchables = [...lireDossier("test").keys()].filter((chemin) =>
-      /^test\/(session-fermeture|persistance-[^/]+)\.test\.tsx?$/.test(chemin),
-    );
-    expect(intouchables).toEqual(Object.keys(EMPREINTES_DE_F002).sort());
-    for (const [chemin, attendue] of Object.entries(EMPREINTES_DE_F002)) {
-      expect(empreinte(lire(chemin)), chemin).toBe(attendue);
-    }
+    expect(Object.keys(EMPREINTES_DE_F002)).toHaveLength(4);
+    expect(ecartsDesIntouchables(lireDossier("test"), EMPREINTES_DE_F002)).toEqual([]);
+  });
+
+  it("F-004-AC53 F-004-AC17 un test intouchable modifié d'un octet, retiré, ou un test de persistance ajouté est nommé", () => {
+    const attendues = { "test/persistance-a.test.ts": empreinte("contenu de F-002") };
+    const conforme = new Map([
+      ["test/persistance-a.test.ts", "contenu de F-002"],
+      ["test/aides-persistance.ts", "une aide n'est pas un test"],
+    ]);
     expect(empreinte("a")).toBe("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb");
+    expect(ecartsDesIntouchables(conforme, attendues)).toEqual([]);
+    expect(
+      ecartsDesIntouchables(
+        new Map([["test/persistance-a.test.ts", "contenu de F-002 "]]),
+        attendues,
+      ),
+    ).toEqual(["test/persistance-a.test.ts : contenu modifié depuis F-002"]);
+    expect(ecartsDesIntouchables(new Map(), attendues)).toEqual([
+      "test/persistance-a.test.ts : fichier de la liste absent du disque",
+    ]);
+    expect(
+      ecartsDesIntouchables(
+        new Map([...conforme, ["test/session-fermeture.test.tsx", "nouveau"]]),
+        attendues,
+      ),
+    ).toEqual([
+      "test/session-fermeture.test.tsx : test de session ou de persistance hors de la liste",
+    ]);
   });
 });
 
