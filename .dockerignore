@@ -1,0 +1,12 @@
+# Contexte de construction en liste blanche (ADR-0006) : tout est exclu, sauf ce que l'image copie.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!apps/server/package.json
+!apps/server/src
+!packages/contrats/package.json
+!packages/contrats/src
+!packages/db/package.json
+!packages/db/src
+!packages/db/migrations
