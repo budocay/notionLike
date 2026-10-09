@@ -1,0 +1,202 @@
+/* Fichier des jetons d'apps/web (F-004) : un seul bloc de thème, une déclaration par ligne, puis le
+   bloc de mouvement réduit. Les contrôles de test/jetons.test.ts lisent ce fichier tel quel. */
+@theme static {
+  --*: initial;
+
+  /* Couleurs primitives : opaques, jamais consommées hors de ce fichier. */
+  --primitif-encre-950: #0b0e14;
+  --primitif-encre-900: #10151c;
+  --primitif-encre-850: #171e26;
+  --primitif-encre-800: #1d242d;
+  --primitif-encre-750: #232c36;
+  --primitif-encre-700: #2c353f;
+  --primitif-lagune-900: #122a30;
+  --primitif-brume-100: #e8ecf2;
+  --primitif-brume-300: #bcc5d1;
+  --primitif-brume-500: #95a1b0;
+  --primitif-ardoise-400: #8392a5;
+  --primitif-givre-300: #85d2ff;
+  --primitif-corail-300: #ff99a0;
+  --primitif-rouge-400: #ff6b7a;
+  --primitif-or-200: #f6d179;
+  --primitif-or-300: #f1bf4b;
+  --primitif-cuivre-400: #e17f47;
+
+  /* Surfaces : des fonds, tous teintés, du plus renfoncé au plus relevé ; le filet sépare. */
+  --color-surface-retrait: var(--primitif-encre-950);
+  --color-surface-application: var(--primitif-encre-900);
+  --color-surface-relief: var(--primitif-encre-850);
+  --color-surface-survol: var(--primitif-encre-800);
+  --color-surface-active: var(--primitif-encre-750);
+  --color-surface-filet: var(--primitif-encre-700);
+  --color-surface-halo: var(--primitif-lagune-900);
+
+  /* Textes. */
+  --color-texte-principal: var(--primitif-brume-100);
+  --color-texte-secondaire: var(--primitif-brume-300);
+  --color-texte-discret: var(--primitif-brume-500);
+  --color-texte-erreur: var(--primitif-corail-300);
+  --color-texte-avertissement: var(--primitif-or-200);
+
+  /* Repères : éléments non textuels qui portent une information. */
+  --color-repere-focus: var(--primitif-givre-300);
+  --color-repere-contour: var(--primitif-ardoise-400);
+  --color-repere-erreur: var(--primitif-rouge-400);
+  --color-repere-avertissement: var(--primitif-or-300);
+  --color-repere-accent-debut: var(--primitif-cuivre-400);
+  --color-repere-accent-fin: var(--primitif-or-300);
+
+  /* Dégradés : l'accent est fait de repères et ne porte jamais de texte ; le halo, de surfaces. */
+  --degrade-accent: linear-gradient(
+    135deg,
+    var(--color-repere-accent-debut),
+    var(--color-repere-accent-fin)
+  );
+  --degrade-halo: radial-gradient(
+    120% 100% at 0% 0%,
+    var(--color-surface-halo),
+    var(--color-surface-application)
+  );
+
+  /* Typographie : tailles et hauteurs de ligne en rem. */
+  --text-titre: 2.5rem;
+  --text-titre--line-height: 2.75rem;
+  --text-titre--letter-spacing: -0.025em;
+  --text-titre-etroit: 1.875rem;
+  --text-titre-etroit--line-height: 2.125rem;
+  --text-titre-etroit--letter-spacing: -0.02em;
+  --text-intertitre: 1.25rem;
+  --text-intertitre--line-height: 1.75rem;
+  --text-courant: 1rem;
+  --text-courant--line-height: 1.625rem;
+  --text-interface: 0.875rem;
+  --text-interface--line-height: 1.25rem;
+  --text-petit: 0.75rem;
+  --text-petit--line-height: 1rem;
+  --text-etiquette: 0.6875rem;
+  --text-etiquette--line-height: 1rem;
+  --font-weight-normal: 400;
+  --font-weight-moyen: 500;
+  --font-weight-fort: 600;
+  --font-weight-titre: 700;
+  --tracking-etiquette: 0.09em;
+  --tracking-serre: -0.01em;
+
+  /* Espacements nommés : aucune base, donc aucune classe à nombre. */
+  --spacing-nul: 0rem;
+  --spacing-infime: 0.125rem;
+  --spacing-mince: 0.25rem;
+  --spacing-petit: 0.5rem;
+  --spacing-moyen: 0.75rem;
+  --spacing-normal: 1rem;
+  --spacing-ample: 1.5rem;
+  --spacing-grand: 2rem;
+  --spacing-vaste: 3rem;
+  --spacing-immense: 4.5rem;
+  --spacing-rangee: 2rem;
+  --spacing-cible: 2.75rem;
+  --spacing-icone: 1rem;
+  --spacing-bouton-icone: 1.5rem;
+  --spacing-sceau: 1.5rem;
+  --spacing-repere: 0.1875rem;
+  --spacing-pastille: 0.375rem;
+  --spacing-retrait: 0.875rem;
+  --spacing-barre-haut: 3rem;
+  --spacing-halo: 14rem;
+  --spacing-apercu: 30rem;
+  --spacing-apercu-menu: 9.5rem;
+  --spacing-touche: 1.25rem;
+
+  /* Largeurs bornées. */
+  --container-barre: 17.5rem;
+  --container-tiroir: 19rem;
+  --container-menu: 15rem;
+  --container-ecran: 34rem;
+  --container-lecture: 44rem;
+  --container-fil: 12rem;
+  --container-page: 72rem;
+
+  /* Épaisseurs de trait, en pixels pour rester nettes. */
+  --epaisseur-filet: 1px;
+  --epaisseur-contour: 2px;
+
+  /* Rayons. */
+  --radius-petit: 0.25rem;
+  --radius-moyen: 0.375rem;
+  --radius-grand: 0.625rem;
+
+  /* Ombres et voiles : seuls jetons qui portent de la transparence, jamais sous un texte. */
+  --shadow-menu: 0 1.25rem 2.5rem -0.75rem rgb(2 6 10 / 0.8), 0 0.25rem 0.75rem rgb(2 6 10 / 0.4);
+  --shadow-relief: inset 0 1px 0 rgb(232 236 242 / 0.05);
+  --shadow-touche: inset 0 -1px 0 rgb(2 6 10 / 0.6);
+  --shadow-voile: inset 0 0 0 100vmax rgb(4 9 13 / 0.66);
+
+  /* Plans d'empilement. */
+  --plan-barre-haut: 10;
+  --plan-menu: 20;
+  --plan-tiroir: 30;
+
+  /* Seuil étroit : en dessous, la barre latérale devient un tiroir. */
+  --breakpoint-etroit: 51.25rem;
+
+  /* Durées, en millisecondes entières ; une période de boucle n'est pas une attente. */
+  --duree-rapide: 120ms;
+  --duree-moyenne: 200ms;
+  --duree-lente: 280ms;
+  --duree-boucle-chargement: 1400ms;
+
+  /* Courbes. */
+  --ease-sortie: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-va-et-vient: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* Animations : durée et courbe toujours par renvoi. */
+  --animate-apparition: apparition var(--duree-moyenne) var(--ease-sortie) both;
+  --animate-depliage: depliage var(--duree-rapide) var(--ease-sortie) both;
+  --animate-chargement: pulsation var(--duree-boucle-chargement) var(--ease-va-et-vient) infinite;
+
+  @keyframes apparition {
+    from {
+      opacity: 0;
+      transform: translateY(var(--spacing-mince));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes depliage {
+    from {
+      opacity: 0;
+      transform: translateY(calc(var(--spacing-mince) * -1));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulsation {
+    0% {
+      opacity: 0.25;
+      transform: scale(0.75);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0.25;
+      transform: scale(0.75);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duree-rapide: 0ms;
+    --duree-moyenne: 0ms;
+    --duree-lente: 0ms;
+    --duree-boucle-chargement: 0ms;
+  }
+}
