@@ -1,7 +1,7 @@
 # ADR-0010 — Jetons de design d'`apps/web` et tiroir de la barre latérale
 
 Statut : accepté
-Date : 2026-10-09 (mis d'accord avec le code livré le même jour, `6b5daed`, sans changement de décision)
+Date : 2026-10-09 (mis d'accord avec le code livré le même jour, `6b5daed` puis `c230381`, sans changement de décision)
 
 ## Contexte et problème
 
@@ -36,7 +36,7 @@ Tiroir :
 | mouvement                            | `--duree-<nom>`, `--duree-boucle-<nom>`, `--ease-<nom>`, `--animate-<nom>`                                             | millisecondes entières ; `--animate-*` par `var(…)`                                                    |
 | seuil                                | `--breakpoint-etroit`                                                                                                  | en `rem` ; lu par le code avec `getComputedStyle` (essai B1)                                           |
 
-Trois rôles de couleur seulement. Un filet de séparation est peint avec un jeton de surface, sans quatrième rôle : aucune couleur de texte, de surface ou de repère n'échappe à la règle de contraste universelle (F-004-AC7, AC8). Livré : les quatre ombres portent une couleur littérale transparente, hors des deux couches et hors de cette règle ; le voile du tiroir est l'une d'elles (`--shadow-voile`). Une classe sans jeton derrière elle (`opacity-0`, `flex-1`) est une classe nommée déclarée une fois par `@utility` dans la feuille d'entrée ; livré : vingt-neuf classes nommées, les épaisseurs et les plans d'empilement sont devenus des jetons qu'elles consomment, et une classe de structure sans valeur (`flex`, `hidden`, `absolute`, `truncate`) s'écrit telle quelle.
+Trois rôles de couleur seulement. Un filet de séparation est peint avec un jeton de surface, sans quatrième rôle : aucune couleur de texte, de surface ou de repère n'échappe à la règle de contraste universelle (F-004-AC7, AC8). Livré : les quatre ombres portent une couleur littérale transparente, hors des deux couches et hors de cette règle ; le voile du tiroir est l'une d'elles (`--shadow-voile`). Une classe sans jeton derrière elle (`opacity-0`, `flex-1`) est une classe nommée déclarée une fois par `@utility` dans la feuille d'entrée ; livré : trente classes nommées, les épaisseurs et les plans d'empilement sont devenus des jetons qu'elles consomment, et une classe de structure sans valeur (`flex`, `hidden`, `absolute`, `truncate`) s'écrit telle quelle.
 
 Seuil : le jeton s'appelle `--breakpoint-etroit` et donne la variante `etroit:`. Elle s'applique à partir du seuil, donc sur écran large ; la classe sans variante vaut pour l'écran étroit. Dans le code, `etroit` (`useEcranEtroit`) est vrai sous le seuil. Le même mot désigne ainsi le seuil dans la feuille et le côté étroit dans le code.
 
@@ -48,5 +48,5 @@ Seuil : le jeton s'appelle `--breakpoint-etroit` et donne la variante `etroit:`.
 - L'inertie réelle et le focus ne sont prouvés que dans Chromium (F-004-AC42, [navigateur]) ; la suite des douze tabulations, non essayée par la conception, l'est par un scénario de bout en bout livré (`e2e/largeurs.spec.ts`), hors des hooks.
 - Renommer un jeton sémantique touche chaque fichier qui le consomme : les noms d'usage ont été choisis au bloc 1 (sept surfaces, cinq textes, six repères) et sont à tenir. Renommer le seuil toucherait chaque classe `etroit:` des fichiers de classes.
 - Un thème clair redéfinirait les jetons sémantiques sans toucher aux composants.
-- Se défait : passer au `dialog` natif ne change que la coquille et ses tests. Livré : il n'y a pas de composant de coquille ; sa structure est dans `apps/web/src/interface/Application.tsx`, son état dans `interface/tiroir.ts` et `interface/largeur.ts`.
-- La page de démonstration montre une reconstitution de la coquille et du tiroir, pas la structure décidée ici.
+- Se défait : passer au `dialog` natif ne change que la coquille et ses tests. Livré : la structure décidée ici est écrite une seule fois, dans le composant de présentation `apps/web/src/interface/composants/Coquille.tsx` (cadre, conteneur de la barre ou tiroir, voile, reste), qui reçoit l'état sans le tenir ; l'état est dans `interface/tiroir.ts` et `interface/largeur.ts`, et `interface/Application.tsx` relie les deux.
+- La page de démonstration rend ce même composant, fermé puis ouvert, dans un aperçu : elle montre la structure décidée ici, pas l'état du tiroir, l'inertie ni le focus.
