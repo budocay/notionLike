@@ -4,6 +4,20 @@ import tseslint from "typescript-eslint";
 
 const COMPLEXITE_CYCLOMATIQUE_MAX = 10;
 const NOMBRES_NON_MAGIQUES = [-1, 0, 1, 2];
+const GLOBALES_INTERDITES_CONTRATS = [
+  "process",
+  "Buffer",
+  "global",
+  "require",
+  "module",
+  "__dirname",
+  "__filename",
+  "setImmediate",
+  "clearImmediate",
+].map((name) => ({
+  name,
+  message: "F-008-AC23 : packages/contrats/src reste importable dans un navigateur.",
+}));
 const GLOBALES_INTERDITES_DOCUMENT = [
   "window",
   "document",
@@ -198,5 +212,17 @@ export default tseslint.config(
       globals: { module: "writable", require: "readonly", __dirname: "readonly" },
     },
     rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    files: ["packages/contrats/src/**"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: GLOBALES_INTERDITES_CONTRATS,
+          checkGlobalObject: true,
+        },
+      ],
+    },
   },
 );

@@ -31,6 +31,47 @@ module.exports = {
       to: { path: "^apps/([^/]+)/", pathNot: "^apps/$1/" },
     },
     {
+      name: "contrats-zod-seulement",
+      severity: "error",
+      comment:
+        "F-008-AC23 : depuis packages/contrats/src, seuls un fichier de packages/contrats/src et le paquet zod sont importables.",
+      from: { path: "^packages/contrats/src/" },
+      to: { pathNot: ["^packages/contrats/src/", "(^|/)node_modules/zod/"] },
+    },
+    {
+      name: "db-liste-blanche",
+      severity: "error",
+      comment:
+        "F-008-AC23 : depuis packages/db/src, seuls packages/db/src, drizzle-orm, pg et les modules intégrés de Node sont importables.",
+      from: { path: "^packages/db/src/" },
+      to: {
+        pathNot: ["^packages/db/src/", "(^|/)node_modules/(drizzle-orm|pg)/"],
+        dependencyTypesNot: ["core"],
+      },
+    },
+    {
+      name: "serveur-liste-blanche",
+      severity: "error",
+      comment:
+        "ADR-0004 : depuis apps/server/src, seuls apps/server/src, l'entrée publique de db et de contrats, express, helmet, pino, zod et les modules intégrés de Node sont importables.",
+      from: { path: "^apps/server/src/" },
+      to: {
+        pathNot: [
+          "^apps/server/src/",
+          "^packages/(db|contrats)/src/index\\.ts$",
+          "(^|/)node_modules/(express|helmet|pino|zod)/",
+        ],
+        dependencyTypesNot: ["core"],
+      },
+    },
+    {
+      name: "db-reserve-au-serveur",
+      severity: "error",
+      comment: "F-008-AC23 : seuls packages/db et apps/server importent packages/db.",
+      from: { pathNot: "^(packages/db|apps/server)/" },
+      to: { path: "^packages/db/" },
+    },
+    {
       name: "document-sans-reseau-ni-base",
       severity: "error",
       comment: "Le modèle de document (CRDT) reste pur : ni base serveur ni contrats HTTP.",
