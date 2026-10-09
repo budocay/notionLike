@@ -1,0 +1,185 @@
+import { inspect } from "node:util";
+
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+
+import { ErreurBase, ouvrirBase } from "../src/index.ts";
+import { demarrerFauxPostgres, ouvrirBaseEmbarquee, portFerme } from "./essai.ts";
+
+const MOT_DE_PASSE = "mot-de-passe-de-test";
+const DELAI_MAXIMAL_DU_CAS_MS = 10_000;
+const ATTENTE_DE_LA_COUPURE_MS = 200;
+const ATTENTE_MAXIMALE_DE_LA_FERMETURE_MS = 1000;
+
+function lignesDe(resultat: unknown): unknown[] {
+  expect(resultat).toHaveProperty("rows");
+  return (resultat as { rows: unknown[] }).rows;
+}
+
+async function echecDe(promesse: Promise<unknown>): Promise<ErreurBase> {
+  const issue = await promesse.then(
+    () => "la promesse a abouti",
+    (erreur: unknown) => erreur,
+  );
+  expect(issue).toBeInstanceOf(ErreurBase);
+  return issue as ErreurBase;
+}
+
+function echecSynchroneDe(action: () => unknown): ErreurBase {
+  let issue: unknown = "aucune erreur levée";
+  try {
+    action();
+  } catch (erreur) {
+    issue = erreur;
+  }
+  expect(issue).toBeInstanceOf(ErreurBase);
+  return issue as ErreurBase;
+}
+
+function attendre(dureeMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, dureeMs);
+  });
+}
+
+describe("accès à une base embarquée", () => {
+  it("F-008-AC17 la sonde aboutit, l'accès Drizzle rend la ligne d'un select, la fermeture ferme", async () => {
+    const { base } = await ouvrirBaseEmbarquee();
+
+    await expect(base.sonder()).resolves.toBeUndefined();
+    const resultat = await base.db.execute(sql`select 41 + 1 as reponse`);
+    expect(lignesDe(resultat)).toEqual([{ reponse: 42 }]);
+
+    await expect(base.fermer()).resolves.toBeUndefined();
+    const erreur = await echecDe(base.sonder());
+    expect(erreur.code).toBe("base-injoignable");
+  });
+
+  it("F-008-AC18 deux bases embarquées ouvertes dans le même fichier ne partagent aucun état", async () => {
+    const premiere = await ouvrirBaseEmbarquee();
+    const seconde = await ouvrirBaseEmbarquee();
+    const chercher = sql`select to_regclass('essai_isolement')::text as table_trouvee`;
+
+    await premiere.base.db.execute(sql`create table essai_isolement (id integer primary key)`);
+
+    expect(lignesDe(await premiere.base.db.execute(chercher))).toEqual([
+      { table_trouvee: "essai_isolement" },
+    ]);
+    expect(lignesDe(await seconde.base.db.execute(chercher))).toEqual([{ table_trouvee: null }]);
+
+    await expect(premiere.base.fermer()).resolves.toBeUndefined();
+    await expect(seconde.base.fermer()).resolves.toBeUndefined();
+  });
+});
+
+describe("accès par le pilote pg", () => {
+  it("F-008-AC17 vers un port local fermé, la sonde lève base-injoignable sans l'URL ni le mot de passe", async () => {
+    const port = await portFerme();
+    const url = `postgres://essai:${MOT_DE_PASSE}@127.0.0.1:${port}/essai`;
+    const base = ouvrirBase(url);
+
+    const erreur = await echecDe(base.sonder());
+
+    expect(erreur.code).toBe("base-injoignable");
+    expect(erreur.message).not.toContain(url);
+    expect(erreur.message).not.toContain(MOT_DE_PASSE);
+    expect(erreur.message).not.toContain(String(port));
+    const chaineEntiere = inspect(erreur, { depth: Infinity });
+    expect(chaineEntiere).toContain("ECONNREFUSED");
+    expect(chaineEntiere).not.toContain(url);
+    expect(chaineEntiere).not.toContain(MOT_DE_PASSE);
+    await expect(base.fermer()).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ["un texte qui n'est pas une URL", "pas une url"],
+    ["une chaîne vide", ""],
+    ["un autre protocole", `mysql://essai:${MOT_DE_PASSE}@127.0.0.1:3306/essai`],
+    ["un protocole web", `https://essai:${MOT_DE_PASSE}@127.0.0.1/essai`],
+  ])("F-008-AC17 refus à l'ouverture, sans cause ni rappel de l'URL : %s", (_cas, url) => {
+    const erreur = echecSynchroneDe(() => ouvrirBase(url));
+
+    expect(erreur.code).toBe("url-de-connexion-invalide");
+    expect(erreur.cause).toBeUndefined();
+    expect(erreur.message).not.toContain(MOT_DE_PASSE);
+    expect(erreur.message).not.toContain("127.0.0.1");
+    expect(inspect(erreur, { depth: Infinity })).not.toContain(MOT_DE_PASSE);
+  });
+
+  it.each([["postgres:"], ["postgresql:"]])(
+    "F-008-AC17 le protocole %s est accepté et l'ouverture n'attend aucune connexion",
+    async (protocole) => {
+      const port = await portFerme();
+      const base = ouvrirBase(`${protocole}//essai:${MOT_DE_PASSE}@127.0.0.1:${port}/essai`);
+
+      expect(Object.keys(base).sort()).toEqual(["db", "fermer", "sonder"]);
+      await expect(base.fermer()).resolves.toBeUndefined();
+    },
+  );
+
+  it(
+    "F-008-AC17 F-008-AC3 un serveur qui se tait fait échouer la sonde par sonde-hors-delai en 1,9 à 3 secondes",
+    async () => {
+      const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+      const base = ouvrirBase(faux.url);
+      await expect(base.sonder()).resolves.toBeUndefined();
+
+      faux.seTaire();
+      const debut = performance.now();
+      const erreur = await echecDe(base.sonder());
+      const dureeMs = performance.now() - debut;
+
+      expect(erreur.code).toBe("sonde-hors-delai");
+      expect(erreur.cause).toBeUndefined();
+      expect(dureeMs).toBeGreaterThanOrEqual(1900);
+      expect(dureeMs).toBeLessThan(3000);
+      // La requête de la sonde est encore en vol : la réserve ne se ferme qu'une fois la connexion tombée.
+      await faux.arreter();
+      await expect(base.fermer()).resolves.toBeUndefined();
+    },
+    DELAI_MAXIMAL_DU_CAS_MS,
+  );
+
+  it(
+    "F-008-AC17 la fermeture aboutit alors que la requête d'une sonde hors délai est encore en vol",
+    async () => {
+      const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+      const base = ouvrirBase(faux.url);
+      await expect(base.sonder()).resolves.toBeUndefined();
+      faux.seTaire();
+      expect((await echecDe(base.sonder())).code).toBe("sonde-hors-delai");
+
+      const issue = await Promise.race([
+        base.fermer().then(() => "fermée"),
+        attendre(ATTENTE_MAXIMALE_DE_LA_FERMETURE_MS).then(() => "toujours ouverte"),
+      ]);
+
+      expect(issue).toBe("fermée");
+      await faux.arreter();
+    },
+    DELAI_MAXIMAL_DU_CAS_MS,
+  );
+
+  it("F-008-AC3 des connexions inactives coupées ne lèvent aucune exception non interceptée et la sonde suivante aboutit", async () => {
+    const nonInterceptees: unknown[] = [];
+    const noter = (erreur: unknown): void => {
+      nonInterceptees.push(erreur);
+    };
+    process.on("uncaughtException", noter);
+    const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+    const base = ouvrirBase(faux.url);
+    try {
+      await expect(base.sonder()).resolves.toBeUndefined();
+
+      faux.couper();
+      await attendre(ATTENTE_DE_LA_COUPURE_MS);
+
+      expect(nonInterceptees).toEqual([]);
+      await expect(base.sonder()).resolves.toBeUndefined();
+    } finally {
+      process.off("uncaughtException", noter);
+    }
+    await expect(base.fermer()).resolves.toBeUndefined();
+    await faux.arreter();
+  });
+});
