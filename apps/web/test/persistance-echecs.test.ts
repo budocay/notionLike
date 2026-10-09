@@ -130,9 +130,11 @@ describe("IndexedDB indisponible", () => {
     facade.creerPage("En mémoire");
     expect(facade.lire().racines.map((page) => page.titre)).toEqual(["En mémoire"]);
     await laisserIndexedDbTravailler();
-    persistance.fermer();
-    expect(persistance.lireEtat()).toBe("coupee");
     expect(abonne).not.toHaveBeenCalled();
+    // Depuis F-030, la coupure n'est plus définitive : seule la fermeture l'est (F-030-AC11).
+    persistance.fermer();
+    expect(persistance.lireEtat()).toBe("fermee");
+    expect(abonne).toHaveBeenCalledTimes(1);
   });
 
   it("F-002-AC16 (b) une ouverture refusée par une exception levée à la demande coupe la persistance sans créer de base", async () => {
@@ -233,8 +235,9 @@ describe("lecture ou écriture en échec après l'ouverture", () => {
       "Refusée par la base",
       "Après la coupure",
     ]);
+    // Depuis F-030, la coupure n'est plus définitive : seule la fermeture l'est (F-030-AC11).
     persistance.fermer();
-    expect(persistance.lireEtat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("fermee");
   });
 
   it("F-002-AC16 (c) une lecture en échec pendant la relecture coupe la persistance et laisse le document vide", async () => {

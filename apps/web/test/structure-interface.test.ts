@@ -216,7 +216,7 @@ const EMPREINTES_DE_F002: Readonly<Record<string, string>> = {
   "test/session-fermeture.test.tsx":
     "6fad8ba320ef520f7ed7fd119d20787831edb128263b878de89740f1622586ef",
   "test/persistance-echecs.test.ts":
-    "02427f89a08d64a95d374e02c792a3b9112d5f24a04995708aa2e0da0b016681",
+    "77d38c6d54cb1d697d8c7f11c3330f75a00d42167cbf41340cc93506b70538c6",
   "test/persistance-ouverture.test.ts":
     "48499fab89c86d1b6b77cb9d217005a986e73c794674d1accf27ff53b454f055",
   "test/persistance-validation.test.ts":

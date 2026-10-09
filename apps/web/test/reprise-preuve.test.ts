@@ -191,8 +191,11 @@ describe("preuve d'écriture à l'ouverture", () => {
     await laisserIndexedDbTravailler();
 
     expect(etats).toEqual(["coupee"]);
-    expect(vi.getTimerCount()).toBe(0);
     expect(connexions).toEqual([]);
+    // Seule reste armée l'attente de la tentative suivante (F-030-AC1).
+    expect(vi.getTimerCount()).toBe(1);
+    persistance.fermer();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("F-030-AC26 la lecture de la preuve ne part qu'après une transaction de barrière en lecture seule, ouverte sur le magasin par la connexion de l'instance, et finie", async () => {

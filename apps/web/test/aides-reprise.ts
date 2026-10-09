@@ -1,6 +1,7 @@
 // Aides des tests de F-030 : pannes du stockage que `fake-indexeddb` ne produit pas de lui-même,
 // et ce que la bibliothèque de persistance laisse voir d'elle sans être importée par les tests
 // (F-030-AC20 : seul `src/persistance/indexeddb.ts` l'importe).
+import { act } from "@testing-library/react";
 import { vi } from "vitest";
 import * as Y from "yjs";
 
@@ -116,4 +117,57 @@ export function etatRelu(lus: readonly number[][]): number[] {
   const doc = new Y.Doc();
   lus.forEach((enregistrement) => Y.applyUpdate(doc, Uint8Array.from(enregistrement)));
   return [...Y.encodeStateAsUpdate(doc)];
+}
+
+/** Instant, à l'horloge du test, de chaque demande d'ouverture d'une base faite après l'appel. */
+export function instantsDesOuvertures(): number[] {
+  const instants: number[] = [];
+  const dejaEspionnee = vi.isMockFunction(indexedDB.open);
+  const ouvrir = indexedDB.open.bind(indexedDB);
+  if (dejaEspionnee) {
+    const simulee = vi.mocked(indexedDB.open).getMockImplementation() ?? ouvrir;
+    vi.mocked(indexedDB.open).mockImplementation((nom, version) => {
+      instants.push(Date.now());
+      return simulee(nom, version);
+    });
+  } else {
+    vi.spyOn(indexedDB, "open").mockImplementation((nom, version) => {
+      instants.push(Date.now());
+      return ouvrir(nom, version);
+    });
+  }
+  return instants;
+}
+
+/** Horloge simulée, date comprise : le module mesure l'intervalle entre deux tentatives. */
+export function simulerLHorloge(): void {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+}
+
+// `process` de Node, sous Vitest ; le projet n'a pas ses types (pas de @types/node).
+declare const process: {
+  on(evenement: string, ecouteur: (raison: unknown) => void): void;
+  off(evenement: string, ecouteur: (raison: unknown) => void): void;
+};
+
+/**
+ * Erreurs non interceptées et rejets de promesse non gérés émis pendant le test, relevés jusqu'à
+ * l'appel de la fonction rendue, qui cesse l'écoute et rend ce qui a été relevé.
+ */
+export function ecouterLesErreursNonInterceptees(): () => unknown[] {
+  const relevees: unknown[] = [];
+  const noter = (raison: unknown): void => void relevees.push(raison);
+  process.on("unhandledRejection", noter);
+  process.on("uncaughtException", noter);
+  return () => {
+    process.off("unhandledRejection", noter);
+    process.off("uncaughtException", noter);
+    return relevees;
+  };
+}
+
+/** L'onglet passe à cet état de visibilité, et l'événement du navigateur est émis. */
+export function rendreLOnglet(visibilite: DocumentVisibilityState): void {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilite);
+  act(() => void document.dispatchEvent(new Event("visibilitychange")));
 }

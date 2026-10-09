@@ -3,19 +3,20 @@ import * as Y from "yjs";
 
 import { lireLaBase, porteTout, temoinDe } from "./lecture-brute.ts";
 import { type DesignationDocument, nomDeBase } from "./nom-de-base.ts";
+import { type EtatPersistance, Suivi, type Tentative } from "./suivi.ts";
 
-const DELAI_RELECTURE_MS = 10_000;
 const MAGASIN_DES_MISES_A_JOUR = "updates";
-
-export type EtatPersistance = "relecture" | "active" | "coupee" | "fermee";
 
 export interface Persistance {
   lireEtat(): EtatPersistance;
   abonner(rappel: () => void): () => void;
+  /** Définitif : plus aucune tentative, plus rien d'écrit. */
   fermer(): void;
+  /** Lance aussitôt une tentative de reprise si la persistance est coupée (F-030-AC2). */
+  reessayer(): void;
 }
 
-/** Ce qu'une étape d'ouverture reçoit pour avancer sous l'échéance commune. */
+/** Ce qu'une étape d'une tentative reçoit pour avancer sous l'échéance commune. */
 export interface Ouverture {
   attendue(): boolean;
   couper(): void;
@@ -27,126 +28,96 @@ export function ouvrirPersistance(doc: Y.Doc, designation: DesignationDocument):
   return ouvrirSousEcheance(doc, (ouverture) => ouverture.relire(nom));
 }
 
+// `commencer` est rappelé à chaque tentative : rien n'est retenu de l'issue des précédentes
+// (F-030-AC3). `indexedDB` absent se retente comme le reste : chaque demande d'ouverture du module
+// est faite sous garde, et l'absence de la globale y est une ouverture refusée parmi d'autres.
 export function ouvrirSousEcheance(
   doc: Y.Doc,
   commencer: (ouverture: Ouverture) => void,
 ): Persistance {
-  const suivi = new SuiviDeLEtat();
-  const couper = (): void => suivi.passerA("coupee");
-  if (typeof indexedDB === "undefined") {
-    couper();
-  } else {
-    suivi.armerLEcheance();
+  const suivi = new Suivi((tentative) =>
     commencer({
-      attendue: () => suivi.lireEtat() === "relecture",
-      couper,
-      relire: (nomDeLaBase) => relire(doc, nomDeLaBase, suivi),
-    });
-  }
+      attendue: tentative.attendue,
+      couper: tentative.echouer,
+      relire: (nomDeLaBase) => relire(doc, nomDeLaBase, tentative),
+    }),
+  );
+  suivi.lancer();
   return {
     lireEtat: suivi.lireEtat,
     abonner: suivi.abonner,
-    fermer: () => suivi.passerA("fermee"),
+    fermer: suivi.fermer,
+    reessayer: suivi.reessayer,
   };
 }
 
-class SuiviDeLEtat {
-  #etat: EtatPersistance = "relecture";
-  #echeance: ReturnType<typeof setTimeout> | undefined;
-  readonly #abonnes = new Set<() => void>();
-  readonly #arrets: (() => void)[] = [];
-
-  readonly lireEtat = (): EtatPersistance => this.#etat;
-
-  readonly abonner = (rappel: () => void): (() => void) => {
-    const notifier = (): void => rappel();
-    this.#abonnes.add(notifier);
-    return () => void this.#abonnes.delete(notifier);
-  };
-
-  armerLEcheance(): void {
-    this.#echeance = setTimeout(() => this.passerA("coupee"), DELAI_RELECTURE_MS);
-  }
-
-  aLArret(arreter: () => void): void {
-    this.#arrets.push(arreter);
-  }
-
-  // « coupee » et « fermee » sont définitifs jusqu'au rechargement (ADR-0008).
-  passerA(suivant: Exclude<EtatPersistance, "relecture">): void {
-    if (this.#etat === "coupee" || this.#etat === "fermee" || this.#etat === suivant) {
-      return;
-    }
-    this.#etat = suivant;
-    clearTimeout(this.#echeance);
-    if (suivant !== "active") {
-      this.#arrets.splice(0).forEach((arreter) => arreter());
-    }
-    [...this.#abonnes].forEach((notifier) => notifier());
-  }
-}
-
-function relire(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeLEtat): void {
-  if (suivi.lireEtat() !== "relecture") {
+function relire(doc: Y.Doc, nomDeLaBase: string, tentative: Tentative): void {
+  if (!tentative.attendue()) {
     return;
   }
   // y-indexeddb ne laisse attacher aucun traitement à l'échec de sa propre ouverture : il devient
   // un rejet non géré. La base est donc d'abord lue ici, sous nos gestionnaires, sans rien écrire.
   const abandonner = lireLaBase(nomDeLaBase, (lecture) => {
     if (lecture.issue === "echec" || lecture.issue === "sans-magasin") {
-      suivi.passerA("coupee");
-    } else if (suivi.lireEtat() === "relecture") {
-      brancherLaBibliotheque(doc, nomDeLaBase, suivi);
+      tentative.echouer();
+    } else if (tentative.attendue()) {
+      brancherLaBibliotheque(doc, nomDeLaBase, tentative);
     }
   });
-  suivi.aLArret(abandonner);
+  tentative.aLArret(abandonner);
 }
 
-function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, suivi: SuiviDeLEtat): void {
+// Une instance neuve à chaque tentative, sur le document resté en mémoire : elle écrit son état
+// complet dans la base, puis lui applique ce qu'elle y a lu (fusion, F-030-AC4).
+function brancherLaBibliotheque(doc: Y.Doc, nomDeLaBase: string, tentative: Tentative): void {
   const bibliotheque = new IndexeddbPersistence(nomDeLaBase, doc);
-  const couper = (): void => suivi.passerA("coupee");
   // destroy() désabonne la bibliothèque du document et lève son drapeau de destruction : elle
   // n'applique ni n'écrit plus rien, même si sa base s'ouvre plus tard. Sa promesse rejette quand
-  // l'ouverture a échoué : le rejet est absorbé ici, l'échec étant déjà traduit en « coupee ».
-  suivi.aLArret(() => void bibliotheque.destroy().catch(() => undefined));
+  // l'ouverture a échoué : le rejet est absorbé ici, l'échec étant déjà traduit en coupure.
+  tentative.aLArret(() => void bibliotheque.destroy().catch(() => undefined));
   // `synced` ne prouve pas l'écriture : la bibliothèque l'émet sans attendre que l'ajout de l'état
   // complet soit validé, donc même quand il échoue (F-030-AC26).
-  bibliotheque.once("synced", () => prouverLEcriture(bibliotheque, nomDeLaBase, suivi));
+  bibliotheque.once("synced", () => prouverLEcriture(bibliotheque, nomDeLaBase, tentative));
   bibliotheque._db.then((connexion) => {
-    garder(connexion, couper);
-    // Une persistance déjà coupée ou fermée a désabonné la bibliothèque : on ne la rebranche pas.
-    if (suivi.lireEtat() === "relecture") {
-      validerChaqueEcriture(bibliotheque, connexion);
+    garder(connexion, tentative.echouer);
+    // Une tentative abandonnée a désabonné la bibliothèque : on ne la rebranche pas.
+    if (tentative.attendue()) {
+      validerChaqueEcriture(bibliotheque, connexion, tentative.echouer);
     }
-  }, couper);
+  }, tentative.echouer);
 }
 
 // Preuve d'écriture (F-030-AC26). L'état retenu est celui que le document porte quand la
 // bibliothèque finit de lui appliquer l'état relu : ce qui est modifié ensuite est écrit par
 // l'instance et n'entre pas dans la comparaison. La première moitié de la preuve est tenue par
-// `garder` : un événement `error`, `abort` ou `close` de la connexion a déjà coupé la persistance.
+// `garder` : un événement `error`, `abort` ou `close` de la connexion a déjà fait échouer la
+// tentative.
 function prouverLEcriture(
   bibliotheque: IndexeddbPersistence,
   nomDeLaBase: string,
-  suivi: SuiviDeLEtat,
+  tentative: Tentative,
 ): void {
   const connexion = bibliotheque.db;
-  if (connexion === null || suivi.lireEtat() !== "relecture") {
+  if (connexion === null || !tentative.attendue()) {
     return;
   }
   const etatEnMemoire = Y.encodeStateAsUpdate(bibliotheque.doc);
   apresLesEcrituresEnCours(connexion, (ordonnee) => {
     if (!ordonnee) {
-      suivi.passerA("coupee");
+      tentative.echouer();
       return;
     }
     const abandonner = lireLaBase(nomDeLaBase, (lecture) => {
       const temoin = lecture.issue === "lue" ? temoinDe(lecture.enregistrements) : undefined;
       const prouvee = temoin !== undefined && porteTout(temoin, etatEnMemoire);
       temoin?.destroy();
-      suivi.passerA(prouvee ? "active" : "coupee");
+      if (prouvee) {
+        tentative.aboutir();
+      } else {
+        tentative.echouer();
+      }
     });
-    suivi.aLArret(abandonner);
+    tentative.aLArret(abandonner);
   });
 }
 
@@ -175,7 +146,13 @@ function apresLesEcrituresEnCours(
 // validée par `commit()` dès que la demande d'ajout est posée. La relecture et le compactage
 // ouvrent les leurs hors de cet appel et gardent la validation automatique, dont leurs étapes
 // successives ont besoin. `destroy()` désabonne le champ `_storeUpdate`, donc l'enveloppe.
-function validerChaqueEcriture(bibliotheque: IndexeddbPersistence, connexion: IDBDatabase): void {
+// Une exception de l'écriture (connexion fermée sans événement) n'atteint pas l'appelant de la
+// modification : c'est une panne, donc une coupure (F-030-AC18).
+function validerChaqueEcriture(
+  bibliotheque: IndexeddbPersistence,
+  connexion: IDBDatabase,
+  surPanne: () => void,
+): void {
   const ecrire = bibliotheque._storeUpdate;
   const ouvrir = connexion.transaction.bind(connexion);
   const ecrireEtValider = (miseAJour: Uint8Array, origine: unknown): void => {
@@ -187,6 +164,8 @@ function validerChaqueEcriture(bibliotheque: IndexeddbPersistence, connexion: ID
     };
     try {
       ecrire(miseAJour, origine);
+    } catch {
+      surPanne();
     } finally {
       Reflect.deleteProperty(connexion, "transaction");
     }
@@ -215,17 +194,18 @@ function valider(transaction: IDBTransaction): void {
 // y-indexeddb transforme l'erreur d'une demande de lecture ou d'écriture en rejet que personne ne
 // peut attacher. L'écouteur en phase de capture arrête l'événement avant la demande : la promesse
 // de la bibliothèque ne se règle jamais, aucun rejet n'est émis. `abort` couvre une transaction
-// annulée sans demande en erreur (quota), `close` une fermeture anormale de la connexion.
-function garder(connexion: IDBDatabase, couper: () => void): void {
+// annulée sans demande en erreur (quota), `close` une fermeture anormale de la connexion. Tant que
+// la tentative court, c'est son échec ; une fois la persistance active, c'est une coupure.
+function garder(connexion: IDBDatabase, surPanne: () => void): void {
   const enCapture = true;
   connexion.addEventListener(
     "error",
     (evenement) => {
       evenement.stopPropagation();
-      couper();
+      surPanne();
     },
     enCapture,
   );
-  connexion.addEventListener("abort", couper);
-  connexion.addEventListener("close", couper);
+  connexion.addEventListener("abort", surPanne);
+  connexion.addEventListener("close", surPanne);
 }

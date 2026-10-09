@@ -8,6 +8,7 @@ import {
 import * as Y from "yjs";
 
 import { ouvrirEspaceLocal, type Persistance } from "../persistance/index.ts";
+import { suivreLOnglet } from "./garde-onglet.ts";
 
 type OperationsEspace = Pick<DocumentEspace, "creerPage" | "renommerPage" | "mettreALaCorbeille">;
 
@@ -94,9 +95,10 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
   const diffusion = creerDiffusion();
   let ouverte: FacadeOuverte | undefined;
 
-  // Chacune de ces trois fermetures est sans effet la seconde fois.
+  // Chacune de ces quatre fermetures est sans effet la seconde fois.
   const fermerFacadeEtPersistance = (): void => {
     desabonnerDeLaPersistance();
+    cesserDeSuivreLOnglet();
     ouverte?.facade.fermer();
     persistance.fermer();
   };
@@ -104,9 +106,10 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
   const recalculer = ({ facade, operations }: FacadeOuverte): void => {
     const arborescence = lectureAdmise(facade);
     if (arborescence === undefined) {
-      // Définitif jusqu'au rechargement. Après une mise à jour reçue, la session est ici dans le
-      // rappel que la façade est en train d'appeler : elle la ferme pendant sa diffusion, ce que
-      // la façade permet sans rien lever, puis prévient ses propres abonnés (F-002-AC17, AC30).
+      // Définitif jusqu'au rechargement, et sans aucune tentative ultérieure (F-030-AC11). Après une
+      // mise à jour reçue, la session est ici dans le rappel que la façade est en train d'appeler :
+      // elle la ferme pendant sa diffusion, ce que la façade permet sans rien lever, puis prévient
+      // ses propres abonnés (F-002-AC17, AC30).
       fermerFacadeEtPersistance();
       diffusion.publier(VERSION_NON_PRISE_EN_CHARGE);
       return;
@@ -133,6 +136,7 @@ function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
   };
 
   const desabonnerDeLaPersistance = persistance.abonner(surPersistance);
+  const cesserDeSuivreLOnglet = suivreLOnglet(persistance);
   surPersistance();
 
   return {
