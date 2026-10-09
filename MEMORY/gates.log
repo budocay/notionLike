@@ -38,3 +38,5 @@
 2026-10-09T13:01:26Z | agent-architecte | F-004 | UNVERIFIED (la commande de gate a échoué (code 1), voir /private/tmp/claude-501/-Users-alexislina-dev-notionLike/3000bb40-4663-4bd2-8c20-d04ee04a8a33/scratchpad/revue-F-001/.agents/review/F-004/agent-architecte.md et /private/tmp/claude-501/-Users-alexislina-dev-notionLike/3000bb40-4663-4bd2-8c20-d04ee04a8a33/scratchpad/revue-F-001/.agents/review/F-004/agent-architecte.md.err) | 2fc8bae8471c
 2026-10-09T13:01:26Z | agent-securite | F-004 | UNVERIFIED (la commande de gate a échoué (code 1), voir /private/tmp/claude-501/-Users-alexislina-dev-notionLike/3000bb40-4663-4bd2-8c20-d04ee04a8a33/scratchpad/revue-F-001/.agents/review/F-004/agent-securite.md et /private/tmp/claude-501/-Users-alexislina-dev-notionLike/3000bb40-4663-4bd2-8c20-d04ee04a8a33/scratchpad/revue-F-001/.agents/review/F-004/agent-securite.md.err) | 2fc8bae8471c
 2026-10-09T13:01:26Z | agent-craft | F-004 | CRAFT GATE: PASS | 2fc8bae8471c
+2026-10-09T13:22:00Z | agent-securite | F-004 | SECURITY GATE: PASS | 2fc8bae8471c
+2026-10-09T13:24:51Z | agent-architecte | F-004 | ARCHITECTURE GATE: PASS | 2fc8bae8471c
