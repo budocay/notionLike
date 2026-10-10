@@ -1,6 +1,6 @@
 import { connect, type Socket } from "node:net";
 
-import { CHEMINS } from "@notionlike/contrats";
+import { CHEMINS, schemaReponseSante } from "@notionlike/contrats";
 import { ouvrirBase } from "@notionlike/db";
 import {
   demarrerFauxPostgres,
@@ -13,12 +13,12 @@ import {
   arreterLesServeurs,
   attendre,
   baseDontLaSonde,
+  DELAI_DES_TESTS_LENTS_MS,
+  enveloppeDe,
   lancerServeur,
   MOT_DE_PASSE_D_ESSAI,
   type ServeurDEssai,
 } from "./aides.ts";
-
-const DELAI_DES_TESTS_LENTS_MS = 15_000;
 
 let embarquee: BaseEmbarquee;
 
@@ -86,6 +86,7 @@ describe("arrêt du serveur", () => {
 
       expect(nouvelle).toBe("connexion refusée");
       expect(reponse.status).toBe(503);
+      expect((await enveloppeDe(reponse)).code).toBe("base-indisponible");
       expect(finDeLArret - rendue).toBeLessThan(1000);
     },
     DELAI_DES_TESTS_LENTS_MS,
@@ -99,8 +100,10 @@ describe("arrêt du serveur", () => {
     const debut = performance.now();
 
     await serveur.arreter();
+    const [enTetes = "", corps = ""] = (await fermee).split("\r\n\r\n");
 
-    expect(await fermee).toContain("HTTP/1.1 200 OK");
+    expect(enTetes.split("\r\n")[0]).toBe("HTTP/1.1 200 OK");
+    expect(schemaReponseSante.parse(JSON.parse(corps))).toEqual({ etat: "ok" });
     expect(performance.now() - debut).toBeLessThan(1000);
   });
 

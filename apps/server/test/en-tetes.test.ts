@@ -1,6 +1,6 @@
 import { connect } from "node:net";
 
-import { CHEMINS, schemaEnveloppeErreur } from "@notionlike/contrats";
+import { CHEMINS } from "@notionlike/contrats";
 import { ouvrirBase, type Base } from "@notionlike/db";
 import { ouvrirBaseEmbarquee, portFerme, type BaseEmbarquee } from "@notionlike/db/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -8,8 +8,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   arreterLesServeurs,
   baseDontLaSonde,
+  enveloppeDe,
   lancerServeur,
   MOT_DE_PASSE_D_ESSAI,
+  santeDe,
   type ServeurDEssai,
 } from "./aides.ts";
 
@@ -25,7 +27,7 @@ const obtenir =
   (url) =>
     fetch(`${url}${chemin}`, { headers: { "X-Request-Id": ID_DU_CLIENT } });
 
-const poster =
+const posterVersInconnu =
   (corps: string): Requete =>
   (url) =>
     fetch(`${url}/inconnu`, {
@@ -52,14 +54,20 @@ function baseEnPanne(): Base {
   return baseDontLaSonde(embarquee.base.db, () => Promise.reject(new Error("panne")));
 }
 
-// Les six statuts que le serveur de F-008 sait émettre, chacun avec la base qui le provoque.
-const REPONSES: readonly (readonly [number, () => Base, Requete])[] = [
-  [200, () => embarquee.base, obtenir(CHEMINS.sante)],
+type CasDeReponse = readonly [number, () => Base, Requete];
+
+// Les six statuts que le serveur de F-008 sait émettre, chacun avec la base qui le provoque : les
+// cinq erreurs, puis la réussite.
+const CAS_D_ERREUR: readonly CasDeReponse[] = [
   [404, () => embarquee.base, obtenir("/inconnu")],
-  [400, () => embarquee.base, poster('{"a":')],
-  [413, () => embarquee.base, poster(`{"a":"${"x".repeat(100_000)}"}`)],
+  [400, () => embarquee.base, posterVersInconnu('{"a":')],
+  [413, () => embarquee.base, posterVersInconnu(`{"a":"${"x".repeat(100_000)}"}`)],
   [500, baseEnPanne, obtenir(CHEMINS.pret)],
   [503, () => injoignable, obtenir(CHEMINS.pret)],
+];
+const CAS_DE_REPONSE: readonly CasDeReponse[] = [
+  [200, () => embarquee.base, obtenir(CHEMINS.sante)],
+  ...CAS_D_ERREUR,
 ];
 
 function texteDesEnTetes(reponse: Response): string {
@@ -82,7 +90,7 @@ function envoyerHorsHttp(serveur: ServeurDEssai): Promise<string> {
 }
 
 describe("identifiant de requête", () => {
-  it.each(REPONSES)(
+  it.each(CAS_D_ERREUR)(
     "F-008-AC4 une réponse %i porte un X-Request-Id généré par le serveur, repris dans l'enveloppe",
     async (statut, base, requete) => {
       const serveur = await lancerServeur(base());
@@ -90,29 +98,47 @@ describe("identifiant de requête", () => {
       const reponse = await requete(serveur.url);
       const suivante = await requete(serveur.url);
       const id = reponse.headers.get("x-request-id");
-      const corps = schemaEnveloppeErreur.safeParse(await reponse.json());
+      const idSuivant = suivante.headers.get("x-request-id");
 
       expect(reponse.status).toBe(statut);
       expect(id).toMatch(UUID);
-      expect(suivante.headers.get("x-request-id")).toMatch(UUID);
-      expect(suivante.headers.get("x-request-id")).not.toBe(id);
-      expect(corps.success).toBe(statut !== 200);
-      expect(corps.data?.idRequete).toBe(statut === 200 ? undefined : id);
+      expect(idSuivant).toMatch(UUID);
+      expect(idSuivant).not.toBe(id);
+      expect((await enveloppeDe(reponse)).idRequete).toBe(id);
+      expect((await enveloppeDe(suivante)).idRequete).toBe(idSuivant);
     },
   );
+
+  it("F-008-AC4 une réponse 200 porte un X-Request-Id généré par le serveur, et son corps reste celui du schéma de santé", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+
+    const reponse = await obtenir(CHEMINS.sante)(serveur.url);
+    const suivante = await obtenir(CHEMINS.sante)(serveur.url);
+    const id = reponse.headers.get("x-request-id");
+
+    expect(reponse.status).toBe(200);
+    expect(id).toMatch(UUID);
+    expect(suivante.headers.get("x-request-id")).toMatch(UUID);
+    expect(suivante.headers.get("x-request-id")).not.toBe(id);
+    expect(await santeDe(reponse)).toEqual({ etat: "ok" });
+    expect(await santeDe(suivante)).toEqual({ etat: "ok" });
+  });
 
   it("F-008-AC4 une connexion qui n'envoie pas du HTTP est fermée sans réponse, et le serveur continue de servir", async () => {
     const serveur = await lancerServeur(embarquee.base);
 
     const recu = await envoyerHorsHttp(serveur);
 
+    const ensuite = await fetch(`${serveur.url}${CHEMINS.sante}`);
+
     expect(recu).toBe("");
-    expect((await fetch(`${serveur.url}${CHEMINS.sante}`)).status).toBe(200);
+    expect(ensuite.status).toBe(200);
+    expect(await santeDe(ensuite)).toEqual({ etat: "ok" });
   });
 });
 
 describe("en-têtes de sécurité", () => {
-  it.each(REPONSES)(
+  it.each(CAS_DE_REPONSE)(
     "F-008-AC9 une réponse %i porte les trois en-têtes exigés et ne révèle aucune version",
     async (statut, base, requete) => {
       const serveur = await lancerServeur(base());

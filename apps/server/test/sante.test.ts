@@ -11,12 +11,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   arreterLesServeurs,
   baseDontLaSonde,
+  DELAI_DES_TESTS_LENTS_MS,
   enveloppeDe,
   lancerServeur,
   MOT_DE_PASSE_D_ESSAI,
+  santeDe,
 } from "./aides.ts";
-
-const DELAI_DES_TESTS_LENTS_MS = 15_000;
 
 let embarquee: BaseEmbarquee;
 
@@ -105,11 +105,13 @@ describe("GET /pret", () => {
       await faux.arreter();
 
       expect(pendant.status).toBe(200);
+      expect(await santeDe(pendant)).toEqual({ etat: "ok" });
       expect(pret.status).toBe(503);
       expect((await enveloppeDe(pret)).code).toBe("base-indisponible");
       expect(duree).toBeGreaterThanOrEqual(1900);
       expect(duree).toBeLessThan(3000);
       expect(apres.status).toBe(200);
+      expect(await santeDe(apres)).toEqual({ etat: "ok" });
     },
     DELAI_DES_TESTS_LENTS_MS,
   );

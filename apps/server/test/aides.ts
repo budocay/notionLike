@@ -1,8 +1,16 @@
 // Aides des tests HTTP : l'application est construite comme en production (configuration lue,
 // journal, application, écoute) et servie sur un port libre de 127.0.0.1 ; le journal est capturé.
+import { createServer, type AddressInfo } from "node:net";
 import { Writable } from "node:stream";
 
-import { schemaEnveloppeErreur, type EnveloppeErreur } from "@notionlike/contrats";
+import {
+  schemaEnveloppeErreur,
+  schemaReponsePret,
+  schemaReponseSante,
+  type EnveloppeErreur,
+  type ReponsePret,
+  type ReponseSante,
+} from "@notionlike/contrats";
 import type { Base } from "@notionlike/db";
 
 import { creerApplication } from "../src/application.ts";
@@ -12,6 +20,8 @@ import { demarrerServeur } from "../src/serveur.ts";
 
 export const MOT_DE_PASSE_D_ESSAI = "mot-de-passe-d-essai";
 export const URL_BASE_D_ESSAI = `postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.0.1:5432/essai`;
+
+export const DELAI_DES_TESTS_LENTS_MS = 15_000;
 
 const DELAI_ARRET_D_ESSAI_MS = 1000;
 
@@ -78,9 +88,41 @@ export function baseDontLaSonde(db: Base["db"], sonder: () => Promise<void>): Ba
   return { db, sonder, fermer: () => Promise.resolve() };
 }
 
-// F-008-AC22 : toute enveloppe lue par un test passe par le schéma publié.
+// F-008-AC22 : tout corps de réponse lu par un test passe par le schéma publié.
 export async function enveloppeDe(reponse: Response): Promise<EnveloppeErreur> {
   return schemaEnveloppeErreur.parse(await reponse.json());
+}
+
+export async function santeDe(reponse: Response): Promise<ReponseSante> {
+  return schemaReponseSante.parse(await reponse.json());
+}
+
+export async function pretDe(reponse: Response): Promise<ReponsePret> {
+  return schemaReponsePret.parse(await reponse.json());
+}
+
+export interface PortOccupe {
+  readonly port: number;
+  liberer(): Promise<void>;
+}
+
+// Un port de 127.0.0.1 tenu par un autre serveur, jusqu'à `liberer`.
+export function occuperUnPort(): Promise<PortOccupe> {
+  const occupant = createServer();
+  return new Promise((resolve, reject) => {
+    occupant.once("error", reject);
+    occupant.listen(0, "127.0.0.1", () => {
+      resolve({
+        port: (occupant.address() as AddressInfo).port,
+        liberer: () =>
+          new Promise((libere) => {
+            occupant.close(() => {
+              libere();
+            });
+          }),
+      });
+    });
+  });
 }
 
 export function attendre(dureeMs: number): Promise<void> {

@@ -4,10 +4,9 @@ import {
   ErreurConfiguration,
   lireConfiguration,
   MOT_DE_PASSE_FACTICE,
+  type Environnement,
 } from "../src/configuration.ts";
 import { URL_BASE_D_ESSAI } from "./aides.ts";
-
-type Environnement = Readonly<Record<string, string | undefined>>;
 
 const URL_FACTICE = `postgres://notionlike:${MOT_DE_PASSE_FACTICE}@127.0.0.1:5432/notionlike`;
 

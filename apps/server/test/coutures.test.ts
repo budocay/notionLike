@@ -6,10 +6,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const SRC = new URL("../src/", import.meta.url);
+const SERVEUR = new URL("../", import.meta.url);
 const PAQUETS = ["@notionlike/contrats", "@notionlike/db"] as const;
-// Le mot-clé des textes fautifs est composé ici : la couture de F-002 (apps/web) lit ce fichier
-// comme du texte et prendrait un import entier écrit en clair pour l'un des siens.
-const MOT_CLE = "import";
 
 type Entrees = Readonly<Record<string, readonly string[]>>;
 
@@ -20,7 +18,7 @@ function nomsImportes(texte: string, paquet: string): string[] {
     `import\\s+(?:type\\s+)?([^;]*?)\\s+from\\s+"${paquet}(/[^"]*)?"`,
     "g",
   );
-  const autres = new RegExp(`(?:import|require)\\s*\\(?\\s*"${paquet}(?:/[^"]*)?"`, "g");
+  const autres = new RegExp(`(?:import|require)\\s*\\(?\\s*"${paquet}(?:/[^"]*)?"\\)?`, "g");
   const noms = [...texte.matchAll(declaration)].flatMap(([, liste = "", sousChemin = ""]) =>
     /^\{[^}]*\}$/.test(liste) && sousChemin === ""
       ? liste
@@ -42,26 +40,28 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC22 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
       "enveloppe.ts": ["CodeErreur", "EnveloppeErreur"],
     });
   });
 
-  it("F-008-AC17 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       "application.ts": ["Base", "ErreurBase"],
+      "journal.ts": ["CodeErreurBase"],
       "main.ts": ["ouvrirBase"],
+      "service.ts": ["Base"],
     });
   });
 
   it.each(PAQUETS)("F-008-AC23 un import de %s hors de la liste de noms est vu", (paquet) => {
     const fautifs = new Map([
       ["nom-en-plus.ts", `import { type Base, ouvrirPilotePg } from "${paquet}";`],
-      ["espace-de-noms.ts", `${MOT_CLE} * as tout from "${paquet}";`],
+      ["espace-de-noms.ts", `import * as tout from "${paquet}";`],
       ["sous-chemin.ts", `import { ouvrirBaseEmbarquee } from "${paquet}/essai";`],
-      ["dynamique.ts", `const paquet = await ${MOT_CLE}("${paquet}");`],
+      ["dynamique.ts", `const paquet = await import("${paquet}");`],
       ["sans-import.ts", `export const texte = "${paquet}";`],
     ]);
 
@@ -69,7 +69,37 @@ describe("appelants des deux paquets", () => {
       "nom-en-plus.ts": ["Base", "ouvrirPilotePg"],
       "espace-de-noms.ts": [`* as tout depuis ${paquet}`],
       "sous-chemin.ts": [`{ ouvrirBaseEmbarquee } depuis ${paquet}/essai`],
-      "dynamique.ts": [`${MOT_CLE}("${paquet}"`],
+      "dynamique.ts": [`import("${paquet}")`],
     });
+  });
+});
+
+// Couture de F-008-AC25 : `demarrerServeur` rejette désormais quand l'écoute échoue, et `servir`
+// reçoit la base et le processus au lieu de les prendre lui-même. Leurs appelants sont énumérés :
+// `service.ts` change le rejet en phrase fixe (service.test.ts), `aides.ts` le laisse monter au
+// test qui lance le serveur ; `main.ts` et l'entrée d'essai donnent à `servir` ses dépendances.
+function appelantsDe(nom: string): string[] {
+  const appel = new RegExp(`(?<!function )\\b${nom}\\(`);
+  return readdirSync(SERVEUR, { recursive: true, encoding: "utf8" })
+    .filter((chemin) => /^(src|test)\/.*\.ts$/.test(chemin))
+    .filter((chemin) => appel.test(readFileSync(new URL(chemin, SERVEUR), "utf8")))
+    .sort();
+}
+
+describe("appelants de l'écoute et du service", () => {
+  it("F-008-AC25 les fichiers qui appellent demarrerServeur sont énumérés", () => {
+    expect(appelantsDe("demarrerServeur")).toEqual([
+      "src/service.ts",
+      "test/aides.ts",
+      "test/service.test.ts",
+    ]);
+  });
+
+  it("F-008-AC26 les fichiers qui appellent servir sont énumérés", () => {
+    expect(appelantsDe("servir")).toEqual([
+      "src/main.ts",
+      "test/essai/main-fermeture-en-echec.ts",
+      "test/service.test.ts",
+    ]);
   });
 });

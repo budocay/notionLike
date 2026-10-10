@@ -1,5 +1,6 @@
 // Journal du serveur (ADR-0004) : une ligne JSON par événement. Les champs de chaque ligne sont
 // une liste fermée écrite ici ; aucun objet de requête, de réponse ou d'erreur n'est journalisé.
+import type { CodeErreurBase } from "@notionlike/db";
 import { pino, type DestinationStream } from "pino";
 
 const PROFONDEUR_MAX_DES_CAUSES = 5;
@@ -14,7 +15,7 @@ interface LigneDeRequete {
 
 export interface Journal {
   requete(ligne: LigneDeRequete): void;
-  baseIndisponible(idRequete: string, code: string): void;
+  baseIndisponible(idRequete: string, code: CodeErreurBase): void;
   erreurInterne(idRequete: string, erreur: unknown): void;
   ecoute(hote: string, port: number): void;
   arret(hote: string, port: number): void;

@@ -19,7 +19,7 @@ interface Ecoute {
 // Le serveur cesse d'accepter ; une connexion est fermée dès qu'elle n'a plus de requête en cours
 // (sans la fermeture répétée, elle resterait ouverte le temps du maintien de connexion de Node) ;
 // ce qui reste à l'échéance est coupé.
-function fermer(serveur: Server, delaiArretMs: number): Promise<void> {
+function cesserDeServir(serveur: Server, delaiArretMs: number): Promise<void> {
   return new Promise((resolve) => {
     const inactives = setInterval(() => {
       serveur.closeIdleConnections();
@@ -43,11 +43,15 @@ export function demarrerServeur(options: OptionsDEcoute): Promise<Ecoute> {
   serveur.on("clientError", (_erreur, connexion) => {
     connexion.destroy();
   });
-  return new Promise((resolve) => {
+  // F-008-AC25 : un échec d'écoute (port déjà pris) rejette la promesse au lieu d'être émis sans
+  // écouteur. L'écoute établie, l'écouteur est retiré : il n'a plus de promesse à régler.
+  return new Promise((resolve, reject) => {
+    serveur.once("error", reject);
     serveur.listen(options.port, options.hote, () => {
+      serveur.off("error", reject);
       resolve({
         port: (serveur.address() as AddressInfo).port,
-        arreter: () => fermer(serveur, options.delaiArretMs),
+        arreter: () => cesserDeServir(serveur, options.delaiArretMs),
       });
     });
   });

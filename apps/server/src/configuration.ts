@@ -15,7 +15,7 @@ export interface Configuration {
   readonly originesAutorisees: readonly string[];
 }
 
-type Environnement = Readonly<Record<string, string | undefined>>;
+export type Environnement = Readonly<Record<string, string | undefined>>;
 
 export class ErreurConfiguration extends Error {
   readonly variables: readonly string[];
