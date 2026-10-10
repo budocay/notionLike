@@ -92,7 +92,7 @@ describe("commande de migration", () => {
   );
 
   it(
-    "F-008-AC15 contre le faux serveur la commande applique le dossier réel, ferme ses connexions et finit en code 0, sans rien écrire",
+    "F-008-AC15 contre le faux serveur, qui termine toute requête sans ligne, la commande ferme ses connexions et finit en code 0, sans rien écrire",
     async () => {
       const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
       const debut = performance.now();

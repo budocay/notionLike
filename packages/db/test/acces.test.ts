@@ -1,7 +1,8 @@
 import { inspect } from "node:util";
 
 import { sql } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
 
 import { ErreurBase, ouvrirBase } from "../src/index.ts";
 import { demarrerFauxPostgres, ouvrirBaseEmbarquee, portFerme } from "./essai.ts";
@@ -70,6 +71,16 @@ describe("accès à une base embarquée", () => {
     await expect(premiere.base.fermer()).resolves.toBeUndefined();
     await expect(seconde.base.fermer()).resolves.toBeUndefined();
   });
+
+  it("F-008-AC17 une seconde fermeture aboutit sans refermer le moteur embarqué", async () => {
+    const { base, pilote } = await ouvrirBaseEmbarquee();
+    const fermeturesDuPilote = vi.spyOn(pilote, "fermer");
+
+    await expect(base.fermer()).resolves.toBeUndefined();
+    await expect(base.fermer()).resolves.toBeUndefined();
+
+    expect(fermeturesDuPilote).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("accès par le pilote pg", () => {
@@ -106,6 +117,21 @@ describe("accès par le pilote pg", () => {
     expect(inspect(erreur, { depth: Infinity })).not.toContain(MOT_DE_PASSE);
   });
 
+  it("F-008-AC17 une seconde fermeture aboutit sans refermer la réserve du pilote pg", async () => {
+    const fermeturesDeLaReserve = vi.spyOn(Pool.prototype, "end");
+    const base = ouvrirBase(
+      `postgres://essai:${MOT_DE_PASSE}@127.0.0.1:${await portFerme()}/essai`,
+    );
+    try {
+      await expect(base.fermer()).resolves.toBeUndefined();
+      await expect(base.fermer()).resolves.toBeUndefined();
+
+      expect(fermeturesDeLaReserve).toHaveBeenCalledTimes(1);
+    } finally {
+      fermeturesDeLaReserve.mockRestore();
+    }
+  });
+
   it.each([["postgres:"], ["postgresql:"]])(
     "F-008-AC17 le protocole %s est accepté et l'ouverture n'attend aucune connexion",
     async (protocole) => {
@@ -133,7 +159,6 @@ describe("accès par le pilote pg", () => {
       expect(erreur.cause).toBeUndefined();
       expect(dureeMs).toBeGreaterThanOrEqual(1900);
       expect(dureeMs).toBeLessThan(3000);
-      // La requête de la sonde est encore en vol : la réserve ne se ferme qu'une fois la connexion tombée.
       await faux.arreter();
       await expect(base.fermer()).resolves.toBeUndefined();
     },

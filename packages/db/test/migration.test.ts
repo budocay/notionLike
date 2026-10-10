@@ -17,8 +17,8 @@ import {
   portFerme,
   type BaseEmbarquee,
 } from "./essai.ts";
+import { faitEntrer, fichiersDuWorkspace, RACINE } from "./fichiers-du-workspace.ts";
 
-const RACINE = fileURLToPath(new URL("../../..", import.meta.url));
 const JEUX_D_ESSAI = fileURLToPath(new URL("./migrations-essai", import.meta.url));
 const PREMIER_LANCEMENT = join(JEUX_D_ESSAI, "premier-lancement");
 const LANCEMENT_DEFAILLANT = join(JEUX_D_ESSAI, "lancement-defaillant");
@@ -345,52 +345,6 @@ const QUI_OUVRE_UNE_BASE_EMBARQUEE_ICI = [
   "packages/db/test/essai.ts",
   "packages/db/test/migration.test.ts",
 ];
-const DOSSIERS_IGNORES = ["node_modules", "dist", "coverage", "migrations-essai"];
-
-function fichiersTs(dossier: string): string[] {
-  return readdirSync(dossier, { withFileTypes: true }).flatMap((element) => {
-    const chemin = join(dossier, element.name);
-    if (element.isDirectory()) {
-      return DOSSIERS_IGNORES.includes(element.name) ? [] : fichiersTs(chemin);
-    }
-    return /\.tsx?$/.test(element.name) ? [chemin] : [];
-  });
-}
-
-function fichiersDuWorkspace(): Map<string, string> {
-  const chemins = ["apps", "packages"].flatMap((dossier) => fichiersTs(join(RACINE, dossier)));
-  return new Map(
-    chemins.map((chemin) => [
-      relative(RACINE, chemin).replaceAll("\\", "/"),
-      readFileSync(chemin, "utf8"),
-    ]),
-  );
-}
-
-// Les noms qu'un fichier fait entrer ou réexporte entre accolades, et la source de chacun.
-function nomsEntres(texte: string): { nom: string; source: string }[] {
-  const declarations = texte.matchAll(
-    /\b(?:import|export)\s+(?:type\s+)?\{([^}]*)\}\s*from\s*"([^"]+)"/g,
-  );
-  return [...declarations].flatMap(([, noms = "", source = ""]) =>
-    noms
-      .split(",")
-      .map(
-        (nom) =>
-          nom
-            .replace(/^\s*type\s+/, "")
-            .split(/\s+as\s+/)[0]
-            ?.trim() ?? "",
-      )
-      .filter((nom) => nom !== "")
-      .map((nom) => ({ nom, source })),
-  );
-}
-
-function faitEntrer(texte: string, nom: string): boolean {
-  return nomsEntres(texte).some((entre) => entre.nom === nom);
-}
-
 function importeLEntreeDEssai(texte: string): boolean {
   return /from\s*"(@notionlike\/db\/essai|[^"]*packages\/db\/test\/[^"]*)"/.test(texte);
 }

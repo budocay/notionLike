@@ -5,6 +5,9 @@ import { createServer, type AddressInfo, type Server, type Socket } from "node:n
 
 export interface FauxPostgres {
   readonly url: string;
+  // Types des messages reçus après le démarrage, toutes connexions confondues, dans l'ordre
+  // d'arrivée : `Q` pour une requête simple, `X` pour l'adieu du pilote.
+  readonly messagesRecus: readonly string[];
   seTaire(): void;
   couper(): void;
   arreter(): Promise<void>;
@@ -68,31 +71,50 @@ function cesserDEcouter(serveur: Server): Promise<void> {
   });
 }
 
-export async function demarrerFauxPostgres(motDePasse: string): Promise<FauxPostgres> {
-  const connexions = new Set<Socket>();
-  let muet = false;
+interface Reglages {
+  readonly neFermeJamais: boolean;
+  readonly messagesRecus: string[];
+  muet: boolean;
+}
 
-  function repondre(connexion: Socket, type: string): void {
-    if (type === "demarrage") {
-      connexion.write(Buffer.concat([AUTHENTIFICATION_ACCEPTEE, PRET_POUR_UNE_REQUETE]));
-    } else if (type === "Q" && !muet) {
-      connexion.write(Buffer.concat([REQUETE_FINIE_SANS_LIGNE, PRET_POUR_UNE_REQUETE]));
-    } else if (type === "X") {
-      connexion.end();
-    }
+function repondre(connexion: Socket, type: string, reglages: Reglages): void {
+  if (type === "demarrage") {
+    connexion.write(Buffer.concat([AUTHENTIFICATION_ACCEPTEE, PRET_POUR_UNE_REQUETE]));
+    return;
   }
+  reglages.messagesRecus.push(type);
+  if (type === "Q" && !reglages.muet) {
+    connexion.write(Buffer.concat([REQUETE_FINIE_SANS_LIGNE, PRET_POUR_UNE_REQUETE]));
+  } else if (type === "X" && !reglages.neFermeJamais) {
+    connexion.end();
+  }
+}
 
-  const serveur = createServer((connexion) => {
-    const echange: Echange = { tampon: Buffer.alloc(0), demarre: false };
+function servir(connexion: Socket, reglages: Reglages): void {
+  const echange: Echange = { tampon: Buffer.alloc(0), demarre: false };
+  connexion.on("error", () => connexion.destroy());
+  connexion.on("data", (morceau: Buffer) => {
+    echange.tampon = Buffer.concat([echange.tampon, morceau]);
+    for (let type = prochainMessage(echange); type; type = prochainMessage(echange)) {
+      repondre(connexion, type, reglages);
+    }
+  });
+}
+
+// `neFermeJamais` : le serveur garde son côté de chaque connexion ouvert après l'adieu du client
+// (`X`) et après la fin de son envoi, comme une base figée (conteneur en pause) ; le pilote `pg`
+// y attend sans fin la fermeture. Seuls `couper` et `arreter` ferment alors les connexions.
+export async function demarrerFauxPostgres(
+  motDePasse: string,
+  { neFermeJamais = false }: { readonly neFermeJamais?: boolean } = {},
+): Promise<FauxPostgres> {
+  const connexions = new Set<Socket>();
+  const reglages: Reglages = { neFermeJamais, messagesRecus: [], muet: false };
+
+  const serveur = createServer({ allowHalfOpen: neFermeJamais }, (connexion) => {
     connexions.add(connexion);
     connexion.on("close", () => connexions.delete(connexion));
-    connexion.on("error", () => connexion.destroy());
-    connexion.on("data", (morceau: Buffer) => {
-      echange.tampon = Buffer.concat([echange.tampon, morceau]);
-      for (let type = prochainMessage(echange); type; type = prochainMessage(echange)) {
-        repondre(connexion, type);
-      }
-    });
+    servir(connexion, reglages);
   });
 
   function couper(): void {
@@ -104,8 +126,9 @@ export async function demarrerFauxPostgres(motDePasse: string): Promise<FauxPost
   const port = await ecouter(serveur);
   return {
     url: `postgres://essai:${motDePasse}@${HOTE}:${port}/essai`,
+    messagesRecus: reglages.messagesRecus,
     seTaire: () => {
-      muet = true;
+      reglages.muet = true;
     },
     couper,
     arreter: () => {

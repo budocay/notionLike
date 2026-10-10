@@ -45,11 +45,14 @@ function exigerUneUrlPostgres(url: string): void {
 // en clair : il n'est ni journalisé ni transmis. La sonde suivante dit si la base répond.
 function ignorerLaConnexionInactivePerdue(): void {}
 
+// Aucun des deux pilotes n'accepte d'être fermé deux fois : la fermeture est mémorisée, et tout
+// appel suivant rend la même promesse sans rappeler le pilote.
 export function creerBase(pilote: Pilote): Base {
+  let fermeture: Promise<void> | undefined;
   return {
     db: pilote.db,
     sonder: () => sonderDansLeDelai(() => pilote.db.execute(sql`select 1`)),
-    fermer: () => pilote.fermer(),
+    fermer: () => (fermeture ??= pilote.fermer()),
   };
 }
 
