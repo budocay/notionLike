@@ -44,8 +44,10 @@ services:
     env_file:
       - path: ../apps/server/.env
         required: true
-    # Ces trois variables décrivent le conteneur et l'emportent sur le fichier chargé.
+    # Ces quatre variables l'emportent sur le fichier chargé : trois décrivent le conteneur, et
+    # NODE_ENV tient le mode de production même si apps/server/.env la fixe autrement (F-008-AC14).
     environment:
+      NODE_ENV: production
       HOTE: "0.0.0.0"
       PORT: "3000"
       URL_BASE_DONNEES: *url-de-la-base

@@ -291,7 +291,7 @@ describe("ordre de démarrage", () => {
 });
 
 describe("environnement du serveur", () => {
-  it("F-008-AC24 le serveur reçoit apps/server/.env en entier, obligatoire, et Compose ne fixe que trois variables", () => {
+  it("F-008-AC24 le serveur reçoit apps/server/.env en entier, obligatoire, et Compose ne fixe que quatre variables", () => {
     expect(constatsEnvironnementDuServeur(compose)).toEqual([]);
     expect(compose.services.serveur?.env_file).toEqual([
       { path: "../apps/server/.env", required: true },
@@ -306,7 +306,8 @@ describe("environnement du serveur", () => {
     ["doublé d'un second", "env_file: [../apps/server/.env, ./serveur.env]"],
   ])("F-008-AC24 refuse un fichier d'environnement %s", (_cas, fichier) => {
     const fautif = lireCompose(
-      `services:\n  serveur:\n    ${fichier}\n    environment: { HOTE: h, PORT: p, URL_BASE_DONNEES: u }\n`,
+      `services:\n  serveur:\n    ${fichier}\n` +
+        "    environment: { HOTE: h, NODE_ENV: production, PORT: p, URL_BASE_DONNEES: u }\n",
     );
 
     expect(constatsEnvironnementDuServeur(fautif)).toEqual([
@@ -317,11 +318,37 @@ describe("environnement du serveur", () => {
   it("F-008-AC24 refuse une variable du serveur recopiée dans le fichier Compose", () => {
     const fautif = lireCompose(
       "services:\n  serveur:\n    env_file: ../apps/server/.env\n" +
-        "    environment: { HOTE: h, PORT: p, URL_BASE_DONNEES: u, ORIGINES_AUTORISEES: o }\n",
+        "    environment: { HOTE: h, NODE_ENV: production, PORT: p, URL_BASE_DONNEES: u, ORIGINES_AUTORISEES: o }\n",
     );
 
     expect(constatsEnvironnementDuServeur(fautif)).toEqual([
       "serveur : variables recopiées une à une au lieu du fichier entier",
+    ]);
+  });
+
+  it("F-008-AC14 le fichier Compose fixe NODE_ENV à production pour le serveur, par-dessus le fichier chargé", () => {
+    const conforme = lireCompose(
+      "services:\n  serveur:\n    env_file: ../apps/server/.env\n" +
+        "    environment: { HOTE: h, NODE_ENV: production, PORT: p, URL_BASE_DONNEES: u }\n",
+    );
+
+    expect(constatsEnvironnementDuServeur(conforme)).toEqual([]);
+    expect(compose.services.serveur?.environment).toMatchObject({ NODE_ENV: "production" });
+  });
+
+  it.each([
+    ["absente", ""],
+    ["fixée à development", "NODE_ENV: development, "],
+    ["fixée à une chaîne vide", 'NODE_ENV: "", '],
+    ["laissée au poste", "NODE_ENV: '${NODE_ENV:-production}', "],
+  ])("F-008-AC14 refuse un serveur dont NODE_ENV est %s dans le fichier Compose", (_cas, cle) => {
+    const fautif = lireCompose(
+      "services:\n  serveur:\n    env_file: ../apps/server/.env\n" +
+        `    environment: { ${cle}HOTE: h, PORT: p, URL_BASE_DONNEES: u }\n`,
+    );
+
+    expect(constatsEnvironnementDuServeur(fautif)).toEqual([
+      "serveur : NODE_ENV n'est pas fixée à production dans environment",
     ]);
   });
 });

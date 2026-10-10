@@ -30,7 +30,9 @@ const ORDRE_DE_DEMARRAGE = [
 ];
 const COMMANDE_DE_MIGRATION = ["node", "packages/db/src/migrer.ts"];
 const VARIABLES_DE_LA_MIGRATION = ["URL_BASE_DONNEES"];
-const VARIABLES_FIXEES_AU_SERVEUR = ["HOTE", "PORT", "URL_BASE_DONNEES"];
+const VARIABLES_DU_CONTENEUR = ["HOTE", "PORT", "URL_BASE_DONNEES"];
+const VARIABLE_DU_MODE = "NODE_ENV";
+const MODE_ATTENDU = "production";
 const FICHIER_DU_SERVEUR = "../apps/server/.env";
 
 function dictionnaire(valeur: unknown): Dictionnaire {
@@ -212,7 +214,10 @@ function estLeFichierObligatoire(entree: unknown): boolean {
   return chemin === FICHIER_DU_SERVEUR && obligatoire !== false;
 }
 
-/** F-008-AC24 : le serveur reçoit apps/server/.env en entier ; Compose ne fixe que trois variables. */
+/**
+ * F-008-AC24 : le serveur reçoit apps/server/.env en entier ; Compose ne fixe que les trois variables
+ * du conteneur et, F-008-AC14, NODE_ENV à production, qui l'emporte sur une valeur du fichier chargé.
+ */
 export function constatsEnvironnementDuServeur(compose: FichierCompose): string[] {
   const serveur = service(compose, "serveur");
   const fichiers =
@@ -223,9 +228,15 @@ export function constatsEnvironnementDuServeur(compose: FichierCompose): string[
       `serveur : env_file n'est pas le seul fichier ${FICHIER_DU_SERVEUR}, obligatoire`,
     );
   }
-  const variables = Object.keys(dictionnaire(serveur.environment)).sort();
-  if (!isDeepStrictEqual(variables, VARIABLES_FIXEES_AU_SERVEUR)) {
+  const environnement = dictionnaire(serveur.environment);
+  const variables = Object.keys(environnement)
+    .filter((cle) => cle !== VARIABLE_DU_MODE)
+    .sort();
+  if (!isDeepStrictEqual(variables, VARIABLES_DU_CONTENEUR)) {
     constats.push("serveur : variables recopiées une à une au lieu du fichier entier");
+  }
+  if (environnement[VARIABLE_DU_MODE] !== MODE_ATTENDU) {
+    constats.push(`serveur : ${VARIABLE_DU_MODE} n'est pas fixée à production dans environment`);
   }
   return constats;
 }

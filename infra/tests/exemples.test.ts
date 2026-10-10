@@ -10,6 +10,7 @@ import {
 
 const racine = new URL("../../", import.meta.url);
 const lire = (chemin: string): string => readFileSync(new URL(chemin, racine), "utf8");
+const MOT_DE_PASSE_D_EXEMPLE = "factice-a-remplacer";
 
 describe("fichiers d'exemple", () => {
   it("F-008-AC13 infra/.env.example ne porte que le mot de passe factice, marqué comme tel", () => {
@@ -17,7 +18,7 @@ describe("fichiers d'exemple", () => {
 
     expect(constatsValeursFactices(exemple)).toEqual([]);
     expect(exemple.map(({ cle, valeur }) => [cle, valeur])).toEqual([
-      ["POSTGRES_PASSWORD", "factice-a-remplacer"],
+      ["POSTGRES_PASSWORD", MOT_DE_PASSE_D_EXEMPLE],
     ]);
   });
 
@@ -43,6 +44,33 @@ describe("fichiers d'exemple", () => {
 
     expect(constatsValeursFactices(fautif)).toEqual([
       "URL_BASE_DONNEES : la valeur n'est pas factice",
+      "URL_BASE_DONNEES : aucun commentaire ne la dit factice",
+    ]);
+  });
+
+  it("F-008-AC13 apps/server/.env.example ne porte qu'un secret, factice et marqué comme tel", () => {
+    const exemple = lireExemple(lire("apps/server/.env.example"));
+
+    expect(constatsValeursFactices(exemple)).toEqual([]);
+    expect(exemple.map(({ cle }) => cle)).toEqual([
+      "HOTE",
+      "PORT",
+      "URL_BASE_DONNEES",
+      "ORIGINES_AUTORISEES",
+    ]);
+  });
+
+  it("F-008-AC13 apps/server/.env.example avec un vrai secret, ou un secret que rien ne dit factice, est vu", () => {
+    const exemple = lire("apps/server/.env.example");
+    const vraiSecret = exemple.replace(MOT_DE_PASSE_D_EXEMPLE, "Xo4kPq81zZ");
+    const sansMarque = exemple.replace(/^# Mot de passe factice.*\n/m, "");
+
+    expect(vraiSecret).not.toBe(exemple);
+    expect(sansMarque).not.toBe(exemple);
+    expect(constatsValeursFactices(lireExemple(vraiSecret))).toEqual([
+      "URL_BASE_DONNEES : la valeur n'est pas factice",
+    ]);
+    expect(constatsValeursFactices(lireExemple(sansMarque))).toEqual([
       "URL_BASE_DONNEES : aucun commentaire ne la dit factice",
     ]);
   });
