@@ -18,7 +18,7 @@ export function Chargement({ texte }: { readonly texte: string }): ReactElement 
 }
 
 /** Commande offerte par un avertissement ; un bouton natif, activable à la souris comme au clavier. */
-export interface ActionDAvertissement {
+interface ActionDAvertissement {
   readonly libelle: string;
   readonly surActivation: () => void;
   readonly refBouton?: Ref<HTMLButtonElement> | undefined;

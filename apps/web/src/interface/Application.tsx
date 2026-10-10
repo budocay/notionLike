@@ -236,7 +236,7 @@ function useBarreLaterale(etat: EtatPret, route: Route, selection: Selection): B
 }
 
 function creerPage(moyens: Moyens, parent: IdPage | null): void {
-  const resultat = tenter(() => moyens.operations.creerPage("", { parent }));
+  const resultat = essayer(() => moyens.operations.creerPage("", { parent }));
   if (resultat.refus !== undefined) {
     moyens.setErreur(messageErreur(resultat.refus));
     return;
@@ -249,7 +249,7 @@ function creerPage(moyens: Moyens, parent: IdPage | null): void {
 
 /** Rend vrai si la saisie est close : le titre est accepté, ou la page n'existe plus. */
 function validerTitre(moyens: Moyens, idPage: IdPage, titre: string): boolean {
-  const { refus } = tenter(() => moyens.operations.renommerPage(idPage, titre));
+  const { refus } = essayer(() => moyens.operations.renommerPage(idPage, titre));
   if (refus === "titre-trop-long") {
     moyens.setSaisie({ idPage, erreur: messageErreur(refus) });
     return false;
@@ -267,7 +267,7 @@ function mettreALaCorbeille(
 ): boolean {
   const emporteLaPageCourante =
     idPageCourante !== undefined && estDansLaDescendance(page, idPageCourante);
-  const { refus } = tenter(() => moyens.operations.mettreALaCorbeille(page.id));
+  const { refus } = essayer(() => moyens.operations.mettreALaCorbeille(page.id));
   if (refus !== undefined) {
     moyens.setErreur(messageErreur(refus));
     return false;
@@ -279,11 +279,11 @@ function mettreALaCorbeille(
   return true;
 }
 
-type Tentative<T> =
+type Essai<T> =
   { readonly valeur: T; readonly refus: undefined } | { readonly refus: CodeErreurDocument };
 
 // Seule une erreur typée du document est rattrapée ; toute autre exception est un défaut.
-function tenter<T>(operation: () => T): Tentative<T> {
+function essayer<T>(operation: () => T): Essai<T> {
   try {
     return { valeur: operation(), refus: undefined };
   } catch (erreur) {

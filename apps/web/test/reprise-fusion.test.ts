@@ -14,7 +14,7 @@ import {
   laisserIndexedDbTravailler,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
   annulerLesProchainsAjouts,
@@ -135,7 +135,7 @@ describe("fusion à la reprise", () => {
 
   it("F-030-AC5 état relu ancêtre de l'état en mémoire : la reprise n'émet aucune mise à jour sur le document, son état encodé est le même octet pour octet, les enregistrements d'avant sont inchangés, et la base relue lit comme la mémoire", async () => {
     simulerLHorloge();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const onglet = await ouvrirUnOnglet();
     onglet.facade.creerPage("Enregistrée");
     await laisserIndexedDbTravailler();
@@ -260,7 +260,7 @@ describe("reprise rejouable", () => {
 
     await couperParUneEcritureEnEchec({ facade, persistance }, "Refusée après la reprise");
     expect(persistance.lireEtat()).toBe("coupee");
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     await reprendre(persistance);
     expect(connexions).toHaveLength(1);
     const { forceCloseDatabase } = await import("fake-indexeddb");

@@ -9,7 +9,7 @@ import {
   enregistrements,
   ESPACE_A,
   laisserIndexedDbTravailler,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
   annulerLesProchainsAjouts,
@@ -173,7 +173,7 @@ describe("preuve d'écriture à l'ouverture", () => {
 
   it("F-030-AC26 lecture brute de la preuve sans réponse : relecture jusqu'à 9 999 ms, coupure à 10 000 ms, l'échéance couvre la preuve", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const doc = documentRempli();
     const instances = instancesAyantRelu(doc);
     intercepterLesLecturesBrutes((rang, lire) =>

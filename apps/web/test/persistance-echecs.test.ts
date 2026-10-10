@@ -16,7 +16,7 @@ import {
   refuserLesOuverturesParUneErreur,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 
 const ESPACE = { type: "espace", idEspace: ESPACE_A } as const;
@@ -272,7 +272,7 @@ describe("lecture ou écriture en échec après l'ouverture", () => {
   });
 
   it("F-002-AC16 (c) une connexion fermée par le navigateur coupe la persistance, et l'écriture suivante ne lève pas", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const facade = ouvrirFacade(new Y.Doc());
     const persistance = ouvrirPersistance(facade.doc, ESPACE);
     await attendreEtat(persistance, "active");

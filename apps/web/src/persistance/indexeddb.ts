@@ -13,6 +13,14 @@ const MAGASINS_D_UNE_BASE_DE_DOCUMENT = [
   { nom: "custom" },
 ] as const;
 
+/**
+ * Persistance d'un document sur l'appareil. Deux points que les signatures ne disent pas :
+ * `aDesModificationsNonEnregistrees()` reste vrai après `fermer()` si une modification n'avait pas
+ * atteint la base, et c'est voulu : la session le lit après la fermeture par un refus de version
+ * pour dire que des modifications sont perdues (F-030-AC10). `soumettreLEtatRelu` n'a d'effet
+ * qu'appelé de façon synchrone après l'ouverture, avant que la première tentative ait relu la base :
+ * un état relu plus tôt n'est pas rejugé.
+ */
 export interface Persistance {
   lireEtat(): EtatPersistance;
   abonner(rappel: () => void): () => void;
@@ -20,7 +28,10 @@ export interface Persistance {
   fermer(): void;
   /** Lance aussitôt une tentative de reprise si la persistance est coupée (F-030-AC2). */
   reessayer(): void;
-  /** Vrai tant qu'une modification du document n'a pas atteint la base ; ses changements sont diffusés aux abonnés. */
+  /**
+   * Vrai tant qu'une modification du document n'a pas atteint la base ; ses changements sont
+   * diffusés aux abonnés. La fermeture ne le remet pas à faux.
+   */
   aDesModificationsNonEnregistrees(): boolean;
   /** Faux tant que la base n'a jamais été relue depuis l'ouverture ; son changement est diffusé. */
   aReluLaBase(): boolean;
@@ -29,7 +40,8 @@ export interface Persistance {
   /**
    * Avant chaque fusion, l'état relu de la base est soumis à ce juge dans un document témoin, que
    * rien n'affiche ni n'enregistre. S'il le refuse, la persistance se ferme sans avoir rien écrit
-   * dans la base ni rien appliqué au document (F-030-AC10).
+   * dans la base ni rien appliqué au document (F-030-AC10). À appeler de façon synchrone après
+   * l'ouverture : le juge posé plus tard ne voit pas l'état qu'une tentative a déjà relu.
    */
   soumettreLEtatRelu(juge: Juge): void;
 }

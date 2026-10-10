@@ -348,6 +348,28 @@ describe("base de l'appareil sans son magasin", () => {
     persistance.fermer();
   });
 
+  it("F-030-AC24 une base de l'appareil déjà à la version 2 et sans son magasin n'est pas réparée, la réparer demandant de dépasser la version connue : coupure retentée, base ni montée ni supprimée", async () => {
+    await new Promise<void>((resoudre) => {
+      const demande = indexedDB.open(APPAREIL, 2);
+      demande.onsuccess = () => {
+        demande.result.close();
+        resoudre();
+      };
+    });
+    simulerLHorloge();
+    const persistance = ouvrirEspaceLocal(new Y.Doc(), E2);
+    await attendreEtat(persistance, "coupee");
+    const instants = instantsDesOuvertures();
+    vi.advanceTimersToNextTimer();
+    await laisserIndexedDbTravailler();
+
+    expect(instants.length).toBeGreaterThan(0);
+    expect(persistance.lireEtat()).toBe("coupee");
+    expect(await decrireLaBase(APPAREIL)).toEqual({ version: 2, magasins: {} });
+    expect(await nomsDesBases()).toEqual([APPAREIL]);
+    persistance.fermer();
+  });
+
   it("F-030-AC24 pendant sa transaction, la connexion du module à la base de l'appareil se ferme à la réception de `versionchange` : la montée de version demandée par un autre onglet n'est jamais bloquée", async () => {
     const bloquee = vi.fn();
     const montee = new Promise<void>((resoudre) => {
@@ -395,7 +417,7 @@ describe("base de l'appareil sans son magasin", () => {
 describe("base de document sans son magasin", () => {
   const DOCUMENT = { type: "espace", idEspace: E1 } as const;
 
-  it("F-030-AC28 F-030-AC18 la persistance est tenue pour coupée sans instance de la bibliothèque, une modification faite avant la réparation ne lève pas, les deux magasins sont recréés tels que la bibliothèque les crée, la modification est relue de la base ; l'ouverture suivante ne répare plus rien", async () => {
+  it("F-030-AC28 F-030-AC18 F-030-AC20 la persistance est tenue pour coupée sans instance de la bibliothèque, une modification faite avant la réparation ne lève pas, les deux magasins sont recréés tels que la bibliothèque les crée, la modification est relue de la base ; l'ouverture suivante ne répare plus rien", async () => {
     await creerUneBase(baseDe(E1), ["autre"]);
     await creerReference();
     const relever = ecouterLesErreursNonInterceptees();

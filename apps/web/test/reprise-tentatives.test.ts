@@ -14,9 +14,10 @@ import {
   laisserIndexedDbTravailler,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import { etatsSuccessifs, instantsDesOuvertures, simulerLHorloge } from "./aides-reprise.ts";
+import { desarmerLesMinuteries } from "./preparation.ts";
 
 const ESPACE = { type: "espace", idEspace: ESPACE_A } as const;
 const BASE = `notionlike:espace:${ESPACE_A}`;
@@ -62,7 +63,7 @@ describe("cadence des tentatives", () => {
     ]);
 
     vi.restoreAllMocks();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const apresRetablissement = instantsDesOuvertures();
     vi.advanceTimersByTime(60_000);
     await attendreEtat(persistance, "active");
@@ -303,17 +304,14 @@ describe("persistance fermée", () => {
 });
 
 describe("minuteries des tests", () => {
-  const temoin: { arrivee?: boolean } = {};
+  it("F-030-AC11 une minuterie réelle armée par un test est désarmée par la fonction que la préparation des tests appelle après chacun : elle n'arrive jamais, une minuterie armée ensuite arrive", async () => {
+    const arrivees: string[] = [];
+    setTimeout(() => arrivees.push("laissée par le test"), 20);
 
-  it("une minuterie réelle armée par un test et laissée là…", () => {
-    setTimeout(() => {
-      temoin.arrivee = true;
-    }, 20);
-    expect(temoin.arrivee).toBeUndefined();
-  });
-
-  it("… est désarmée à la fin de ce test : elle n'arrive jamais dans le suivant (préparation des tests, F-030-AC11)", async () => {
+    desarmerLesMinuteries();
+    setTimeout(() => arrivees.push("armée après"), 20);
     await new Promise((resoudre) => setTimeout(resoudre, 80));
-    expect(temoin.arrivee).toBeUndefined();
+
+    expect(arrivees).toEqual(["armée après"]);
   });
 });

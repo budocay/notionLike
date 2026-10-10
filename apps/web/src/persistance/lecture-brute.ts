@@ -5,7 +5,7 @@ import * as Y from "yjs";
 
 const MAGASIN_DES_MISES_A_JOUR = "updates";
 
-export type LectureBrute =
+type LectureBrute =
   | { readonly issue: "echec" }
   | { readonly issue: "absente" }
   | { readonly issue: "sans-magasin"; readonly version: number }
@@ -19,13 +19,13 @@ const ECHEC: LectureBrute = { issue: "echec" };
  */
 export function lireLaBase(nom: string, conclure: (lecture: LectureBrute) => void): () => void {
   let connexion: IDBDatabase | undefined;
-  let close = false;
+  let conclue = false;
   const clore = (): void => {
-    close = true;
+    conclue = true;
     connexion?.close();
   };
   const rendre = (lecture: LectureBrute): void => {
-    if (!close) {
+    if (!conclue) {
       clore();
       conclure(lecture);
     }
@@ -44,7 +44,7 @@ export function lireLaBase(nom: string, conclure: (lecture: LectureBrute) => voi
   };
   demande.onsuccess = () => {
     connexion = demande.result;
-    if (close) {
+    if (conclue) {
       connexion.close();
     } else {
       lireLeMagasin(connexion, rendre);

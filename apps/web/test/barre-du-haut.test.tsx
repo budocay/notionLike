@@ -16,7 +16,7 @@ import {
   fermerDeForce,
   refuserLesOuverturesParUneErreur,
   refuserLesOuverturesParUneException,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 
 const ECHEC = "Non enregistré sur cet appareil";
@@ -367,7 +367,7 @@ describe("zone d'état de l'enregistrement local", () => {
   });
 
   it("F-004-AC40 F-030-AC29 coupure en cours de saisie (connexion fermée par le navigateur) : la zone change une seule fois, de l'affirmation au texte d'échec, et n'est pas réécrite à chaque frappe", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { utilisateur } = await ouvrirCoquille();
     await utilisateur.click(screen.getByRole("button", { name: "Nouvelle page" }));
     const champ = await screen.findByRole("textbox", { name: "Titre de la page" });

@@ -1,12 +1,12 @@
 // Réparation d'une base à laquelle il manque un magasin (F-030-AC24, AC28) : une montée de
 // version, seul moyen qu'IndexedDB offre d'ajouter un magasin sans supprimer la base. Rien de ce
 // que la base porte d'autre n'est touché.
-export interface MagasinAttendu {
+interface MagasinAttendu {
   readonly nom: string;
   readonly options?: IDBObjectStoreParameters;
 }
 
-export interface Reparation {
+interface Reparation {
   readonly nomDeLaBase: string;
   /** Version que la base a aujourd'hui : elle est montée d'un cran. */
   readonly version: number;

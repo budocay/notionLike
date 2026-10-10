@@ -91,7 +91,7 @@ export function instancesAyantRelu(doc: Y.Doc): { readonly synced: boolean }[] {
   return instances;
 }
 
-type LectureBrute = () => IDBRequest<unknown[]>;
+type LectureDuMagasin = () => IDBRequest<unknown[]>;
 
 /**
  * Appelle `intercepter` à chaque lecture brute du magasin d'une base de document (un `getAll` sans
@@ -99,7 +99,7 @@ type LectureBrute = () => IDBRequest<unknown[]>;
  * lecture réelle. Ce que `intercepter` rend est la demande que le module reçoit.
  */
 export function intercepterLesLecturesBrutes(
-  intercepter: (rang: number, lire: LectureBrute) => IDBRequest<unknown[]>,
+  intercepter: (rang: number, lire: LectureDuMagasin) => IDBRequest<unknown[]>,
 ): void {
   const toutLire = IDBObjectStore.prototype.getAll;
   let rang = 0;

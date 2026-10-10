@@ -13,7 +13,12 @@ import {
   rendreApplication,
 } from "./aides-coquille.tsx";
 import { ouvrirFacade } from "./aides-facade.ts";
-import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
+import {
+  ecrireLaVersion,
+  ecrireUneEntreeDePage,
+  porteUneEntreeDePage,
+  VERSION_NON_PRISE_EN_CHARGE,
+} from "./aides-format.ts";
 import {
   attendreEtat,
   enregistrements,
@@ -22,7 +27,7 @@ import {
   laisserIndexedDbTravailler,
   nomsDesBases,
   refuserLesOuverturesParUneException,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
   etatsSuccessifs,
@@ -68,7 +73,7 @@ function creerUnePage(session: ReturnType<typeof rendreApplication>["session"], 
 
 describe("version non prise en charge découverte à la reprise", () => {
   it("F-030-AC10 base passée à la version 2 pendant la coupure d'un document de version 1 modifié en mémoire : écran bloquant qui dit les modifications non enregistrées, persistance fermée, aucun enregistrement ajouté à la base, octet pour octet, plus aucune tentative", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { session } = await ouvrirCoquille();
     creerUnePage(session, "Enregistrée par cette version");
     await laisserIndexedDbTravailler();
@@ -122,9 +127,34 @@ describe("version non prise en charge découverte à la reprise", () => {
       phase: "version-non-prise-en-charge",
       modificationsPerdues: false,
     });
+    expect(screen.getByRole("alert").textContent).toContain("Mise à jour nécessaire");
     expect(screen.getByRole("alert").textContent).not.toContain(MODIFICATIONS_PERDUES);
     expect(await enregistrements(base)).toEqual(avant);
     expect([...Y.encodeStateAsUpdate(docDe(session))]).toEqual([0, 0]);
+  });
+
+  it("F-030-AC10 seul le refus de version est un refus : une base de version admise dont une entrée de page est mal formée est admise, fusionnée à la mémoire, et la persistance devient active", async () => {
+    const CLE_FORGEE = "pas-un-identifiant-de-page";
+    const premiere = await ouvrirCoquille();
+    await laisserIndexedDbTravailler();
+    const base = await baseDeLEspaceLocal();
+    fermerLOnglet(premiere);
+    const forge = new Y.Doc();
+    const ecriture = ouvrirPersistance(forge, {
+      type: "espace",
+      idEspace: base.slice(PREFIXE.length),
+    });
+    await attendreEtat(ecriture, "active");
+    ecrireUneEntreeDePage(forge, CLE_FORGEE);
+    await laisserIndexedDbTravailler();
+    ecriture.fermer();
+    await laisserIndexedDbTravailler();
+
+    const { session } = await ouvrirCoquille();
+
+    expect(session.lireEtat()).toMatchObject({ phase: "pret", enregistre: true });
+    expect(porteUneEntreeDePage(docDe(session), CLE_FORGEE)).toBe(true);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 
@@ -181,11 +211,12 @@ describe("état relu soumis avant la fusion", () => {
     await attendreEtat(persistance, "active");
     expect(juge).not.toHaveBeenCalled();
 
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     persistance.reessayer();
-    expect(connexions).toEqual([]);
     facade.creerPage("Écrite avant la coupure");
     await laisserIndexedDbTravailler();
+    // Une connexion n'entre dans la liste qu'une fois ouverte : constaté après l'attente.
+    expect(connexions).toEqual([]);
     persistance.fermer();
     const seconde = ouvrirPersistance(facade.doc, ESPACE);
     seconde.soumettreLEtatRelu(juge);
@@ -201,7 +232,7 @@ describe("modifications non enregistrées", () => {
 
   it("F-030-AC10 F-030-AC16 une persistance dit porter des modifications non enregistrées dès qu'une mise à jour arrive hors de l'état actif, ou qu'une écriture échoue ; plus après la preuve d'écriture ; ce que la reprise relit de la base n'en est pas une", async () => {
     simulerLHorloge();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const facade = ouvrirFacade(new Y.Doc());
     const persistance = ouvrirPersistance(facade.doc, ESPACE);
     const diffusions = vi.fn();
@@ -235,7 +266,7 @@ describe("modifications non enregistrées", () => {
     persistance.fermer();
   });
 
-  it("F-030-AC16 ce qu'une reprise relit de la base et applique à la mémoire n'est pas une modification non enregistrée", async () => {
+  it("F-030-AC16 F-030-AC20 ce qu'une reprise relit de la base et applique à la mémoire n'est pas une modification non enregistrée", async () => {
     const autre = ouvrirFacade(new Y.Doc());
     const premiere = ouvrirPersistance(autre.doc, ESPACE);
     await attendreEtat(premiere, "active");

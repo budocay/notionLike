@@ -20,7 +20,7 @@ import {
   type Persistance,
 } from "../src/persistance/index.ts";
 import { rendreApplication } from "./aides-coquille.tsx";
-import { lire } from "./aides-disque.ts";
+import { lire, lireDossier } from "./aides-disque.ts";
 import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
 import { type Aretes, graphe } from "./aides-graphe.ts";
 import {
@@ -29,7 +29,7 @@ import {
   fermerDeForce,
   laisserIndexedDbTravailler,
   nomsDesBases,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import { simulerLHorloge } from "./aides-reprise.ts";
 
@@ -62,13 +62,47 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/structure.test.ts",
 ];
 
-// Les fichiers de src/ qui lisent l'état de la session, dont dépend ce que l'écran dit de
-// l'enregistrement : la façade du document et la persistance n'y sont lues par personne d'autre.
+// Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,
+// `basesNonRattachees`, `reessayer`, `modificationsPerdues`) : ceux de src/, dont dépend ce que
+// l'écran dit de l'enregistrement, puis les aides et les tests.
 const LECTEURS_DE_L_ETAT_DE_LA_SESSION: Readonly<Record<string, string>> = {
   "src/interface/Application.tsx": "choisit l'écran selon la phase",
   [ECRAN_D_ENREGISTREMENT]: "avertissement et zone d'état, selon `enregistre` (F-030-AC29)",
   "src/main.tsx": "démarre la session",
 };
+const LECTEURS_DE_L_ETAT_DE_LA_SESSION_DANS_LES_TESTS: readonly string[] = [
+  "test/aides-coquille.tsx",
+  "test/aides-facade.ts",
+  "test/coutures-f004.test.tsx",
+  "test/depli.test.tsx",
+  "test/reprise-coutures.test.tsx",
+  "test/reprise-ecran.test.tsx",
+  "test/session-fermeture.test.tsx",
+  "test/titre-affiche.test.tsx",
+];
+
+// Composants de présentation dont F-030 a changé la signature, et les fichiers qui les rendent :
+// `Avertissement` reçoit des phrases et une action au lieu d'enfants, `ZoneEtat` une affirmation et
+// une annonce, `EcranBloquant` une précision. Le compilateur vérifie chaque appel ; cette liste dit
+// où ils sont.
+const APPELANTS_DES_COMPOSANTS_CHANGES: Readonly<Record<string, readonly string[]>> = {
+  Avertissement: ["src/demonstration/PageDemonstration.tsx", ECRAN_D_ENREGISTREMENT],
+  EcranBloquant: ["src/demonstration/PageDemonstration.tsx", "src/interface/Application.tsx"],
+  ZoneEtat: [
+    "src/demonstration/PageDemonstration.tsx",
+    ECRAN_D_ENREGISTREMENT,
+    "test/composants.test.tsx",
+  ],
+};
+
+/** Fichiers JSX qui rendent ce composant. */
+function appelantsDuComposant(fichiers: ReadonlyMap<string, string>, composant: string): string[] {
+  const rendu = new RegExp(`<${composant}[\\s/>]`);
+  return [...fichiers]
+    .filter(([chemin, texte]) => chemin.endsWith(".tsx") && rendu.test(texte))
+    .map(([chemin]) => chemin)
+    .sort();
+}
 
 /** Modules qui importent directement le module donné. */
 function importateurs(aretes: Aretes, module: string): string[] {
@@ -89,9 +123,14 @@ const MEMBRES_DE_LA_PERSISTANCE = [
   "soumettreLEtatRelu",
 ] as const;
 
-/** Membres de l'interface que ce texte appelle sur un objet. */
+/**
+ * Membres de l'interface que ce texte appelle sur une persistance (`persistance.x`,
+ * `this.#persistance.x`). Un membre du même nom appelé sur un autre objet (la façade, la session,
+ * une diffusion) ne compte pas.
+ */
 function membresAppeles(texte: string): string[] {
-  return MEMBRES_DE_LA_PERSISTANCE.filter((membre) => texte.includes(`.${membre}`));
+  const appeles = new Set([...texte.matchAll(/\bpersistance\.(\w+)/g)].map(([, membre]) => membre));
+  return MEMBRES_DE_LA_PERSISTANCE.filter((membre) => appeles.has(membre));
 }
 
 let aretes: Aretes;
@@ -118,10 +157,29 @@ describe("appelants de l'interface de persistance", () => {
     }
   });
 
-  it("F-030-AC19 F-030-AC29 les lecteurs de l'état de la session dans src/ sont la coquille, l'écran d'enregistrement et l'entrée, et rien d'autre", () => {
-    expect(importateurs(aretes, SESSION).filter((module) => module.startsWith("src/"))).toEqual(
+  it("F-030-AC19 F-030-AC29 les lecteurs de l'état de la session dans src/ sont la coquille, l'écran d'enregistrement et l'entrée, et rien d'autre ; dans test/, les aides et les tests de la liste", () => {
+    const lecteurs = importateurs(aretes, SESSION);
+    expect(lecteurs.filter((module) => module.startsWith("src/"))).toEqual(
       Object.keys(LECTEURS_DE_L_ETAT_DE_LA_SESSION).sort(),
     );
+    expect(lecteurs.filter((module) => !module.startsWith("src/"))).toEqual(
+      LECTEURS_DE_L_ETAT_DE_LA_SESSION_DANS_LES_TESTS,
+    );
+  });
+
+  it("F-030-AC19 les composants de présentation dont la signature a changé ne sont rendus que par les fichiers de la liste ; un composant du même préfixe n'est pas compté, un fichier sans JSX non plus", () => {
+    const fichiers = new Map([...lireDossier("src"), ...lireDossier("test")]);
+    for (const [composant, appelants] of Object.entries(APPELANTS_DES_COMPOSANTS_CHANGES)) {
+      expect(appelantsDuComposant(fichiers, composant), composant).toEqual([...appelants].sort());
+    }
+
+    const essai = new Map([
+      ["src/a.tsx", "<Temoin phrases={[]} />"],
+      ["src/b.tsx", "<Temoin>\n  enfant\n</Temoin>"],
+      ["src/c.tsx", "<TemoinAutre />"],
+      ["test/d.test.ts", 'const texte = "<Temoin />";'],
+    ]);
+    expect(appelantsDuComposant(essai, "Temoin")).toEqual(["src/a.tsx", "src/b.tsx"]);
   });
 
   it("F-030-AC19 l'énumération voit un importateur de plus, et un importateur qui manque", () => {
@@ -159,6 +217,14 @@ describe("appelants de l'interface de persistance", () => {
       [GARDE_D_ONGLET]: ["aDesModificationsNonEnregistrees", "abonner", "reessayer"],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
+    expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
+      "abonner",
+      "lireEtat",
+    ]);
+    // Homonymes : la façade, une diffusion et la session portent des membres du même nom.
+    expect(
+      membresAppeles("facade.fermer(); this.#diffusion.abonner(x); session.lireEtat();"),
+    ).toEqual([]);
   });
 
   it("F-030-AC19 les signatures de ouvrirPersistance et de ouvrirEspaceLocal sont celles de F-002, et l'état fermé reste définitif", async () => {
@@ -193,7 +259,7 @@ describe("chaque appelant de production traite la reprise", () => {
   }
 
   it("F-030-AC19 la session traite chacun des quatre états de la persistance, dont le retour de la coupure à l'état actif : ses abonnés sont prévenus à chaque passage", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { session } = rendreApplication();
     const publies = [publie(session.lireEtat())];
     session.abonner(() => publies.push(publie(session.lireEtat())));
@@ -218,7 +284,6 @@ describe("chaque appelant de production traite la reprise", () => {
       PHASE_PAR_ETAT.active,
       PHASE_PAR_ETAT.fermee,
     ]);
-    expect(Object.keys(PHASE_PAR_ETAT)).toHaveLength(4);
   });
 
   // Une persistance tenue par le test : le type impose chacun de ses membres.
@@ -269,6 +334,24 @@ describe("chaque appelant de production traite la reprise", () => {
     expect(persistance.reessayer).not.toHaveBeenCalled();
   });
 
+  it("F-030-AC16 deux persistances suivies dans le même onglet : la reprise de l'une ne retire pas la confirmation que l'autre demande encore, ni l'arrêt de sa garde ; la confirmation tombe quand plus aucune ne porte de modification", () => {
+    const [une, autre] = [persistanceSimulee(), persistanceSimulee()];
+    const cesserLUne = suivreLOnglet(une);
+    const cesserLAutre = suivreLOnglet(autre);
+    une.regler(true);
+    autre.regler(true);
+    expect(quitterEstRetenu()).toBe(true);
+
+    une.regler(false);
+    expect(quitterEstRetenu()).toBe(true);
+    cesserLUne();
+    expect(quitterEstRetenu()).toBe(true);
+
+    autre.regler(false);
+    expect(quitterEstRetenu()).toBe(false);
+    cesserLAutre();
+  });
+
   it("F-030-AC19 F-030-AC29 l'écran d'enregistrement traite la reprise : de « Non enregistré » avec l'avertissement à « Enregistré sur cet appareil » sans avertissement, et l'inverse", () => {
     const pret = (enregistre: boolean): Extract<EtatSession, { phase: "pret" }> => ({
       phase: "pret",
@@ -287,7 +370,7 @@ describe("chaque appelant de production traite la reprise", () => {
     );
     const { rerender } = render(ecran(pret(false)));
     expect(screen.getByRole("status").textContent).toBe("Non enregistré sur cet appareil");
-    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("alert")).not.toBeNull();
 
     rerender(ecran(pret(true)));
     expect(screen.getByRole("status").textContent).toBe(
@@ -297,7 +380,7 @@ describe("chaque appelant de production traite la reprise", () => {
 
     rerender(ecran(pret(false)));
     expect(screen.getByRole("status").textContent).toBe("Non enregistré sur cet appareil");
-    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("alert")).not.toBeNull();
   });
 });
 

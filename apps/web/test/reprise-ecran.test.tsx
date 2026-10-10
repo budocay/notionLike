@@ -18,7 +18,7 @@ import {
   nomsDesBases,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
   annulerLesProchainsAjouts,
@@ -70,7 +70,7 @@ async function tentativeSuivante(): Promise<void> {
 
 /** Application ouverte et enregistrée, puis coupée par la fermeture de sa connexion. */
 async function ouvrirPuisCouper(): Promise<{ session: SessionEspace }> {
-  const connexions = suivreLesConnexions();
+  const connexions = suivreLesConnexionsTenues();
   const { session } = await ouvrirCoquille();
   simulerLHorloge();
   act(() => fermerDeForce(connexions.at(-1) as IDBDatabase));
@@ -291,7 +291,7 @@ describe("reprise à l'écran", () => {
     refuserLesOuverturesParUneException();
     const { utilisateur } = await ouvrirCoquille();
     vi.restoreAllMocks();
-    expect(avertissement()).toBeTruthy();
+    expect(screen.queryByRole("alert")).not.toBeNull();
     await utilisateur.click(screen.getByRole("button", { name: "Nouvelle page" }));
     const champ = screen.getByRole("textbox", { name: "Titre de la page" });
     await utilisateur.type(champ, "Titre en cours");
@@ -308,7 +308,7 @@ describe("reprise à l'écran", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 4_000 });
     observateur.disconnect();
 
-    expect(screen.getByRole("link", { name: "Dans la base" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Dans la base" })).not.toBeNull();
     expect(chargements).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "Titre de la page" })).toBe(champ);
     expect((champ as HTMLInputElement).value).toBe("Titre en cours");
@@ -340,7 +340,7 @@ describe("reprise à l'écran", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Fille");
     const barre = within(screen.getByRole("navigation", { name: "Pages" }));
     expect(barre.getByRole("link", { name: "Fille" }).getAttribute("aria-current")).toBe("page");
-    expect(barre.getByRole("link", { name: "Mère" })).toBeTruthy();
+    expect(barre.queryByRole("link", { name: "Mère" })).not.toBeNull();
   });
 
   it("F-030-AC17 pendant une tentative qui ne répond pas, créer et renommer une page n'attend rien ; ces modifications sont dans la base après la reprise", async () => {
@@ -348,13 +348,13 @@ describe("reprise à l'écran", () => {
     const retenues = retenirLesOuvertures();
     act(() => void vi.advanceTimersToNextTimer());
     await laisserFaire();
-    expect(avertissement()).toBeTruthy();
+    expect(screen.queryByRole("alert")).not.toBeNull();
 
     act(() => {
       const page = operations(session).creerPage("Créée pendant la tentative");
       operations(session).renommerPage(page, "Renommée pendant la tentative");
     });
-    expect(screen.getByRole("link", { name: "Renommée pendant la tentative" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Renommée pendant la tentative" })).not.toBeNull();
 
     retenues.cesser();
     act(() => retenues.repondre());
@@ -402,21 +402,21 @@ describe("onglet quitté ou masqué pendant une coupure", () => {
 
   it("F-030-AC16 l'écouteur `beforeunload` n'est inscrit que tant qu'une modification n'est pas enregistrée : absent avant la coupure et pendant une coupure sans modification, présent après une modification, il annule l'événement ; absent après la reprise", async () => {
     const inscrits = ecouteursDe("beforeunload");
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { session } = await ouvrirCoquille();
     expect(inscrits()).toBe(0);
     simulerLHorloge();
     act(() => fermerDeForce(connexions.at(-1) as IDBDatabase));
     await laisserFaire();
-    expect(avertissement()).toBeTruthy();
+    expect(screen.queryByRole("alert")).not.toBeNull();
     expect(inscrits()).toBe(0);
     expect(tenterDeQuitter().defaultPrevented).toBe(false);
 
     act(() => void operations(session).creerPage("Pendant la coupure"));
     expect(inscrits()).toBe(1);
-    const tentative = tenterDeQuitter();
-    expect(tentative.defaultPrevented).toBe(true);
-    expect(tentative.valeurDeRetour).toBe(true);
+    const depart = tenterDeQuitter();
+    expect(depart.defaultPrevented).toBe(true);
+    expect(depart.valeurDeRetour).toBe(true);
 
     await tentativeSuivante();
     expect(screen.queryByRole("alert")).toBeNull();

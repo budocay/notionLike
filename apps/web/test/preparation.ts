@@ -23,11 +23,14 @@ beforeEach(() => {
   window.location.hash = "";
 });
 
-// Aucune minuterie d'un test ne lui survit.
-afterEach(() => {
+/** Désarme toute minuterie réelle armée depuis le début du test. */
+export function desarmerLesMinuteries(): void {
   minuteries.forEach((minuterie) => desarmer(minuterie));
   minuteries.clear();
-});
+}
+
+// Aucune minuterie d'un test ne lui survit.
+afterEach(desarmerLesMinuteries);
 
 // F-002-AC31 : toute façade ouverte par un test est fermée, et la preuve est le nombre d'écouteurs
 // de chaque `Y.Doc` revenu à sa valeur de départ, pas l'appel de `fermer()`.

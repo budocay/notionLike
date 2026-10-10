@@ -6,13 +6,6 @@ const VISIBILITE = "visibilitychange";
 const DEPART = "pagehide";
 const AVANT_DE_QUITTER = "beforeunload";
 
-// `preventDefault()` suffit aux navigateurs récents ; la valeur de retour reste renseignée pour
-// ceux d'avant (F-030 H4). Le texte de la boîte est celui du navigateur.
-function demanderConfirmation(evenement: BeforeUnloadEvent): void {
-  evenement.preventDefault();
-  evenement.returnValue = true;
-}
-
 /**
  * Suit l'onglet pour une persistance, et rend de quoi cesser. Une tentative est demandée dès que
  * l'onglet redevient visible (F-030-AC2), et dès qu'il est masqué ou quitté alors qu'une
@@ -31,6 +24,14 @@ export function suivreLOnglet(persistance: Persistance): () => void {
     if (persistance.aDesModificationsNonEnregistrees()) {
       persistance.reessayer();
     }
+  };
+  // Un écouteur par persistance suivie : la reprise de l'une ne retire pas la confirmation qu'une
+  // autre demande encore (F-030-AC16). `preventDefault()` suffit aux navigateurs récents ; la valeur
+  // de retour reste renseignée pour ceux d'avant (F-030 H4). Le texte de la boîte est celui du
+  // navigateur.
+  const demanderConfirmation = (evenement: BeforeUnloadEvent): void => {
+    evenement.preventDefault();
+    evenement.returnValue = true;
   };
   // Inscrire deux fois le même écouteur, ou le retirer sans qu'il soit inscrit, est sans effet.
   const ajusterLaConfirmation = (): void => {

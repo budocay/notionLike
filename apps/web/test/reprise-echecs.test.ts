@@ -17,7 +17,7 @@ import {
   laisserIndexedDbTravailler,
   refuserLesOuverturesParUneErreur,
   refuserLesOuverturesParUneException,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
   annulerLesProchainsAjouts,
@@ -205,7 +205,7 @@ describe("aucune erreur non interceptée", () => {
   it("F-030-AC18 connexion fermée pendant qu'une modification est écrite : l'appel revient sans lever, la modification est dans l'état en mémoire, la persistance est coupée, puis reprend", async () => {
     simulerLHorloge();
     const relever = ecouter();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const facade = ouvrirFacade(new Y.Doc());
     const persistance = ouvrirPersistance(facade.doc, ESPACE);
     await attendreEtat(persistance, "active");
@@ -298,7 +298,7 @@ describe("abonnés d'une persistance sous garde", () => {
   it("F-030-AC25 coupure par un gestionnaire d'IndexedDB (connexion fermée par le navigateur) : même diffusion, et la tentative suivante est lancée malgré le rappel fautif", async () => {
     simulerLHorloge();
     const relever = ecouter();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     await attendreEtat(persistance, "active");
     const abonnes = abonner(persistance);
@@ -341,7 +341,7 @@ describe("abonnés d'une persistance sous garde", () => {
   it("F-030-AC25 reprise, lancée par la demande de tentative immédiate : même diffusion, l'état actif est atteint, `reessayer` ne lève pas", async () => {
     simulerLHorloge();
     const relever = ecouter();
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     await attendreEtat(persistance, "active");
     fermerDeForce(connexions[0] as IDBDatabase);
