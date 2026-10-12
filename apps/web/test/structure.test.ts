@@ -63,6 +63,7 @@ describe("frontières du module de persistance", () => {
       "type DesignationDocument",
       "type EtatPersistance",
       "type Persistance",
+      "type PersistanceEspaceLocal",
     ]);
   });
 

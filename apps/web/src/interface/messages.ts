@@ -53,6 +53,17 @@ export const TITRE_VERSION_NON_PRISE_EN_CHARGE = "Mise à jour nécessaire";
 export const EXPLICATION_VERSION_NON_PRISE_EN_CHARGE =
   "Cet espace a été enregistré par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";
 
+/** Nom accessible de la zone de saisie de l'éditeur (F-003-AC16). */
+export const NOM_DE_LA_ZONE_DE_SAISIE = "Contenu de la page";
+/** Invite du bloc vide tant que le menu slash de F-005 n'est pas livré (F-003-AC40). */
+export const INVITE_DU_BLOC_VIDE = "Écris quelque chose…";
+export const NOM_DE_LA_BARRE_DE_BLOCS = "Type de bloc";
+
+/** Tenu à la place de l'éditeur d'une page que cette application ne sait pas lire (F-003-AC19). */
+export const PAGE_DE_VERSION_NON_PRISE_EN_CHARGE =
+  "Cette page a été enregistrée par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";
+export const CHARGEMENT_DE_LA_PAGE = "Chargement de la page…";
+
 /** Ajouté à l'explication quand le document portait des modifications non enregistrées (F-030-AC10). */
 export const MODIFICATIONS_NON_ENREGISTREES_PERDUES =
   "Les modifications faites depuis l'ouverture n'ont pas pu être enregistrées sur cet appareil.";

@@ -14,14 +14,28 @@ const VERSION_LA_PLUS_HAUTE_CONNUE = 2;
 const MAGASIN_REGLAGES = "reglages";
 const CLE_ESPACE_LOCAL = "espace-local";
 
-// L'identifiant retenu n'est pas exposé : rien ne le lit avant F-003 (ADR-0008). À chaque
-// tentative, il est relu, et au besoin inscrit, avec le candidat de l'ouverture et aucun autre
-// (F-030-AC9).
-export function ouvrirEspaceLocal(doc: Y.Doc, idCandidat: string): Persistance {
+/** Persistance du document de l'espace local, qui sait quel espace l'appareil a retenu. */
+export interface PersistanceEspaceLocal extends Persistance {
+  /**
+   * Identifiant de l'espace local retenu sur l'appareil, tel que la fonction de nommage l'a
+   * contrôlé ; `undefined` tant qu'aucune tentative ne l'a lu ni inscrit (F-003-AC25).
+   */
+  idEspace(): string | undefined;
+}
+
+// À chaque tentative, l'identifiant est relu, et au besoin inscrit, avec le candidat de l'ouverture
+// et aucun autre (F-030-AC9). Il n'est rendu qu'après être entré dans le nom de sa base.
+export function ouvrirEspaceLocal(doc: Y.Doc, idCandidat: string): PersistanceEspaceLocal {
   nomDeLEspace(idCandidat);
-  return ouvrirSousEcheance(doc, (ouverture) =>
-    retenirLEspace(idCandidat, ouverture, (idEspace) => ouverture.relire(nomDeLEspace(idEspace))),
+  let idRetenu: string | undefined;
+  const persistance = ouvrirSousEcheance(doc, (ouverture) =>
+    retenirLEspace(idCandidat, ouverture, (idEspace) => {
+      const nom = nomDeLEspace(idEspace);
+      idRetenu = idEspace;
+      ouverture.relire(nom);
+    }),
   );
+  return { ...persistance, idEspace: () => idRetenu };
 }
 
 function nomDeLEspace(idEspace: string): string {

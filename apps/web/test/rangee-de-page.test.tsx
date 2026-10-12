@@ -470,7 +470,7 @@ describe("renommage sur place", () => {
     await utilisateur.dblClick(lien("Voisine"));
     const champ = await screen.findByRole<HTMLInputElement>("textbox", CHAMP_TITRE);
     await utilisateur.keyboard("Autre{F2}");
-    expect(screen.getAllByRole("textbox")).toEqual([champ]);
+    expect(screen.getAllByRole("textbox", CHAMP_TITRE)).toEqual([champ]);
     expect(champ.value).toBe("Autre");
     expect(document.activeElement).toBe(champ);
     await utilisateur.keyboard("{Escape}");
@@ -547,8 +547,9 @@ describe("tête, pied et raccourcis", () => {
     expect(lister("src").filter((chemin) => /corbeille/i.test(chemin))).toEqual([]);
   });
 
-  it("F-004-AC31 la déclaration des raccourcis ne porte que F2 ; il agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
-    expect(Object.keys(RACCOURCIS)).toEqual(["renommer"]);
+  it("F-004-AC31 F-003-AC42 la déclaration des raccourcis ne porte que F2 et, depuis F-003, Alt+F10 ; F2 agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
+    expect(Object.keys(RACCOURCIS)).toEqual(["renommer", "barreDeBlocs"]);
+    expect(RACCOURCIS.barreDeBlocs).toEqual({ touche: "F10", modificateurs: ["Alt"] });
     expect(RACCOURCIS.renommer).toEqual({ touche: "F2", modificateurs: [] });
     const coquille = await ouvrirTroisNiveaux();
 
@@ -595,6 +596,7 @@ describe("raccourcis : une seule source", () => {
     expect(fautesDeTouches(sources)).toEqual([]);
     expect(TOUCHES_D_INTERACTION).toEqual({
       "src/interface/SaisieTitre.tsx": ["Enter", "Escape"],
+      "src/interface/composants/Edition.tsx": ["ArrowLeft", "ArrowRight", "Escape"],
       "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],
       "src/interface/flottant.ts": ["Escape"],
       "src/interface/tiroir.ts": ["Escape"],

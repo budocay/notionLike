@@ -9,6 +9,13 @@ import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreD
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
 import { Coquille, EcranPlein, Principale } from "../interface/composants/Coquille.tsx";
 import {
+  BarreDeBlocs,
+  CorpsDePage,
+  NoteDePage,
+  ZoneDEdition,
+  ZoneDeSaisie,
+} from "../interface/composants/Edition.tsx";
+import {
   Avertissement,
   Chargement,
   EcranBloquant,
@@ -28,11 +35,13 @@ import {
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
   FERMER_LA_BARRE_LATERALE,
   INVITATION_PREMIERE_PAGE,
+  INVITE_DU_BLOC_VIDE,
   messageErreur,
   METTRE_A_LA_CORBEILLE,
   MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_APPLICATION,
   NOM_BARRE_LATERALE,
+  NOM_DE_LA_BARRE_DE_BLOCS,
   NOM_DU_TIROIR,
   NOM_FIL_D_ARIANE,
   nomActionsDeLaPage,
@@ -41,6 +50,7 @@ import {
   NON_ENREGISTRE,
   NOUVELLE_PAGE,
   OUVRIR_LA_BARRE_LATERALE,
+  PAGE_DE_VERSION_NON_PRISE_EN_CHARGE,
   PAGE_INTROUVABLE,
   REESSAYER_MAINTENANT,
   RENOMMER,
@@ -58,6 +68,8 @@ import {
   PAGE_COURANTE,
   type PageFictive,
   TITRE_LONG,
+  COMMANDES_DE_BLOC_FICTIVES,
+  POSITION_DE_BARRE_FICTIVE,
 } from "./donnees.ts";
 import { echantillonsDe } from "./Echantillons.tsx";
 import { MARQUEUR_DE_DEMONSTRATION } from "./marqueur.ts";
@@ -392,6 +404,43 @@ function SectionTiroir(): ReactElement {
   );
 }
 
+// L'éditeur lui-même n'est pas rendu ici : la page n'a ni document ni bibliothèque d'édition. Ses
+// composants de présentation le sont, avec l'invite que sa vue pose sur le bloc vide (F-003-AC44).
+function SectionEditeur(): ReactElement {
+  return (
+    <Section titre="Éditeur de page">
+      <Specimen etiquette="Titre, invite du bloc vide et barre de blocs dans la colonne de lecture">
+        <div className={PAGE.fondZone}>
+          <EntetePage titre={PAGE_COURANTE} />
+          <CorpsDePage>
+            <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+              <ZoneDeSaisie>
+                <p data-invite={INVITE_DU_BLOC_VIDE} />
+              </ZoneDeSaisie>
+              <BarreDeBlocs
+                nom={NOM_DE_LA_BARRE_DE_BLOCS}
+                commandes={COMMANDES_DE_BLOC_FICTIVES.map((commande) => ({
+                  ...commande,
+                  surActivation: sansEffet,
+                }))}
+                position={POSITION_DE_BARRE_FICTIVE}
+                surAbandon={sansEffet}
+              />
+            </ZoneDEdition>
+          </CorpsDePage>
+        </div>
+      </Specimen>
+      <Specimen etiquette="Page d'une version plus récente">
+        <div className={PAGE.fondZone}>
+          <CorpsDePage>
+            <NoteDePage texte={PAGE_DE_VERSION_NON_PRISE_EN_CHARGE} />
+          </CorpsDePage>
+        </div>
+      </Specimen>
+    </Section>
+  );
+}
+
 function SectionEtats(): ReactElement {
   return (
     <Section titre="États">
@@ -509,6 +558,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionBarre />
       <SectionBarreDuHaut />
       <SectionTiroir />
+      <SectionEditeur />
       <SectionEtats />
       <SectionReprise />
       <SectionCommandes />

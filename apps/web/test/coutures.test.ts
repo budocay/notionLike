@@ -632,6 +632,7 @@ const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/espace/garde-version.ts": "ne lit que « version-non-prise-en-charge »",
   "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
   "apps/web/src/interface/messages.ts": "traduit chaque code",
+  "apps/web/src/page/session-page.ts": "ne lit que « version-non-prise-en-charge »",
 };
 const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
@@ -751,6 +752,7 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/interface/messages.ts": "apps/web/test/barre-laterale-erreurs.test.tsx",
   "apps/web/src/interface/pages.ts": "apps/web/test/navigation.test.tsx",
   "apps/web/src/interface/repli.ts": "apps/web/test/depli.test.tsx",
+  "apps/web/src/page/session-page.ts": "apps/web/test/page-affichage.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {
@@ -800,7 +802,13 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       horsPersistance
         .filter(([, texte]) => importeLePaquet(texte, "yjs"))
         .map(([chemin]) => chemin),
-    ).toEqual([SESSION]);
+    ).toEqual([
+      "apps/web/src/edition/EditeurDePage.tsx",
+      "apps/web/src/edition/schema.ts",
+      SESSION,
+      "apps/web/src/page/pages-ouvertes.ts",
+      "apps/web/src/page/session-page.ts",
+    ]);
     expect(importeLePaquet(statique("import", "type * as Y", "yjs"), "yjs")).toBe(true);
     for (const [chemin, texte] of sourcesDeLApplication()) {
       expect(texte, chemin).not.toMatch(
