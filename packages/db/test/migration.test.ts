@@ -7,7 +7,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { sql } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ouvrirPilotePg } from "../src/acces.ts";
 import { DOSSIER_MIGRATIONS, lancerMigration } from "../src/migration.ts";
@@ -27,6 +27,12 @@ const MOT_DE_PASSE = "mot-de-passe-de-test";
 const PHRASE_D_ECHEC = "La migration a échoué : aucune migration de ce lancement n'est appliquée.";
 // Horodatages des trois entrées des journaux d'essai, dans l'ordre.
 const QUAND = ["1759968000000", "1759968001000", "1759968002000"];
+// Chaque base embarquée est une instance PGlite neuve. La première du fichier compile le
+// WebAssembly et fait un initdb : 1,6 à 5,6 s mesurés seul sur 4 CPU, plusieurs fois plus quand
+// toute la suite tourne en parallèle ; les suivantes partent du gabarit de `base-embarquee.ts`.
+// L'ouverture se fait donc dans un crochet qui a son propre délai, et le corps de chaque test garde
+// le délai par défaut pour ce qu'il constate.
+const DELAI_D_OUVERTURE_D_UNE_BASE_MS = 30_000;
 
 interface Lancement {
   readonly code: number;
@@ -62,19 +68,22 @@ async function suivi(embarquee: BaseEmbarquee): Promise<unknown[]> {
 }
 
 describe("migrations sur une base embarquée", () => {
-  it("F-008-AC15 le dossier réel, sans migration, crée la table de suivi vide et aucune table", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
+  // Une base vide et neuve par test : chaque cas part d'une base sans migration ni table.
+  let embarquee: BaseEmbarquee;
 
+  beforeEach(async () => {
+    embarquee = await ouvrirBaseEmbarquee();
+  }, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
+  afterEach(() => embarquee.base.fermer());
+
+  it("F-008-AC15 le dossier réel, sans migration, crée la table de suivi vide et aucune table", async () => {
     expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
 
     expect(await suivi(embarquee)).toEqual([]);
     expect(await tablesPubliques(embarquee)).toEqual([]);
-    await embarquee.base.fermer();
   });
 
   it("F-008-AC15 sur une base vide la migration est appliquée et consignée ; relancée, la commande n'en réapplique aucune", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-
     expect(await lancer(embarquee, PREMIER_LANCEMENT)).toEqual({ code: 0, lignes: [] });
     expect(await tablesPubliques(embarquee)).toEqual(["essai_un"]);
     expect(await suivi(embarquee)).toEqual([QUAND[0]]);
@@ -83,12 +92,9 @@ describe("migrations sur une base embarquée", () => {
     expect(await lancer(embarquee, PREMIER_LANCEMENT)).toEqual({ code: 0, lignes: [] });
     expect(await tablesPubliques(embarquee)).toEqual(["essai_un"]);
     expect(await suivi(embarquee)).toEqual([QUAND[0]]);
-    await embarquee.base.fermer();
   });
 
   it("F-008-AC15 sur une base vide trois migrations sont appliquées dans l'ordre du journal et consignées chacune", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-
     // La troisième référence la table de la deuxième : appliquée avant elle, elle échouerait.
     expect(await lancer(embarquee, LANCEMENT_CORRIGE)).toEqual({ code: 0, lignes: [] });
     expect(await tablesPubliques(embarquee)).toEqual(["essai_deux", "essai_trois", "essai_un"]);
@@ -96,11 +102,9 @@ describe("migrations sur une base embarquée", () => {
 
     expect(await lancer(embarquee, LANCEMENT_CORRIGE)).toEqual({ code: 0, lignes: [] });
     expect(await suivi(embarquee)).toEqual(QUAND);
-    await embarquee.base.fermer();
   });
 
   it("F-008-AC16 un lancement dont la troisième migration échoue est annulé en entier, le précédent reste intact, la relance corrigée applique tout", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
     expect(await lancer(embarquee, PREMIER_LANCEMENT)).toEqual({ code: 0, lignes: [] });
 
     const defaillant = await lancer(embarquee, LANCEMENT_DEFAILLANT);
@@ -114,22 +118,17 @@ describe("migrations sur une base embarquée", () => {
     expect(await lancer(embarquee, LANCEMENT_CORRIGE)).toEqual({ code: 0, lignes: [] });
     expect(await tablesPubliques(embarquee)).toEqual(["essai_deux", "essai_trois", "essai_un"]);
     expect(await suivi(embarquee)).toEqual(QUAND);
-    await embarquee.base.fermer();
   });
 
   it("F-008-AC16 un dossier sans journal finit en code 1 sans toucher à la base", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-
     const lancement = await lancer(embarquee, join(JEUX_D_ESSAI, "dossier-absent"));
 
     expect(lancement.code).toBe(1);
     expect(lancement.lignes).toEqual([PHRASE_D_ECHEC, "Can't find meta/_journal.json file"]);
     expect(await tablesPubliques(embarquee)).toEqual([]);
-    await embarquee.base.fermer();
   });
 
   it("F-008-AC16 l'échec s'écrit en une phrase fixe puis cinq messages de cause au plus, un par ligne, jamais un objet", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
     const chaine = [7, 6, 5, 4, 3, 2, 1].reduce<unknown>(
       (cause, rang) => new Error(`cause ${rang}\n  sur deux lignes`, { cause }),
       { secret: MOT_DE_PASSE },
@@ -159,7 +158,6 @@ describe("migrations sur une base embarquée", () => {
       code: 1,
       lignes: [PHRASE_D_ECHEC, "seule"],
     });
-    await embarquee.base.fermer();
   });
 });
 
