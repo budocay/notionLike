@@ -26,7 +26,7 @@ import {
   refuserLesOuverturesParUneErreur,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 
 const PREFIXE_BASE_ESPACE = "notionlike:espace:";
@@ -114,7 +114,7 @@ describe("coquille : échecs et limites", () => {
   );
 
   it("F-002-AC16 connexion fermée par le navigateur après l'ouverture : l'avertissement annoncé apparaît et reste, l'arborescence affichée reste modifiable", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { utilisateur } = await ouvrirCoquille();
     await creerPageNommee(utilisateur, "Avant la coupure");
     expect(screen.queryByRole("alert")).toBeNull();

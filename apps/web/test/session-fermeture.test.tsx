@@ -25,7 +25,7 @@ import {
   fermerDeForce,
   laisserIndexedDbTravailler,
   nomsDesBases,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 
 const PREFIXE_BASE_ESPACE = "notionlike:espace:";
@@ -193,7 +193,7 @@ describe("session d'espace : un abonné qui lève", () => {
   });
 
   it("F-002-AC29 changement de la persistance, connexion fermée après le chargement : même signalement, le suivant lit une session non enregistrée, l'avertissement est affiché et l'application reste utilisable", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const { session, utilisateur } = await ouvrirCoquille();
     const consoleErreur = espionnerLaConsole();
     const exception = new Error("abonné fautif à la coupure");

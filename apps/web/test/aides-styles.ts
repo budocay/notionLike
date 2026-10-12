@@ -100,10 +100,6 @@ const INTERDITS: readonly Interdit[] = [
     faute: "adresse externe",
   },
   {
-    motif: /Enregistré sur cet appareil|Modifications enregistrées/,
-    faute: "texte affirmatif d'enregistrement",
-  },
-  {
     motif: /\(\s*(?:min-|max-)?(?:width|height)\s*[:<>]=?\s*[\d.]+/,
     faute: "requête de largeur à valeur littérale",
   },
@@ -818,6 +814,34 @@ export function controlerSeulAuteur(
       .map((chemin) => `${chemin} : écrit « ${texte} », que seul ${auteur} doit écrire`),
     ...(auteurs.includes(auteur) ? [] : [`${auteur} : n'écrit plus « ${texte} »`]),
   ];
+}
+
+/**
+ * F-030-AC29 : la constante n'a qu'une définition et qu'un lecteur. Rend les fichiers qui la
+ * nomment hors de ces deux-là, et ces deux-là s'ils ne la nomment pas le nombre de fois attendu :
+ * une fois dans sa définition, deux dans son lecteur (son import, son seul emploi).
+ */
+export function controlerSeulLecteur(
+  fichiers: ReadonlyMap<string, string>,
+  nom: string,
+  definition: string,
+  lecteur: string,
+): string[] {
+  const attendus = new Map([
+    [definition, 1],
+    [lecteur, 2],
+  ]);
+  const chemins = new Set([...fichiers.keys(), ...attendus.keys()]);
+  return [...chemins].sort().flatMap((chemin) => {
+    const emplois = fichiers.get(chemin)?.match(new RegExp(`\\b${nom}\\b`, "g"))?.length ?? 0;
+    const attendu = attendus.get(chemin);
+    if (attendu === undefined) {
+      return emplois === 0 ? [] : [`${chemin} : nomme ${nom}, que seul ${lecteur} doit lire`];
+    }
+    return emplois === attendu
+      ? []
+      : [`${chemin} : nomme ${nom} ${emplois} fois, ${attendu} attendue(s)`];
+  });
 }
 
 const CLASSE_EN_DUR = /className=\{?["'`]/;

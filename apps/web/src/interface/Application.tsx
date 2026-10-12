@@ -15,24 +15,24 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import type { EtatSession, SessionEspace } from "../espace/session-espace.ts";
+import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
 import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.ts";
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
-import { BarreDuHaut, ZoneEtat } from "./composants/BarreDuHaut.tsx";
+import { BarreDuHaut } from "./composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "./composants/BoutonIcone.tsx";
 import { Coquille, EcranPlein, type TiroirDeCoquille } from "./composants/Coquille.tsx";
-import { Avertissement, Chargement, EcranBloquant } from "./composants/Etats.tsx";
+import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
+import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
-  AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   EXPLICATION_CONTEXTE_NON_SECURISE,
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
   FERMER_LA_BARRE_LATERALE,
   messageErreur,
+  MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_DU_TIROIR,
-  NON_ENREGISTRE,
   OUVRIR_LA_BARRE_LATERALE,
   TITRE_CONTEXTE_NON_SECURISE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
@@ -45,7 +45,6 @@ import { useRepli } from "./repli.ts";
 import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 
-type EtatPret = Extract<EtatSession, { phase: "pret" }>;
 type Saisie = EcranBarre["saisie"];
 
 const ACCUEIL: Route = { forme: "accueil" };
@@ -68,6 +67,9 @@ export function Application({ session }: { readonly session: SessionEspace }): R
           <EcranBloquant
             titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
             explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
+            precision={
+              etat.modificationsPerdues ? MODIFICATIONS_NON_ENREGISTREES_PERDUES : undefined
+            }
           />
         </EcranPlein>
       );
@@ -83,8 +85,7 @@ export function Application({ session }: { readonly session: SessionEspace }): R
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
-// (avertissement, barre du haut, zone principale). La zone d'état lit l'état de la session, sans
-// autre abonné (F-004-AC40).
+// (avertissement, barre du haut, zone principale).
 function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   const { racines } = etat.arborescence;
   const route = lireRoute(useSyncExternalStore(abonnerAuFragment, lireFragment));
@@ -102,20 +103,22 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
       actions={barre.actions}
       erreur={barre.erreur}
       boutonNouvellePage={barre.boutonNouvellePage}
-      fermeture={tiroir.ouvert ? <Fermeture tiroir={tiroir} /> : undefined}
+      fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
     />
   );
   return (
     <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
-      {!etat.enregistre && <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>}
+      <AvertissementDEnregistrement etat={etat} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
-        ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
+        ouverture={
+          tiroir.etroit ? <BoutonDOuverture tiroir={tiroir} idBarre={idBarre} /> : undefined
+        }
         fil={
           page === undefined ? undefined : (
             <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
           )
         }
-        etat={<ZoneEtat echec={etat.enregistre ? undefined : NON_ENREGISTRE} />}
+        etat={<ZoneDEnregistrement etat={etat} />}
       />
       <ZonePrincipale
         ref={tiroir.zonePrincipale}
@@ -136,7 +139,10 @@ function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {
   };
 }
 
-function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string }): ReactElement {
+function BoutonDOuverture(props: {
+  readonly tiroir: Tiroir;
+  readonly idBarre: string;
+}): ReactElement {
   return (
     <BoutonIcone
       ref={props.tiroir.boutonDOuverture}
@@ -150,7 +156,7 @@ function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string })
   );
 }
 
-function Fermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElement {
+function BoutonDeFermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElement {
   return (
     <BoutonIcone
       ref={tiroir.boutonDeFermeture}
@@ -234,7 +240,7 @@ function useBarreLaterale(etat: EtatPret, route: Route, selection: Selection): B
 }
 
 function creerPage(moyens: Moyens, parent: IdPage | null): void {
-  const resultat = tenter(() => moyens.operations.creerPage("", { parent }));
+  const resultat = essayer(() => moyens.operations.creerPage("", { parent }));
   if (resultat.refus !== undefined) {
     moyens.setErreur(messageErreur(resultat.refus));
     return;
@@ -247,7 +253,7 @@ function creerPage(moyens: Moyens, parent: IdPage | null): void {
 
 /** Rend vrai si la saisie est close : le titre est accepté, ou la page n'existe plus. */
 function validerTitre(moyens: Moyens, idPage: IdPage, titre: string): boolean {
-  const { refus } = tenter(() => moyens.operations.renommerPage(idPage, titre));
+  const { refus } = essayer(() => moyens.operations.renommerPage(idPage, titre));
   if (refus === "titre-trop-long") {
     moyens.setSaisie({ idPage, erreur: messageErreur(refus) });
     return false;
@@ -265,7 +271,7 @@ function mettreALaCorbeille(
 ): boolean {
   const emporteLaPageCourante =
     idPageCourante !== undefined && estDansLaDescendance(page, idPageCourante);
-  const { refus } = tenter(() => moyens.operations.mettreALaCorbeille(page.id));
+  const { refus } = essayer(() => moyens.operations.mettreALaCorbeille(page.id));
   if (refus !== undefined) {
     moyens.setErreur(messageErreur(refus));
     return false;
@@ -277,11 +283,11 @@ function mettreALaCorbeille(
   return true;
 }
 
-type Tentative<T> =
+type Essai<T> =
   { readonly valeur: T; readonly refus: undefined } | { readonly refus: CodeErreurDocument };
 
 // Seule une erreur typée du document est rattrapée ; toute autre exception est un défaut.
-function tenter<T>(operation: () => T): Tentative<T> {
+function essayer<T>(operation: () => T): Essai<T> {
   try {
     return { valeur: operation(), refus: undefined };
   } catch (erreur) {

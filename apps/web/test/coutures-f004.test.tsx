@@ -442,6 +442,7 @@ describe("couture : enveloppes à la hauteur de la fenêtre", () => {
         "Coquille",
         "EcranPlein",
         "EcranPlein",
+        "EcranPlein",
       ],
       "src/interface/Application.tsx": [
         "EcranPlein fenetre",

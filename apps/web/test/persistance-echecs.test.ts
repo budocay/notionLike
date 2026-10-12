@@ -16,7 +16,7 @@ import {
   refuserLesOuverturesParUneErreur,
   refuserLesOuverturesParUneException,
   retenirLesOuvertures,
-  suivreLesConnexions,
+  suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 
 const ESPACE = { type: "espace", idEspace: ESPACE_A } as const;
@@ -130,9 +130,14 @@ describe("IndexedDB indisponible", () => {
     facade.creerPage("En mémoire");
     expect(facade.lire().racines.map((page) => page.titre)).toEqual(["En mémoire"]);
     await laisserIndexedDbTravailler();
-    persistance.fermer();
+    // Depuis F-030 : la première modification faite pendant la coupure est diffusée, parce qu'elle
+    // n'est pas enregistrée (F-030-AC16) ; la coupure n'est plus définitive, la fermeture l'est
+    // (F-030-AC11).
+    expect(abonne).toHaveBeenCalledTimes(1);
     expect(persistance.lireEtat()).toBe("coupee");
-    expect(abonne).not.toHaveBeenCalled();
+    persistance.fermer();
+    expect(persistance.lireEtat()).toBe("fermee");
+    expect(abonne).toHaveBeenCalledTimes(2);
   });
 
   it("F-002-AC16 (b) une ouverture refusée par une exception levée à la demande coupe la persistance sans créer de base", async () => {
@@ -169,24 +174,26 @@ describe("identifiant de l'espace local relu sur l'appareil", () => {
     ["un UUID suivi de « :page »", `${UUID_AVEC_LETTRES}:page`],
     ["une chaîne de plusieurs milliers de caractères", UUID_AVEC_LETTRES.repeat(200)],
   ])(
-    "F-002-AC28 si l'appareil a conservé %s à la place de l'identifiant, la persistance est coupée sans ouvrir ni créer aucune base d'espace",
+    "F-002-AC28 F-030-AC23 si l'appareil a conservé %s à la place de l'identifiant, aucun nom de base n'en est tiré : la valeur est remplacée par le candidat, dont la base est la seule base d'espace ouverte ou créée",
     async (_cas, illisible) => {
       await inscrireSurLAppareil(illisible);
       const facade = ouvrirFacade(new Y.Doc());
 
+      // Depuis F-030, une valeur illisible ne coupe plus la persistance à chaque lancement : elle
+      // est remplacée (F-030-AC23). Ce que F-002-AC28 interdit reste interdit.
       const espaceLocal = ouvrirEspaceLocal(facade.doc, ESPACE_B);
       expect(espaceLocal.lireEtat()).toBe("relecture");
-      await attendreEtat(espaceLocal, "coupee");
-      facade.creerPage("En mémoire");
+      await attendreEtat(espaceLocal, "active");
+      facade.creerPage("Enregistrée");
       await laisserIndexedDbTravailler();
 
-      expect(facade.lire().racines.map((page) => page.titre)).toEqual(["En mémoire"]);
-      expect(await nomsDesBases()).toEqual([BASE_DE_L_APPAREIL]);
-      expect(await lireSurLAppareil()).toEqual(illisible);
+      expect(facade.lire().racines.map((page) => page.titre)).toEqual(["Enregistrée"]);
+      expect(await nomsDesBases()).toEqual([BASE_DE_L_APPAREIL, `notionlike:espace:${ESPACE_B}`]);
+      expect(await lireSurLAppareil()).toEqual(ESPACE_B);
     },
   );
 
-  it("F-002-AC16 (b) une base de l'appareil sans son magasin de réglages coupe la persistance sans erreur ni base d'espace", async () => {
+  it("F-002-AC16 (b) F-030-AC24 une base de l'appareil sans son magasin de réglages est réparée sans erreur : le candidat est inscrit, et sa base est la seule base d'espace", async () => {
     await new Promise((resoudre) => {
       const demande = indexedDB.open(BASE_DE_L_APPAREIL, 1);
       demande.onsuccess = () => {
@@ -195,11 +202,12 @@ describe("identifiant de l'espace local relu sur l'appareil", () => {
       };
     });
 
+    // Depuis F-030, le magasin est recréé au lieu de couper la persistance (F-030-AC24).
     const espaceLocal = ouvrirEspaceLocal(new Y.Doc(), ESPACE_B);
-    await attendreEtat(espaceLocal, "coupee");
+    await attendreEtat(espaceLocal, "active");
     await laisserIndexedDbTravailler();
 
-    expect(await nomsDesBases()).toEqual([BASE_DE_L_APPAREIL]);
+    expect(await nomsDesBases()).toEqual([BASE_DE_L_APPAREIL, `notionlike:espace:${ESPACE_B}`]);
   });
 
   it("F-002-AC28 un UUID canonique relu sur l'appareil nomme la base de l'espace, à la place du candidat", async () => {
@@ -233,8 +241,9 @@ describe("lecture ou écriture en échec après l'ouverture", () => {
       "Refusée par la base",
       "Après la coupure",
     ]);
+    // Depuis F-030, la coupure n'est plus définitive : seule la fermeture l'est (F-030-AC11).
     persistance.fermer();
-    expect(persistance.lireEtat()).toBe("coupee");
+    expect(persistance.lireEtat()).toBe("fermee");
   });
 
   it("F-002-AC16 (c) une lecture en échec pendant la relecture coupe la persistance et laisse le document vide", async () => {
@@ -263,7 +272,7 @@ describe("lecture ou écriture en échec après l'ouverture", () => {
   });
 
   it("F-002-AC16 (c) une connexion fermée par le navigateur coupe la persistance, et l'écriture suivante ne lève pas", async () => {
-    const connexions = suivreLesConnexions();
+    const connexions = suivreLesConnexionsTenues();
     const facade = ouvrirFacade(new Y.Doc());
     const persistance = ouvrirPersistance(facade.doc, ESPACE);
     await attendreEtat(persistance, "active");

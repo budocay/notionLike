@@ -12,7 +12,12 @@ import {
   LARGEURS_DE_CAPTURE,
   nomDeCapture,
 } from "../e2e/captures-attendues.ts";
-import { ENTREE_DE_PIED_FICTIVE, PAGE_COURANTE, TITRE_LONG } from "../src/demonstration/donnees.ts";
+import {
+  AFFIRMATION_FICTIVE,
+  ENTREE_DE_PIED_FICTIVE,
+  PAGE_COURANTE,
+  TITRE_LONG,
+} from "../src/demonstration/donnees.ts";
 import { MARQUEUR_DE_DEMONSTRATION } from "../src/demonstration/marqueur.ts";
 import { PageDemonstration } from "../src/demonstration/PageDemonstration.tsx";
 import { BARRE } from "../src/interface/composants/barre.classes.ts";
@@ -65,7 +70,24 @@ function zonesDEtat(page: HTMLElement): string[] {
   return [...page.querySelectorAll("header [role='status']")].map((zone) => zone.textContent);
 }
 
-/** Les états que F-004-AC50 nomme, et ce qui prouve que la page rend chacun. */
+/** Alertes de la page qui portent ce titre ou non, ce nombre de phrases et cette commande ou non. */
+function alertesDeForme(
+  page: HTMLElement,
+  forme: { readonly titre: boolean; readonly phrases: number; readonly commande: string | null },
+): Element[] {
+  return [...page.querySelectorAll('[role="alert"]')].filter(
+    (alerte) =>
+      (alerte.querySelector("h1") !== null) === forme.titre &&
+      alerte.querySelectorAll("p").length === forme.phrases &&
+      (alerte.querySelector("button")?.textContent ?? null) === forme.commande,
+  );
+}
+
+/**
+ * Les états que F-004-AC50 nomme, puis les trois formes que F-030 leur a ajoutées (zone d'état
+ * affirmée, avertissement à deux phrases avec commande, écran bloquant avec précision), et ce qui
+ * prouve que la page rend chacun.
+ */
 const ETATS_NOMMES: Readonly<Record<string, Constat>> = {
   "rangée au repos": (page) =>
     rangees(page).some(
@@ -103,7 +125,12 @@ const ETATS_NOMMES: Readonly<Record<string, Constat>> = {
     alertes(page).includes(messageErreur("titre-trop-long")) &&
     alertes(page).includes(messageErreur("page-introuvable")),
   "message d'avertissement": (page) =>
-    alertes(page).some((texte) => texte.startsWith("Vos modifications ne sont pas enregistrées")),
+    alertes(page).some((texte) => texte.startsWith("Stockage de l'appareil indisponible")),
+  "zone d'état affirmée": (page) => zonesDEtat(page).includes(AFFIRMATION_FICTIVE),
+  "avertissement à deux phrases avec commande": (page) =>
+    alertesDeForme(page, { titre: false, phrases: 2, commande: "Réessayer maintenant" }).length > 0,
+  "écran bloquant avec précision": (page) =>
+    alertesDeForme(page, { titre: true, phrases: 2, commande: null }).length > 0,
 };
 
 function pieds(page: HTMLElement): Element[] {
@@ -162,7 +189,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
     // Chaque aperçu a sa zone principale ; aucune enveloppe ne prend la hauteur de la fenêtre.
     expect(container.querySelectorAll("main").length).toBeGreaterThanOrEqual(4);
     expect(container.querySelector(".h-dvh, .min-h-dvh")).toBeNull();
-    expect(Object.keys(ETATS_NOMMES)).toHaveLength(19);
+    expect(Object.keys(ETATS_NOMMES)).toHaveLength(22);
     expect(etatsManquants(container)).toEqual([]);
     expect(screen.getAllByRole("textbox", { name: "Titre de la page" })).toHaveLength(2);
     for (const texte of ["Page introuvable", "Mise à jour nécessaire"]) {
@@ -182,8 +209,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
     ]);
     expect(barre?.children[1]?.querySelectorAll("li").length).toBeGreaterThanOrEqual(9);
     expect(
-      within(barre as HTMLElement).getByRole("button", { name: "Nouvelle page" }),
-    ).toBeDefined();
+      within(barre as HTMLElement).queryByRole("button", { name: "Nouvelle page" }),
+    ).not.toBeNull();
     // Donnée fictive : l'entrée du pied ne s'active pas, et aucune autre barre de la page n'a de pied.
     expect(pied?.querySelector("a, button")).toBeNull();
     expect(pieds(container)).toEqual([pied]);
@@ -198,15 +225,27 @@ describe("page de démonstration : ce qu'elle montre", () => {
     expect(etatsManquants(container)).toEqual(["pied de barre latérale"]);
     container.querySelectorAll("[data-voile]").forEach((voile) => voile.remove());
     expect(etatsManquants(container)).toEqual(["pied de barre latérale", "tiroir et voile"]);
+    // Les formes de F-030 : la commande retirée de l'avertissement, la précision de l'écran bloquant.
+    container.querySelectorAll('[role="alert"] button').forEach((bouton) => bouton.remove());
+    expect(etatsManquants(container).slice(2)).toEqual([
+      "avertissement à deux phrases avec commande",
+    ]);
+    container.querySelectorAll('[role="alert"] h1 ~ p ~ p').forEach((phrase) => phrase.remove());
+    expect(etatsManquants(container).slice(3)).toEqual(["écran bloquant avec précision"]);
   });
 
-  it("F-004-AC40 F-004-AC50 la zone d'état s'y montre vide puis en échec, sans aucune affirmation", () => {
+  it("F-004-AC40 F-004-AC50 F-030-AC29 la zone d'état s'y montre vide, en échec, puis affirmée avec son repère non textuel sur un texte fictif : l'affirmation de l'application et l'annonce de reprise n'y sont jamais", () => {
     const { container } = render(<PageDemonstration jetons={jetons} />);
-    const zones = [...container.querySelectorAll("header [role='status']")].map(
-      (zone) => zone.textContent,
-    );
-    expect(zones).toContain("");
-    expect(zones.filter((texte) => texte !== "")).toEqual(["Non enregistré sur cet appareil"]);
+    const zones = [...container.querySelectorAll("header [role='status']")];
+    const textes = zones.map((zone) => zone.textContent);
+    expect(textes).toContain("");
+    expect(textes.filter((texte) => texte !== "")).toEqual([
+      "Non enregistré sur cet appareil",
+      AFFIRMATION_FICTIVE,
+    ]);
+    const affirmee = zones.find((zone) => zone.textContent === AFFIRMATION_FICTIVE);
+    expect(affirmee?.querySelector("span")?.getAttribute("aria-hidden")).toBe("true");
+    expect(AFFIRMATION_FICTIVE).not.toMatch(/sur cet appareil/);
     expect(container.textContent).not.toMatch(
       /Enregistré sur cet appareil|Modifications enregistrées/,
     );
@@ -218,7 +257,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
     const montres = theme.filter(({ nom }) => /^--(color|degrade)-/.test(nom));
     expect(montres.length).toBeGreaterThanOrEqual(20);
     for (const { nom } of montres) {
-      expect(screen.getByText(nom.replace(/^--(color-)?/, "")), nom).toBeDefined();
+      expect(screen.queryByText(nom.replace(/^--(color-)?/, "")), nom).not.toBeNull();
     }
     const echelle = screen.getByRole("heading", { name: "Échelle typographique" }).parentElement;
     const tailles = theme.filter(
