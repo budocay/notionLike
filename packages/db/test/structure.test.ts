@@ -102,14 +102,20 @@ describe("structure du paquet", () => {
     expect(fautesDuManifeste(fautif)).toEqual([faute]);
   });
 
-  it("F-008-AC17 l'entrée publique n'exporte que ouvrirBase et ErreurBase", () => {
-    expect(Object.keys(entreePublique).sort()).toEqual(["ErreurBase", "ouvrirBase"]);
+  it("F-008-AC17 F-009-AC23 l'entrée publique n'exporte que ouvrirBase, ErreurBase, le schéma des comptes et la suppression de sessions", () => {
+    expect(Object.keys(entreePublique).sort()).toEqual([
+      "ErreurBase",
+      "ouvrirBase",
+      "schemaComptes",
+      "supprimerSessions",
+    ]);
   });
 
-  it("F-008-AC18 l'entrée d'essai n'exporte que la base embarquée, le faux serveur et le port fermé", () => {
+  it("F-008-AC18 l'entrée d'essai n'exporte que la base embarquée, vide ou migrée, le faux serveur et le port fermé", () => {
     expect(Object.keys(entreeDEssai).sort()).toEqual([
       "demarrerFauxPostgres",
       "ouvrirBaseEmbarquee",
+      "ouvrirBaseEmbarqueeMigree",
       "portFerme",
     ]);
   });

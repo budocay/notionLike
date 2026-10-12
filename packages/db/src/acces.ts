@@ -7,10 +7,21 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { Pool, type PoolClient } from "pg";
 
 import { ErreurBase } from "./erreurs.ts";
+import * as tables from "./schema.ts";
 import { DELAI_SONDE_MS, sonderDansLeDelai } from "./sonde.ts";
 
+// Les quatre tables des comptes (F-009-AC21), sous les noms de modèle que l'adaptateur Drizzle de
+// better-auth attend : `apps/server` le lui passe tel quel, avec `Base["db"]`.
+export const schemaComptes = {
+  user: tables.user,
+  session: tables.session,
+  account: tables.account,
+  verification: tables.verification,
+};
+
 export interface Base {
-  readonly db: PgDatabase<PgQueryResultHKT, Record<string, never>>;
+  // Une transaction ouverte par `db.transaction` est elle-même un `Base["db"]`.
+  readonly db: PgDatabase<PgQueryResultHKT, typeof schemaComptes>;
   sonder(): Promise<void>;
   fermer(): Promise<void>;
 }
@@ -76,7 +87,7 @@ export function ouvrirPilotePg(url: string): Pilote {
   reserve.on("error", ignorerLaConnexionInactivePerdue);
   reserve.on("acquire", (connexion) => empruntees.add(connexion));
   reserve.on("release", (_erreur, connexion) => empruntees.delete(connexion));
-  const db = drizzle(reserve);
+  const db = drizzle(reserve, { schema: schemaComptes });
   return {
     db,
     appliquerMigrations: (dossier) => migrate(db, { migrationsFolder: dossier }),

@@ -1,12 +1,14 @@
 // Faux serveur PostgreSQL de test (ADR-0005) : il parle le protocole juste assez pour le
 // pilote `pg`. Il accepte toute connexion sans vérifier le mot de passe et termine chaque
-// requête simple sans ligne. Il ne comprend aucune requête : ce n'est pas une base.
+// requête sans ligne, simple (`Q`) ou paramétrée (`P`, `B`, `D`, `E` puis `S`, auquel il répond).
+// Il ne comprend aucune requête : ce n'est pas une base.
 import { createServer, type AddressInfo, type Server, type Socket } from "node:net";
 
 export interface FauxPostgres {
   readonly url: string;
   // Types des messages reçus après le démarrage, toutes connexions confondues, dans l'ordre
-  // d'arrivée : `Q` pour une requête simple, `X` pour l'adieu du pilote.
+  // d'arrivée : `Q` pour une requête simple, `P`, `B`, `D`, `E`, `S` pour une requête paramétrée,
+  // `X` pour l'adieu du pilote.
   readonly messagesRecus: readonly string[];
   seTaire(): void;
   couper(): void;
@@ -27,6 +29,15 @@ function trame(type: string, corps: Buffer): Buffer {
 const AUTHENTIFICATION_ACCEPTEE = trame("R", Buffer.alloc(TAILLE_LONGUEUR));
 const PRET_POUR_UNE_REQUETE = trame("Z", Buffer.from("I", "latin1"));
 const REQUETE_FINIE_SANS_LIGNE = trame("C", Buffer.from("SELECT 0\0", "latin1"));
+// Analyse faite, liaison faite, aucune description de ligne : la réponse au `S` qui clôt une
+// requête paramétrée.
+const REQUETE_PARAMETREE_ACCEPTEE = Buffer.concat(
+  ["1", "2", "n"].map((type) => trame(type, Buffer.alloc(0))),
+);
+const REPONSES: Readonly<Record<string, Buffer>> = {
+  Q: Buffer.concat([REQUETE_FINIE_SANS_LIGNE, PRET_POUR_UNE_REQUETE]),
+  S: Buffer.concat([REQUETE_PARAMETREE_ACCEPTEE, REQUETE_FINIE_SANS_LIGNE, PRET_POUR_UNE_REQUETE]),
+};
 
 interface Echange {
   tampon: Buffer;
@@ -83,8 +94,9 @@ function repondre(connexion: Socket, type: string, reglages: Reglages): void {
     return;
   }
   reglages.messagesRecus.push(type);
-  if (type === "Q" && !reglages.muet) {
-    connexion.write(Buffer.concat([REQUETE_FINIE_SANS_LIGNE, PRET_POUR_UNE_REQUETE]));
+  const reponse = REPONSES[type];
+  if (reponse !== undefined && !reglages.muet) {
+    connexion.write(reponse);
   } else if (type === "X" && !reglages.neFermeJamais) {
     connexion.end();
   }
