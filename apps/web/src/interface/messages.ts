@@ -94,6 +94,11 @@ export function titreAffiche(titre: string): string {
   return CARACTERE_VISIBLE.test(titre) ? titre : SANS_TITRE;
 }
 
+/** Vrai quand le titre n'a aucun caractère visible : « Sans titre » s'affiche alors atténué (F-003-AC39). */
+export function titreEstVide(titre: string): boolean {
+  return !CARACTERE_VISIBLE.test(titre);
+}
+
 export function titreOnglet(titrePage: string | undefined): string {
   return titrePage === undefined ? NOM_APPLICATION : `${titrePage} · ${NOM_APPLICATION}`;
 }

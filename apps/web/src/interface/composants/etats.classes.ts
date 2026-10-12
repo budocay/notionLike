@@ -19,5 +19,6 @@ export const ETATS = {
   halo: "fond-halo pointer-events-none absolute inset-x-nul top-nul h-halo",
   contenu: "relative mx-auto flex w-full max-w-lecture flex-col gap-normal",
   titre: "wrap-anywhere text-titre-etroit font-titre text-texte-principal etroit:text-titre",
+  titreVide: "wrap-anywhere text-titre-etroit font-titre text-texte-discret etroit:text-titre",
   explication: "text-courant text-texte-secondaire",
 } as const;

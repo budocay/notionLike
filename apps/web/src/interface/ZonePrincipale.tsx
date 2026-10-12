@@ -15,6 +15,7 @@ import {
   PAGE_DE_VERSION_NON_PRISE_EN_CHARGE,
   PAGE_INTROUVABLE,
   titreAffiche,
+  titreEstVide,
 } from "./messages.ts";
 import { estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
 
@@ -40,7 +41,13 @@ const PAGE_REFUSEE = (
 // La clé rejoue l'apparition du contenu quand la page sélectionnée change (F-004-AC14).
 function entete({ selection, espaceVide, page }: Proprietes): ReactElement {
   if (selection.type === "page" && page?.phase !== "introuvable") {
-    return <EntetePage key={selection.page.id} titre={titreAffiche(selection.page.titre)} />;
+    return (
+      <EntetePage
+        key={selection.page.id}
+        titre={titreAffiche(selection.page.titre)}
+        vide={titreEstVide(selection.page.titre)}
+      />
+    );
   }
   if (selection.type !== "accueil") {
     return PAGE_REFUSEE;
