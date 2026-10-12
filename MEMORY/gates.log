@@ -44,3 +44,7 @@
 2026-10-10T19:48:04Z | agent-securite | F-030 | UNVERIFIED (verdict absent ou d'un autre type) | ee8cf32f4968
 2026-10-10T19:50:25Z | agent-architecte | F-030 | ARCHITECTURE GATE: FAIL | ee8cf32f4968
 2026-10-10T19:50:35Z | reviewer-frontend | F-030 | CHANGES_REQUESTED | ee8cf32f4968
+2026-10-12T06:47:55Z | agent-craft | F-030 | CRAFT GATE: PASS | b74f0f8085c0
+2026-10-12T06:49:26Z | agent-securite | F-030 | SECURITY GATE: PASS | b74f0f8085c0
+2026-10-12T06:52:21Z | agent-architecte | F-030 | ARCHITECTURE GATE: PASS | b74f0f8085c0
+2026-10-12T06:52:22Z | reviewer-frontend | F-030 | CHANGES_REQUESTED | b74f0f8085c0
