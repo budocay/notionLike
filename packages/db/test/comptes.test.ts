@@ -18,6 +18,11 @@ const PHRASE_D_ECHEC = "La migration a échoué : aucune migration de ce lanceme
 const TABLES = ["account", "session", "user", "verification"];
 const SUIVI_APRES_MONTEE = journal.entries.map((entree) => String(entree.when));
 const DANS_UNE_HEURE = new Date(Date.now() + 3_600_000);
+// Chaque base embarquée est une instance PGlite neuve. La première du fichier compile le
+// WebAssembly et fait un initdb : 1,6 à 5,6 s mesurés seul sur 4 CPU, plusieurs fois plus quand
+// toute la suite tourne en parallèle. Un test qui ouvre sa base dans son corps a donc ce délai
+// explicite, comme dans `migration.test.ts` et `acces.test.ts`.
+const DELAI_D_OUVERTURE_D_UNE_BASE_MS = 30_000;
 
 const { user, session, account } = schemaComptes;
 type Db = BaseEmbarquee["base"]["db"];
@@ -163,178 +168,218 @@ async function constaterLaStructure(db: Db): Promise<void> {
 }
 
 describe("migration des comptes", () => {
-  it("F-009-AC21 F-008-AC15 sur une base vide la commande crée les quatre tables, leurs identifiants uuid, unicités, index et cascades, sans table rateLimit, la consigne, et relancée n'en réapplique aucune", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-    expect(await tablesPubliques(embarquee.base.db)).toEqual([]);
+  it(
+    "F-009-AC21 F-008-AC15 sur une base vide la commande crée les quatre tables, leurs identifiants uuid, unicités, index et cascades, sans table rateLimit, la consigne, et relancée n'en réapplique aucune",
+    async () => {
+      const embarquee = await ouvrirBaseEmbarquee();
+      expect(await tablesPubliques(embarquee.base.db)).toEqual([]);
 
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
-    await constaterLaStructure(embarquee.base.db);
+      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      await constaterLaStructure(embarquee.base.db);
 
-    // Réappliquée, `create table "account"` échouerait : le code 0 prouve qu'elle ne l'est pas.
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
-    await constaterLaStructure(embarquee.base.db);
-    await embarquee.base.fermer();
-  });
+      // Réappliquée, `create table "account"` échouerait : le code 0 prouve qu'elle ne l'est pas.
+      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      await constaterLaStructure(embarquee.base.db);
+      await embarquee.base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC21 sur une base à l'état laissé par F-008 (table de suivi vide, aucune table) la commande crée la même structure", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-    expect(await lancer(embarquee, ETAT_F_008)).toEqual({ code: 0, lignes: [] });
-    expect(await suivi(embarquee.base.db)).toEqual([]);
-    expect(await tablesPubliques(embarquee.base.db)).toEqual([]);
+  it(
+    "F-009-AC21 sur une base à l'état laissé par F-008 (table de suivi vide, aucune table) la commande crée la même structure",
+    async () => {
+      const embarquee = await ouvrirBaseEmbarquee();
+      expect(await lancer(embarquee, ETAT_F_008)).toEqual({ code: 0, lignes: [] });
+      expect(await suivi(embarquee.base.db)).toEqual([]);
+      expect(await tablesPubliques(embarquee.base.db)).toEqual([]);
 
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
 
-    await constaterLaStructure(embarquee.base.db);
-    await embarquee.base.fermer();
-  });
+      await constaterLaStructure(embarquee.base.db);
+      await embarquee.base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC21 F-008-AC16 la migration qui échoue en route est annulée en entier, la base d'avant reste intacte, et la relance après correction applique tout", async () => {
-    const embarquee = await ouvrirBaseEmbarquee();
-    const { db } = embarquee.base;
-    expect(await lancer(embarquee, ETAT_F_008)).toEqual({ code: 0, lignes: [] });
-    // `account` est créée avant `session` : l'obstacle fait échouer la migration après un succès.
-    await db.execute(sql`create table "session" (obstacle integer)`);
+  it(
+    "F-009-AC21 F-008-AC16 la migration qui échoue en route est annulée en entier, la base d'avant reste intacte, et la relance après correction applique tout",
+    async () => {
+      const embarquee = await ouvrirBaseEmbarquee();
+      const { db } = embarquee.base;
+      expect(await lancer(embarquee, ETAT_F_008)).toEqual({ code: 0, lignes: [] });
+      // `account` est créée avant `session` : l'obstacle fait échouer la migration après un succès.
+      await db.execute(sql`create table "session" (obstacle integer)`);
 
-    const defaillant = await lancer(embarquee, DOSSIER_MIGRATIONS);
+      const defaillant = await lancer(embarquee, DOSSIER_MIGRATIONS);
 
-    expect(defaillant.code).toBe(1);
-    expect(defaillant.lignes[0]).toBe(PHRASE_D_ECHEC);
-    expect(defaillant.lignes.slice(1).join(" | ")).toMatch(/session.*already exists/);
-    expect(await tablesPubliques(db)).toEqual(["session"]);
-    expect(await colonnes(db)).toEqual(["session.obstacle integer"]);
-    expect(await suivi(db)).toEqual([]);
+      expect(defaillant.code).toBe(1);
+      expect(defaillant.lignes[0]).toBe(PHRASE_D_ECHEC);
+      expect(defaillant.lignes.slice(1).join(" | ")).toMatch(/session.*already exists/);
+      expect(await tablesPubliques(db)).toEqual(["session"]);
+      expect(await colonnes(db)).toEqual(["session.obstacle integer"]);
+      expect(await suivi(db)).toEqual([]);
 
-    await db.execute(sql`drop table "session"`);
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
-    await constaterLaStructure(db);
-    await embarquee.base.fermer();
-  });
+      await db.execute(sql`drop table "session"`);
+      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      await constaterLaStructure(db);
+      await embarquee.base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC21 la descente ramène une base peuplée à l'état laissé par F-008, et la commande réapplique ensuite la migration", async () => {
-    const embarquee = await ouvrirBaseEmbarqueeMigree();
-    const { db } = embarquee.base;
-    await ouvrirSession(db, await creerCompte(db, "descente@exemple.test"), "jeton-descente");
-    const instructions = readFileSync(DESCENTE, "utf8")
-      .split("--> statement-breakpoint")
-      .map((instruction) => instruction.replace(/^--.*$/gm, "").trim());
-    expect(instructions).toHaveLength(TABLES.length + 1);
+  it(
+    "F-009-AC21 la descente ramène une base peuplée à l'état laissé par F-008, et la commande réapplique ensuite la migration",
+    async () => {
+      const embarquee = await ouvrirBaseEmbarqueeMigree();
+      const { db } = embarquee.base;
+      await ouvrirSession(db, await creerCompte(db, "descente@exemple.test"), "jeton-descente");
+      const instructions = readFileSync(DESCENTE, "utf8")
+        .split("--> statement-breakpoint")
+        .map((instruction) => instruction.replace(/^--.*$/gm, "").trim());
+      expect(instructions).toHaveLength(TABLES.length + 1);
 
-    await db.transaction(async (transaction) => {
-      for (const instruction of instructions) {
-        await transaction.execute(sql.raw(instruction));
-      }
-    });
+      await db.transaction(async (transaction) => {
+        for (const instruction of instructions) {
+          await transaction.execute(sql.raw(instruction));
+        }
+      });
 
-    expect(await tablesPubliques(db)).toEqual([]);
-    expect(await suivi(db)).toEqual([]);
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
-    await constaterLaStructure(db);
-    expect(await db.select().from(user)).toEqual([]);
-    await embarquee.base.fermer();
-  });
+      expect(await tablesPubliques(db)).toEqual([]);
+      expect(await suivi(db)).toEqual([]);
+      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      await constaterLaStructure(db);
+      expect(await db.select().from(user)).toEqual([]);
+      await embarquee.base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 });
 
 describe("accord du schéma Drizzle et de la migration", () => {
-  it("F-009-AC21 F-009-AC23 chaque table du schéma des comptes a en base exactement ses colonnes, et le schéma n'a que les quatre tables natives", async () => {
-    const { base } = await ouvrirBaseEmbarqueeMigree();
-    const duSchema = Object.entries(schemaComptes).flatMap(([modele, table]) => {
-      expect(getTableName(table)).toBe(modele);
-      return Object.entries(getTableColumns(table)).map(([propriete, colonne]) => {
-        // L'adaptateur de better-auth retrouve un champ par sa propriété : colonne du même nom.
-        expect(colonne.name).toBe(propriete);
-        return `${modele}.${propriete}`;
+  it(
+    "F-009-AC21 F-009-AC23 chaque table du schéma des comptes a en base exactement ses colonnes, et le schéma n'a que les quatre tables natives",
+    async () => {
+      const { base } = await ouvrirBaseEmbarqueeMigree();
+      const duSchema = Object.entries(schemaComptes).flatMap(([modele, table]) => {
+        expect(getTableName(table)).toBe(modele);
+        return Object.entries(getTableColumns(table)).map(([propriete, colonne]) => {
+          // L'adaptateur de better-auth retrouve un champ par sa propriété : colonne du même nom.
+          expect(colonne.name).toBe(propriete);
+          return `${modele}.${propriete}`;
+        });
       });
-    });
 
-    expect(Object.keys(schemaComptes).sort()).toEqual(TABLES);
-    expect(duSchema).toHaveLength(COLONNES_ATTENDUES.length);
-    expect(duSchema.sort()).toEqual(COLONNES_ATTENDUES.map((ligne) => ligne.split(" ")[0]).sort());
-    await base.fermer();
-  });
+      expect(Object.keys(schemaComptes).sort()).toEqual(TABLES);
+      expect(duSchema).toHaveLength(COLONNES_ATTENDUES.length);
+      expect(duSchema.sort()).toEqual(
+        COLONNES_ATTENDUES.map((ligne) => ligne.split(" ")[0]).sort(),
+      );
+      await base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC23 l'accès typé écrit et relit un compte, une session et un identifiant de connexion par le schéma, identifiants et dates fournis par la base", async () => {
-    const { base } = await ouvrirBaseEmbarqueeMigree();
-    const id = await creerCompte(base.db, "typee@exemple.test");
-    await ouvrirSession(base.db, id, "jeton-type");
-    await base.db
-      .insert(account)
-      .values({ userId: id, accountId: id, providerId: "credential", password: "empreinte" });
+  it(
+    "F-009-AC23 l'accès typé écrit et relit un compte, une session et un identifiant de connexion par le schéma, identifiants et dates fournis par la base",
+    async () => {
+      const { base } = await ouvrirBaseEmbarqueeMigree();
+      const id = await creerCompte(base.db, "typee@exemple.test");
+      await ouvrirSession(base.db, id, "jeton-type");
+      await base.db
+        .insert(account)
+        .values({ userId: id, accountId: id, providerId: "credential", password: "empreinte" });
 
-    const [compte] = await base.db.select().from(user);
-    const [ouverte] = await base.db.select().from(session);
-    const [identifiant] = await base.db.select().from(account);
+      const [compte] = await base.db.select().from(user);
+      const [ouverte] = await base.db.select().from(session);
+      const [identifiant] = await base.db.select().from(account);
 
-    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(compte).toMatchObject({ id, email: "typee@exemple.test", emailVerified: false });
-    expect(compte?.image).toBeNull();
-    expect(compte?.createdAt).toBeInstanceOf(Date);
-    expect(ouverte).toMatchObject({ userId: id, token: "jeton-type", expiresAt: DANS_UNE_HEURE });
-    expect(identifiant).toMatchObject({ userId: id, providerId: "credential" });
-    await base.fermer();
-  });
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(compte).toMatchObject({ id, email: "typee@exemple.test", emailVerified: false });
+      expect(compte?.image).toBeNull();
+      expect(compte?.createdAt).toBeInstanceOf(Date);
+      expect(ouverte).toMatchObject({ userId: id, token: "jeton-type", expiresAt: DANS_UNE_HEURE });
+      expect(identifiant).toMatchObject({ userId: id, providerId: "credential" });
+      await base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 });
 
 describe("contraintes des comptes", () => {
-  it("F-009-AC21 F-009-AC2 un second compte au même courriel est refusé par l'unicité, un courriel qui porte une majuscule par le contrôle de casse, et le premier compte reste seul", async () => {
-    const { base } = await ouvrirBaseEmbarqueeMigree();
-    const ecrire = (email: string): Promise<unknown> =>
-      base.db.insert(user).values({ name: "Autre", email });
-    await creerCompte(base.db, "une@exemple.test");
+  it(
+    "F-009-AC21 F-009-AC2 un second compte au même courriel est refusé par l'unicité, un courriel qui porte une majuscule par le contrôle de casse, et le premier compte reste seul",
+    async () => {
+      const { base } = await ouvrirBaseEmbarqueeMigree();
+      const ecrire = (email: string): Promise<unknown> =>
+        base.db.insert(user).values({ name: "Autre", email });
+      await creerCompte(base.db, "une@exemple.test");
 
-    expect(await contrainteQuiRefuse(ecrire("une@exemple.test"))).toBe("user_email_unique");
-    expect(await contrainteQuiRefuse(ecrire("Une@exemple.test"))).toBe("user_email_minuscules");
+      expect(await contrainteQuiRefuse(ecrire("une@exemple.test"))).toBe("user_email_unique");
+      expect(await contrainteQuiRefuse(ecrire("Une@exemple.test"))).toBe("user_email_minuscules");
 
-    expect(await base.db.select({ name: user.name, email: user.email }).from(user)).toEqual([
-      { name: "Essai", email: "une@exemple.test" },
-    ]);
-    await base.fermer();
-  });
+      expect(await base.db.select({ name: user.name, email: user.email }).from(user)).toEqual([
+        { name: "Essai", email: "une@exemple.test" },
+      ]);
+      await base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC21 un second jeton de session identique est refusé, comme une session ou un identifiant de connexion sans compte", async () => {
-    const { base } = await ouvrirBaseEmbarqueeMigree();
-    const id = await creerCompte(base.db, "jeton@exemple.test");
-    const inconnu = "00000000-0000-4000-8000-000000000000";
-    await ouvrirSession(base.db, id, "jeton-unique");
+  it(
+    "F-009-AC21 un second jeton de session identique est refusé, comme une session ou un identifiant de connexion sans compte",
+    async () => {
+      const { base } = await ouvrirBaseEmbarqueeMigree();
+      const id = await creerCompte(base.db, "jeton@exemple.test");
+      const inconnu = "00000000-0000-4000-8000-000000000000";
+      await ouvrirSession(base.db, id, "jeton-unique");
 
-    expect(await contrainteQuiRefuse(ouvrirSession(base.db, id, "jeton-unique"))).toBe(
-      "session_token_unique",
-    );
-    expect(await contrainteQuiRefuse(ouvrirSession(base.db, inconnu, "jeton-orphelin"))).toBe(
-      "session_userId_user_id_fk",
-    );
-    expect(
-      await contrainteQuiRefuse(
-        base.db.insert(account).values({ userId: inconnu, accountId: "a", providerId: "p" }),
-      ),
-    ).toBe("account_userId_user_id_fk");
-    expect(await base.db.select({ token: session.token }).from(session)).toEqual([
-      { token: "jeton-unique" },
-    ]);
-    await base.fermer();
-  });
+      expect(await contrainteQuiRefuse(ouvrirSession(base.db, id, "jeton-unique"))).toBe(
+        "session_token_unique",
+      );
+      expect(await contrainteQuiRefuse(ouvrirSession(base.db, inconnu, "jeton-orphelin"))).toBe(
+        "session_userId_user_id_fk",
+      );
+      expect(
+        await contrainteQuiRefuse(
+          base.db.insert(account).values({ userId: inconnu, accountId: "a", providerId: "p" }),
+        ),
+      ).toBe("account_userId_user_id_fk");
+      expect(await base.db.select({ token: session.token }).from(session)).toEqual([
+        { token: "jeton-unique" },
+      ]);
+      await base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC21 supprimer un compte emporte ses sessions et ses identifiants de connexion, et laisse ceux des autres comptes", async () => {
-    const { base } = await ouvrirBaseEmbarqueeMigree();
-    const supprime = await creerCompte(base.db, "supprime@exemple.test");
-    const garde = await creerCompte(base.db, "garde@exemple.test");
-    for (const [id, nom] of [
-      [supprime, "supprime"],
-      [garde, "garde"],
-    ] as const) {
-      await ouvrirSession(base.db, id, `jeton-${nom}-1`);
-      await ouvrirSession(base.db, id, `jeton-${nom}-2`);
-      await base.db.insert(account).values({ userId: id, accountId: id, providerId: "credential" });
-    }
+  it(
+    "F-009-AC21 supprimer un compte emporte ses sessions et ses identifiants de connexion, et laisse ceux des autres comptes",
+    async () => {
+      const { base } = await ouvrirBaseEmbarqueeMigree();
+      const supprime = await creerCompte(base.db, "supprime@exemple.test");
+      const garde = await creerCompte(base.db, "garde@exemple.test");
+      for (const [id, nom] of [
+        [supprime, "supprime"],
+        [garde, "garde"],
+      ] as const) {
+        await ouvrirSession(base.db, id, `jeton-${nom}-1`);
+        await ouvrirSession(base.db, id, `jeton-${nom}-2`);
+        await base.db
+          .insert(account)
+          .values({ userId: id, accountId: id, providerId: "credential" });
+      }
 
-    await base.db.delete(user).where(sql`${user.id} = ${supprime}`);
+      await base.db.delete(user).where(sql`${user.id} = ${supprime}`);
 
-    expect(await base.db.select({ id: user.id }).from(user)).toEqual([{ id: garde }]);
-    expect(
-      await base.db.select({ token: session.token }).from(session).orderBy(session.token),
-    ).toEqual([{ token: "jeton-garde-1" }, { token: "jeton-garde-2" }]);
-    expect(await base.db.select({ userId: account.userId }).from(account)).toEqual([
-      { userId: garde },
-    ]);
-    await base.fermer();
-  });
+      expect(await base.db.select({ id: user.id }).from(user)).toEqual([{ id: garde }]);
+      expect(
+        await base.db.select({ token: session.token }).from(session).orderBy(session.token),
+      ).toEqual([{ token: "jeton-garde-1" }, { token: "jeton-garde-2" }]);
+      expect(await base.db.select({ userId: account.userId }).from(account)).toEqual([
+        { userId: garde },
+      ]);
+      await base.fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 });

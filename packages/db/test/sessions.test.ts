@@ -9,6 +9,11 @@ const MOT_DE_PASSE = "mot-de-passe-de-test";
 const ID_INCONNU = "00000000-0000-4000-8000-000000000000";
 const DANS_UNE_HEURE = new Date(Date.now() + 3_600_000);
 const DELAI_MAXIMAL_DU_CAS_MS = 10_000;
+// Chaque base embarquée est une instance PGlite neuve. La première du fichier compile le
+// WebAssembly et fait un initdb : 1,6 à 5,6 s mesurés seul sur 4 CPU, plusieurs fois plus quand
+// toute la suite tourne en parallèle. Un test qui ouvre sa base dans son corps a donc ce délai
+// explicite, comme dans `migration.test.ts` et `acces.test.ts`.
+const DELAI_D_OUVERTURE_D_UNE_BASE_MS = 30_000;
 
 const { user, session } = schemaComptes;
 type Db = BaseEmbarquee["base"]["db"];
@@ -62,79 +67,99 @@ async function echecDe(promesse: Promise<unknown>): Promise<ErreurBase> {
 }
 
 describe("suppression de sessions", () => {
-  it("F-009-AC33 une session visée par son identifiant est supprimée seule et rendue par son identifiant et celui de son compte, sans son jeton", async () => {
-    const { db, fermer, anne, sessions } = await peupler();
+  it(
+    "F-009-AC33 une session visée par son identifiant est supprimée seule et rendue par son identifiant et celui de son compte, sans son jeton",
+    async () => {
+      const { db, fermer, anne, sessions } = await peupler();
 
-    const supprimees = await supprimerSessions(db, { idSession: sessions["anne-1"] ?? "" });
+      const supprimees = await supprimerSessions(db, { idSession: sessions["anne-1"] ?? "" });
 
-    expect(supprimees).toEqual([{ idSession: sessions["anne-1"], idCompte: anne }]);
-    expect(await jetonsRestants(db)).toEqual(["anne-2", "bob-1"]);
-    await fermer();
-  });
+      expect(supprimees).toEqual([{ idSession: sessions["anne-1"], idCompte: anne }]);
+      expect(await jetonsRestants(db)).toEqual(["anne-2", "bob-1"]);
+      await fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC33 toutes les sessions d'un compte sont supprimées et rendues une à une, celles des autres comptes restent", async () => {
-    const { db, fermer, anne, sessions } = await peupler();
+  it(
+    "F-009-AC33 toutes les sessions d'un compte sont supprimées et rendues une à une, celles des autres comptes restent",
+    async () => {
+      const { db, fermer, anne, sessions } = await peupler();
 
-    const supprimees = await supprimerSessions(db, { idCompte: anne });
+      const supprimees = await supprimerSessions(db, { idCompte: anne });
 
-    expect([...supprimees].sort((a, b) => a.idSession.localeCompare(b.idSession))).toEqual(
-      [
-        { idSession: sessions["anne-1"] ?? "", idCompte: anne },
-        { idSession: sessions["anne-2"] ?? "", idCompte: anne },
-      ].sort((a, b) => a.idSession.localeCompare(b.idSession)),
-    );
-    expect(await jetonsRestants(db)).toEqual(["bob-1"]);
-    await fermer();
-  });
+      expect([...supprimees].sort((a, b) => a.idSession.localeCompare(b.idSession))).toEqual(
+        [
+          { idSession: sessions["anne-1"] ?? "", idCompte: anne },
+          { idSession: sessions["anne-2"] ?? "", idCompte: anne },
+        ].sort((a, b) => a.idSession.localeCompare(b.idSession)),
+      );
+      expect(await jetonsRestants(db)).toEqual(["bob-1"]);
+      await fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC33 F-009-AC13 une session inconnue ou déjà supprimée ne supprime rien et rend une liste vide", async () => {
-    const { db, fermer, sessions } = await peupler();
-    const visee = { idSession: sessions["bob-1"] ?? "" };
-    expect(await supprimerSessions(db, visee)).toHaveLength(1);
+  it(
+    "F-009-AC33 F-009-AC13 une session inconnue ou déjà supprimée ne supprime rien et rend une liste vide",
+    async () => {
+      const { db, fermer, sessions } = await peupler();
+      const visee = { idSession: sessions["bob-1"] ?? "" };
+      expect(await supprimerSessions(db, visee)).toHaveLength(1);
 
-    expect(await supprimerSessions(db, visee)).toEqual([]);
-    expect(await supprimerSessions(db, { idSession: ID_INCONNU })).toEqual([]);
-    expect(await supprimerSessions(db, { idCompte: ID_INCONNU })).toEqual([]);
+      expect(await supprimerSessions(db, visee)).toEqual([]);
+      expect(await supprimerSessions(db, { idSession: ID_INCONNU })).toEqual([]);
+      expect(await supprimerSessions(db, { idCompte: ID_INCONNU })).toEqual([]);
 
-    expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2"]);
-    await fermer();
-  });
+      expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2"]);
+      await fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC33 dans une transaction annulée la suppression n'est pas acquise ; dans une transaction validée elle l'est", async () => {
-    const { db, fermer, anne, bob } = await peupler();
-    const annulation = new Error("annulation voulue");
+  it(
+    "F-009-AC33 dans une transaction annulée la suppression n'est pas acquise ; dans une transaction validée elle l'est",
+    async () => {
+      const { db, fermer, anne, bob } = await peupler();
+      const annulation = new Error("annulation voulue");
 
-    const annulee = db.transaction(async (transaction) => {
-      expect(await supprimerSessions(transaction, { idCompte: anne })).toHaveLength(2);
-      expect(await jetonsRestants(transaction)).toEqual(["bob-1"]);
-      throw annulation;
-    });
-    await expect(annulee).rejects.toBe(annulation);
-    expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2", "bob-1"]);
+      const annulee = db.transaction(async (transaction) => {
+        expect(await supprimerSessions(transaction, { idCompte: anne })).toHaveLength(2);
+        expect(await jetonsRestants(transaction)).toEqual(["bob-1"]);
+        throw annulation;
+      });
+      await expect(annulee).rejects.toBe(annulation);
+      expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2", "bob-1"]);
 
-    const validees = await db.transaction((transaction) =>
-      supprimerSessions(transaction, { idCompte: bob }),
-    );
-    expect(validees).toHaveLength(1);
-    expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2"]);
-    await fermer();
-  });
+      const validees = await db.transaction((transaction) =>
+        supprimerSessions(transaction, { idCompte: bob }),
+      );
+      expect(validees).toHaveLength(1);
+      expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2"]);
+      await fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
-  it("F-009-AC33 F-009-AC19 une requête que la base refuse lève une erreur typée sans cause, qui ne porte ni le texte SQL ni l'identifiant, et ne supprime rien", async () => {
-    const { db, fermer } = await peupler();
-    const malForme = "pas-un-uuid-0d4f";
+  it(
+    "F-009-AC33 F-009-AC19 une requête que la base refuse lève une erreur typée sans cause, qui ne porte ni le texte SQL ni l'identifiant, et ne supprime rien",
+    async () => {
+      const { db, fermer } = await peupler();
+      const malForme = "pas-un-uuid-0d4f";
 
-    const erreur = await echecDe(supprimerSessions(db, { idSession: malForme }));
+      const erreur = await echecDe(supprimerSessions(db, { idSession: malForme }));
 
-    expect(erreur.code).toBe("requete-echouee");
-    expect(erreur.message).toBe("La requête à la base a échoué.");
-    expect(erreur.cause).toBeUndefined();
-    expect(JSON.stringify(erreur, Object.getOwnPropertyNames(erreur))).not.toMatch(
-      /pas-un-uuid|delete from|returning|params/i,
-    );
-    expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2", "bob-1"]);
-    await fermer();
-  });
+      expect(erreur.code).toBe("requete-echouee");
+      expect(erreur.message).toBe("La requête à la base a échoué.");
+      expect(erreur.cause).toBeUndefined();
+      expect(JSON.stringify(erreur, Object.getOwnPropertyNames(erreur))).not.toMatch(
+        /pas-un-uuid|delete from|returning|params/i,
+      );
+      expect(await jetonsRestants(db)).toEqual(["anne-1", "anne-2", "bob-1"]);
+      await fermer();
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
   it(
     "F-009-AC33 F-008-AC17 par le pilote pg vers un port fermé, l'erreur levée est typée, sans cause, sans l'URL de connexion ni le mot de passe",
