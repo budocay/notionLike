@@ -1,32 +1,36 @@
 // F-009-AC24 : better-auth cantonné à apps/server, par sous-chemin. Les règles de
-// `.dependency-cruiser.cjs` sont exécutées telles quelles, comme par `pnpm contrats` : sur le dépôt,
-// puis sur des modules d'essai écrits dans un dossier temporaire, qui reproduisent l'arborescence
-// du dépôt et importent chaque sous-chemin depuis chaque endroit.
+// `.dependency-cruiser.cjs` sont exécutées par la commande de `pnpm contrats` (l'outil de la
+// racine) : sur le dépôt, puis sur des modules d'essai écrits dans un dossier temporaire, qui
+// reproduisent l'arborescence du dépôt et importent chaque sous-chemin depuis chaque endroit.
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cruise, type ICruiseResult } from "dependency-cruiser";
 import { afterAll, describe, expect, it } from "vitest";
 
 const RACINE = fileURLToPath(new URL("../../../", import.meta.url));
 const MODULES_DU_SERVEUR = fileURLToPath(new URL("../node_modules", import.meta.url));
+const DEPCRUISE = join(RACINE, "node_modules", ".bin", "depcruise");
 const REGLES_DE_F_009 = [
   "better-auth-reserve-au-serveur",
   "better-auth-client-un-seul-module",
   "better-auth-react-et-greffons-interdits",
 ];
 
-interface Configuration {
-  readonly forbidden: unknown[];
-  readonly options: Record<string, unknown>;
+interface Resultat {
+  readonly modules: readonly {
+    readonly source: string;
+    readonly dependencies: readonly { readonly resolved: string }[];
+  }[];
+  readonly summary: {
+    readonly violations: readonly {
+      readonly from: string;
+      readonly rule: { readonly name: string };
+    }[];
+  };
 }
-
-const configuration = createRequire(import.meta.url)(
-  join(RACINE, ".dependency-cruiser.cjs"),
-) as Configuration;
 
 const dossiers: string[] = [];
 
@@ -36,18 +40,33 @@ afterAll(() => {
   }
 });
 
-async function croiser(baseDir: string, cibles: string[]): Promise<ICruiseResult> {
-  const { output } = await cruise(cibles, {
-    ...configuration.options,
-    baseDir,
-    validate: true,
-    ruleSet: { forbidden: configuration.forbidden },
-    outputType: "json",
-  } as Parameters<typeof cruise>[1]);
-  return (typeof output === "string" ? JSON.parse(output) : output) as ICruiseResult;
+// `depcruise --config .dependency-cruiser.cjs apps packages`, lancé depuis `baseDir`.
+function croiser(baseDir: string): Resultat {
+  const execution = spawnSync(
+    DEPCRUISE,
+    [
+      "--config",
+      join(RACINE, ".dependency-cruiser.cjs"),
+      "--output-type",
+      "json",
+      "apps",
+      "packages",
+    ],
+    {
+      cwd: baseDir,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ""}`,
+      },
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  expect(execution.error).toBeUndefined();
+  return JSON.parse(execution.stdout) as Resultat;
 }
 
-function violationsDeF009(resultat: ICruiseResult): string[] {
+function violationsDeF009(resultat: Resultat): string[] {
   return resultat.summary.violations
     .filter(({ rule }) => REGLES_DE_F_009.includes(rule.name))
     .map(({ rule, from }) => `${from} : ${rule.name}`)
@@ -109,8 +128,8 @@ function depotDEssai(installe: boolean): string {
 }
 
 describe("better-auth cantonné au serveur", () => {
-  it("F-009-AC24 sur le dépôt, aucune violation, et le serveur importe bien better-auth par son chemin installé", async () => {
-    const resultat = await croiser(RACINE, ["apps", "packages"]);
+  it("F-009-AC24 sur le dépôt, aucune violation, et le serveur importe bien better-auth par son chemin installé", () => {
+    const resultat = croiser(RACINE);
     const versBetterAuth = resultat.modules
       .filter(({ source }) => source.startsWith("apps/server/src/"))
       .flatMap(({ dependencies }) => dependencies.map(({ resolved }) => resolved))
@@ -125,10 +144,10 @@ describe("better-auth cantonné au serveur", () => {
     ["non installé", false],
   ])(
     "F-009-AC24 better-auth %s : chaque import interdit par sous-chemin est vu, et ceux du serveur sont permis",
-    async (_cas, installe) => {
+    (_cas, installe) => {
       const dossier = depotDEssai(installe);
 
-      const resultat = await croiser(dossier, ["apps", "packages"]);
+      const resultat = croiser(dossier);
       const resolus = resultat.modules.flatMap(({ dependencies }) =>
         dependencies.map(({ resolved }) => resolved),
       );
