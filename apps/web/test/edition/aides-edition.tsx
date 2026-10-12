@@ -2,8 +2,90 @@
 // d'édition (F-003-AC27). L'éditeur est piloté par ses commandes, ses règles de saisie et des
 // événements clavier, faute de frappe réelle sous jsdom (F-003 H12) ; la frappe réelle est prouvée
 // par le bout en bout (F-003-AC28).
-import { act, screen } from "@testing-library/react";
+import type { DocumentPage } from "@notionlike/document";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
+import { StrictMode } from "react";
+import { afterEach, vi } from "vitest";
+import * as Y from "yjs";
+
+import { EditeurDePage } from "../../src/edition/index.ts";
+import { estLaFrappe, RACCOURCIS } from "../../src/interface/raccourcis.ts";
+import {
+  miseAJourDUneReplique,
+  ouvrirFacadeDePage,
+  suivreLeDocument,
+} from "../aides-facade-page.ts";
+
+const arretsDEcoute: (() => void)[] = [];
+
+// L'éditeur est démonté, puis les écoutes des tests retirées, avant que l'aide des façades ne
+// compte les observateurs restés sur chaque document.
+afterEach(() => {
+  cleanup();
+  arretsDEcoute.splice(0).forEach((arreter) => arreter());
+});
+
+/** Mises à jour émises par le document à partir de maintenant ; l'écoute cesse en fin de test. */
+export function ecouterLesMisesAJour(doc: Y.Doc): Uint8Array[] {
+  suivreLeDocument(doc);
+  const emises: Uint8Array[] = [];
+  const noter = (miseAJour: Uint8Array): void => void emises.push(miseAJour);
+  doc.on("update", noter);
+  arretsDEcoute.push(() => doc.off("update", noter));
+  return emises;
+}
+
+export interface Montage {
+  readonly doc: Y.Doc;
+  readonly page: DocumentPage;
+  /** Mises à jour émises par le document depuis avant le montage. */
+  readonly emises: Uint8Array[];
+}
+
+/** Monte l'éditeur seul, comme l'application le fait : sous `StrictMode`, sur une façade de page. */
+export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
+  const emises = ecouterLesMisesAJour(doc);
+  const page = ouvrirFacadeDePage(doc);
+  render(
+    <StrictMode>
+      <EditeurDePage
+        contenu={page.contenu}
+        garderVersion={page.garderVersion}
+        meneALaBarre={(frappe) => estLaFrappe(frappe, RACCOURCIS.barreDeBlocs)}
+      />
+    </StrictMode>,
+  );
+  return { doc, page, emises };
+}
+
+/** Démonte l'éditeur monté, qui détruit sa liaison ; le document reste. */
+export function demonterLEditeur(): void {
+  cleanup();
+}
+
+const APPELS_RESEAU = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
+
+/**
+ * Coupe le réseau (F-003-AC21) : tout appel de l'une des quatre interfaces lève, donc fait échouer
+ * l'action qui l'émet, et son nom est noté dans la liste rendue.
+ */
+export function couperLeReseau(): string[] {
+  const appels: string[] = [];
+  for (const nom of APPELS_RESEAU) {
+    vi.stubGlobal(nom, function interfaceCoupee(): never {
+      appels.push(nom);
+      throw new Error(`F-003-AC21 : ${nom} appelé pendant l'édition.`);
+    });
+  }
+  return appels;
+}
+
+/** Le document reçoit ce qu'une autre réplique a modifié, comme la synchronisation le livrera. */
+export function recevoirDUneReplique(doc: Y.Doc, modifier: (replique: DocumentPage) => void): void {
+  const miseAJour = miseAJourDUneReplique(doc, modifier);
+  act(() => Y.applyUpdate(doc, miseAJour));
+}
 
 export const NOM_DE_L_EDITEUR = "Contenu de la page";
 export const NOMS_DES_COMMANDES = [
@@ -99,6 +181,13 @@ export function placerLeCurseurApres(texte: string): void {
     throw new Error(`Aucun bloc ne porte le texte « ${texte} ».`);
   }
   act(() => void editeur.commands.setTextSelection(position));
+}
+
+/** Étend la sélection à tout le texte du bloc où se trouve le curseur. */
+export function selectionnerLeBloc(): void {
+  const editeur = editeurMonte();
+  const { $from } = editeur.state.selection;
+  act(() => void editeur.commands.setTextSelection({ from: $from.start(), to: $from.end() }));
 }
 
 /** Étend la sélection à tout le contenu. */

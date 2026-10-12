@@ -10,7 +10,7 @@ import {
   ouvrirCoquille,
   saisirTitre,
 } from "./aides-coquille.tsx";
-import { ouvrirFacadeDePage } from "./aides-facade-page.ts";
+import { contenuLu } from "./aides-facade-page.ts";
 import { attendreEtat, laisserIndexedDbTravailler } from "./aides-persistance.ts";
 import { attendreLaZoneDeSaisie } from "./edition/aides-edition.tsx";
 
@@ -49,11 +49,6 @@ export async function ouvrirUnePage(titre = "Page d'essai"): Promise<PageOuverte
 /** Sélectionne une page par son lien de la barre latérale. */
 export async function selectionner(coquille: CoquilleRendue, titre: string): Promise<void> {
   await coquille.utilisateur.click(screen.getByRole("link", { name: titre }));
-}
-
-/** Contenu lu d'un fragment : la suite de ses blocs, types, niveaux, imbrication et texte. */
-export function contenuLu(doc: Y.Doc): string {
-  return ouvrirFacadeDePage(doc).contenu.toString();
 }
 
 /**

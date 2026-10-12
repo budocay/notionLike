@@ -3,7 +3,7 @@
 // d'écouteurs et d'observateurs de chaque `Y.Doc` revenu à sa valeur de départ.
 import { type DocumentPage, ouvrirDocumentPage } from "@notionlike/document";
 import { afterEach, expect } from "vitest";
-import type * as Y from "yjs";
+import * as Y from "yjs";
 
 const departsDesPages = new Map<Y.Doc, number>();
 const pagesOuvertes: DocumentPage[] = [];
@@ -32,6 +32,85 @@ export function ouvrirFacadeDePage(doc: Y.Doc): DocumentPage {
   const page = ouvrirDocumentPage(doc);
   pagesOuvertes.push(page);
   return page;
+}
+
+/** Contenu lu d'un document de page : la suite de ses blocs, types, niveaux, imbrication et texte. */
+export function contenuLu(doc: Y.Doc): string {
+  return ouvrirFacadeDePage(doc).contenu.toString();
+}
+
+/**
+ * Une réplique partie de l'état courant du document, modifiée par sa façade, et la mise à jour
+ * qu'elle émet : ce qu'une autre application enverrait.
+ */
+export function miseAJourDUneReplique(
+  doc: Y.Doc,
+  modifier: (replique: DocumentPage) => void,
+): Uint8Array {
+  const replique = new Y.Doc();
+  Y.applyUpdate(replique, Y.encodeStateAsUpdate(doc));
+  const etatAvant = Y.encodeStateVector(replique);
+  const facade = ouvrirDocumentPage(replique);
+  try {
+    modifier(facade);
+  } finally {
+    facade.fermer();
+  }
+  return Y.encodeStateAsUpdate(replique, etatAvant);
+}
+
+/** Un bloc de ce nom, avec ce texte, tel qu'une réplique l'écrit dans le fragment. */
+export function bloc(
+  nom: string,
+  texte: string,
+  attributs: Record<string, string | number> = {},
+): Y.XmlElement {
+  const element = new Y.XmlElement<Record<string, string | number>>(nom);
+  Object.entries(attributs).forEach(([cle, valeur]) => element.setAttribute(cle, valeur));
+  if (texte !== "") {
+    element.insert(0, [new Y.XmlText(texte)]);
+  }
+  return element as Y.XmlElement;
+}
+
+/** Ajoute des blocs à la fin du contenu d'une réplique. */
+export function ajouter(replique: DocumentPage, ...blocs: Y.XmlElement[]): void {
+  replique.contenu.insert(replique.contenu.length, blocs);
+}
+
+export interface Inventaire {
+  /** Nom de chaque nœud inscrit dans le fragment, avec les attributs qu'il y porte, triés. */
+  readonly noeuds: Readonly<Record<string, readonly string[]>>;
+  /** Noms des marques : les attributs de mise en forme portés par un texte. */
+  readonly marques: readonly string[];
+}
+
+/** Tout ce que le fragment du contenu porte : nœuds, attributs et marques, sans le texte. */
+export function inventaireDuContenu(doc: Y.Doc): Inventaire {
+  const noeuds = new Map<string, Set<string>>();
+  const marques = new Set<string>();
+  const visiter = (element: Y.XmlElement | Y.XmlText | Y.XmlHook): void => {
+    if (element instanceof Y.XmlText) {
+      const morceaux = element.toDelta() as { attributes?: Record<string, unknown> }[];
+      morceaux.forEach(({ attributes }) =>
+        Object.keys(attributes ?? {}).forEach((marque) => marques.add(marque)),
+      );
+    } else if (element instanceof Y.XmlElement) {
+      const attributs = noeuds.get(element.nodeName) ?? new Set<string>();
+      Object.keys(element.getAttributes()).forEach((attribut) => attributs.add(attribut));
+      noeuds.set(element.nodeName, attributs);
+      element.toArray().forEach(visiter);
+    }
+  };
+  ouvrirFacadeDePage(doc).contenu.toArray().forEach(visiter);
+  return {
+    noeuds: Object.fromEntries(
+      [...noeuds]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([nom, attributs]) => [nom, [...attributs].sort()]),
+    ),
+    marques: [...marques].sort(),
+  };
 }
 
 /** Observateurs que les documents suivis portent en plus de leur compte de départ. */
