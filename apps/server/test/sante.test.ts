@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   arreterLesServeurs,
   baseDontLaSonde,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
   DELAI_DES_TESTS_LENTS_MS,
   enveloppeDe,
   lancerServeur,
@@ -22,7 +23,7 @@ let embarquee: BaseEmbarquee;
 
 beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarquee();
-});
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(() => embarquee.base.fermer());
 
@@ -61,16 +62,21 @@ describe("GET /pret", () => {
     expect(sondes).toBe(1);
   });
 
-  it("F-008-AC18 deux serveurs du même fichier ont chacun leur base embarquée", async () => {
-    const autre = await ouvrirBaseEmbarquee();
-    const premier = await lancerServeur(embarquee.base);
-    const second = await lancerServeur(autre.base);
+  // Ce test ouvre lui-même la seconde base : son corps porte le délai d'une ouverture.
+  it(
+    "F-008-AC18 deux serveurs du même fichier ont chacun leur base embarquée",
+    async () => {
+      const autre = await ouvrirBaseEmbarquee();
+      const premier = await lancerServeur(embarquee.base);
+      const second = await lancerServeur(autre.base);
 
-    await autre.base.fermer();
+      await autre.base.fermer();
 
-    expect((await fetch(`${second.url}${CHEMINS.pret}`)).status).toBe(503);
-    expect((await fetch(`${premier.url}${CHEMINS.pret}`)).status).toBe(200);
-  });
+      expect((await fetch(`${second.url}${CHEMINS.pret}`)).status).toBe(503);
+      expect((await fetch(`${premier.url}${CHEMINS.pret}`)).status).toBe(200);
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
 
   it("F-008-AC3 répond 503 base-indisponible quand la base est injoignable, et GET /sante reste à 200", async () => {
     const port = await portFerme();

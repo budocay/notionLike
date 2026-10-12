@@ -2,15 +2,26 @@ import { inspect } from "node:util";
 
 import { sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErreurBase, ouvrirBase } from "../src/index.ts";
-import { demarrerFauxPostgres, ouvrirBaseEmbarquee, portFerme } from "./essai.ts";
+import {
+  demarrerFauxPostgres,
+  ouvrirBaseEmbarquee,
+  portFerme,
+  type BaseEmbarquee,
+} from "./essai.ts";
 
 const MOT_DE_PASSE = "mot-de-passe-de-test";
 const DELAI_MAXIMAL_DU_CAS_MS = 10_000;
 const ATTENTE_DE_LA_COUPURE_MS = 200;
 const ATTENTE_MAXIMALE_DE_LA_FERMETURE_MS = 1000;
+// Chaque base embarquée est une instance PGlite neuve. La première du fichier compile le
+// WebAssembly et fait un initdb : 1,6 à 5,6 s mesurés seul sur 4 CPU, plusieurs fois plus quand
+// toute la suite tourne en parallèle ; les suivantes partent du gabarit de `base-embarquee.ts`.
+// L'ouverture se fait donc dans un crochet qui a son propre délai, et le corps de chaque test garde
+// le délai par défaut pour ce qu'il constate.
+const DELAI_D_OUVERTURE_D_UNE_BASE_MS = 30_000;
 
 function lignesDe(resultat: unknown): unknown[] {
   expect(resultat).toHaveProperty("rows");
@@ -44,8 +55,39 @@ function attendre(dureeMs: number): Promise<void> {
 }
 
 describe("accès à une base embarquée", () => {
+  let embarquee: BaseEmbarquee;
+
+  beforeEach(async () => {
+    embarquee = await ouvrirBaseEmbarquee();
+  }, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
+  // La fermeture est idempotente (F-008-AC17) : refermer une base déjà fermée par le test ne change rien.
+  afterEach(() => embarquee.base.fermer());
+
+  // Premier test du fichier : sa base est celle dont le répertoire sert de gabarit aux suivantes.
+  // Ce qu'elle reçoit après son ouverture ne doit pas atteindre une base ouverte ensuite.
+  it(
+    "F-008-AC18 une base ouverte après qu'une autre a reçu une table ne la voit pas",
+    async () => {
+      const chercher = sql`select to_regclass('essai_gabarit')::text as table_trouvee`;
+      await embarquee.base.db.execute(sql`create table essai_gabarit (id integer primary key)`);
+
+      const tardive = await ouvrirBaseEmbarquee();
+      try {
+        expect(lignesDe(await embarquee.base.db.execute(chercher))).toEqual([
+          { table_trouvee: "essai_gabarit" },
+        ]);
+        expect(lignesDe(await tardive.base.db.execute(chercher))).toEqual([
+          { table_trouvee: null },
+        ]);
+      } finally {
+        await tardive.base.fermer();
+      }
+    },
+    DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  );
+
   it("F-008-AC17 la sonde aboutit, l'accès Drizzle rend la ligne d'un select, la fermeture ferme", async () => {
-    const { base } = await ouvrirBaseEmbarquee();
+    const { base } = embarquee;
 
     await expect(base.sonder()).resolves.toBeUndefined();
     const resultat = await base.db.execute(sql`select 41 + 1 as reponse`);
@@ -56,24 +98,32 @@ describe("accès à une base embarquée", () => {
     expect(erreur.code).toBe("base-injoignable");
   });
 
-  it("F-008-AC18 deux bases embarquées ouvertes dans le même fichier ne partagent aucun état", async () => {
-    const premiere = await ouvrirBaseEmbarquee();
-    const seconde = await ouvrirBaseEmbarquee();
-    const chercher = sql`select to_regclass('essai_isolement')::text as table_trouvee`;
+  describe("avec une seconde base ouverte", () => {
+    let seconde: BaseEmbarquee;
 
-    await premiere.base.db.execute(sql`create table essai_isolement (id integer primary key)`);
+    beforeEach(async () => {
+      seconde = await ouvrirBaseEmbarquee();
+    }, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
+    afterEach(() => seconde.base.fermer());
 
-    expect(lignesDe(await premiere.base.db.execute(chercher))).toEqual([
-      { table_trouvee: "essai_isolement" },
-    ]);
-    expect(lignesDe(await seconde.base.db.execute(chercher))).toEqual([{ table_trouvee: null }]);
+    it("F-008-AC18 deux bases embarquées ouvertes dans le même fichier ne partagent aucun état", async () => {
+      const premiere = embarquee;
+      const chercher = sql`select to_regclass('essai_isolement')::text as table_trouvee`;
 
-    await expect(premiere.base.fermer()).resolves.toBeUndefined();
-    await expect(seconde.base.fermer()).resolves.toBeUndefined();
+      await premiere.base.db.execute(sql`create table essai_isolement (id integer primary key)`);
+
+      expect(lignesDe(await premiere.base.db.execute(chercher))).toEqual([
+        { table_trouvee: "essai_isolement" },
+      ]);
+      expect(lignesDe(await seconde.base.db.execute(chercher))).toEqual([{ table_trouvee: null }]);
+
+      await expect(premiere.base.fermer()).resolves.toBeUndefined();
+      await expect(seconde.base.fermer()).resolves.toBeUndefined();
+    });
   });
 
   it("F-008-AC17 une seconde fermeture aboutit sans refermer le moteur embarqué", async () => {
-    const { base, pilote } = await ouvrirBaseEmbarquee();
+    const { base, pilote } = embarquee;
     const fermeturesDuPilote = vi.spyOn(pilote, "fermer");
 
     await expect(base.fermer()).resolves.toBeUndefined();
@@ -181,6 +231,46 @@ describe("accès par le pilote pg", () => {
 
       expect(issue).toBe("fermée");
       await faux.arreter();
+    },
+    DELAI_MAXIMAL_DU_CAS_MS,
+  );
+
+  // La sonde ignore l'issue de sa requête : la promesse du pilote `pg` est relevée sur la réserve
+  // (`Pool.prototype.query`, que Drizzle appelle), sans rien changer à ce qu'elle fait.
+  it(
+    "F-008-AC17 après la fermeture, la requête restée en vol d'une sonde hors délai est rejetée",
+    async () => {
+      const requetesDeLaReserve = vi.spyOn(Pool.prototype, "query");
+      const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+      const base = ouvrirBase(faux.url);
+      try {
+        await expect(base.sonder()).resolves.toBeUndefined();
+        faux.seTaire();
+        expect((await echecDe(base.sonder())).code).toBe("sonde-hors-delai");
+        const derniere = requetesDeLaReserve.mock.results.at(-1);
+        expect(derniere?.type).toBe("return");
+        const issueDeLaRequete = Promise.resolve(derniere?.value as unknown).then(
+          () => "aboutie",
+          (erreur: unknown) => erreur,
+        );
+        expect(await Promise.race([issueDeLaRequete, attendre(0).then(() => "en vol")])).toBe(
+          "en vol",
+        );
+
+        void base.fermer();
+        const issue = await Promise.race([
+          issueDeLaRequete,
+          attendre(ATTENTE_MAXIMALE_DE_LA_FERMETURE_MS).then(() => "toujours en vol"),
+        ]);
+
+        expect(issue).toBeInstanceOf(Error);
+        expect((issue as Error).message).toBe("Connection terminated");
+        expect(faux.messagesRecus).toEqual(["Q", "Q"]);
+      } finally {
+        requetesDeLaReserve.mockRestore();
+        await faux.arreter();
+        await base.fermer();
+      }
     },
     DELAI_MAXIMAL_DU_CAS_MS,
   );

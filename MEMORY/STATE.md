@@ -1,63 +1,54 @@
-# STATE — notionLike — 2026-10-09
+# STATE — notionLike — 2026-10-12
 
 ## Où on en est
 
-F-001 (arborescence des pages, `packages/document`), F-002 (application web locale : coquille, barre latérale, persistance IndexedDB) et F-004 (identité visuelle sombre : jetons, application habillée, tiroir sur petit écran) sont DONE et dans `main`. Leurs entrées sont dans `PROJECT_LOG.md` et `MEMORY/features/`. Le dev a vu la page de démonstration de F-004 et répondu « J'aime tout ».
+Dépôt distant : `git@github.com:budocay/notionLike.git`, repris depuis Claude Code cloud. Sur un clone neuf : `pnpm install --frozen-lockfile` et `git config core.hooksPath .githooks`. Dans le conteneur cloud, il faut en plus Node 26 en tête du `PATH` (`/opt/nvm/versions/node/v26.10.0/bin`), et installer `gitleaks`, `semgrep` et `trivy` : sans gitleaks, aucun commit ne passe ; sans Node 26, les tests de PGlite dépassent leurs délais.
 
-Le 2026-10-09, le dev a étendu le mode rapide à toutes les features (« le mode rapide est valide pour tout ») : spec validée, code écrit directement depuis la spec et la veille, note de conception courte et ADR seulement pour ce qui est difficile à défaire, pas de gate de conception avant le code ; les gates de fin restent. Contrepartie constatée sur F-004 : faire relire la structure par `agent-architecte-conception` avant la revue, et demander au producteur un témoin jetable par critère exposé.
+`main` porte cinq features DONE : F-001, F-002, F-004, F-030, et F-008 (socle serveur), fusionnée le 2026-10-12 par la PR budocay/notionLike#1 (merge commit `2cc4a52`, dernier commit de la branche `a52b33f`). F-008 est acceptée par le dev sans dernier passage des gates (sept lignes `DEROGATION D-014` sur l'empreinte `777ae8247baa`). Ses points ouverts sont des dettes proposées (« Dette et limites » de `MEMORY/features/F-008.md`). Le correctif inachevé du dernier tour est archivé sur la branche `archive-F-008-dernier-tour`.
 
-F-008 (socle serveur) est EN COURS dans un second worktree, `~/dev/notionLike-F-008`, branche `F-008-socle` partie de `main` : spec validée (`651991f`). Le hook de périmètre accepte depuis le 2026-10-09 les écritures d'agent dans un worktree de ce dépôt (modification du dev dans `.claude/hooks/cc-adapt.sh`, `test-blocage.sh` vert après la modification : `RESULTAT: tous les blocages sont effectifs`) : deux branches peuvent avancer en même temps, une par worktree.
+Deux branches de travail, non fusionnées :
 
-La planification complète est dans `main` : 30 features et leurs specs (`ROADMAP.md` porte les comptes et l'ordre), `MEMORY/VEILLE.md`. Le statut de chaque spec est celui de sa ligne `Statut :`. Ordre du chemin client après F-004 : F-030 (reprise de la persistance après une coupure, exigée par le dev le 2026-10-09 : « les données doivent être tout le temps persistées »), puis F-003 (éditeur de page, qui livre directement la barre flottante). Le chemin serveur (F-008, F-009, F-011, F-012, puis F-013), qui apporte la base PostgreSQL, n'a pas commencé.
+- `F-009` (comptes et sessions côté serveur, better-auth, structurel), partie de `F-008-socle` avant sa fin, worktree cloud `/home/user/notionLike-F-009`. Tête `8fd1266`. Les 13 critères manquants sont couverts ; la relecture de `f8891ab` a trouvé 7 défauts, corrigés dans `83b5802`. L'adaptateur Drizzle de better-auth marche malgré les deux copies de `drizzle-orm` (test `adaptateur-drizzle.test.ts`). Dernier relevé de l'agent : 69 fichiers, 1669 tests, typecheck, lint, contrats (247 modules, 707 dépendances) et `ac-couverture` en code 0. Reste AC23, partiel : le patch du fichier d'exemple est prêt mais touche aussi `infra/tests/exemples.test.ts`, à poser par agent-backend et agent-devops.
+- `F-003` (éditeur de page, structurel), partie de `F-030`. Dernier commit `ddba41b`, travail interrompu et enregistré tel quel. 43 critères sur 44 cités ; manque F-003-AC39. `pnpm contrats` est rouge : Tiptap n'est pas admis par `.dependency-cruiser.cjs`.
 
-Depuis le 2026-10-09, le dev a délégué à l'orchestrateur tous les commits `Agent: dev` (dette D-008) et a accepté d'alléger le parcours : `ARCHITECTURE.md` est aligné après le dernier bloc d'une feature et non après chaque bloc ; F-019, F-020 et F-021 sont reclassées `standard`.
-
-Le dépôt principal (`~/dev/notionLike`) sert au chemin client ; un worktree temporaire (`scratchpad/revue-F-001`, nom hérité de la première revue) sert aux revues.
+Décisions du dev en vigueur : mode rapide, développements lancés sans attendre les gates, délégation des commits `Agent: dev` (D-008), sauf la validation d'une spec et les fichiers protégés. Le dev trouve le parcours trop long : il a coupé le dernier passage des gates de F-008 et veut avancer.
 
 ## Prochaine action prévue
 
-Chemin client, dépôt principal : F-030 (reprise de la persistance après une coupure) — valider `specs/F-030.md` par délégation, branche `F-030` depuis `main`, mode rapide. Puis F-003.
-
-Chemin serveur, worktree `~/dev/notionLike-F-008` : faire reposer par `agent-architecte-conception` la conception de F-008 et les ADR-0004 à 0006 depuis la branche d'archive `planification-reunie` (`a246106`), recalés sur `main` ; bloc 0 par délégation (script de la conception) ; blocs d'`agent-backend`, `agent-bdd`, `agent-devops` ; relecture de structure, puis revue (`reviewer-devops`, `reviewer-bdd`, `reviewer-backend`, `reviewer-api`, architecture, sécurité, craft).
-
-À faire par l'orchestrateur après la fusion de F-004 : commiter sur `main` la modification du hook sous `Agent: dev` (délégation), faire inscrire le mode rapide pour toutes les features dans `ROADMAP.md` par `agent-planif`.
-
-Règles de revue : code, puis preuves relevées sur le dernier commit de code, puis `MEMORY/features/<F-id>.md`, puis `ARCHITECTURE.md` en dernier, et seulement alors `dossier-revue.sh` et les gates ; aucun commit de code ni de configuration après le réalignement des documents. Trois rejets consécutifs d'un même gate déclenchent l'escalade (code 3), que seul le dev reprend. Avant une fusion : `gates-verts.sh main..HEAD` depuis la branche, lu en entier, puis la fusion dans une commande séparée.
+1. `F-009` : intégrer `main` (merge, conflits par leurs propriétaires), poser AC23, puis dossier de revue et gates en un seul passage.
+2. `F-003` : faire préparer et essayer sur copie, par agent-frontend, l'admission de Tiptap dans `.dependency-cruiser.cjs`, que le dev pose ; puis AC39, relecture de `ddba41b`, bout en bout, intégration de `main`. Le client reprend ensuite selon `ROADMAP.md`.
 
 ## Dettes ouvertes
 
-- D-001 Pas de CI ni de branche protégée — depuis la génération — impact : les hooks git se contournent par `--no-verify`, pas de `CODEOWNERS` ; à lever dès qu'une plateforme git est choisie.
-- D-002 Tests d'intégration du serveur sur PGlite et non sur un PostgreSQL réel — proposée par F-008 (voir `ROADMAP.md`) — pas encore ouverte par le dev.
-- D-003 Tests de bout en bout hors des hooks — depuis F-002 — impact : les scénarios Playwright, les captures et `preuve:construction` ne sont tenus que par des relevés à la main dans `MEMORY/features/` ; à lever par le dev en les branchant dans `.agents/outils.env`.
-- D-004 Citée par le dev dans deux lignes `REPRISE D-004` de `MEMORY/gates.log` — titre et impact écrits nulle part : à faire décrire par le dev dans `PROJECT_LOG.md`.
-- D-005 Rang de longueur non bornée et `rangEntre` récursive — depuis F-001 — impact : une mise à jour forgée peut épuiser la pile ; levée par F-029, obligatoire avant F-012.
-- D-006 Rappel d'abonné qui lève, façade sans fermeture — depuis F-001 — levée par F-002 ; à clore par le dev dans `PROJECT_LOG.md`.
-- D-007 Vérification des types hors des contrôles du socle — depuis F-001 — impact : `pnpm typecheck` n'est prouvé par aucun `checks.txt` ; à lever par le dev.
-- D-008 Commits `Agent: dev` délégués à l'orchestrateur — depuis le 2026-10-09 — impact : le trailer `Agent: dev` ne prouve plus qu'un humain a lu une spec ou un fichier protégé ; à lever par le dev (retirer les règles de `.claude/settings.local.json` ou relire les commits délégués, `git log --grep='délégation explicite du dev'`).
+- D-001 Pas de CI ni de branche protégée — depuis la génération — les hooks se contournent ; une PR fusionnée depuis GitHub ne passe par aucun hook.
+- D-002 Tests d'intégration du serveur sur PGlite, pas sur un PostgreSQL réel — proposée par F-008 — pas encore ouverte par le dev.
+- D-003 Bout en bout, captures et `preuve:construction` hors des hooks — depuis F-002.
+- D-004 Citée par deux lignes `REPRISE D-004` — titre et impact écrits nulle part : à décrire par le dev.
+- D-005 Rang de longueur non bornée, `rangEntre` récursive — depuis F-001 — levée par F-029, obligatoire avant F-012.
+- D-006 Rappel d'abonné qui lève — levée par F-002 ; à clore par le dev.
+- D-007 `pnpm typecheck` hors des contrôles du socle — depuis F-001.
+- D-008 Commits `Agent: dev` délégués à l'orchestrateur — depuis le 2026-10-09.
+- D-009 Réparation de l'identifiant d'espace par énumération des bases — depuis F-030 — à remplacer avant F-014.
+- D-010 Lecture brute sans borne — depuis F-030 — à borner avec F-029 et F-012.
+- D-011 Sonde hors délai qui garde sa connexion — depuis F-008 — client dédié à prévoir avec F-009.
+- D-012 Trois rejets de reviewer-frontend sur F-030 — reprise par le dev ; résolue au quatrième passage.
+- D-013 Relecteurs de F-008 qui soulèvent des points nouveaux à chaque passage — reprise par le dev le 2026-10-12.
+- D-014 F-008 acceptée sans dernier passage des gates — depuis le 2026-10-12 — points ouverts dans `MEMORY/features/F-008.md`, dont une erreur 401/403 future avalée en 400 (`enveloppe.ts`), à traiter avec F-009.
 
 ## État des contrôles / gates
 
-Les verdicts font foi dans `MEMORY/gates.log`. F-001 : tous verts sur l'empreinte `ca4cb0d41fe3`. F-002 : tous verts sur l'empreinte `d06344502281`. F-004 : tous verts sur l'empreinte `2fc8bae8471c`. `main` : `gates-verts.sh 275d4ef..main` → `RESULTAT GATES: OK` à la fusion de F-002.
+Les verdicts font foi dans `MEMORY/gates.log`. F-001, F-002, F-004, F-030 : verts. F-008 : dernier passage complet sur `8487522a97ae` (sécurité et craft PASS, autres non verts) ; dérogation du dev sur `777ae8247baa` ; `gates-verts.sh` : `RESULTAT GATES: OK` avant la fusion. F-009 et F-003 : aucun gate lancé.
 
-F-004, dernier commit de code `0d0a240` : relevé de l'orchestrateur dans `MEMORY/features/F-004.md` (1078 tests sur 32 fichiers, types, lint, contrats, `preuve:construction`, couverture des critères, bout en bout `46 passed` deux fois, tous en code 0).
-
-UNVERIFIED pour tout gate, parce que hors des contrôles du socle : `pnpm typecheck` (D-007), la construction, le bout en bout et les captures (D-003). Ce sont des relevés à la main.
+Preuves de F-008 hors du socle : fumée Docker relevée par le dev sur `fbbd6b6` (`FUMEE: OK`, `EXIT 0`), test de blocage sur `b672e76` (tous les blocages effectifs). Dans le conteneur cloud, Docker démarre (`dockerd`), mais la construction d'image échoue (certificat du mandataire) : la fumée se lance sur le poste du dev.
 
 ## Pièges actifs
 
-- Avant de fusionner une branche dans `main`, lancer `.agents/checks/gates-verts.sh main..HEAD` DEPUIS LA BRANCHE, lire toute la sortie, puis fusionner dans une commande séparée. Lancé depuis un worktree placé sur `main`, le script lit la spec de `main` et peut afficher un `FAIL` qui ne concerne pas la branche ; et une commande enchaînée a déjà fusionné sans que la ligne `FAIL` soit lue.
-- Un commit de merge fait par `git merge` sans message porte aucun trailer : toujours passer `-m` avec `Agent:` et `Feature:`.
-- Aucun commit de code ni de configuration après le réalignement d'`ARCHITECTURE.md` et de `MEMORY/features/<F-id>.md` : le gate d'architecture a rejeté deux fois F-004 pour des documents qui décrivaient un commit antérieur. `ROADMAP.md` ne porte aucun état transitoire : il renvoie aux fichiers qui font foi.
-- Le reviewer rejette toute assertion qui ne peut pas échouer et tout contrôle statique sans cas fautif fourni comme donnée : demander au producteur un témoin jetable par critère exposé avant la revue.
-- Le hook `Stop` lance les tests sur l'arbre courant : ne pas répondre au dev pendant qu'un producteur écrit du code en arrière-plan, sinon trois lancements sur un arbre intermédiaire déclenchent une escalade.
-- Le hook de périmètre ne résout que `CLAUDE_PROJECT_DIR` : il refuse toute écriture d'agent dans un autre worktree et toute écriture de l'orchestrateur hors de la traçabilité. Les scripts de contrôle et les gates, eux, tournent dans un worktree. Une seule branche avance donc à la fois en écriture.
-- Tout lancement de Playwright, même partiel, vide `apps/web/test-results/` : copier les captures ailleurs avant de les montrer.
-- Branches d'archive, à ne pas fusionner : `planification-reunie`, `F-008` (planification, historique détaillé), `archive-arbre-2026-10-08` (arbre de travail du 2026-10-08 : code de F-003 écrit en avance, à reprendre fichier par fichier, sa conception est à refaire) ; `F-001` et `F-002` sont déjà fusionnées.
-- Les commits de conception d'une feature exigent tous ses gates avant d'entrer dans `main` : ne jamais les mêler à une branche de planification ni à la branche d'une autre feature.
-- Un conflit de fusion résolu par un agent compte comme une écriture de cet agent sur chaque fichier en conflit : faire reposer le fichier par son propriétaire.
-- Une validation de spec ne vaut que sur la ligne où elle est commitée, et toute retouche de la spec la repasse en brouillon.
-- Avant F-030, l'interface n'affirme jamais « Enregistré » : le code de F-002 passe à l'état actif sur l'évènement `synced` de `y-indexeddb`, émis même si l'écriture échoue (F-030-AC26).
-- `fast-check@4.10.2` n'est pas dans la spec F-001 : à entériner par le dev.
-- `.idea/` est exclu localement par `.git/info/exclude`, pas par `.gitignore`.
-- Un gate dont la ligne de verdict est dans un bloc de code est lu `UNVERIFIED` : relancer le gate.
-- Stryker n'est pas installé.
+- Le hook de fin de tour lance la suite sur l'arbre principal : il échoue si des agents y écrivent en même temps, et trois échecs de suite déclenchent une escalade. Attendre que les agents aient commité.
+- Plusieurs suites en parallèle sur 4 CPU font dépasser des délais (PGlite, tests web de F-002) : une seule suite à la fois quand c'est possible.
+- Fusion dans `main` : `gates-verts.sh main..HEAD` depuis la branche, puis merge commit ; jamais de squash (il efface les trailers). Une PR GitHub se fusionne en « Create a merge commit ».
+- Toute correction de code après une revue change l'empreinte : dossier et gates à refaire, et la fumée si `apps/server/src`, `packages/*/src`, les manifestes ou l'infra changent.
+- Les agents et l'orchestrateur ne peuvent pas lire les `.env*` (permissions) ; les valeurs factices sont prouvées par `infra/tests/exemples.test.ts`.
+- Le hook de périmètre refuse toute écriture de l'orchestrateur hors de la traçabilité, et toute écriture d'un agent dans un fichier protégé.
+- Deux agents dans le même arbre commitent par chemins explicites, jamais `git add -A`.
+- Ne rapporter au dev aucun chiffre sans source.
+- Branches d'archive, à ne pas fusionner : `planification-reunie`, `F-008`, `archive-arbre-2026-10-08`, `archive-F-008-dernier-tour`.

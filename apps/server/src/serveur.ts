@@ -11,7 +11,7 @@ interface OptionsDEcoute {
   readonly delaiArretMs: number;
 }
 
-interface Ecoute {
+export interface Ecoute {
   readonly port: number;
   arreter(): Promise<void>;
 }

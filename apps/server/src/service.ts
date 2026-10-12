@@ -5,12 +5,13 @@ import type { DestinationStream } from "pino";
 
 import { creerApplication } from "./application.ts";
 import type { Configuration } from "./configuration.ts";
-import { creerJournal } from "./journal.ts";
+import { creerJournal, type Journal } from "./journal.ts";
 import { creerSuppressionDeSessions } from "./sessions.ts";
-import { demarrerServeur } from "./serveur.ts";
+import { demarrerServeur, type Ecoute } from "./serveur.ts";
 
 // Deux secondes de marge sous les 10 secondes de F-008-AC7.
 const DELAI_ARRET_MS = 8000;
+const INITIALISATION_IMPOSSIBLE = "Initialisation impossible : le serveur ne démarre pas.";
 const ECOUTE_IMPOSSIBLE = "Écoute impossible sur l'adresse configurée : le serveur ne démarre pas.";
 const ARRET_EN_ECHEC = "Arrêt en échec : le serveur n'a pas pu tout fermer.";
 
@@ -28,6 +29,11 @@ interface Lancement {
   readonly processus: ProcessusHebergeur;
 }
 
+interface Servi {
+  readonly journal: Journal;
+  readonly ecoute: Ecoute;
+}
+
 // F-008-AC25, AC26 : une phrase fixe, puis le code 1. L'objet d'erreur n'est écrit nulle part, ni
 // ici ni dans le journal : il peut porter l'URL de connexion.
 function sortirEnEchec(processus: ProcessusHebergeur, phrase: string): void {
@@ -36,41 +42,77 @@ function sortirEnEchec(processus: ProcessusHebergeur, phrase: string): void {
   });
 }
 
-// Le serveur démarre même si la base est injoignable : GET /pret le dira.
-export async function servir({ configuration, base, processus }: Lancement): Promise<void> {
-  const journal = creerJournal(processus.stdout);
-  const { hote } = configuration;
-  const ecoute = await demarrerServeur({
-    application: creerApplication({
+// L'écouteur de SIGTERM est posé avant toute étape du démarrage : aucun signal reçu pendant
+// l'écoute ne tue le processus sans fermer la base. Reçu avant que le serveur serve, l'arrêt part
+// dès qu'il sert ; reçu après un démarrage en échec, il ne fait rien, la sortie en échec étant
+// déjà en route.
+function installerLArret(processus: ProcessusHebergeur): (arreter: () => void) => void {
+  let demande = false;
+  let arreterLeServeur: (() => void) | undefined;
+  processus.once("SIGTERM", () => {
+    demande = true;
+    arreterLeServeur?.();
+  });
+  return (arreter) => {
+    arreterLeServeur = arreter;
+    if (demande) {
+      arreter();
+    }
+  };
+}
+
+// F-008-AC7 : plus de nouvelle connexion, les requêtes en cours finissent, la base est fermée, puis
+// le processus se termine en code 0. La sortie est explicite : une base figée ne ferme jamais son
+// côté des connexions, qui retiendraient le processus après l'adieu du pilote.
+function arreter({ base, processus }: Lancement, hote: string, { journal, ecoute }: Servi): void {
+  void ecoute
+    .arreter()
+    .then(() => base.fermer())
+    .then(() => {
+      journal.arret(hote, ecoute.port);
+      processus.exit(0);
+    })
+    .catch(() => {
+      sortirEnEchec(processus, ARRET_EN_ECHEC);
+    });
+}
+
+// Rend le serveur qui sert, ou la phrase de son échec : aucune erreur d'initialisation ne sort
+// d'ici, ni ne parvient à la sortie d'erreur.
+async function demarrer({ configuration, base, processus }: Lancement): Promise<Servi | string> {
+  let journal: Journal;
+  let application: ReturnType<typeof creerApplication>;
+  try {
+    journal = creerJournal(processus.stdout);
+    application = creerApplication({
       configuration,
       base,
       journal,
       suppression: creerSuppressionDeSessions(base, journal),
-    }),
-    hote,
-    port: configuration.port,
-    delaiArretMs: DELAI_ARRET_MS,
-  }).catch(() => undefined);
-  if (ecoute === undefined) {
+    });
+  } catch {
+    return INITIALISATION_IMPOSSIBLE;
+  }
+  const { hote, port } = configuration;
+  return demarrerServeur({ application, hote, port, delaiArretMs: DELAI_ARRET_MS }).then(
+    (ecoute) => ({ journal, ecoute }),
+    () => ECOUTE_IMPOSSIBLE,
+  );
+}
+
+// Le serveur démarre même si la base est injoignable : GET /pret le dira.
+export async function servir(lancement: Lancement): Promise<void> {
+  const { configuration, base, processus } = lancement;
+  const quandIlSert = installerLArret(processus);
+  const servi = await demarrer(lancement);
+  if (typeof servi === "string") {
     // F-008-AC25 : la base est fermée avant la sortie, que sa fermeture aboutisse ou non.
     await base.fermer().catch(() => undefined);
-    sortirEnEchec(processus, ECOUTE_IMPOSSIBLE);
+    sortirEnEchec(processus, servi);
     return;
   }
-  journal.ecoute(hote, ecoute.port);
-  // F-008-AC7 : plus de nouvelle connexion, les requêtes en cours finissent, la base est fermée,
-  // puis le processus se termine en code 0. La sortie est explicite : une base figée ne ferme
-  // jamais son côté des connexions, qui retiendraient le processus après l'adieu du pilote.
-  processus.once("SIGTERM", () => {
-    void ecoute
-      .arreter()
-      .then(() => base.fermer())
-      .then(() => {
-        journal.arret(hote, ecoute.port);
-        processus.exit(0);
-      })
-      .catch(() => {
-        sortirEnEchec(processus, ARRET_EN_ECHEC);
-      });
+  servi.journal.ecoute(configuration.hote, servi.ecoute.port);
+  quandIlSert(() => {
+    arreter(lancement, configuration.hote, servi);
   });
 }

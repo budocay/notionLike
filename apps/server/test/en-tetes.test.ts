@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   arreterLesServeurs,
   baseDontLaSonde,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
   enveloppeDe,
   lancerServeur,
   MOT_DE_PASSE_D_ESSAI,
@@ -43,7 +44,7 @@ beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarquee();
   const port = await portFerme();
   injoignable = ouvrirBase(`postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.0.1:${port}/essai`);
-});
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(async () => {
   await injoignable.fermer();

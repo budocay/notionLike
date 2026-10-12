@@ -2,6 +2,8 @@
 # Docker Compose 2.24.0 ou plus récent (forme longue d'env_file avec required).
 # Depuis infra/ : copier .env.example en .env et ../apps/server/.env.example en ../apps/server/.env,
 # y mettre un vrai mot de passe, puis `docker compose up -d --wait`.
+# Arrêt : `docker compose down`, qui garde le volume des données. Sauvegarde, restauration et retour
+# à l'image précédente : infra/RETOUR-ARRIERE.md.
 name: notionlike
 
 services:
