@@ -7,7 +7,7 @@
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { schemaComptes } from "@notionlike/db";
 import { ouvrirBaseEmbarqueeMigree, type BaseEmbarquee } from "@notionlike/db/essai";
@@ -26,11 +26,12 @@ interface CopieDeDrizzle {
   is(valeur: unknown, classe: unknown): boolean;
 }
 
-// La copie de drizzle-orm que Node charge depuis le paquet dont `fichier` fait partie.
-async function copieDeDrizzleVuePar(fichier: string): Promise<CopieDeDrizzle> {
+// La copie de drizzle-orm que Node charge depuis le paquet dont `fichier` fait partie : son entrée
+// ESM, celle qu'importent packages/db et l'adaptateur, chargée par `require` (même instance).
+function copieDeDrizzleVuePar(fichier: string): CopieDeDrizzle {
   const entreeCjs = createRequire(fichier).resolve("drizzle-orm");
   const dossier = realpathSync(dirname(entreeCjs));
-  const module = (await import(pathToFileURL(join(dossier, "index.js")).href)) as CopieDeDrizzle;
+  const module = createRequire(import.meta.url)(join(dossier, "index.js")) as CopieDeDrizzle;
   return { dossier, Column: module.Column, is: module.is };
 }
 
@@ -64,9 +65,9 @@ function construire() {
 }
 
 describe("deux copies de drizzle-orm", () => {
-  it("F-009-AC21 F-009-AC23 packages/db et l'adaptateur de better-auth chargent deux copies distinctes de drizzle-orm, dont les classes diffèrent", async () => {
-    const deLaBase = await copieDeDrizzleVuePar(PAQUET_DB);
-    const deLAdaptateur = await copieDeDrizzleVuePar(PAQUET_ADAPTATEUR);
+  it("F-009-AC21 F-009-AC23 packages/db et l'adaptateur de better-auth chargent deux copies distinctes de drizzle-orm, dont les classes diffèrent", () => {
+    const deLaBase = copieDeDrizzleVuePar(PAQUET_DB);
+    const deLAdaptateur = copieDeDrizzleVuePar(PAQUET_ADAPTATEUR);
 
     expect(deLaBase.dossier).not.toBe(deLAdaptateur.dossier);
     expect(deLaBase.dossier).toMatch(/drizzle-orm@0\.45\.3_/);
@@ -76,8 +77,8 @@ describe("deux copies de drizzle-orm", () => {
     expect(schemaComptes.user.email).not.toBeInstanceOf(deLAdaptateur.Column);
   });
 
-  it("F-009-AC21 F-009-AC23 la copie de l'adaptateur reconnaît pourtant une colonne de packages/db : sa garde `is` ne repose pas sur instanceof", async () => {
-    const deLAdaptateur = await copieDeDrizzleVuePar(PAQUET_ADAPTATEUR);
+  it("F-009-AC21 F-009-AC23 la copie de l'adaptateur reconnaît pourtant une colonne de packages/db : sa garde `is` ne repose pas sur instanceof", () => {
+    const deLAdaptateur = copieDeDrizzleVuePar(PAQUET_ADAPTATEUR);
 
     expect(deLAdaptateur.is(schemaComptes.user.email, deLAdaptateur.Column)).toBe(true);
     expect(deLAdaptateur.is({ name: "email" }, deLAdaptateur.Column)).toBe(false);
