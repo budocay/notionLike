@@ -38,3 +38,17 @@ afterEach(() => {
   vi.useRealTimers();
   expect(fermerLesFacades()).toBe(0);
 });
+
+// jsdom n'a aucune mise en page : la bibliothèque d'édition appelle ces quatre fonctions dès qu'une
+// transaction fait défiler la vue (Entrée, Tab). Sans elles, l'erreur est levée hors du test et
+// fait échouer l'exécution (F-003 H12).
+function aucunRectangle(): DOMRectList {
+  return Object.assign([], { item: () => null }) as unknown as DOMRectList;
+}
+function rectangleNul(): DOMRect {
+  return new DOMRect(0, 0, 0, 0);
+}
+Range.prototype.getClientRects = aucunRectangle;
+Range.prototype.getBoundingClientRect = rectangleNul;
+Element.prototype.getClientRects = aucunRectangle;
+document.elementFromPoint = () => null;

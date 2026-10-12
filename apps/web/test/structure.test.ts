@@ -69,9 +69,20 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 les dépendances d'exécution d'apps/web sont celles du plan, y-indexeddb comprise une seule fois", () => {
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
       "@notionlike/document",
+      "@tiptap/core",
+      "@tiptap/extension-collaboration",
+      "@tiptap/extension-document",
+      "@tiptap/extension-heading",
+      "@tiptap/extension-list",
+      "@tiptap/extension-paragraph",
+      "@tiptap/extension-text",
+      "@tiptap/pm",
+      "@tiptap/react",
+      "@tiptap/y-tiptap",
       "react",
       "react-dom",
       "y-indexeddb",
+      "y-protocols",
       "yjs",
     ]);
     expect(Object.keys(manifesteWeb.devDependencies)).not.toContain("y-indexeddb");
