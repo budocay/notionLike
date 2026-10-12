@@ -13,8 +13,33 @@ interface LigneDeRequete {
   readonly dureeMs: number;
 }
 
+// F-009-AC19 : les événements des comptes, et rien d'autre que ces champs.
+export type TypeDEvenement =
+  "inscription" | "connexion" | "connexion-refusee" | "deconnexion" | "debit-depasse";
+
+interface EvenementDeCompte {
+  readonly type: TypeDEvenement;
+  readonly idRequete: string;
+  readonly adresse: string;
+  readonly idCompte?: string | undefined;
+}
+
+// Un échec dont l'erreur peut porter une requête SQL et ses paramètres (courriel, jeton, empreinte) :
+// seuls un code fixe et le nom de la classe de l'erreur sont écrits, jamais son message.
+export type CodeDEchec =
+  | "authentification-en-echec"
+  | "verification-de-session-en-echec"
+  | "session-non-supprimee"
+  | "abonne-en-echec";
+
+export type NiveauDeBibliotheque = "debug" | "info" | "warn" | "error";
+
 export interface Journal {
   requete(ligne: LigneDeRequete): void;
+  evenementDeCompte(evenement: EvenementDeCompte): void;
+  echecSansDonnee(code: CodeDEchec, erreur: unknown, idRequete?: string): void;
+  // Ligne du journal interne de better-auth : son niveau et les classes des erreurs jointes.
+  bibliotheque(niveau: NiveauDeBibliotheque, jointes: readonly unknown[]): void;
   baseIndisponible(idRequete: string, code: CodeErreurBase): void;
   erreurInterne(idRequete: string, erreur: unknown): void;
   ecoute(hote: string, port: number): void;
@@ -33,6 +58,11 @@ function decrire(valeur: unknown): ElementDErreur {
   return valeur instanceof Error
     ? { type: valeur.name, message: valeur.message, pile: valeur.stack ?? "" }
     : { type: typeof valeur, message: "valeur levée qui n'est pas une erreur", pile: "" };
+}
+
+// Le nom de la classe : un texte du code, jamais une donnée de la requête.
+function classeDe(valeur: unknown): string {
+  return valeur instanceof Error ? valeur.constructor.name : typeof valeur;
 }
 
 function chaineDesCauses(erreur: unknown): ElementDErreur[] {
@@ -59,6 +89,16 @@ export function creerJournal(sortie: DestinationStream): Journal {
   return {
     requete({ idRequete, methode, chemin, statut, dureeMs }) {
       lignes.info({ idRequete, methode, chemin, statut, dureeMs }, "requete");
+    },
+    evenementDeCompte({ type, idRequete, adresse, idCompte }) {
+      lignes.info({ type, idRequete, adresse, idCompte }, "compte");
+    },
+    echecSansDonnee(code, erreur, idRequete) {
+      lignes.error({ idRequete, code, classe: classeDe(erreur) }, "echec");
+    },
+    bibliotheque(niveau, jointes) {
+      const classes = jointes.filter((jointe) => jointe instanceof Error).map(classeDe);
+      lignes[niveau]({ classes }, "better-auth");
     },
     baseIndisponible(idRequete, code) {
       lignes.warn({ idRequete, code }, "base-indisponible");

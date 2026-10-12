@@ -6,6 +6,8 @@ export const CODES_ERREUR = [
   "corps-trop-grand",
   "base-indisponible",
   "erreur-interne",
+  "non-authentifie",
+  "trop-de-requetes",
 ] as const;
 
 export type CodeErreur = (typeof CODES_ERREUR)[number];

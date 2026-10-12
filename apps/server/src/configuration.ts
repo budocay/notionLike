@@ -3,16 +3,26 @@
 import { z } from "zod";
 
 export const MOT_DE_PASSE_FACTICE = "factice-a-remplacer";
+export const SECRET_FACTICE = "factice-a-remplacer-par-trente-deux-caracteres-aleatoires";
 
 const PORT_MAX = 65_535;
 const PROTOCOLES_POSTGRES = ["postgres:", "postgresql:"];
+const PROTOCOLES_PUBLICS = ["http:", "https:"];
 const SEPARATEUR_DES_ORIGINES = ",";
+const LONGUEUR_MIN_DU_SECRET = 32;
 
 export interface Configuration {
   readonly hote: string;
   readonly port: number;
   readonly urlBaseDonnees: string;
   readonly originesAutorisees: readonly string[];
+  // Secret de signature des cookies de session (F-009-AC18).
+  readonly secretDesSessions: string;
+  // Origine publique du serveur : better-auth n'en déduit aucune des en-têtes (F-009-AC30).
+  readonly urlPublique: string;
+  // F-009-AC9 : réglé ici, jamais laissé à la déduction de better-auth.
+  readonly cookiesSecurises: boolean;
+  readonly proxysDeConfiance: number;
 }
 
 export type Environnement = Readonly<Record<string, string | undefined>>;
@@ -40,6 +50,10 @@ function estUneOrigineExacte(texte: string): boolean {
   return urlDe(texte)?.origin === texte;
 }
 
+function estUneOriginePublique(texte: string): boolean {
+  return estUneOrigineExacte(texte) && PROTOCOLES_PUBLICS.includes(urlDe(texte)?.protocol ?? "");
+}
+
 function enListe(origines: string): string[] {
   return origines === "" ? [] : origines.split(SEPARATEUR_DES_ORIGINES);
 }
@@ -54,6 +68,9 @@ const schemaEnvironnement = z.object({
     .default("")
     .transform(enListe)
     .pipe(z.array(z.string().refine(estUneOrigineExacte))),
+  BETTER_AUTH_SECRET: z.string().min(LONGUEUR_MIN_DU_SECRET),
+  URL_PUBLIQUE: z.string().refine(estUneOriginePublique),
+  PROXYS_DE_CONFIANCE: z.string().regex(/^\d+$/).default("0").transform(Number).pipe(z.int()),
 });
 
 const VARIABLES = Object.keys(schemaEnvironnement.shape);
@@ -68,18 +85,24 @@ function motDePasseDe(url: string): string | undefined {
   }
 }
 
-// F-008-AC14 : en production, le secret d'un fichier d'exemple n'est pas un secret.
-function porteLeSecretFacticeEnProduction(env: Environnement): boolean {
-  const motDePasse = motDePasseDe(env.URL_BASE_DONNEES ?? "");
-  return env.NODE_ENV === "production" && motDePasse === MOT_DE_PASSE_FACTICE;
+// F-008-AC14, F-009-AC18 : en production, le secret d'un fichier d'exemple n'est pas un secret.
+function secretsFacticesEnProduction(env: Environnement): string[] {
+  if (env.NODE_ENV !== "production") {
+    return [];
+  }
+  const factices = {
+    URL_BASE_DONNEES: motDePasseDe(env.URL_BASE_DONNEES ?? "") === MOT_DE_PASSE_FACTICE,
+    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET === SECRET_FACTICE,
+  };
+  return Object.entries(factices).flatMap(([variable, factice]) => (factice ? [variable] : []));
 }
 
 export function lireConfiguration(env: Environnement): Configuration {
   const lu = schemaEnvironnement.safeParse(env);
-  const fautives = new Set(lu.error?.issues.map((constat) => String(constat.path[0])));
-  if (porteLeSecretFacticeEnProduction(env)) {
-    fautives.add("URL_BASE_DONNEES");
-  }
+  const fautives = new Set([
+    ...(lu.error?.issues.map((constat) => String(constat.path[0])) ?? []),
+    ...secretsFacticesEnProduction(env),
+  ]);
   if (!lu.success || fautives.size > 0) {
     throw new ErreurConfiguration(VARIABLES.filter((variable) => fautives.has(variable)));
   }
@@ -88,5 +111,10 @@ export function lireConfiguration(env: Environnement): Configuration {
     port: lu.data.PORT,
     urlBaseDonnees: lu.data.URL_BASE_DONNEES,
     originesAutorisees: Object.freeze(lu.data.ORIGINES_AUTORISEES),
+    secretDesSessions: lu.data.BETTER_AUTH_SECRET,
+    urlPublique: lu.data.URL_PUBLIQUE,
+    cookiesSecurises:
+      lu.data.NODE_ENV === "production" || lu.data.URL_PUBLIQUE.startsWith("https://"),
+    proxysDeConfiance: lu.data.PROXYS_DE_CONFIANCE,
   });
 }

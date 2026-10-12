@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { lireConfiguration } from "../src/configuration.ts";
 import { demarrerServeur } from "../src/serveur.ts";
 import { servir } from "../src/service.ts";
-import { occuperUnPort, URL_BASE_D_ESSAI, type PortOccupe } from "./aides.ts";
+import { ENV_D_ESSAI, occuperUnPort, URL_BASE_D_ESSAI, type PortOccupe } from "./aides.ts";
 
 const PHRASE = "Écoute impossible sur l'adresse configurée : le serveur ne démarre pas.\n";
 
@@ -44,8 +44,8 @@ const processusTemoin = {
 function servirSurLePortOccupe(fermer: Base["fermer"]): Promise<void> {
   return servir({
     configuration: lireConfiguration({
+      ...ENV_D_ESSAI,
       PORT: String(occupe.port),
-      URL_BASE_DONNEES: URL_BASE_D_ESSAI,
     }),
     base: { db: embarquee.base.db, sonder: () => embarquee.base.sonder(), fermer },
     processus: processusTemoin,

@@ -6,6 +6,7 @@ import type { DestinationStream } from "pino";
 import { creerApplication } from "./application.ts";
 import type { Configuration } from "./configuration.ts";
 import { creerJournal } from "./journal.ts";
+import { creerSuppressionDeSessions } from "./sessions.ts";
 import { demarrerServeur } from "./serveur.ts";
 
 // Deux secondes de marge sous les 10 secondes de F-008-AC7.
@@ -40,7 +41,12 @@ export async function servir({ configuration, base, processus }: Lancement): Pro
   const journal = creerJournal(processus.stdout);
   const { hote } = configuration;
   const ecoute = await demarrerServeur({
-    application: creerApplication({ configuration, base, journal }),
+    application: creerApplication({
+      configuration,
+      base,
+      journal,
+      suppression: creerSuppressionDeSessions(base, journal),
+    }),
     hote,
     port: configuration.port,
     delaiArretMs: DELAI_ARRET_MS,

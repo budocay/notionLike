@@ -40,19 +40,28 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
+      "comptes.ts": [
+        "CHEMINS_COMPTES",
+        "schemaCompte",
+        "schemaCompteNatif",
+        "schemaCorpsConnexion",
+        "schemaCorpsInscription",
+      ],
       "enveloppe.ts": ["CodeErreur", "EnveloppeErreur"],
     });
   });
 
-  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       "application.ts": ["Base", "ErreurBase"],
+      "authentification.ts": ["Base", "SessionSupprimee", "schemaComptes"],
       "journal.ts": ["CodeErreurBase"],
       "main.ts": ["ouvrirBase"],
       "service.ts": ["Base"],
+      "sessions.ts": ["Base", "SessionSupprimee", "SessionsVisees", "supprimerSessions"],
     });
   });
 

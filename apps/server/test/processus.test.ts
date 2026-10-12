@@ -22,6 +22,8 @@ import {
   type PortOccupe,
   pretDe,
   santeDe,
+  ENV_D_ESSAI,
+  ENV_DES_COMPTES_D_ESSAI,
   URL_BASE_D_ESSAI,
 } from "./aides.ts";
 
@@ -86,7 +88,7 @@ async function lancerSurFauxPostgres(options?: {
 }): Promise<ProcessusServi> {
   const faux = await demarrerFauxPostgres(MOT_DE_PASSE_D_ESSAI, options);
   fauxServeurs.push(faux);
-  const processus = lancer({ PORT: "0", URL_BASE_DONNEES: faux.url });
+  const processus = lancer({ ...ENV_DES_COMPTES_D_ESSAI, PORT: "0", URL_BASE_DONNEES: faux.url });
   return { processus, url: await urlDEcoute(processus), faux };
 }
 
@@ -118,7 +120,7 @@ describe("refus de démarrer", () => {
   it(
     "F-008-AC12 sans URL_BASE_DONNEES, le processus finit en code 1 en nommant la variable, sans rien écouter",
     async () => {
-      const processus = lancer({ PORT: "0" });
+      const processus = lancer({ ...ENV_DES_COMPTES_D_ESSAI, PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
@@ -131,6 +133,7 @@ describe("refus de démarrer", () => {
     "F-008-AC12 chaque variable invalide est nommée sur la sortie d'erreur, sans sa valeur",
     async () => {
       const processus = lancer({
+        ...ENV_DES_COMPTES_D_ESSAI,
         PORT: MARQUEUR,
         URL_BASE_DONNEES: `postgres://essai:${MARQUEUR}@127.0.0.1:5432/essai`,
         ORIGINES_AUTORISEES: `https://${MARQUEUR}.test/chemin`,
@@ -148,7 +151,12 @@ describe("refus de démarrer", () => {
   it(
     "F-008-AC14 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage",
     async () => {
-      const processus = lancer({ NODE_ENV: "production", ...variablesDe(EXEMPLE), PORT: "0" });
+      const processus = lancer({
+        NODE_ENV: "production",
+        ...ENV_DES_COMPTES_D_ESSAI,
+        ...variablesDe(EXEMPLE),
+        PORT: "0",
+      });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
@@ -163,7 +171,7 @@ describe("refus de démarrer", () => {
       const occupe = await occuperUnPort();
       portsOccupes.push(occupe);
 
-      const processus = lancer({ PORT: String(occupe.port), URL_BASE_DONNEES: URL_BASE_D_ESSAI });
+      const processus = lancer({ ...ENV_D_ESSAI, PORT: String(occupe.port) });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe(
@@ -180,7 +188,7 @@ describe("fichier d'exemple du serveur", () => {
     const variables = variablesDe(EXEMPLE);
 
     expect(new URL(variables.URL_BASE_DONNEES ?? "").password).toBe(MOT_DE_PASSE_FACTICE);
-    expect(lireConfiguration(variables)).toEqual({
+    expect(lireConfiguration({ ...ENV_DES_COMPTES_D_ESSAI, ...variables })).toMatchObject({
       hote: "127.0.0.1",
       port: 3000,
       urlBaseDonnees: variables.URL_BASE_DONNEES,
@@ -302,6 +310,7 @@ describe("service et arrêt", () => {
     async () => {
       const port = await portFerme();
       const processus = lancer({
+        ...ENV_DES_COMPTES_D_ESSAI,
         PORT: "0",
         URL_BASE_DONNEES: `postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.0.1:${port}/essai`,
       });
@@ -322,10 +331,7 @@ describe("service et arrêt", () => {
   it(
     "F-008-AC26 à SIGTERM, une fermeture de la base qui rejette par une erreur portant l'URL de connexion donne le code 1 et une phrase fixe, l'URL sur aucune des deux sorties",
     async () => {
-      const processus = lancer(
-        { PORT: "0", URL_BASE_DONNEES: URL_BASE_D_ESSAI },
-        ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS,
-      );
+      const processus = lancer({ ...ENV_D_ESSAI, PORT: "0" }, ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS);
       await urlDEcoute(processus);
 
       processus.enfant.kill("SIGTERM");

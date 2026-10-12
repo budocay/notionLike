@@ -160,9 +160,15 @@ describe("en-têtes de sécurité", () => {
   );
 });
 
+// F-009-AC32 retire l'ouverture entre origines que F-008 posait pour une origine de la liste :
+// plus aucune réponse ne porte d'en-tête `Access-Control-Allow-*`, ni ne varie selon `Origin`.
 describe("origines", () => {
   function avecOrigine(serveur: ServeurDEssai, origine: string): Promise<Response> {
     return fetch(`${serveur.url}${CHEMINS.sante}`, { headers: { Origin: origine } });
+  }
+
+  function enTetesDOuverture(reponse: Response): string[] {
+    return [...reponse.headers.keys()].filter((nom) => nom.startsWith("access-control-"));
   }
 
   it("F-008-AC10 avec la liste vide par défaut, aucune origine ne reçoit d'en-tête d'autorisation", async () => {
@@ -171,9 +177,8 @@ describe("origines", () => {
     const reponse = await avecOrigine(serveur, ORIGINE_AUTORISEE);
 
     expect(reponse.status).toBe(200);
-    expect(reponse.headers.has("access-control-allow-origin")).toBe(false);
-    expect(reponse.headers.has("access-control-allow-credentials")).toBe(false);
-    expect(reponse.headers.get("vary")).toBe("Origin");
+    expect(enTetesDOuverture(reponse)).toEqual([]);
+    expect(reponse.headers.has("vary")).toBe(false);
   });
 
   it("F-008-AC10 une origine absente de la liste ne reçoit aucun en-tête d'autorisation", async () => {
@@ -184,20 +189,19 @@ describe("origines", () => {
     const reponse = await avecOrigine(serveur, AUTRE_ORIGINE);
 
     expect(reponse.status).toBe(200);
-    expect(reponse.headers.has("access-control-allow-origin")).toBe(false);
-    expect(reponse.headers.has("access-control-allow-credentials")).toBe(false);
-    expect(reponse.headers.get("vary")).toBe("Origin");
+    expect(enTetesDOuverture(reponse)).toEqual([]);
+    expect(reponse.headers.has("vary")).toBe(false);
   });
 
-  it("F-008-AC10 une origine de la liste reçoit son origine et l'autorisation des identifiants", async () => {
+  it("F-009-AC32 une origine de la liste ne reçoit plus aucun en-tête d'autorisation", async () => {
     const serveur = await lancerServeur(embarquee.base, {
       env: { ORIGINES_AUTORISEES: `${AUTRE_ORIGINE},${ORIGINE_AUTORISEE}` },
     });
 
     const reponse = await avecOrigine(serveur, ORIGINE_AUTORISEE);
 
-    expect(reponse.headers.get("access-control-allow-origin")).toBe(ORIGINE_AUTORISEE);
-    expect(reponse.headers.get("access-control-allow-credentials")).toBe("true");
-    expect(reponse.headers.get("vary")).toBe("Origin");
+    expect(reponse.status).toBe(200);
+    expect(enTetesDOuverture(reponse)).toEqual([]);
+    expect(reponse.headers.has("vary")).toBe(false);
   });
 });
