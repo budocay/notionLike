@@ -15,6 +15,7 @@ D'où vient chaque choix :
 - Tranchés par cette conception : exécution native, image unique, variante de l'image de base, emplacement des fichiers, variables fixées par le fichier Compose, contenu du script de fumée. La spec en a repris depuis ce qui s'observe de l'extérieur (commit `2d9e14d`) : exécution native, variante Alpine, `npm` retiré et `USER node` (H10, F-008-AC20) ; point de montage du volume et `pg_isready` sur l'adresse TCP (H1, F-008-AC20) ; ports du poste réglables (H11) ; lancement par `up -d --wait` et constats 1 à 10 (F-008-AC19, H12) ; risque accepté sur `postgres:18.6` (H15).
 - Constatés par la veille des conteneurs du 2026-10-08 (`MEMORY/VEILLE.md`, sections « Image Docker officielle de Node 26 », « Image Docker postgres:18.6 », « Docker Compose v2 ») puis rejoués par cette conception sur une pile jetable (`F-008-conception.md`, « Essais », J à L) : étiquettes et contenu de l'image Node, point de montage du volume de PostgreSQL 18, syntaxes de Compose, failles connues des deux images.
 - Venus du bloc d'infrastructure (2026-10-09) et de la relecture de structure (2026-10-12), sur le code : l'étiquette `node:26.11.1-alpine3.24` et son empreinte, le nom de projet `notionlike`, `NODE_ENV` fixée par le fichier Compose, la sortie explicite du processus, le service qui reçoit le processus en dépendance (ADR-0004).
+- Venus de la deuxième revue (2026-10-12), sur le code : l'écouteur de `SIGTERM` posé avant l'écoute et l'initialisation impossible (commit `5bece07`), la règle de rétention des données et la procédure de retour arrière (commit `8f1aedc`).
 
 ## Options étudiées
 
@@ -48,26 +49,27 @@ Installation dans l'image : `pnpm deploy` (copie des paquets dans `node_modules`
 
 1. `main.ts` : `lireConfiguration(process.env)`. Erreur : le message de l'`ErreurConfiguration` sur la sortie d'erreur, `process.exitCode` à 1, rien n'écoute et aucune connexion n'est ouverte (F-008-AC12).
 2. `main.ts` : `ouvrirBase(configuration.urlBaseDonnees)`, qui n'ouvre aucune connexion, puis `servir({ configuration, base, processus: process })`.
-3. `servir` : journal sur la sortie standard du processus, `creerApplication(…)`, `demarrerServeur(…)` avec `DELAI_ARRET_MS` (8 000 ms). Écoute impossible : base fermée, phrase fixe sur la sortie d'erreur, `exit(1)` (F-008-AC25).
+3. `servir` : écouteur de `SIGTERM` posé sur le processus reçu, avant toute autre étape ; puis journal sur la sortie standard du processus, `creerApplication(…)`, `demarrerServeur(…)` avec `DELAI_ARRET_MS` (8 000 ms). Journal ou application qui lève : base fermée, « Initialisation impossible : le serveur ne démarre pas. » sur la sortie d'erreur, `exit(1)` (F-008-AC25). Écoute impossible : base fermée, phrase fixe sur la sortie d'erreur, `exit(1)` (F-008-AC25).
 4. Ligne de journal `ecoute`, avec l'hôte et le port réel.
-5. À la réception de `SIGTERM` : `arreter()` du serveur, puis `fermer()` de la base, puis la ligne de journal `arret` et `exit(0)` (F-008-AC7). Le délai de 8 000 ms laisse deux secondes de marge sous les 10 secondes du critère. Si l'arrêt ou la fermeture rejette : phrase fixe sur la sortie d'erreur, `exit(1)`, sans jamais écrire l'objet d'erreur (F-008-AC26).
+5. À la réception de `SIGTERM`, ou dès que le serveur sert si le signal est arrivé pendant le démarrage : `arreter()` du serveur, puis `fermer()` de la base, puis la ligne de journal `arret` et `exit(0)` (F-008-AC7). Le délai de 8 000 ms laisse deux secondes de marge sous les 10 secondes du critère. Si l'arrêt ou la fermeture rejette : phrase fixe sur la sortie d'erreur, `exit(1)`, sans jamais écrire l'objet d'erreur (F-008-AC26).
 
-La sortie après `SIGTERM` est explicite : le code appelle `exit(0)` une fois la base fermée, il n'attend pas que plus rien ne retienne le processus. Devant une base figée (conteneur en pause), le pilote `pg` envoie son adieu mais la base ne ferme jamais son côté des connexions, qui retiendraient le processus jusqu'à ce que Docker le tue. Un test le prouve sans Docker : `SIGTERM` envoyé au processus relié au faux serveur PostgreSQL lancé avec `neFermeJamais` (ADR-0005), code 0 dans le délai. Les deux sorties en échec écrivent leur phrase puis sortent dans le rappel de l'écriture, pour que la phrase soit partie avant la fin du processus.
+La sortie après `SIGTERM` est explicite : le code appelle `exit(0)` une fois la base fermée, il n'attend pas que plus rien ne retienne le processus. Devant une base figée (conteneur en pause), le pilote `pg` envoie son adieu mais la base ne ferme jamais son côté des connexions, qui retiendraient le processus jusqu'à ce que Docker le tue. Un test le prouve sans Docker : `SIGTERM` envoyé au processus relié au faux serveur PostgreSQL lancé avec `neFermeJamais` (ADR-0005), code 0 dans le délai. Les trois sorties en échec écrivent leur phrase puis sortent dans le rappel de l'écriture, pour que la phrase soit partie avant la fin du processus. L'écouteur de `SIGTERM` posé en premier remplace le comportement par défaut de Node dès le début de `servir` : un signal reçu pendant l'écoute n'arrête plus le processus base ouverte, et un signal reçu après une initialisation ou une écoute impossible ne fait rien, la sortie en code 1 étant déjà en route.
 
 Le serveur démarre même si la base est injoignable : `GET /sante` répond 200, `GET /pret` 503. L'ordre de démarrage est l'affaire du fichier Compose.
 
 ### Fichiers d'infrastructure
 
-| Fichier                    | Rôle                                                                                                  |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `infra/docker-compose.yml` | projet `notionlike` ; trois services : `base`, `migration`, `serveur` ; un volume nommé               |
-| `infra/Dockerfile`         | image unique du serveur et de la migration                                                            |
-| `.dockerignore` (racine)   | contexte de construction en liste blanche                                                             |
-| `infra/.env.example`       | `POSTGRES_PASSWORD` factice ; les deux ports publiés, en commentaire                                  |
-| `apps/server/.env.example` | variables du serveur, valeurs factices (périmètre d'`agent-backend`)                                  |
-| `infra/fumee.sh`           | script de fumée de F-008-AC19, lancé à la main, Docker démarré                                        |
-| `infra/tests/*.test.ts`    | tests statiques du fichier Compose, du Dockerfile, des fichiers d'exemple et du script de fumée (H12) |
-| `infra/tests/regles/*.ts`  | les règles que ces tests appliquent : une fonction par exigence, qui rend la liste de ses constats    |
+| Fichier                    | Rôle                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `infra/docker-compose.yml` | projet `notionlike` ; trois services : `base`, `migration`, `serveur` ; un volume nommé                                            |
+| `infra/Dockerfile`         | image unique du serveur et de la migration                                                                                         |
+| `.dockerignore` (racine)   | contexte de construction en liste blanche                                                                                          |
+| `infra/.env.example`       | `POSTGRES_PASSWORD` factice ; les deux ports publiés, en commentaire                                                               |
+| `apps/server/.env.example` | variables du serveur, valeurs factices (périmètre d'`agent-backend`)                                                               |
+| `infra/fumee.sh`           | script de fumée de F-008-AC19, lancé à la main, Docker démarré                                                                     |
+| `infra/RETOUR-ARRIERE.md`  | procédure de retour arrière et de rétention des données de la pile de travail, déroulée à la main                                  |
+| `infra/tests/*.test.ts`    | tests statiques du fichier Compose, du Dockerfile, des fichiers d'exemple, du script de fumée (H12) et de la rétention des données |
+| `infra/tests/regles/*.ts`  | les règles que ces tests appliquent : une fonction par exigence, qui rend la liste de ses constats                                 |
 
 Le fichier Compose vit dans `infra/` : `docker compose` y lit `infra/.env` pour ses propres variables. Le contexte de construction est la racine du dépôt.
 
@@ -123,7 +125,7 @@ Conséquence pour le mot de passe : il figure dans une URL, donc il ne contient 
 
 Des tests statiques tiennent la forme du script sans le lancer (`infra/tests/compose.test.ts`, règles d'`infra/tests/regles/fumee.ts`) : onze constats annoncés une fois chacun et dans l'ordre, lancement par `up -d --wait`, projet et ports distincts de ceux de la pile de travail, syntaxe lue par `bash -n`.
 
-Le script a été lancé sur la pile réelle du poste le 2026-10-12, deux fois : sur le commit `0fd735e`, puis sur l'arbre de `654f3cd` (le même code, `main` intégré). Les deux fois : `FUMEE: OK (constats 1 à 11)`, code 0. Le relevé est dans `MEMORY/features/F-008.md`. Les constats 1 à 9 avaient d'abord été joués à la main le 2026-10-08, sur un squelette (« Essais », K).
+Le script a été lancé sur la pile réelle du poste le 2026-10-12, trois fois : sur le commit `0fd735e`, sur l'arbre de `654f3cd` (le même code, `main` intégré), puis sur `335fc27` (le même code). Chaque fois : `FUMEE: OK (constats 1 à 11)`. Les relevés sont dans `MEMORY/features/F-008.md`. Depuis, `5bece07` et `a0af283` ont changé `apps/server/src/` (`service.ts`, `serveur.ts`, `application.ts`), donc le code copié dans l'image, et `8f1aedc` deux lignes de commentaire du fichier Compose : la fumée n'a pas été rejouée sur ce code. Les constats 1 à 9 avaient d'abord été joués à la main le 2026-10-08, sur un squelette (« Essais », K).
 
 ## Conséquences
 
@@ -139,3 +141,4 @@ Le script a été lancé sur la pile réelle du poste le 2026-10-12, deux fois :
 - La sortie du serveur ne dépend plus de l'état de la base : `exit(0)` suit la fermeture demandée, que la base ait fermé son côté des connexions ou non. En contrepartie, ce qui retiendrait encore le processus à ce moment est abandonné sans attente : un travail de fond qu'une feature ajouterait doit être arrêté avant la fermeture de la base, dans `servir`.
 - Un mot de passe changé dans `infra/.env` après le premier démarrage n'est pas appliqué à la base : l'image ne lit `POSTGRES_PASSWORD` que sur un volume vide. La migration échoue alors à l'authentification et le serveur ne démarre pas (même effet que le constat 9). Le fichier d'exemple le dit.
 - Les contrôles de santé et la politique de redémarrage du serveur en cas d'arrêt inattendu restent au minimum : pas de `restart` sur le service `serveur`. Le déploiement hors du poste n'est couvert par aucune feature.
+- Retour arrière et rétention des données : la procédure est dans `infra/RETOUR-ARRIERE.md` (retour à l'empreinte précédente de `postgres`, reconstruction du serveur depuis le commit précédent, conduite après échec de migration, sauvegarde `pg_dump` obligatoire avant une montée de majeure, une migration destructive, un retour du code en deçà d'une migration appliquée ou une restauration, restauration). Le volume `notionlike_donnees-base` n'est jamais supprimé sur la pile de travail : seul `infra/fumee.sh` supprime un volume, celui de son projet `notionlike-fumee`. Le test statique `infra/tests/retention.test.ts` refuse, dans `infra/` hors `fumee.sh`, `tests/` et les fichiers `.env`, `down -v`/`--volumes`, `docker volume rm|remove|prune` et `prune --volumes` (dans un fichier Markdown, les seuls blocs de code sont lus), et, dans le fichier Compose, tout tmpfs, volume anonyme, dossier du poste ou volume au pilote tmpfs monté sur `/var/lib/postgresql` ou dessous. La sauvegarde n'est ni automatique ni lancée par un contrôle : c'est un geste du dev. Ces commandes n'ont pas été jouées sur une pile réelle à la date de l'ADR.

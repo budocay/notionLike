@@ -15,6 +15,7 @@ D'où vient chaque choix :
 - Versions : veille du 2026-10-08 (`drizzle-orm@0.45.3`, `pg@8.23.1`, `@electric-sql/pglite@0.5.8`, `@types/pg@8.23.1`).
 - Tranchés par cette conception : l'état du dossier de migrations réel (H6), l'interface de `packages/db`, l'injection de la base, la forme de la commande de migration, le faux serveur PostgreSQL des tests, le report de `drizzle-kit`.
 - Venus de la relecture de structure du 2026-10-12, sur le code : la fermeture idempotente qui coupe les requêtes en vol (F-008-AC17, tel qu'accordé au commit `cdab8cc`), le faux serveur unique et ses deux ajouts (`neFermeJamais`, `messagesRecus`), la limite D-011.
+- Venus de la deuxième revue du 2026-10-12 : le gabarit des bases embarquées et les délais d'ouverture des tests (commits `e911441`, `0375fa3`), la réversibilité des migrations (« Réversibilité des migrations », demandée par les reviewers ; aucun code).
 
 ## Options étudiées
 
@@ -104,7 +105,7 @@ Le manifeste du paquet a une seconde entrée, `"./essai": "./test/essai.ts"`, po
 
 Trois fonctions et deux types, rien d'autre (`test/essai.ts`, tenu par `test/structure.test.ts`) :
 
-- `ouvrirBaseEmbarquee()` crée une instance PGlite en mémoire, son accès Drizzle et son migrateur, et rend `{ base, pilote }` construits par `creerBase`. Une instance par appel : aucune instance partagée, aucun fichier sur disque, aucun port fixe (F-008-AC18). Le `pilote` ne sert qu'aux tests de migration de `packages/db` : aucun fichier hors du paquet ne le lit (test de couture de `test/migration.test.ts`).
+- `ouvrirBaseEmbarquee()` crée une instance PGlite en mémoire, son accès Drizzle et son migrateur, et rend `{ base, pilote }` construits par `creerBase`. Une instance par appel : aucune instance partagée, aucun fichier sur disque, aucun port fixe (F-008-AC18). Depuis le commit `e911441`, les instances d'un même module partent d'un gabarit : le répertoire de données de la première instance est copié en mémoire (`dumpDataDir("none")`) avant qu'elle ne serve, et chaque instance suivante démarre d'une copie de cette archive (`loadDataDir`) au lieu de refaire un `initdb`. Chacune garde son propre répertoire ; ce qu'une base reçoit après son ouverture n'atteint pas une base ouverte ensuite (test F-008-AC18 d'`acces.test.ts`). Une copie en échec remet le gabarit à vide. Le gabarit vit dans le module, donc dans un fichier de test : Vitest isole les modules de chaque fichier. Le `pilote` ne sert qu'aux tests de migration de `packages/db` : aucun fichier hors du paquet ne le lit (test de couture de `test/migration.test.ts`).
 - `demarrerFauxPostgres(motDePasse, { neFermeJamais })` ouvre sur un port libre de `127.0.0.1` un serveur TCP qui répond au protocole PostgreSQL juste assez pour le pilote `pg` : il accepte toute connexion sans vérifier le mot de passe et termine chaque requête simple sans ligne. Il rend :
   - `url`, que `ouvrirBase` accepte telle quelle ;
   - `seTaire()` : les requêtes suivantes restent sans réponse ;
@@ -127,6 +128,16 @@ Il n'y a qu'un faux serveur PostgreSQL dans le dépôt, celui-ci : les tests de 
 - Le serveur n'applique aucune migration : `Base` n'a pas de méthode pour le faire, et `serveur-liste-blanche` (ADR-0004) lui interdit `src/migration.ts`.
 - Une migration ne contient aucune instruction qui refuse de s'exécuter dans une transaction (H13).
 
+### Réversibilité des migrations
+
+Le migrateur d'exécution de Drizzle (`drizzle-orm@0.45.3`) ne fait que monter : il n'existe pas de migration descendante, et F-008 n'en livre pas. Le migrateur ne lit, pour chaque entrée du journal, que son fichier SQL, et applique dans une transaction celles dont l'horodatage dépasse celui de la dernière migration consignée (`pg-core/dialect.js`, méthode `migrate`, relue dans `node_modules` le 2026-10-12).
+
+La réversibilité d'un lancement repose sur sa transaction unique (H13) : toutes les migrations en attente s'appliquent dans une seule transaction, un échec annule le lancement entier et laisse la base dans l'état du lancement précédent (testé par F-008-AC16, `packages/db/test/migration.test.ts`).
+
+Revenir sur une migration déjà appliquée se fait en avant, par une migration qui la compense, jamais en réécrivant ou en supprimant une migration consignée. Une donnée détruite par une migration réussie ne revient que par la restauration d'une sauvegarde prise avant elle (`infra/RETOUR-ARRIERE.md`, sections 1 et 4, ADR-0006).
+
+Toute migration destructive future (suppression ou renommage de table ou de colonne, changement de type avec perte, suppression de données) exigera que sa spec décrive, avant validation, la sauvegarde préalable (quoi, comment, où, comment restaurer) et un test de la migration compensatoire sur la base embarquée.
+
 ### `drizzle-kit`
 
 Non installé par F-008, comme l'écrit la spec (H9) : ses prérequis ne le listent pas. Il entre avec F-009, qui écrit le premier schéma et génère la première migration : la spec F-009 le porte dans ses propres prérequis (`drizzle-kit@0.31.11` en dépendance de développement de `packages/db`, son hypothèse H19).
@@ -134,7 +145,8 @@ Non installé par F-008, comme l'écrit la spec (H9) : ses prérequis ne le list
 ## Conséquences
 
 - Le code de production ne dépend pas de PGlite : `pnpm contrats` refuse l'import depuis `packages/db/src` et depuis `apps/server/src`, et une installation sans dépendances de développement ne le contient pas (constaté à l'essai).
-- Ce que `pnpm test` prouve avec le vrai pilote `pg`, sans base : l'erreur de connexion sans secret, la sonde bornée quand la requête ne revient jamais, la survie à une connexion inactive coupée, la fermeture qui aboutit pendant une requête en vol puis une seconde fois, et le câblage de la commande de migration jusqu'au code de sortie 0.
+- Ce que `pnpm test` prouve avec le vrai pilote `pg`, sans base : l'erreur de connexion sans secret, la sonde bornée quand la requête ne revient jamais, la survie à une connexion inactive coupée, la fermeture qui aboutit pendant une requête en vol puis une seconde fois, le rejet de cette requête une fois la base fermée (« Connection terminated », commit `ba94c90`), et le câblage de la commande de migration jusqu'au code de sortie 0.
+- Ouvrir une base embarquée prend du temps : la première ouverture d'un fichier compile le WebAssembly de PGlite et fait un `initdb`, au-delà des délais par défaut de Vitest (5 000 ms pour un test, 10 000 ms pour un crochet) quand toute la suite tourne en parallèle. Les tests ouvrent donc leurs bases dans des crochets, ou dans un test, au délai explicite de 30 000 ms (`DELAI_D_OUVERTURE_D_UNE_BASE_MS`, `ARCHITECTURE.md`, « Configuration racine »). Le gabarit réduit les ouvertures suivantes d'un fichier, pas la première.
 - Ce que `pnpm test` ne prouve pas, et que seul le script de fumée de F-008-AC19 constate sur un PostgreSQL 18.6 réel : l'authentification, le SQL des migrations exécuté par le pilote `pg`, la concurrence et la réserve de connexions sous charge, les rôles. C'est la dette D-002. Le faux serveur ne remplace pas une base : il ne comprend aucune requête.
 - Limite connue, dette D-011 : une sonde hors délai laisse sa requête en vol, sans l'annuler, et garde sa connexion empruntée jusqu'à la réponse de la base ou la mort de la socket. Devant une base figée, chaque `GET /pret` en retient une de plus, jusqu'aux 10 de la réserve ; les sondes suivantes échouent alors par le délai de connexion (2 000 ms, même constante), donc `GET /pret` répond toujours 503 dans le temps de F-008-AC3, et `fermer()` coupe ces connexions. Aucune autre requête n'emprunte la réserve dans F-008. L'effet d'une sonde hors délai une fois la base revenue n'est pas vérifié par un test. À reprendre avec F-009, avant que des routes métier partagent la réserve : la sonde sur un client dédié, hors de la réserve.
 - Le migrateur ne compare que l'horodatage de la dernière migration appliquée (H13) : la limite reste entière, à reprendre dès que deux branches produisent des migrations en parallèle.

@@ -15,6 +15,7 @@ D'où vient chaque choix :
 - Versions : veille du 2026-10-08 (`express@5.2.1`, `helmet@8.3.0`, `pino@10.3.1`, `zod@4.6.5`).
 - Ajoutés par cette conception : la structure interne des trois paquets, les quatre contrats de dépendances en liste blanche, la règle ESLint des globales de Node dans `packages/contrats`, le nom `URL_BASE_DONNEES`, la limite de corps chiffrée, le routage strict, le traitement des connexions qui ne portent pas de requête lisible, le comportement pour une origine autorisée.
 - Venus de la relecture de structure du 2026-10-12, sur le code : le fichier `src/service.ts` et le processus reçu en dépendance, le rejet de l'écoute impossible et l'arrêt en échec (F-008-AC25, AC26, ajoutés à la spec au commit `cdab8cc`), les contrats `infra-a-part` et `serveur-tests-par-les-entrees-de-db`.
+- Venus de la deuxième revue du 2026-10-12, sur le code (commits `5bece07` et `a0af283`) : l'initialisation impossible, l'écouteur de `SIGTERM` posé avant l'écoute, `inflate` écrit explicitement dans la lecture du corps.
 
 ## Options étudiées
 
@@ -94,7 +95,7 @@ Le processus est une dépendance, comme la base : `servir` reçoit un objet qui 
 3. ligne de journal à la fin de chaque réponse ;
 4. `helmet`, avec les trois en-têtes de F-008-AC9 passés en options explicites : `Content-Security-Policy: default-src 'none';frame-ancestors 'none'` (sans les directives par défaut), `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff` ;
 5. origines : si l'en-tête `Origin` est une entrée de `ORIGINES_AUTORISEES`, la réponse porte `Access-Control-Allow-Origin` (cette origine) et `Access-Control-Allow-Credentials: true` ; sinon aucun des deux. `Vary: Origin` est posé dans tous les cas ;
-6. lecture du corps JSON : `express.json` avec `limit` à `LIMITE_CORPS_OCTETS` (100 000 octets), `strict` à vrai et `type` à `application/json`, passés explicitement (H9) ;
+6. lecture du corps JSON : `express.json` avec `limit` à `LIMITE_CORPS_OCTETS` (100 000 octets), `inflate` à vrai, `strict` à vrai et `type` à `application/json`, passés explicitement (H9). `inflate` à vrai est la valeur par défaut de `body-parser`, écrite pour être lue : un corps compressé (`gzip`, `deflate`, `br`) est décompressé et la limite vaut pour le corps décompressé ; un jeu de caractères qui ne commence pas par `utf-` ou un encodage de compression inconnu est refusé par le lecteur (415), donc rendu en 400 par le gestionnaire (F-008-AC6) ;
 7. routes `GET /sante` et `GET /pret` ;
 8. toute autre requête : 404 `ressource-introuvable` ;
 9. gestionnaire d'erreurs.
@@ -113,17 +114,18 @@ F-009 montera l'authentification entre les étapes 5 et 6 (better-auth veut pass
 - ligne de requête : `idRequete`, `methode`, `chemin` (sans chaîne de requête), `statut`, `dureeMs` ;
 - erreur non prévue : `idRequete` et `erreur`, liste d'au plus cinq éléments `{ type, message, pile }` qui suit la chaîne des `cause`. Aucune autre propriété de l'objet d'erreur n'est écrite ;
 - base indisponible : `idRequete` et le `code` de l'`ErreurBase`, typé par `CodeErreurBase` de `@notionlike/db`, sans l'objet d'erreur ;
-- écoute et arrêt : `hote`, `port`. La configuration n'est jamais journalisée, et ni une écoute impossible ni un arrêt en échec n'écrivent de ligne.
+- écoute et arrêt : `hote`, `port`. La configuration n'est jamais journalisée, et ni une initialisation impossible, ni une écoute impossible, ni un arrêt en échec n'écrivent de ligne.
 
 **Écoute et arrêt (`serveur.ts`).** `demarrerServeur` rend une promesse du port réellement ouvert et d'`arreter()`. Si l'écoute échoue (port déjà pris), la promesse est rejetée au lieu de laisser Node émettre l'erreur sans écouteur (F-008-AC25) ; l'écoute établie, cet écouteur est retiré. `arreter()` appelle `cesserDeServir` : le serveur cesse d'accepter des connexions, chaque connexion est fermée dès qu'elle n'a plus de requête en cours (fermeture des inactives répétée toutes les 20 ms, sans quoi elle resterait ouverte le temps du maintien de connexion de Node), et ce qui reste après `delaiArretMs` est coupé. Arrêter un serveur déjà arrêté est sans effet. Une connexion qui n'envoie pas une requête HTTP lisible (erreur d'analyse, en-têtes trop gros, délai dépassé) est fermée sans réponse : le serveur ne répond qu'à des requêtes que l'application a vues, donc toujours avec ses en-têtes et son enveloppe.
 
-**Service (`service.ts`).** `servir` crée le journal sur la sortie standard du processus reçu, compose l'application et demande l'écoute avec un délai d'arrêt de 8 000 ms. Trois issues, dont les deux en échec passent par une seule fonction qui écrit une phrase fixe sur la sortie d'erreur puis sort en code 1 :
+**Service (`service.ts`).** `servir` pose d'abord l'écouteur de `SIGTERM` du processus reçu, avant toute autre étape ; puis il crée le journal sur la sortie standard du processus, compose l'application et demande l'écoute avec un délai d'arrêt de 8 000 ms. Quatre issues, dont les trois en échec passent par une seule fonction (`sortirEnEchec`) qui écrit une phrase fixe sur la sortie d'erreur puis sort en code 1 :
 
+- initialisation impossible (F-008-AC25) : la création du journal ou la composition de l'application lève ; la base est fermée, que sa fermeture aboutisse ou non, puis « Initialisation impossible : le serveur ne démarre pas. » et le code 1 ; rien n'a écouté ;
 - écoute impossible (F-008-AC25) : la base est fermée, que sa fermeture aboutisse ou non, puis « Écoute impossible sur l'adresse configurée : le serveur ne démarre pas. » et le code 1 ;
-- `SIGTERM` (F-008-AC7) : `arreter()`, puis `base.fermer()`, puis la ligne de journal `arret` et `exit(0)` ;
+- `SIGTERM` (F-008-AC7) : `arreter()`, puis `base.fermer()`, puis la ligne de journal `arret` et `exit(0)`. Reçu pendant le démarrage, le signal est noté et l'arrêt part dès que le serveur sert ; reçu après une initialisation ou une écoute impossible, il ne fait rien ;
 - arrêt ou fermeture de la base qui rejette (F-008-AC26) : « Arrêt en échec : le serveur n'a pas pu tout fermer. » et le code 1.
 
-Dans les deux échecs, l'objet d'erreur n'est écrit nulle part, ni sur la sortie d'erreur ni dans le journal : il peut porter l'URL de connexion, donc le mot de passe. La suite du processus est décrite par l'ADR-0006.
+Dans les trois échecs, l'objet d'erreur n'est écrit nulle part, ni sur la sortie d'erreur ni dans le journal : il peut porter l'URL de connexion, donc le mot de passe. La suite du processus est décrite par l'ADR-0006.
 
 ### Contrats de dépendances
 
@@ -152,5 +154,5 @@ S'y ajoute une règle ESLint `no-restricted-globals` sur `packages/contrats/src`
 - `helmet` pose aussi ses autres en-têtes par défaut (`Strict-Transport-Security`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`…). Ils ne sont pas requis par la spec ; ils sont laissés, et aucun test ne les fixe.
 - Les messages d'erreur de Drizzle contiennent la requête SQL et ses paramètres (« Failed query: … params: … », constaté à l'essai). Le journal de F-008 n'en reçoit aucun qui porte une donnée de membre ; F-009 devra en tenir compte pour F-009-AC19 avant de journaliser une erreur de requête.
 - Une erreur hors requête (promesse rejetée sans traitement, exception non interceptée) garde le comportement de Node : le processus s'arrête. Aucun critère de F-008 ne le couvre.
-- Une écoute impossible et un arrêt en échec ne laissent qu'une phrase fixe : la cause n'est écrite nulle part. C'est le prix de ne jamais écrire un objet d'erreur qui peut porter l'URL de connexion ; le diagnostic se fait hors du serveur (port occupé, état de la base).
+- Une initialisation impossible, une écoute impossible et un arrêt en échec ne laissent qu'une phrase fixe : la cause n'est écrite nulle part. C'est le prix de ne jamais écrire un objet d'erreur qui peut porter l'URL de connexion ; le diagnostic se fait hors du serveur (port occupé, état de la base).
 - Que l'écouteur d'erreur de l'écoute soit bien retiré une fois l'écoute établie n'est tenu par aucune assertion : le serveur HTTP n'est pas exposé hors de `serveur.ts`.
