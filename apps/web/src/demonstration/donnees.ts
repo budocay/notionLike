@@ -10,6 +10,10 @@ export const TITRE_LONG =
 
 export const NOM_DE_L_ESPACE_FICTIF = "Carnets d'Inès";
 
+// La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
+// lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
+export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";
+
 export interface PageFictive {
   readonly titre: string;
   readonly niveau: number;

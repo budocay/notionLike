@@ -96,8 +96,12 @@ describe("validation de chaque écriture", () => {
 
     ecrire(doc, 2);
 
-    expect(connexions).toHaveLength(1);
-    expect(Object.hasOwn(connexions[0] as IDBDatabase, "transaction")).toBe(false);
+    // Deux connexions depuis F-030-AC26 : celle de la bibliothèque, puis celle de la lecture brute
+    // de la preuve d'écriture, refermée aussitôt. Aucune ne garde la méthode enveloppée.
+    expect(connexions).toHaveLength(2);
+    for (const connexion of connexions) {
+      expect(Object.hasOwn(connexion, "transaction")).toBe(false);
+    }
   });
 
   it("F-002-AC2 sans `commit` dans le navigateur, l'écriture ne lève pas et la mise à jour est quand même enregistrée", async () => {

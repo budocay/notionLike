@@ -209,16 +209,20 @@ describe("fonctions bornées", () => {
 
 // ── F-004-AC17, AC58 : les tests de session et de persistance de F-002 sont intacts ──────────────
 
-// F-030 retravaille la persistance : elle lève ce contrôle ou met ces empreintes à jour.
+// F-030 retravaille la persistance et met ces empreintes à jour dans le commit même qui change le
+// comportement ; chaque test modifié, avec ce qu'il affirmait avant et après, est listé dans
+// `MEMORY/features/F-030.md` (F-030-AC19). `session-fermeture` et `persistance-echecs` portent en
+// plus le renommage de l'aide `suivreLesConnexions` en `suivreLesConnexionsTenues`, sans autre
+// changement.
 const EMPREINTES_DE_F002: Readonly<Record<string, string>> = {
   "test/session-fermeture.test.tsx":
-    "6fad8ba320ef520f7ed7fd119d20787831edb128263b878de89740f1622586ef",
+    "21e3b579f434280e05b15fb75d61e3ac12288f4dc31b9e6d000b627f79b1e12c",
   "test/persistance-echecs.test.ts":
-    "02427f89a08d64a95d374e02c792a3b9112d5f24a04995708aa2e0da0b016681",
+    "e91512ab27cd9aff811c776852e46abd35aa9b7a06f4584216517e47c5774ef9",
   "test/persistance-ouverture.test.ts":
     "48499fab89c86d1b6b77cb9d217005a986e73c794674d1accf27ff53b454f055",
   "test/persistance-validation.test.ts":
-    "b151eaa2ad31bd1432d6981ed91dc093d36aec03e0874cca1360754ebcd6b496",
+    "f464fbd774aff8369d199b0e7b448f7db72a183783aa748206d42f31387b0b42",
 };
 
 function empreinte(texte: string): string {

@@ -21,6 +21,7 @@ import { Rangee } from "../interface/composants/Rangee.tsx";
 import {
   AFFICHER_LES_PAGES_INTERMEDIAIRES,
   AJOUTER_UNE_SOUS_PAGE,
+  AVERTISSEMENT_BASE_NON_RELUE,
   AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   EXPLICATION_PAGE_INTROUVABLE,
@@ -29,6 +30,7 @@ import {
   INVITATION_PREMIERE_PAGE,
   messageErreur,
   METTRE_A_LA_CORBEILLE,
+  MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_APPLICATION,
   NOM_BARRE_LATERALE,
   NOM_DU_TIROIR,
@@ -40,6 +42,7 @@ import {
   NOUVELLE_PAGE,
   OUVRIR_LA_BARRE_LATERALE,
   PAGE_INTROUVABLE,
+  REESSAYER_MAINTENANT,
   RENOMMER,
   TITRE_DE_LA_PAGE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
@@ -47,6 +50,7 @@ import {
 import { afficherTouches, RACCOURCIS } from "../interface/raccourcis.ts";
 import {
   ADRESSE_FICTIVE,
+  AFFIRMATION_FICTIVE,
   ANCETRES,
   ARBORESCENCE,
   ENTREE_DE_PIED_FICTIVE,
@@ -355,6 +359,14 @@ function SectionBarreDuHaut(): ReactElement {
           <BarreDuHaut fil={<Fil replie />} etat={<ZoneEtat echec={NON_ENREGISTRE} />} />
         </div>
       </Specimen>
+      <Specimen etiquette="Fil d'Ariane entier, enregistrement affirmé">
+        <div className={PAGE.fondZone}>
+          <BarreDuHaut
+            fil={<Fil replie={false} />}
+            etat={<ZoneEtat echec={undefined} affirmation={AFFIRMATION_FICTIVE} />}
+          />
+        </div>
+      </Specimen>
     </Section>
   );
 }
@@ -385,7 +397,7 @@ function SectionEtats(): ReactElement {
     <Section titre="États">
       <Specimen etiquette="Avertissement de persistance">
         <div className={PAGE.fondZone}>
-          <Avertissement>{AVERTISSEMENT_NON_ENREGISTRE}</Avertissement>
+          <Avertissement phrases={[AVERTISSEMENT_NON_ENREGISTRE]} />
         </div>
       </Specimen>
       <div className={PAGE.grille}>
@@ -419,6 +431,34 @@ function SectionEtats(): ReactElement {
           </div>
         </Specimen>
       </div>
+    </Section>
+  );
+}
+
+// Les formes que la reprise de la persistance a ajoutées aux états (F-030) : l'avertissement à deux
+// phrases avec sa commande, l'écran bloquant avec sa précision.
+function SectionReprise(): ReactElement {
+  return (
+    <Section titre="États de la reprise">
+      <Specimen etiquette="Avertissement à deux phrases, avec commande">
+        <div className={PAGE.fondZone}>
+          <Avertissement
+            phrases={[AVERTISSEMENT_NON_ENREGISTRE, AVERTISSEMENT_BASE_NON_RELUE]}
+            action={{ libelle: REESSAYER_MAINTENANT, surActivation: sansEffet }}
+          />
+        </div>
+      </Specimen>
+      <Specimen etiquette="Écran bloquant avec précision">
+        <div className={PAGE.fondZone}>
+          <EcranPlein>
+            <EcranBloquant
+              titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
+              explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
+              precision={MODIFICATIONS_NON_ENREGISTREES_PERDUES}
+            />
+          </EcranPlein>
+        </div>
+      </Specimen>
     </Section>
   );
 }
@@ -470,6 +510,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionBarreDuHaut />
       <SectionTiroir />
       <SectionEtats />
+      <SectionReprise />
       <SectionCommandes />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>

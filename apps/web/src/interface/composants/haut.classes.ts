@@ -16,4 +16,8 @@ export const HAUT = {
   separateur: "flex-none text-texte-discret",
   etat: "flex flex-none items-center gap-petit whitespace-nowrap text-petit text-texte-erreur",
   pastille: "size-pastille flex-none rounded-full bg-repere-erreur",
+  etatAffirme:
+    "flex flex-none items-center gap-petit whitespace-nowrap text-petit text-texte-secondaire",
+  pastilleAffirmee: "size-pastille flex-none rounded-full bg-repere-contour",
+  annonce: "sr-only",
 } as const;

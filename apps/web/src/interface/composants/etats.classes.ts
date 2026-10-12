@@ -8,6 +8,9 @@ export const ETATS = {
   avertissement:
     "filet-bas flex items-start gap-moyen bg-surface-relief px-normal py-moyen text-interface text-texte-avertissement",
   avertissementRepere: "mt-infime flex-none text-repere-avertissement",
+  avertissementTextes: "extensible flex flex-col gap-mince",
+  avertissementAction:
+    "flex-none cursor-pointer content-center rounded-petit px-petit min-h-cible font-moyen text-texte-principal underline hover:bg-surface-survol etroit:pointer-fine:min-h-rangee",
   ecranBloquant:
     "flex w-full max-w-ecran flex-col gap-moyen rounded-grand bg-surface-relief p-ample shadow-relief filet",
   ecranTitre: "text-intertitre font-fort tracking-serre text-texte-principal",

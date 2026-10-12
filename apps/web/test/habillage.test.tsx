@@ -73,7 +73,9 @@ describe("états habillés", () => {
     await ouvrirCoquille();
 
     const alerte = screen.getByRole("alert");
-    expect(alerte.textContent).toBe(messages.AVERTISSEMENT_NON_ENREGISTRE);
+    expect(alerte.textContent).toBe(
+      `${messages.AVERTISSEMENT_NON_ENREGISTRE}${messages.AVERTISSEMENT_BASE_NON_RELUE}${messages.REESSAYER_MAINTENANT}`,
+    );
     expect(classesDe(alerte)).toContain("text-texte-avertissement");
     expect(alerte.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(
@@ -161,8 +163,9 @@ describe("états habillés", () => {
       "Adresse non sécurisée",
       "Mise à jour nécessaire",
     ]);
+    // Seul texte de F-002 qui a changé, par F-030-AC12 : la coupure n'est plus définitive.
     expect(messages.AVERTISSEMENT_NON_ENREGISTRE).toBe(
-      "Vos modifications ne sont pas enregistrées sur cet appareil : le stockage du navigateur est indisponible. Elles seront perdues à la fermeture ou au rechargement de l'onglet.",
+      "Stockage de l'appareil indisponible : vos modifications ne sont pas encore enregistrées. Nouvelle tentative automatique en cours.",
     );
     expect(messages.messageErreur("titre-trop-long")).toBe(
       "Le titre est trop long : la limite est de 200 caractères.",

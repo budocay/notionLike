@@ -19,6 +19,11 @@ export function ecrireUneEntreeDePage(doc: Y.Doc, cle: string): void {
   doc.getMap(NOMS_DU_FORMAT.pages).set(cle, new Y.Map());
 }
 
+/** Vrai si le document porte une entrée de page sous cette clé, bien formée ou non. */
+export function porteUneEntreeDePage(doc: Y.Doc, cle: string): boolean {
+  return doc.getMap(NOMS_DU_FORMAT.pages).has(cle);
+}
+
 /** Range l'entrée d'une page sous une autre clé, ce qu'aucune opération de la façade ne fait. */
 export function changerLaCleDUnePage(doc: Y.Doc, id: string, cleForgee: string): void {
   const pages = doc.getMap<Y.Map<unknown>>(NOMS_DU_FORMAT.pages);

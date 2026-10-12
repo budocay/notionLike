@@ -1,26 +1,26 @@
 import type * as Y from "yjs";
 
+import { estUuidCanonique } from "../identifiants/uuid-canonique.ts";
 import { type Ouverture, ouvrirSousEcheance, type Persistance } from "./indexeddb.ts";
-import { nomDeBase } from "./nom-de-base.ts";
+import { espaceDeLaBase, nomDeBase } from "./nom-de-base.ts";
+import { creerLesMagasinsManquants } from "./reparation.ts";
 
-// Base de l'appareil : ce n'est pas une base de document (ADR-0008).
+// Base de l'appareil : ce n'est pas une base de document (ADR-0008). Elle naît à la version 1 avec
+// son magasin ; la version 2 est celle d'une base réparée, à laquelle le magasin manquait
+// (F-030-AC24). Au-delà, l'application ne la connaît pas : elle ne l'abaisse ni ne la supprime.
 const BASE_APPAREIL = "notionlike:appareil";
-const VERSION_BASE_APPAREIL = 1;
+const VERSION_D_UNE_BASE_NEUVE = 1;
+const VERSION_LA_PLUS_HAUTE_CONNUE = 2;
 const MAGASIN_REGLAGES = "reglages";
 const CLE_ESPACE_LOCAL = "espace-local";
 
-// L'identifiant retenu n'est pas exposé : rien ne le lit avant F-003 (ADR-0008).
+// L'identifiant retenu n'est pas exposé : rien ne le lit avant F-003 (ADR-0008). À chaque
+// tentative, il est relu, et au besoin inscrit, avec le candidat de l'ouverture et aucun autre
+// (F-030-AC9).
 export function ouvrirEspaceLocal(doc: Y.Doc, idCandidat: string): Persistance {
   nomDeLEspace(idCandidat);
   return ouvrirSousEcheance(doc, (ouverture) =>
-    lireOuInscrire(idCandidat, ouverture, (idInscrit) => {
-      const nom = nomDeLEspaceInscrit(idInscrit);
-      if (nom === undefined) {
-        ouverture.couper();
-      } else {
-        ouverture.relire(nom);
-      }
-    }),
+    retenirLEspace(idCandidat, ouverture, (idEspace) => ouverture.relire(nomDeLEspace(idEspace))),
   );
 }
 
@@ -28,68 +28,145 @@ function nomDeLEspace(idEspace: string): string {
   return nomDeBase({ type: "espace", idEspace });
 }
 
-// Ce que l'appareil a conservé peut être illisible : un nom de base n'en est jamais tiré sans
-// repasser par la fonction de nommage (F-002-AC28).
-function nomDeLEspaceInscrit(idInscrit: unknown): string | undefined {
-  if (typeof idInscrit !== "string") {
-    return undefined;
-  }
-  try {
-    return nomDeLEspace(idInscrit);
-  } catch {
-    return undefined;
-  }
+// Ce que l'appareil a conservé peut être illisible : un nom de base n'en est jamais tiré sans que
+// la fonction de forme l'ait admis (F-002-AC28).
+function estUnIdentifiant(valeur: unknown): valeur is string {
+  return typeof valeur === "string" && estUuidCanonique(valeur);
 }
 
-// Lecture et inscription dans une seule transaction en écriture : IndexedDB sérialise celles d'un
-// même magasin, deux onglets lancés ensemble retiennent donc le même identifiant (F-002-AC4).
-function lireOuInscrire(
+function retenirLEspace(
   idCandidat: string,
   ouverture: Ouverture,
-  poursuivre: (idInscrit: unknown) => void,
+  poursuivre: (idEspace: string) => void,
 ): void {
   ouvrirLaBaseDeLAppareil(ouverture, (connexion) => {
-    let transaction: IDBTransaction;
-    try {
-      transaction = connexion.transaction(MAGASIN_REGLAGES, "readwrite");
-    } catch {
-      // Une base de l'appareil sans son magasin est inutilisable : la session reste en mémoire.
-      connexion.close();
-      ouverture.couper();
-      return;
-    }
-    const reglages = transaction.objectStore(MAGASIN_REGLAGES);
-    const lecture = reglages.get(CLE_ESPACE_LOCAL);
-    lecture.onsuccess = () => {
-      // L'échéance peut tomber entre l'ouverture et cette lecture : rien n'est inscrit après elle
-      // (F-002-AC24).
-      if (lecture.result === undefined && ouverture.attendue()) {
-        reglages.put(idCandidat, CLE_ESPACE_LOCAL);
+    // Seule l'absence de valeur dans une base à sa première version vaut premier lancement. Une
+    // valeur nulle est illisible, et l'absence de valeur dans une base réparée aussi : « réparée »
+    // se lit sur la version de la base, que la montée vienne de cette tentative ou d'une tentative
+    // interrompue avant l'inscription (F-030-AC24).
+    const reparee = connexion.version > VERSION_D_UNE_BASE_NEUVE;
+    const remplacable = (valeur: unknown): boolean => valeur === undefined && !reparee;
+    lireOuInscrire({ connexion, ouverture, idAInscrire: idCandidat, remplacable }, (valeur) => {
+      if (estUnIdentifiant(valeur)) {
+        poursuivre(valeur);
+      } else {
+        remplacerLaValeurIllisible(idCandidat, ouverture, poursuivre);
       }
-    };
-    transaction.oncomplete = () => {
-      connexion.close();
-      if (ouverture.attendue()) {
-        // Seule l'absence de valeur vaut premier lancement : une valeur nulle est illisible.
-        poursuivre(lecture.result === undefined ? idCandidat : lecture.result);
-      }
-    };
-    transaction.onabort = () => {
-      connexion.close();
-      ouverture.couper();
-    };
+    });
   });
 }
 
+// La valeur illisible ne porte rien d'utilisable : elle est remplacée, sans qu'aucune base de
+// document soit lue, renommée ni fusionnée. Une seule base d'espace sur l'appareil : c'est celle
+// de l'utilisateur. Aucune : le candidat. Plusieurs, ou énumération impossible : rien ne dit
+// laquelle est la bonne, le candidat est inscrit et les autres restent intactes (F-030-AC23).
+function remplacerLaValeurIllisible(
+  idCandidat: string,
+  ouverture: Ouverture,
+  poursuivre: (idEspace: string) => void,
+): void {
+  enumererLesEspaces((espaces) => {
+    if (!ouverture.attendue()) {
+      return;
+    }
+    const [seul] = espaces ?? [];
+    const idAInscrire = espaces?.length === 1 && seul !== undefined ? seul : idCandidat;
+    if (espaces === undefined || espaces.length > 1) {
+      ouverture.signalerDesBasesNonRattachees();
+    }
+    ouvrirLaBaseDeLAppareil(ouverture, (connexion) => {
+      // La valeur est relue dans la transaction qui l'écrit, et n'est remplacée que si elle est
+      // encore illisible : deux onglets lancés ensemble retiennent le même identifiant.
+      const remplacable = (valeur: unknown): boolean => !estUnIdentifiant(valeur);
+      lireOuInscrire({ connexion, ouverture, idAInscrire, remplacable }, (valeur) => {
+        if (estUnIdentifiant(valeur)) {
+          poursuivre(valeur);
+        } else {
+          ouverture.echouer();
+        }
+      });
+    });
+  });
+}
+
+/** Identifiants des espaces qui ont une base sur l'appareil ; `undefined` si rien ne le dit. */
+function enumererLesEspaces(conclure: (espaces: readonly string[] | undefined) => void): void {
+  if (typeof indexedDB.databases !== "function") {
+    conclure(undefined);
+    return;
+  }
+  let enumeration: Promise<IDBDatabaseInfo[]>;
+  try {
+    enumeration = indexedDB.databases();
+  } catch {
+    conclure(undefined);
+    return;
+  }
+  enumeration.then(
+    (bases) => {
+      const espaces = bases.map((base) => espaceDeLaBase(base.name ?? ""));
+      conclure(espaces.filter((idEspace) => idEspace !== undefined));
+    },
+    () => conclure(undefined),
+  );
+}
+
+interface Inscription {
+  readonly connexion: IDBDatabase;
+  readonly ouverture: Ouverture;
+  readonly idAInscrire: string;
+  /** Vrai si la valeur relue doit céder la place à l'identifiant à inscrire. */
+  readonly remplacable: (valeur: unknown) => boolean;
+}
+
+// Lecture et inscription dans une seule transaction en écriture : IndexedDB sérialise celles d'un
+// même magasin, deux onglets lancés ensemble retiennent donc le même identifiant (F-002-AC4). La
+// connexion n'est tenue que le temps de cette transaction. `poursuivre` reçoit ce que le magasin
+// porte quand elle finit.
+function lireOuInscrire(inscription: Inscription, poursuivre: (valeur: unknown) => void): void {
+  const { connexion, ouverture, idAInscrire, remplacable } = inscription;
+  let transaction: IDBTransaction;
+  try {
+    transaction = connexion.transaction(MAGASIN_REGLAGES, "readwrite");
+  } catch {
+    connexion.close();
+    ouverture.echouer();
+    return;
+  }
+  const reglages = transaction.objectStore(MAGASIN_REGLAGES);
+  const lecture = reglages.get(CLE_ESPACE_LOCAL);
+  let retenue: unknown;
+  lecture.onsuccess = () => {
+    retenue = lecture.result;
+    // L'échéance peut tomber entre l'ouverture et cette lecture : rien n'est inscrit après elle
+    // (F-002-AC24).
+    if (remplacable(retenue) && ouverture.attendue()) {
+      reglages.put(idAInscrire, CLE_ESPACE_LOCAL);
+      retenue = idAInscrire;
+    }
+  };
+  transaction.oncomplete = () => {
+    connexion.close();
+    if (ouverture.attendue()) {
+      poursuivre(retenue);
+    }
+  };
+  transaction.onabort = () => {
+    connexion.close();
+    ouverture.echouer();
+  };
+}
+
+// `poursuivre` reçoit une connexion dont le magasin existe.
 function ouvrirLaBaseDeLAppareil(
   ouverture: Ouverture,
   poursuivre: (connexion: IDBDatabase) => void,
 ): void {
   let demande: IDBOpenDBRequest;
   try {
-    demande = indexedDB.open(BASE_APPAREIL, VERSION_BASE_APPAREIL);
+    demande = indexedDB.open(BASE_APPAREIL);
   } catch {
-    ouverture.couper();
+    ouverture.echouer();
     return;
   }
   // Après l'échéance, une réponse tardive ne doit plus rien lire ni écrire (F-002-AC24).
@@ -101,14 +178,47 @@ function ouvrirLaBaseDeLAppareil(
     }
   };
   demande.onsuccess = () => {
-    if (ouverture.attendue()) {
-      poursuivre(demande.result);
+    const connexion = demande.result;
+    connexion.onversionchange = () => connexion.close();
+    if (!ouverture.attendue() || connexion.version > VERSION_LA_PLUS_HAUTE_CONNUE) {
+      connexion.close();
+      ouverture.echouer();
+    } else if (connexion.objectStoreNames.contains(MAGASIN_REGLAGES)) {
+      poursuivre(connexion);
     } else {
-      demande.result.close();
+      connexion.close();
+      recreerLeMagasin(connexion.version, ouverture, poursuivre);
     }
   };
   demande.onerror = (evenement) => {
     evenement.preventDefault();
-    ouverture.couper();
+    ouverture.echouer();
   };
+}
+
+// Une base née sans son magasin est à sa première version : elle est montée à la suivante. Une
+// base déjà réparée à laquelle il manquerait encore n'est pas réparable sans dépasser la version
+// connue : c'est une coupure retentée (F-030-AC24).
+function recreerLeMagasin(
+  version: number,
+  ouverture: Ouverture,
+  poursuivre: (connexion: IDBDatabase) => void,
+): void {
+  if (version !== VERSION_D_UNE_BASE_NEUVE) {
+    ouverture.echouer();
+    return;
+  }
+  const reparation = {
+    nomDeLaBase: BASE_APPAREIL,
+    version,
+    magasins: [{ nom: MAGASIN_REGLAGES }],
+    attendue: ouverture.attendue,
+  };
+  creerLesMagasinsManquants(reparation, (faite) => {
+    if (!faite) {
+      ouverture.echouer();
+    } else if (ouverture.attendue()) {
+      ouvrirLaBaseDeLAppareil(ouverture, poursuivre);
+    }
+  });
 }

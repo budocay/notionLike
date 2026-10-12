@@ -8,6 +8,7 @@ import { waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
+import { estDUneVersionAdmise } from "../src/espace/garde-version.ts";
 import { LONGUEUR_MAX_TITRE, messageErreur } from "../src/interface/messages.ts";
 import { ouvrirPersistance } from "../src/persistance/index.ts";
 import {
@@ -42,6 +43,9 @@ const SESSION = "apps/web/src/espace/session-espace.ts";
 const ENTREE = "apps/web/src/main.tsx";
 const AIDES_DE_FACADE = "apps/web/test/aides-facade.ts";
 const PRODUCTION = [SESSION];
+// F-030-AC10 : la garde de version ouvre une façade sur un document témoin, le temps de le juger.
+const GARDE_DE_VERSION = "apps/web/src/espace/garde-version.ts";
+const JUGES_D_UN_TEMOIN = [GARDE_DE_VERSION];
 const AIDES_SUIVIES = ["apps/web/test/aides-facade.ts", "packages/document/test/fermeture.test.ts"];
 const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [
@@ -243,6 +247,7 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
     const attendus = [
       ...DEFINITION,
       ...PRODUCTION,
+      ...JUGES_D_UN_TEMOIN,
       ...AIDES_SUIVIES,
       ...IMPORT_ENTIER_SANS_OUVERTURE,
       ...FACADES_DE_TEST_DE_F001_NON_MODIFIABLES,
@@ -265,18 +270,18 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
     );
   });
 
-  it("F-002-AC31 hors de ses deux fichiers de définition, aucun fichier de src/ autre que la session n'ouvre de façade, et dans apps/web/test seul aides-facade.ts fait entrer une fonction d'ouverture", () => {
+  it("F-002-AC31 F-030-AC10 hors de ses deux fichiers de définition, aucun fichier de src/ autre que la session et la garde de version n'ouvre de façade, et dans apps/web/test seul aides-facade.ts fait entrer une fonction d'ouverture", () => {
     const horsDefinition = ouvrants().filter((chemin) => !DEFINITION.includes(chemin));
 
     expect(
       horsDefinition.filter((chemin) => /^(apps|packages)\/[^/]+\/src\//.test(chemin)),
-    ).toEqual(PRODUCTION);
+    ).toEqual([...JUGES_D_UN_TEMOIN, ...PRODUCTION]);
     expect(
       horsDefinition.filter(
         (chemin) =>
           chemin.startsWith("apps/web/") && declarationsDe(texteDe(chemin)).some(nommeUneOuverture),
       ),
-    ).toEqual([SESSION, AIDES_DE_FACADE]);
+    ).toEqual([GARDE_DE_VERSION, SESSION, AIDES_DE_FACADE]);
   });
 });
 
@@ -306,6 +311,25 @@ function sourcesDeLApplication(): [string, string][] {
 }
 
 describe("ce que chaque sorte d'ouvrant exige", () => {
+  it.each(JUGES_D_UN_TEMOIN)(
+    "F-030-AC10 F-002-AC31 juge d'un témoin %s : un seul appel d'ouverture, sur le témoin reçu, et sa façade est fermée avant le retour, que la version soit admise ou refusée",
+    (chemin) => {
+      expect(appelsDOuverture(texteDe(chemin))).toBe(1);
+      const admis = creerFacade().doc;
+      const refuse = creerFacade().doc;
+      ecrireLaVersion(refuse, VERSION_NON_PRISE_EN_CHARGE);
+      fermerLesFacades();
+      const departs = [ecouteurs(admis), ecouteurs(refuse)];
+
+      expect(estDUneVersionAdmise(admis)).toBe(true);
+      expect(estDUneVersionAdmise(refuse)).toBe(false);
+      expect(estDUneVersionAdmise(new Y.Doc())).toBe(true);
+
+      expect([ecouteurs(admis), ecouteurs(refuse)]).toEqual(departs);
+      expect(departs).toEqual([ecouteurs(new Y.Doc()), ecouteurs(new Y.Doc())]);
+    },
+  );
+
   it.each(PRODUCTION)(
     "F-002-AC31 production %s : la session démarrée ouvre une façade, un écouteur ; fermer() rend au Y.Doc le compte d'un document neuf",
     async (chemin) => {
@@ -387,12 +411,14 @@ describe("ce que chaque sorte d'ouvrant exige", () => {
     ).toEqual([AIDES_DE_FACADE]);
   });
 
-  it("F-002-AC31 la session est le seul fichier de src/ qui nomme le type DocumentEspace : elle seule tient une façade entière, donc son abonner et son fermer", () => {
+  it("F-002-AC31 F-030-AC10 la session et la garde de version sont les seuls fichiers de src/ qui nomment le type DocumentEspace : la session seule tient une façade entière, donc son abonner et son fermer ; la garde ne tient la sienne que le temps de juger un témoin", () => {
     const quiNommentLaFacade = sourcesDeLApplication()
       .filter(([, texte]) => /\bDocumentEspace\b/.test(texte))
       .map(([chemin]) => chemin);
 
-    expect(quiNommentLaFacade).toEqual([SESSION]);
+    expect(quiNommentLaFacade).toEqual([GARDE_DE_VERSION, SESSION]);
+    expect(texteDe(GARDE_DE_VERSION)).not.toMatch(/\.abonner\(/);
+    expect(occurrences(texteDe(GARDE_DE_VERSION), "\\.fermer\\(\\)")).toBe(1);
     // Le mot est cherché seul : les deux noms d'ouverture ne le contiennent pas à une limite de mot.
     expect(/\bDocumentEspace\b/.test(`${NOM_CREER}() ${NOM_OUVRIR}(doc)`)).toBe(false);
     expect(/\bDocumentEspace\b/.test("Pick<DocumentEspace, 'lire'>")).toBe(true);
@@ -603,7 +629,7 @@ describe("occurrences des noms d'ouverture dans les aides suivies du paquet", ()
 // type des codes ou lisent le champ `code` d'une erreur. Chacun est inscrit avec ce qu'il fait d'un
 // code du document, ou écarté parce que le code qu'il porte est celui d'une autre erreur.
 const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
-  "apps/web/src/espace/session-espace.ts": "ne lit que « version-non-prise-en-charge »",
+  "apps/web/src/espace/garde-version.ts": "ne lit que « version-non-prise-en-charge »",
   "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
   "apps/web/src/interface/messages.ts": "traduit chaque code",
 };
@@ -786,6 +812,7 @@ describe("codes d'erreur du document", () => {
 // le test doit exister et atteindre le module par ses imports. Un module de plus, ou un test qui ne
 // l'atteint plus, fait échouer l'énumération (F-002-AC20).
 const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
+  "apps/web/src/espace/garde-version.ts": "apps/web/test/reprise-version.test.tsx",
   "apps/web/src/espace/session-espace.ts": "apps/web/test/session-fermeture.test.tsx",
   "apps/web/src/interface/Application.tsx": "apps/web/test/barre-laterale-erreurs.test.tsx",
   "apps/web/src/interface/BarreLaterale.tsx": "apps/web/test/barre-laterale.test.tsx",

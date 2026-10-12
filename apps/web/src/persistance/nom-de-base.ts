@@ -7,6 +7,8 @@ export type DesignationDocument =
 
 type CodeErreurPersistance = "identifiant-invalide";
 
+const PREFIXE_DES_BASES_D_ESPACE = "notionlike:espace:";
+
 export class ErreurPersistance extends Error {
   readonly code: CodeErreurPersistance;
 
@@ -25,12 +27,24 @@ export function nomDeBase(designation: DesignationDocument): string {
   const idEspace = exigerUuidCanonique(designation.idEspace);
   switch (designation.type) {
     case "espace":
-      return `notionlike:espace:${idEspace}`;
+      return `${PREFIXE_DES_BASES_D_ESPACE}${idEspace}`;
     case "page":
       return `notionlike:page:${idEspace}:${exigerUuidCanonique(designation.idPage)}`;
     case "table":
       return `notionlike:table:${idEspace}:${exigerUuidCanonique(designation.idTable)}`;
   }
+}
+
+/**
+ * Identifiant de l'espace dont ce nom est celui de la base d'espace ; `undefined` pour tout autre
+ * nom, reconnu ou non. La forme est jugée par la seule fonction d'`identifiants/` (F-030-AC23).
+ */
+export function espaceDeLaBase(nom: string): string | undefined {
+  if (!nom.startsWith(PREFIXE_DES_BASES_D_ESPACE)) {
+    return undefined;
+  }
+  const idEspace = nom.slice(PREFIXE_DES_BASES_D_ESPACE.length);
+  return estUuidCanonique(idEspace) ? idEspace : undefined;
 }
 
 // Le message ne cite pas l'identifiant refusé : sa forme est inconnue (ADR-0008).

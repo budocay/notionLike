@@ -194,7 +194,7 @@ export async function construireLEchecDePersistance(page: Page): Promise<void> {
     Object.defineProperty(window, "indexedDB", { value: undefined, configurable: true });
   });
   await construireUnePage(page);
-  await expect(page.getByRole("alert")).toContainText("ne sont pas enregistrées");
+  await expect(page.getByRole("alert")).toContainText("ne sont pas encore enregistrées");
 }
 
 /** Écran (i) : l'état de chargement, tenu par une ouverture d'IndexedDB qui ne répond pas. */
