@@ -11,7 +11,7 @@
     "test": "vitest run",
     "lint": "eslint --no-warn-ignored .",
     "format": "prettier --write --ignore-unknown .",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.src.json"
   },
   "dependencies": {
     "yjs": "13.6.33"

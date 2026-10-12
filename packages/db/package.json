@@ -1,0 +1,27 @@
+{
+  "name": "@notionlike/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./essai": "./test/essai.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint --no-warn-ignored .",
+    "format": "prettier --write --ignore-unknown .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "migrer": "node --env-file=../../apps/server/.env src/migrer.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "26.6.4",
+    "@types/pg": "8.23.1",
+    "vitest": "^5.0.3"
+  }
+}
