@@ -1,8 +1,6 @@
 // Le processus réel : `node apps/server/src/main.ts`, lancé depuis la racine du dépôt comme dans
 // l'image, sans Vitest entre les deux. Node y charge les trois paquets par leurs sources (ADR-0006).
-import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 
 import { CHEMINS } from "@notionlike/contrats";
@@ -16,7 +14,6 @@ import {
 } from "../src/configuration.ts";
 import {
   enveloppeDe,
-  type LigneDeJournal,
   MOT_DE_PASSE_D_ESSAI,
   occuperUnPort,
   type PortOccupe,
@@ -26,55 +23,20 @@ import {
   ENV_DES_COMPTES_D_ESSAI,
   URL_BASE_D_ESSAI,
 } from "./aides.ts";
+import {
+  arreterLesProcessus,
+  DELAI_DES_TESTS_DE_PROCESSUS_MS,
+  lancer,
+  urlDEcoute,
+  type Processus,
+} from "./aides-processus.ts";
 
-const RACINE = fileURLToPath(new URL("../../../", import.meta.url));
 const EXEMPLE = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
-const ENTREE = "apps/server/src/main.ts";
 const ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS = "apps/server/test/essai/main-fermeture-en-echec.ts";
-const DELAI_DES_TESTS_DE_PROCESSUS_MS = 20_000;
 const MARQUEUR = "valeur-fautive-a-ne-pas-afficher";
 
-interface FinDuProcessus {
-  readonly code: number | null;
-  readonly signal: NodeJS.Signals | null;
-}
-
-interface Processus {
-  readonly enfant: ChildProcess;
-  readonly fin: Promise<FinDuProcessus>;
-  sortieStandard(): string;
-  sortieDErreur(): string;
-  lignesDuJournal(): LigneDeJournal[];
-}
-
-const lances: Processus[] = [];
 const fauxServeurs: FauxPostgres[] = [];
 const portsOccupes: PortOccupe[] = [];
-
-// L'environnement de l'enfant est exactement celui du test : rien n'est hérité de Vitest.
-function lancer(env: Environnement, entree = ENTREE): Processus {
-  const enfant = spawn(process.execPath, [entree], { cwd: RACINE, env });
-  const sorties = { standard: "", erreur: "" };
-  enfant.stdout.on("data", (morceau: Buffer) => (sorties.standard += morceau.toString("utf8")));
-  enfant.stderr.on("data", (morceau: Buffer) => (sorties.erreur += morceau.toString("utf8")));
-  const processus: Processus = {
-    enfant,
-    fin: new Promise((resolve) => {
-      enfant.on("close", (code, signal) => {
-        resolve({ code, signal });
-      });
-    }),
-    sortieStandard: () => sorties.standard,
-    sortieDErreur: () => sorties.erreur,
-    lignesDuJournal: () =>
-      sorties.standard
-        .split("\n")
-        .filter((ligne) => ligne !== "")
-        .map((ligne) => JSON.parse(ligne) as LigneDeJournal),
-  };
-  lances.push(processus);
-  return processus;
-}
 
 interface ProcessusServi {
   readonly processus: Processus;
@@ -92,26 +54,12 @@ async function lancerSurFauxPostgres(options?: {
   return { processus, url: await urlDEcoute(processus), faux };
 }
 
-// Attend la ligne `ecoute` du journal et rend l'adresse où le processus sert.
-async function urlDEcoute(processus: Processus): Promise<string> {
-  const ligne = await expect
-    .poll(() => processus.lignesDuJournal().find(({ message }) => message === "ecoute"), {
-      timeout: 10_000,
-    })
-    .toBeDefined()
-    .then(() => processus.lignesDuJournal().find(({ message }) => message === "ecoute"));
-  return `http://${String(ligne?.hote)}:${String(ligne?.port)}`;
-}
-
 function variablesDe(texte: string): Environnement {
   return parseEnv(texte);
 }
 
 afterEach(async () => {
-  for (const { enfant, fin } of lances.splice(0)) {
-    enfant.kill("SIGKILL");
-    await fin;
-  }
+  await arreterLesProcessus();
   await Promise.all(fauxServeurs.splice(0).map((faux) => faux.arreter()));
   await Promise.all(portsOccupes.splice(0).map((occupe) => occupe.liberer()));
 });
