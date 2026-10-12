@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   lireConfiguration,
   MOT_DE_PASSE_FACTICE,
+  SECRET_FACTICE,
   type Environnement,
 } from "../src/configuration.ts";
 import {
@@ -97,17 +98,14 @@ describe("refus de démarrer", () => {
   );
 
   it(
-    "F-008-AC14 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage",
+    "F-008-AC14 F-009-AC18 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
     async () => {
-      const processus = lancer({
-        NODE_ENV: "production",
-        ...ENV_DES_COMPTES_D_ESSAI,
-        ...variablesDe(EXEMPLE),
-        PORT: "0",
-      });
+      const processus = lancer({ NODE_ENV: "production", ...variablesDe(EXEMPLE), PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
-      expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
+      expect(processus.sortieDErreur()).toBe(
+        "Configuration invalide : URL_BASE_DONNEES, BETTER_AUTH_SECRET\n",
+      );
       expect(processus.sortieStandard()).toBe("");
     },
     DELAI_DES_TESTS_DE_PROCESSUS_MS,
@@ -132,15 +130,20 @@ describe("refus de démarrer", () => {
 });
 
 describe("fichier d'exemple du serveur", () => {
-  it("F-008-AC14 le mot de passe de l'URL d'exemple est celui que le serveur refuse en production", () => {
+  it("F-008-AC14 F-009-AC18 F-009-AC23 le fichier d'exemple fournit toute variable obligatoire, et ses deux secrets sont ceux que le serveur refuse en production", () => {
     const variables = variablesDe(EXEMPLE);
 
     expect(new URL(variables.URL_BASE_DONNEES ?? "").password).toBe(MOT_DE_PASSE_FACTICE);
-    expect(lireConfiguration({ ...ENV_DES_COMPTES_D_ESSAI, ...variables })).toMatchObject({
+    expect(variables.BETTER_AUTH_SECRET).toBe(SECRET_FACTICE);
+    expect(lireConfiguration(variables)).toEqual({
       hote: "127.0.0.1",
       port: 3000,
       urlBaseDonnees: variables.URL_BASE_DONNEES,
       originesAutorisees: [],
+      secretDesSessions: SECRET_FACTICE,
+      urlPublique: "http://127.0.0.1:3000",
+      cookiesSecurises: false,
+      proxysDeConfiance: 0,
     });
   });
 
