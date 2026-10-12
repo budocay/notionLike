@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   arreterLesServeurs,
   baseDontLaSonde,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
   enveloppeDe,
   lancerServeur,
   type LigneDeJournal,
@@ -18,7 +19,7 @@ let embarquee: BaseEmbarquee;
 
 beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarquee();
-});
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(() => embarquee.base.fermer());
 

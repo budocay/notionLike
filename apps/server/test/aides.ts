@@ -23,6 +23,13 @@ export const URL_BASE_D_ESSAI = `postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.
 
 export const DELAI_DES_TESTS_LENTS_MS = 15_000;
 
+// Délai d'un crochet ou d'un test qui ouvre une base embarquée (même valeur que les tests de
+// packages/db). La première ouverture d'un fichier compile le WebAssembly de PGlite et fait un
+// initdb : 2 à 5,6 s mesurés seul, plusieurs fois plus quand toute la suite tourne en parallèle,
+// au-delà des 10 s par défaut d'un crochet. Les suivantes partent du gabarit de
+// `@notionlike/db/essai` (0,3 s seul) mais restent exposées à la même charge.
+export const DELAI_D_OUVERTURE_D_UNE_BASE_MS = 30_000;
+
 const DELAI_ARRET_D_ESSAI_MS = 1000;
 
 export type LigneDeJournal = Readonly<Record<string, unknown>>;

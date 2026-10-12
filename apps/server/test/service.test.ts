@@ -7,7 +7,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { lireConfiguration } from "../src/configuration.ts";
 import { demarrerServeur } from "../src/serveur.ts";
 import { servir } from "../src/service.ts";
-import { occuperUnPort, URL_BASE_D_ESSAI, type PortOccupe } from "./aides.ts";
+import {
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  occuperUnPort,
+  URL_BASE_D_ESSAI,
+  type PortOccupe,
+} from "./aides.ts";
 
 const PHRASE = "Écoute impossible sur l'adresse configurée : le serveur ne démarre pas.\n";
 
@@ -17,7 +22,7 @@ let occupe: PortOccupe;
 beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarquee();
   occupe = await occuperUnPort();
-});
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterAll(async () => {
   await occupe.liberer();
   await embarquee.base.fermer();

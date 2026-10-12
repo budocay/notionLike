@@ -13,6 +13,7 @@ import {
   arreterLesServeurs,
   attendre,
   baseDontLaSonde,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
   DELAI_DES_TESTS_LENTS_MS,
   enveloppeDe,
   lancerServeur,
@@ -24,7 +25,7 @@ let embarquee: BaseEmbarquee;
 
 beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarquee();
-});
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(() => embarquee.base.fermer());
 
