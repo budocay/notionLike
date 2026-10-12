@@ -625,9 +625,9 @@ describe("occurrences des noms d'ouverture dans les aides suivies du paquet", ()
   });
 });
 
-// Les fichiers de src/ du workspace, hors du paquet du document, qui nomment le type des codes ou
-// lisent le champ `code` d'une erreur. Chacun est inscrit avec ce qu'il fait d'un code du document,
-// ou écarté parce que le code qu'il porte est celui d'une autre erreur.
+// Les fichiers de src/ des paquets clients du document, hors du paquet du document, qui nomment le
+// type des codes ou lisent le champ `code` d'une erreur. Chacun est inscrit avec ce qu'il fait d'un
+// code du document, ou écarté parce que le code qu'il porte est celui d'une autre erreur.
 const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/espace/garde-version.ts": "ne lit que « version-non-prise-en-charge »",
   "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
@@ -654,6 +654,34 @@ function litUnCode(texte: string): boolean {
   return /\bCodeErreurDocument\b|\.code\b/.test(texte);
 }
 
+function paquetDe(chemin: string): string {
+  return /^(?:apps|packages)\/[^/]+/.exec(chemin)?.[0] ?? "";
+}
+
+function importeLeDocument(texte: string): boolean {
+  return declarationsDe(texte).some(
+    ({ source }) => source === PAQUET || source?.startsWith(`${PAQUET}/`) === true,
+  );
+}
+
+// Une `ErreurDocument` ne peut arriver que dans un paquet dont un fichier de src/ importe le paquet
+// du document ; une fois entrée, elle y circule sans que chaque fichier l'importe. Tous les lecteurs
+// d'un `.code` d'un tel paquet sont donc énumérés ; ceux d'un paquet qui n'importe pas le document
+// (ses propres erreurs à code, par exemple celles de la base) ne le sont pas.
+function lecteursDUnCodeChezLesClientsDuDocument(textes: Iterable<[string, string]>): string[] {
+  const deSrc = [...textes].filter(
+    ([chemin]) =>
+      /^(apps|packages)\/[^/]+\/src\//.test(chemin) && !chemin.startsWith("packages/document/"),
+  );
+  const clients = new Set(
+    deSrc.filter(([, texte]) => importeLeDocument(texte)).map(([chemin]) => paquetDe(chemin)),
+  );
+  return deSrc
+    .filter(([chemin, texte]) => clients.has(paquetDe(chemin)) && litUnCode(texte))
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
 function codesCites(texte: string): string[] {
   return CODES_DU_DOCUMENT.filter((code) => texte.includes(`"${code}"`));
 }
@@ -668,13 +696,57 @@ function codeDuRefus(operation: () => unknown): string | undefined {
 }
 
 describe("codes d'erreur du document", () => {
+  const IMPORT_DU_DOCUMENT = `import { ErreurDocument } from "${PAQUET}";\n`;
+  const LIT_UN_CODE = "export const lu = (erreur: { code: string }) => erreur.code;\n";
+
+  it.each<[string, [string, string][], string[]]>([
+    [
+      "voit le lecteur d'un paquet client, même s'il n'importe pas lui-même le document",
+      [
+        ["apps/web/src/a.ts", IMPORT_DU_DOCUMENT],
+        ["apps/web/src/b.ts", LIT_UN_CODE],
+      ],
+      ["apps/web/src/b.ts"],
+    ],
+    [
+      "voit le lecteur d'un paquet client venu d'un sous-chemin ou d'un import dynamique",
+      [
+        ["apps/x/src/a.ts", `export * from "${PAQUET}/interne";\n${LIT_UN_CODE}`],
+        ["packages/y/src/b.tsx", `await import("${PAQUET}");\ntype T = CodeErreurDocument;\n`],
+      ],
+      ["apps/x/src/a.ts", "packages/y/src/b.tsx"],
+    ],
+    [
+      "écarte les erreurs à code d'un paquet qui n'importe pas le document",
+      [
+        ["apps/web/src/a.ts", IMPORT_DU_DOCUMENT],
+        [
+          "packages/db/src/erreurs.ts",
+          "class ErreurBase { f(code: string) { this.code = code; } }",
+        ],
+        [
+          "apps/server/src/sante.ts",
+          `import { ErreurBase } from "@notionlike/db";\n${LIT_UN_CODE}`,
+        ],
+      ],
+      [],
+    ],
+    [
+      "écarte les tests, le paquet du document, et un paquet qui ne cite le document qu'en test ou en commentaire",
+      [
+        ["apps/web/test/a.test.ts", IMPORT_DU_DOCUMENT + LIT_UN_CODE],
+        ["packages/document/src/erreurs.ts", LIT_UN_CODE],
+        ["packages/z/test/a.test.ts", IMPORT_DU_DOCUMENT],
+        ["packages/z/src/a.ts", `// voir ${PAQUET}\n${LIT_UN_CODE}`],
+      ],
+      [],
+    ],
+  ])("F-002-AC31 l'énumération des lecteurs d'un code %s", (_cas, textes, attendus) => {
+    expect(lecteursDUnCodeChezLesClientsDuDocument(textes)).toEqual(attendus);
+  });
+
   it("F-002-AC31 énumère les modules de src/ qui lisent un code d'erreur, hors du paquet du document : chacun est inscrit, et le traducteur traite « facade-fermee »", () => {
-    const lecteurs = fichiersQui(
-      (chemin, texte) =>
-        /^(apps|packages)\/[^/]+\/src\//.test(chemin) &&
-        !chemin.startsWith("packages/document/") &&
-        litUnCode(texte),
-    );
+    const lecteurs = lecteursDUnCodeChezLesClientsDuDocument(fichiers);
 
     expect(lecteurs).toEqual(
       [

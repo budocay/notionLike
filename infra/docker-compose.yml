@@ -1,0 +1,65 @@
+# Pile locale de notionLike (F-008, ADR-0006) : base PostgreSQL, migration à exécution unique, serveur.
+# Docker Compose 2.24.0 ou plus récent (forme longue d'env_file avec required).
+# Depuis infra/ : copier .env.example en .env et ../apps/server/.env.example en ../apps/server/.env,
+# y mettre un vrai mot de passe, puis `docker compose up -d --wait`.
+# Arrêt : `docker compose down`, qui garde le volume des données. Sauvegarde, restauration et retour
+# à l'image précédente : infra/RETOUR-ARRIERE.md.
+name: notionlike
+
+services:
+  base:
+    # Étiquette et empreinte relues au registre le 2026-10-09 ; à relire à chaque mise à jour, avec un
+    # `trivy image` (les failles connues de cette image sont un risque accepté : ADR-0006).
+    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    environment:
+      POSTGRES_USER: notionlike
+      POSTGRES_DB: notionlike
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Variable obligatoire : copier infra/.env.example en infra/.env}"
+    ports:
+      - "127.0.0.1:${PORT_PUBLIE_BASE:-5432}:5432"
+    volumes:
+      # PostgreSQL 18 range ses données sous /var/lib/postgresql/18/docker : le volume se monte ici,
+      # pas sur /var/lib/postgresql/data, et PGDATA n'est pas redéfini.
+      - donnees-base:/var/lib/postgresql
+    healthcheck:
+      # Par le port TCP : pendant l'initialisation d'un volume vide, la socket Unix répond trop tôt.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "notionlike", "-d", "notionlike"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  migration:
+    build: &construction
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: ["node", "packages/db/src/migrer.ts"]
+    environment:
+      URL_BASE_DONNEES: &url-de-la-base "postgres://notionlike:${POSTGRES_PASSWORD:?Variable obligatoire : copier infra/.env.example en infra/.env}@base:5432/notionlike"
+    depends_on:
+      base:
+        condition: service_healthy
+
+  serveur:
+    build: *construction
+    # Le fichier entier : une variable ajoutée à apps/server/.env parvient au serveur sans retouche ici.
+    env_file:
+      - path: ../apps/server/.env
+        required: true
+    # Ces quatre variables l'emportent sur le fichier chargé : trois décrivent le conteneur, et
+    # NODE_ENV tient le mode de production même si apps/server/.env la fixe autrement (F-008-AC14).
+    environment:
+      NODE_ENV: production
+      HOTE: "0.0.0.0"
+      PORT: "3000"
+      URL_BASE_DONNEES: *url-de-la-base
+    ports:
+      - "127.0.0.1:${PORT_PUBLIE_SERVEUR:-3000}:3000"
+    depends_on:
+      base:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+
+volumes:
+  donnees-base:

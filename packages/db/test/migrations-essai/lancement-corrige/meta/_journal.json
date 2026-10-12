@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1759968000000,
+      "tag": "0000_essai_un",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1759968001000,
+      "tag": "0001_essai_deux",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759968002000,
+      "tag": "0002_essai_trois",
+      "breakpoints": true
+    }
+  ]
+}
