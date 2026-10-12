@@ -50,7 +50,12 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "ouvre la persistance d'une page, la tient tant qu'une modification n'est pas écrite, la ferme",
   [SESSION_DE_PAGE]: "lit l'état de la persistance d'une page, s'y abonne, lui soumet l'état relu",
 };
-const AIDES_DE_TEST = ["test/aides-page.tsx", "test/aides-persistance.ts", "test/aides-reprise.ts"];
+const AIDES_DE_TEST = [
+  "test/aides-page.tsx",
+  "test/aides-persistance.ts",
+  "test/aides-reprise.ts",
+  "test/aides-session-page.tsx",
+];
 const TESTS_DE_LA_PERSISTANCE = [
   "test/coquille-echecs.test.tsx",
   "test/coutures.test.ts",
