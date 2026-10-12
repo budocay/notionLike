@@ -296,9 +296,13 @@ describe("persistance fermée", () => {
     expect(vi.getTimerCount()).toBe(0);
     retenues.repondre();
     retenues.cesser();
+    // `cesser` rend la fonction d'ouverture, relevé compris : la suite se relève de nouveau.
+    const ensuite = instantsDesOuvertures();
     await avancer(DIX_MINUTES_MS);
+    persistance.reessayer();
+    await laisserIndexedDbTravailler();
 
-    expect(instants).toHaveLength(1);
+    expect(ensuite).toEqual([]);
     expect(await indexedDB.databases()).toEqual([]);
   });
 });

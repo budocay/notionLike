@@ -65,6 +65,18 @@ async function ouvrirLEspaceLocal(
   return { doc, persistance };
 }
 
+/** Rechargement simulé : une ouverture neuve, qui doit devenir active sans passer par la coupure. */
+async function rechargerSansCoupure(
+  candidat: string,
+): Promise<{ doc: Y.Doc; persistance: Persistance }> {
+  const doc = new Y.Doc();
+  const persistance = ouvrirEspaceLocal(doc, candidat);
+  const etats = etatsSuccessifs(persistance);
+  await attendreEtat(persistance, "active");
+  expect(etats).toEqual(["active"]);
+  return { doc, persistance };
+}
+
 async function relu(nomDeLaBase: string): Promise<Y.Doc> {
   const doc = new Y.Doc();
   (await enregistrements(nomDeLaBase)).forEach((lu) => Y.applyUpdate(doc, Uint8Array.from(lu)));
@@ -116,9 +128,11 @@ describe("identifiant d'espace illisible", () => {
     expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E1)]);
     persistances.forEach((persistance) => persistance.fermer());
 
-    const recharge = await ouvrirLEspaceLocal(E3);
+    const recharge = await rechargerSansCoupure(E3);
     expect(titres(recharge.doc)).toEqual(["Page de E1"]);
+    expect(await identifiantInscrit()).toBe(E1);
     expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E1)]);
+    recharge.persistance.fermer();
   });
 
   it("F-030-AC23 chaîne mal formée et aucune base d'espace : le candidat de la session est inscrit, sans base tirée de la valeur illisible ; le rechargement relit cet espace", async () => {
@@ -131,9 +145,10 @@ describe("identifiant d'espace illisible", () => {
 
     expect(await identifiantInscrit()).toBe(E2);
     expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E2)]);
-    const recharge = await ouvrirLEspaceLocal(E3);
+    const recharge = await rechargerSansCoupure(E3);
     expect(titres(recharge.doc)).toEqual(["Première page"]);
     expect(await identifiantInscrit()).toBe(E2);
+    recharge.persistance.fermer();
   });
 
   it("F-030-AC23 valeur illisible, aucune base d'espace, deux ouvertures lancées ensemble avec deux candidats : l'inscription relit la valeur dans sa transaction, un seul identifiant est retenu et une seule base d'espace créée", async () => {
@@ -178,7 +193,7 @@ describe("identifiant d'espace illisible", () => {
     expect(ouvert.persistance.aLaisseDesBasesNonRattachees()).toBe(true);
     ouvert.persistance.fermer();
     // Rechargement : l'identifiant inscrit est lisible, le signalement ne revient pas.
-    const recharge = await ouvrirLEspaceLocal(E3);
+    const recharge = await rechargerSansCoupure(E3);
     expect(await identifiantInscrit()).toBe(E2);
     expect(titres(recharge.doc)).toEqual([]);
     expect(recharge.persistance.aLaisseDesBasesNonRattachees()).toBe(false);
@@ -209,7 +224,7 @@ describe("identifiant d'espace illisible", () => {
           .mockRejectedValue(new DOMException("refus", "UnknownError")),
     ],
   ])(
-    "F-030-AC23 énumération des bases %s : le candidat est inscrit, la base d'espace existante n'est ni lue ni modifiée, sans erreur non interceptée",
+    "F-030-AC23 énumération des bases %s : le candidat est inscrit, la base d'espace existante n'est ni lue ni modifiée, sans erreur non interceptée ; le rechargement ne coupe pas, garde cet identifiant et ne redit pas les pages non rattachées",
     async (_cas, rendreIndisponible) => {
       const relever = ecouterLesErreursNonInterceptees();
       await inscrireALaPlaceDeLIdentifiant({ pas: "un identifiant" });
@@ -226,8 +241,20 @@ describe("identifiant d'espace illisible", () => {
       expect(await identifiantInscrit()).toBe(E2);
       expect(titres(ouvert.doc)).toEqual([]);
       expect(await enregistrements(baseDe(E1))).toEqual(avant);
-      expect(relever()).toEqual([]);
+      expect(ouvert.persistance.aLaisseDesBasesNonRattachees()).toBe(true);
       ouvert.persistance.fermer();
+
+      // Rechargement simulé, l'énumération revenue : deux bases d'espace existent, et l'identifiant
+      // inscrit, lisible, n'est pas remis en cause.
+      const recharge = await rechargerSansCoupure(E3);
+      expect(recharge.persistance.lireEtat()).toBe("active");
+      expect(await identifiantInscrit()).toBe(E2);
+      expect(recharge.persistance.aLaisseDesBasesNonRattachees()).toBe(false);
+      expect(titres(recharge.doc)).toEqual([]);
+      expect(await enregistrements(baseDe(E1))).toEqual(avant);
+      recharge.persistance.fermer();
+      await laisserIndexedDbTravailler();
+      expect(relever()).toEqual([]);
     },
   );
 
@@ -244,6 +271,20 @@ describe("identifiant d'espace illisible", () => {
     ouvert.persistance.fermer();
   });
 });
+
+/** Noms des bases dont une montée de version, demandée après l'appel, a reçu `blocked`. */
+function monteesEnAttente(): string[] {
+  const bloquees: string[] = [];
+  const ouvrir = indexedDB.open.bind(indexedDB);
+  vi.spyOn(indexedDB, "open").mockImplementation((nom, version) => {
+    const demande = ouvrir(nom, version);
+    if (version !== undefined) {
+      demande.addEventListener("blocked", () => bloquees.push(nom));
+    }
+    return demande;
+  });
+  return bloquees;
+}
 
 describe("base de l'appareil sans son magasin", () => {
   it("F-030-AC24 le magasin est recréé par une montée de version sans toucher au reste, l'identifiant de la seule base d'espace est inscrit, sa page est lue ; l'ouverture suivante ne répare plus rien", async () => {
@@ -303,11 +344,13 @@ describe("base de l'appareil sans son magasin", () => {
     simulerLHorloge();
     const relever = ecouterLesErreursNonInterceptees();
     const tenue = await tenirUneConnexion(APPAREIL);
+    const enAttente = monteesEnAttente();
     const doc = new Y.Doc();
     const persistance = ouvrirEspaceLocal(doc, E2);
     await laisserIndexedDbTravailler();
     vi.advanceTimersByTime(ECHEANCE_MS - 1);
     await laisserIndexedDbTravailler();
+    expect(enAttente).toEqual([APPAREIL]);
     expect(persistance.lireEtat()).toBe("relecture");
     vi.advanceTimersByTime(1);
     expect(persistance.lireEtat()).toBe("coupee");

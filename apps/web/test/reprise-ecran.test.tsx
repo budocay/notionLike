@@ -6,7 +6,7 @@ import * as Y from "yjs";
 
 import type { SessionEspace } from "../src/espace/session-espace.ts";
 import { ouvrirPersistance } from "../src/persistance/index.ts";
-import { ouvrirCoquille, rendreApplication } from "./aides-coquille.tsx";
+import { docDe, ouvrirCoquille, rendreApplication } from "./aides-coquille.tsx";
 import { ouvrirFacade } from "./aides-facade.ts";
 import {
   attendreEtat,
@@ -22,7 +22,10 @@ import {
 } from "./aides-persistance.ts";
 import {
   annulerLesProchainsAjouts,
+  creerUneBase,
+  decrireLaBase,
   inscrireALaPlaceDeLIdentifiant,
+  instancesAyantRelu,
   instantsDesOuvertures,
   rendreLOnglet,
   simulerLHorloge,
@@ -41,6 +44,7 @@ const NON_ENREGISTRE = "Non enregistré sur cet appareil";
 const ANNONCE = "Modifications enregistrées sur cet appareil.";
 const AFFIRMATION = /Enregistré sur cet appareil|Modifications enregistrées/;
 const PREFIXE = "notionlike:espace:";
+const APPAREIL = "notionlike:appareil";
 
 function zone(): HTMLElement {
   return within(screen.getByRole("banner")).getByRole("status");
@@ -237,19 +241,27 @@ describe("avertissement pendant la coupure", () => {
 });
 
 describe("reprise à l'écran", () => {
-  it("F-030-AC6 F-030-AC14 F-030-AC26 (2) F-030-AC29 (3) une tentative dont l'écriture de l'état complet échoue laisse l'avertissement et « Non enregistré », sans annonce ; la suivante retire l'avertissement, la zone dit « Enregistré sur cet appareil » et annonce une fois « Modifications enregistrées sur cet appareil. », sans déplacer le focus", async () => {
+  it("F-030-AC6 F-030-AC14 F-030-AC26 (2) F-030-AC29 (3) une tentative dont l'écriture de l'état complet échoue alors que `synced` est émis laisse l'avertissement et « Non enregistré », sans annonce, et une modification faite ensuite n'ajoute rien à la base ; la suivante retire l'avertissement, la zone dit « Enregistré sur cet appareil » et annonce une fois « Modifications enregistrées sur cet appareil. », sans déplacer le focus, et la base relue lit comme la mémoire", async () => {
     const { session } = await ouvrirPuisCouper();
     act(() => void operations(session).creerPage("Pendant la coupure"));
     const nouvellePage = screen.getByRole("button", { name: "Nouvelle page" });
     nouvellePage.focus();
     const alerte = avertissement();
+    const instances = instancesAyantRelu(docDe(session));
 
     annulerLesProchainsAjouts(1);
     await tentativeSuivante();
     vi.restoreAllMocks();
+    expect(instances.map((instance) => instance.synced)).toEqual([true]);
+    expect(session.lireEtat()).toMatchObject({ phase: "pret", enregistre: false });
     expect(avertissement()).toBe(alerte);
     expect(zone().textContent).toBe(NON_ENREGISTRE);
     expect(document.body.textContent).not.toMatch(AFFIRMATION);
+    const avantLaSuivante = await enregistrements(await baseDeLEspaceLocal());
+    act(() => void operations(session).creerPage("Après la tentative en échec"));
+    await laisserFaire();
+    expect(await enregistrements(await baseDeLEspaceLocal())).toEqual(avantLaSuivante);
+    expect(await titresDansLaBase()).toEqual([]);
 
     await tentativeSuivante();
 
@@ -257,7 +269,13 @@ describe("reprise à l'écran", () => {
     expect(zone().textContent).toBe(`${ENREGISTRE} ${ANNONCE}`);
     expect(document.body.textContent?.split(ANNONCE)).toHaveLength(2);
     expect(document.activeElement).toBe(nouvellePage);
-    expect(await titresDansLaBase()).toEqual(["Pendant la coupure"]);
+    expect(await titresDansLaBase()).toEqual(["Après la tentative en échec", "Pendant la coupure"]);
+    expect(await titresDansLaBase()).toEqual(
+      ouvrirFacade(docDe(session))
+        .lire()
+        .racines.map((page) => page.titre)
+        .sort(),
+    );
 
     // L'annonce n'est pas refaite à la modification suivante.
     const reecritures = vi.fn();
@@ -267,6 +285,37 @@ describe("reprise à l'écran", () => {
     await laisserFaire();
     observateur.disconnect();
     expect(reecritures).not.toHaveBeenCalled();
+  });
+
+  it("F-030-AC24 base de l'appareil sans son magasin et montée de version refusée : la coupure est dite par l'avertissement, avec « Réessayer maintenant » ; la tentative suivante répare, l'avertissement et son action sont retirés", async () => {
+    await creerUneBase(APPAREIL, []);
+    simulerLHorloge();
+    const ouvrir = indexedDB.open.bind(indexedDB);
+    vi.spyOn(indexedDB, "open").mockImplementation((nom, version) => {
+      if (version !== undefined) {
+        throw new DOMException("refus", "UnknownError");
+      }
+      return ouvrir(nom, version);
+    });
+    const { session } = rendreApplication();
+    await laisserFaire();
+
+    expect(session.lireEtat()).toMatchObject({ phase: "pret", enregistre: false });
+    expect(avertissement().textContent).toBe(`${COUPURE}${JAMAIS_RELUE}${REESSAYER}`);
+    expect(screen.queryByRole("button", { name: REESSAYER })).not.toBeNull();
+    expect(zone().textContent).toBe(NON_ENREGISTRE);
+    expect((await decrireLaBase(APPAREIL)).magasins).toEqual({});
+
+    vi.restoreAllMocks();
+    await tentativeSuivante();
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: REESSAYER })).toBeNull();
+    expect(zone().textContent).toContain(ENREGISTRE);
+    expect(await decrireLaBase(APPAREIL)).toMatchObject({
+      version: 2,
+      magasins: { reglages: { cleAutomatique: false } },
+    });
   });
 
   it("F-030-AC14 la reprise demandée par « Réessayer maintenant » retire le bouton qui avait le focus : le focus passe à la zone principale, il n'est pas perdu", async () => {
@@ -446,15 +495,17 @@ describe("onglet quitté ou masqué pendant une coupure", () => {
   });
 
   it("F-030-AC11 F-030-AC16 une session fermée pendant une coupure avec modification retire l'écouteur `beforeunload`", async () => {
-    const inscrits = ecouteursDe("beforeunload");
     const { session } = await ouvrirPuisCouper();
+    // Posé après la coupure, qui rend les fonctions espionnées : posé avant, il ne compterait rien.
+    const inscrits = ecouteursDe("beforeunload");
     act(() => void operations(session).creerPage("Pendant la coupure"));
+    expect(inscrits()).toBe(1);
     expect(tenterDeQuitter().defaultPrevented).toBe(true);
 
     act(() => session.fermer());
 
-    expect(tenterDeQuitter().defaultPrevented).toBe(false);
     expect(inscrits()).toBe(0);
+    expect(tenterDeQuitter().defaultPrevented).toBe(false);
   });
 
   it.each([

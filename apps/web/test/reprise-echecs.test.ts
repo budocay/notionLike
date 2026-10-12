@@ -75,9 +75,36 @@ type Ouvrir = (doc: Y.Doc) => Persistance;
 const ouvrirLeDocument: Ouvrir = (doc) => ouvrirPersistance(doc, ESPACE);
 const ouvrirLEspaceLocal: Ouvrir = (doc) => ouvrirEspaceLocal(doc, ESPACE_B);
 
+// La globale absente ne s'espionne pas : chaque tentative la lit une fois pour demander
+// l'ouverture, et c'est cette lecture qui est comptée.
+let lecturesDeLaGlobaleAbsente = 0;
+
+function retirerIndexedDb(): void {
+  // Inscrit la globale d'origine auprès de Vitest, qui la rend après le test.
+  vi.stubGlobal("indexedDB", undefined);
+  lecturesDeLaGlobaleAbsente = 0;
+  Object.defineProperty(globalThis, "indexedDB", {
+    configurable: true,
+    get: () => {
+      lecturesDeLaGlobaleAbsente += 1;
+      return undefined;
+    },
+    set: (valeur: unknown) => {
+      Object.defineProperty(globalThis, "indexedDB", {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: valeur,
+      });
+    },
+  });
+}
+
 interface Cas {
   readonly nom: string;
   readonly provoquer: () => void;
+  /** Vrai si la globale est absente : les tentatives se comptent par ses lectures. */
+  readonly sansGlobale?: boolean;
   readonly ouvrir: Ouvrir;
   /** Vrai si chaque tentative va jusqu'à l'événement `synced` de la bibliothèque. */
   readonly synced: boolean;
@@ -86,7 +113,8 @@ interface Cas {
 const CAS: readonly Cas[] = [
   {
     nom: "`indexedDB` absent à chaque tentative",
-    provoquer: () => vi.stubGlobal("indexedDB", undefined),
+    provoquer: retirerIndexedDb,
+    sansGlobale: true,
     ouvrir: ouvrirLeDocument,
     synced: false,
   },
@@ -150,14 +178,14 @@ const CAS: readonly Cas[] = [
 describe("aucune erreur non interceptée", () => {
   it.each(CAS)(
     "F-030-AC18 $nom : trois tentatives, une modification, une demande immédiate et la fermeture n'émettent ni erreur non interceptée ni rejet non géré ; la persistance reste coupée, l'état en mémoire entier",
-    async ({ provoquer, ouvrir, synced }) => {
+    async ({ provoquer, ouvrir, synced, sansGlobale = false }) => {
       simulerLHorloge();
       const relever = ecouter();
       await enregistrerUnPremierEtat();
       provoquer();
       const facade = ouvrirFacade(new Y.Doc());
       const instances = instancesAyantRelu(facade.doc);
-      const instants = typeof indexedDB === "undefined" ? undefined : instantsDesOuvertures();
+      const instants = sansGlobale ? undefined : instantsDesOuvertures();
 
       const persistance = ouvrir(facade.doc);
       facade.creerPage("En mémoire");
@@ -183,7 +211,11 @@ describe("aucune erreur non interceptée", () => {
       expect(relever()).toEqual([]);
       expect(persistance.lireEtat()).toBe("fermee");
       expect(instances.length > 0).toBe(synced);
-      if (instants !== undefined) {
+      if (instants === undefined) {
+        // Une lecture par tentative : l'ouverture, celles de la cadence à 2, 6, 14 et 30 secondes,
+        // puis la tentative demandée.
+        expect(lecturesDeLaGlobaleAbsente).toBe(6);
+      } else {
         expect(instants.length).toBeGreaterThanOrEqual(3);
       }
       expect(facade.lire().racines.map((page) => page.titre)).toEqual(
@@ -361,7 +393,8 @@ describe("abonnés d'une persistance sous garde", () => {
     expect(relever()).toEqual([]);
   });
 
-  it("F-030-AC25 fermeture d'une persistance coupée : même diffusion, `fermer()` ne lève pas, l'état fermé est atteint", () => {
+  it("F-030-AC25 fermeture d'une persistance coupée : même diffusion, `fermer()` ne lève pas, l'état fermé est atteint, sans erreur non interceptée", async () => {
+    const relever = ecouter();
     refuserLesOuverturesParUneException();
     const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     const abonnes = abonner(persistance);
@@ -371,5 +404,7 @@ describe("abonnés d'une persistance sous garde", () => {
     expect(abonnes.appels).toEqual(attendus("fermee"));
     signalementUnique(abonnes);
     expect(persistance.lireEtat()).toBe("fermee");
+    await laisserIndexedDbTravailler();
+    expect(relever()).toEqual([]);
   });
 });
