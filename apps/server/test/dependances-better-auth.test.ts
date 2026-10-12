@@ -12,6 +12,9 @@ import { afterAll, describe, expect, it } from "vitest";
 
 const RACINE = fileURLToPath(new URL("../../../", import.meta.url));
 const MODULES_DU_SERVEUR = fileURLToPath(new URL("../node_modules", import.meta.url));
+// Chaque cas lance dependency-cruiser dans un processus : 1 à 2 s seul, plusieurs fois plus quand
+// toute la suite tourne en parallèle, au-delà des 5 s par défaut d'un test.
+const DELAI_D_UN_CROISEMENT_MS = 30_000;
 const DEPCRUISE = join(RACINE, "node_modules", ".bin", "depcruise");
 const REGLES_DE_F_009 = [
   "better-auth-reserve-au-serveur",
@@ -128,16 +131,20 @@ function depotDEssai(installe: boolean): string {
 }
 
 describe("better-auth cantonné au serveur", () => {
-  it("F-009-AC24 sur le dépôt, aucune violation, et le serveur importe bien better-auth par son chemin installé", () => {
-    const resultat = croiser(RACINE);
-    const versBetterAuth = resultat.modules
-      .filter(({ source }) => source.startsWith("apps/server/src/"))
-      .flatMap(({ dependencies }) => dependencies.map(({ resolved }) => resolved))
-      .filter((resolu) => /node_modules\/(better-auth|@better-auth\/[^/]+)\//.test(resolu));
+  it(
+    "F-009-AC24 sur le dépôt, aucune violation, et le serveur importe bien better-auth par son chemin installé",
+    () => {
+      const resultat = croiser(RACINE);
+      const versBetterAuth = resultat.modules
+        .filter(({ source }) => source.startsWith("apps/server/src/"))
+        .flatMap(({ dependencies }) => dependencies.map(({ resolved }) => resolved))
+        .filter((resolu) => /node_modules\/(better-auth|@better-auth\/[^/]+)\//.test(resolu));
 
-    expect(resultat.summary.violations).toEqual([]);
-    expect(versBetterAuth.length).toBeGreaterThan(0);
-  });
+      expect(resultat.summary.violations).toEqual([]);
+      expect(versBetterAuth.length).toBeGreaterThan(0);
+    },
+    DELAI_D_UN_CROISEMENT_MS,
+  );
 
   it.each([
     ["installé", true],
@@ -155,5 +162,6 @@ describe("better-auth cantonné au serveur", () => {
       expect(violationsDeF009(resultat)).toEqual(ATTENDUES);
       expect(resolus.some((resolu) => resolu.includes("node_modules/"))).toBe(installe);
     },
+    DELAI_D_UN_CROISEMENT_MS,
   );
 });
