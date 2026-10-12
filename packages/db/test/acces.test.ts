@@ -235,6 +235,46 @@ describe("accès par le pilote pg", () => {
     DELAI_MAXIMAL_DU_CAS_MS,
   );
 
+  // La sonde ignore l'issue de sa requête : la promesse du pilote `pg` est relevée sur la réserve
+  // (`Pool.prototype.query`, que Drizzle appelle), sans rien changer à ce qu'elle fait.
+  it(
+    "F-008-AC17 après la fermeture, la requête restée en vol d'une sonde hors délai est rejetée",
+    async () => {
+      const requetesDeLaReserve = vi.spyOn(Pool.prototype, "query");
+      const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+      const base = ouvrirBase(faux.url);
+      try {
+        await expect(base.sonder()).resolves.toBeUndefined();
+        faux.seTaire();
+        expect((await echecDe(base.sonder())).code).toBe("sonde-hors-delai");
+        const derniere = requetesDeLaReserve.mock.results.at(-1);
+        expect(derniere?.type).toBe("return");
+        const issueDeLaRequete = Promise.resolve(derniere?.value as unknown).then(
+          () => "aboutie",
+          (erreur: unknown) => erreur,
+        );
+        expect(await Promise.race([issueDeLaRequete, attendre(0).then(() => "en vol")])).toBe(
+          "en vol",
+        );
+
+        void base.fermer();
+        const issue = await Promise.race([
+          issueDeLaRequete,
+          attendre(ATTENTE_MAXIMALE_DE_LA_FERMETURE_MS).then(() => "toujours en vol"),
+        ]);
+
+        expect(issue).toBeInstanceOf(Error);
+        expect((issue as Error).message).toBe("Connection terminated");
+        expect(faux.messagesRecus).toEqual(["Q", "Q"]);
+      } finally {
+        requetesDeLaReserve.mockRestore();
+        await faux.arreter();
+        await base.fermer();
+      }
+    },
+    DELAI_MAXIMAL_DU_CAS_MS,
+  );
+
   it("F-008-AC3 des connexions inactives coupées ne lèvent aucune exception non interceptée et la sonde suivante aboutit", async () => {
     const nonInterceptees: unknown[] = [];
     const noter = (erreur: unknown): void => {
