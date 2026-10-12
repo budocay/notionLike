@@ -72,6 +72,21 @@ module.exports = {
       to: { path: "^packages/db/" },
     },
     {
+      name: "infra-a-part",
+      severity: "error",
+      comment: "F-008 : aucun fichier d'apps/ ni de packages/ n'importe infra/.",
+      from: { path: "^(apps|packages)/" },
+      to: { path: "^infra/" },
+    },
+    {
+      name: "serveur-tests-par-les-entrees-de-db",
+      severity: "error",
+      comment:
+        "F-008 : les tests d'apps/server n'atteignent packages/db que par ses deux entrées, @notionlike/db et @notionlike/db/essai.",
+      from: { path: "^apps/server/test/" },
+      to: { path: "^packages/db/", pathNot: "^packages/db/(src/index|test/essai)\\.ts$" },
+    },
+    {
       name: "document-sans-reseau-ni-base",
       severity: "error",
       comment: "Le modèle de document (CRDT) reste pur : ni base serveur ni contrats HTTP.",
