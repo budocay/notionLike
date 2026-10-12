@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { isScalar, parseDocument, Scalar, visit } from "yaml";
 
-type Dictionnaire = Record<string, unknown>;
+export type Dictionnaire = Record<string, unknown>;
 
 export interface FichierCompose {
   readonly projet: string;
@@ -35,12 +35,12 @@ const VARIABLE_DU_MODE = "NODE_ENV";
 const MODE_ATTENDU = "production";
 const FICHIER_DU_SERVEUR = "../apps/server/.env";
 
-function dictionnaire(valeur: unknown): Dictionnaire {
+export function dictionnaire(valeur: unknown): Dictionnaire {
   const estUnObjet = typeof valeur === "object" && valeur !== null && !Array.isArray(valeur);
   return estUnObjet ? (valeur as Dictionnaire) : {};
 }
 
-function liste(valeur: unknown): unknown[] {
+export function liste(valeur: unknown): unknown[] {
   return Array.isArray(valeur) ? valeur : [];
 }
 
