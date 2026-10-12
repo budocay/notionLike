@@ -16,6 +16,7 @@ import { ouvrirBaseEmbarqueeMigree } from "@notionlike/db/essai";
 import { z } from "zod";
 
 import {
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
   lancerServeur,
   SECRET_D_ESSAI,
   URL_PUBLIQUE_D_ESSAI,
@@ -31,9 +32,14 @@ export const ADA: CorpsInscription = {
   password: MOT_DE_PASSE_D_ADA,
 };
 
-// Délai d'un test des comptes : une base embarquée à ouvrir, des empreintes Argon2id à calculer,
-// sur une machine que d'autres suites de tests peuvent occuper.
+// Délai d'un test des comptes : des empreintes Argon2id à calculer, sur une machine que d'autres
+// suites de tests peuvent occuper. La base du fichier est ouverte dans un crochet, sous
+// `DELAI_D_OUVERTURE_D_UNE_BASE_MS`.
 export const DELAI_DES_COMPTES_MS = 30_000;
+
+// Délai d'un test qui ouvre sa propre base, défaillante ou témoin, en plus de son travail.
+export const DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS =
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS + DELAI_DES_COMPTES_MS;
 
 export const NOM_DU_COOKIE = "better-auth.session_token";
 export const NOM_DU_COOKIE_SECURISE = `__Secure-${NOM_DU_COOKIE}`;

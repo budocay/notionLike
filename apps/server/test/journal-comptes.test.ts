@@ -11,6 +11,7 @@ import {
   lancerServeur,
   type LigneDeJournal,
   type ServeurDEssai,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
 } from "./aides.ts";
 import {
   DELAI_DES_COMPTES_MS,
@@ -27,6 +28,7 @@ import {
   ouvrirUneBase,
   poseUnCookieDeSession,
   poster,
+  DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
 } from "./aides-comptes.ts";
 
 const CHAMPS_D_UN_EVENEMENT = [
@@ -47,7 +49,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -262,7 +264,7 @@ describe("base défaillante pendant une inscription et une connexion", () => {
       expect(await comptesDe(defaillante, corps.email)).toEqual([]);
       expect(await lignesDe(defaillante, "account")).toEqual([]);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(
@@ -279,7 +281,7 @@ describe("base défaillante pendant une inscription et une connexion", () => {
       expect(poseUnCookieDeSession(reponse)).toBe(false);
       expect(await comptesDe(defaillante, corps.email)).toEqual([]);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(
@@ -301,7 +303,7 @@ describe("base défaillante pendant une inscription et une connexion", () => {
         (await lignesDe(defaillante, "session")).filter(({ userId }) => userId === compte.id),
       ).toHaveLength(1);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(
@@ -356,6 +358,6 @@ describe("base défaillante pendant une inscription et une connexion", () => {
         tout.replaceAll(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, ""),
       ).not.toMatch(JETON);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 });

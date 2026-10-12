@@ -5,7 +5,13 @@ import { CHEMINS_COMPTES, schemaEnveloppeErreur } from "@notionlike/contrats";
 import type { Base } from "@notionlike/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { arreterLesServeurs, enveloppeDe, lancerServeur, type ServeurDEssai } from "./aides.ts";
+import {
+  arreterLesServeurs,
+  enveloppeDe,
+  lancerServeur,
+  type ServeurDEssai,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+} from "./aides.ts";
 import {
   DELAI_DES_COMPTES_MS,
   compteDe,
@@ -31,6 +37,7 @@ import {
   sessionDuJeton,
   sessionsDe,
   type Ouverture,
+  DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
 } from "./aides-comptes.ts";
 import { sourcesDuDepot } from "./aides-sources.ts";
 
@@ -40,7 +47,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -355,7 +362,7 @@ describe("déconnexion en échec", () => {
       expect(await sessionDuJeton(defaillante, ouverte.jeton)).toBeDefined();
       expect(serveur.texteDuJournal()).not.toContain(ouverte.jeton);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(
@@ -372,7 +379,7 @@ describe("déconnexion en échec", () => {
       expect((await enveloppeDe(reponse)).code).toBe("erreur-interne");
       expect(effaceLeCookieDeSession(reponse)).toBe(true);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(
@@ -384,7 +391,7 @@ describe("déconnexion en échec", () => {
 
       expect((await deconnecter(serveur, ouverte.cookie)).status).toBe(200);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 });
 
@@ -415,7 +422,7 @@ describe("vérification de session en échec", () => {
           .map(({ code }) => code),
       ).toEqual(["verification-de-session-en-echec", "authentification-en-echec"]);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it(

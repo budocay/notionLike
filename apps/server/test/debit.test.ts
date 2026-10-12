@@ -15,6 +15,7 @@ import {
   lancerServeur,
   URL_PUBLIQUE_D_ESSAI,
   type ServeurDEssai,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
 } from "./aides.ts";
 import {
   DELAI_DES_COMPTES_MS,
@@ -42,7 +43,7 @@ const agents: Agent[] = [];
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();

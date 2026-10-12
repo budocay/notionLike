@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { creerJournal } from "../src/journal.ts";
 import { creerSuppressionDeSessions } from "../src/sessions.ts";
-import { arreterLesServeurs, lancerServeur } from "./aides.ts";
+import { arreterLesServeurs, lancerServeur, DELAI_D_OUVERTURE_D_UNE_BASE_MS } from "./aides.ts";
 import {
   DELAI_DES_COMPTES_MS,
   comptesDe,
@@ -21,6 +21,7 @@ import {
   ouvertureDe,
   ouvrirUneBase,
   sessionsDe,
+  DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
 } from "./aides-comptes.ts";
 
 const SECRET_DE_L_ABONNE = "donnee-que-l-abonne-ne-doit-pas-faire-journaliser";
@@ -29,7 +30,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(async () => {
   vi.restoreAllMocks();
   await arreterLesServeurs();
@@ -192,7 +193,7 @@ describe("suppression et signal", () => {
       expect(recus).not.toHaveBeenCalled();
       expect(await sessionsDe(defaillante, idCompte)).toHaveLength(2);
     },
-    DELAI_DES_COMPTES_MS,
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 });
 

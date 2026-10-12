@@ -7,7 +7,13 @@ import type { Base } from "@notionlike/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { arreterLesServeurs, enveloppeDe, lancerServeur, SECRET_D_ESSAI } from "./aides.ts";
+import {
+  arreterLesServeurs,
+  enveloppeDe,
+  lancerServeur,
+  SECRET_D_ESSAI,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+} from "./aides.ts";
 import {
   DELAI_DES_COMPTES_MS,
   compteDe,
@@ -41,7 +47,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(async () => {
   vi.restoreAllMocks();
   await arreterLesServeurs();

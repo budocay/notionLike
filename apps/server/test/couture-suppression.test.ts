@@ -11,9 +11,13 @@ import { CHEMINS_COMPTES } from "@notionlike/contrats";
 import type { Base, SessionSupprimee } from "@notionlike/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { arreterLesServeurs, lancerServeur, type ServeurDEssai } from "./aides.ts";
 import {
-  DELAI_DES_COMPTES_MS,
+  arreterLesServeurs,
+  lancerServeur,
+  type ServeurDEssai,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+} from "./aides.ts";
+import {
   corpsUnique,
   deconnecter,
   ecouterLesSuppressions,
@@ -24,6 +28,7 @@ import {
   lire,
   ouvrirUneBase,
   sessionDuJeton,
+  DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
 } from "./aides-comptes.ts";
 import { sourcesDuDepot } from "./aides-sources.ts";
 
@@ -110,7 +115,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(fermerLesBases);
 
@@ -205,7 +210,8 @@ describe("points de suppression de session", () => {
       expect(restante).toBeUndefined();
       expect(recus).toEqual([attendu]);
     },
-    DELAI_DES_COMPTES_MS,
+    // Le scénario du crochet ouvre sa propre base.
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it.each<

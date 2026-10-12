@@ -15,6 +15,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { DELAI_D_OUVERTURE_D_UNE_BASE_MS } from "./aides.ts";
 import { DELAI_DES_COMPTES_MS } from "./aides-comptes.ts";
 
 const SECRET_D_ESSAI = "secret-d-essai-de-trente-deux-caracteres-au-moins";
@@ -45,7 +46,7 @@ let embarquee: BaseEmbarquee;
 
 beforeAll(async () => {
   embarquee = await ouvrirBaseEmbarqueeMigree();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterAll(() => embarquee.base.fermer());
 
 function construire() {

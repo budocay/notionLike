@@ -4,7 +4,12 @@ import { CHEMINS_COMPTES, schemaCompteNatif, type CorpsInscription } from "@noti
 import type { Base } from "@notionlike/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { arreterLesServeurs, enveloppeDe, lancerServeur } from "./aides.ts";
+import {
+  arreterLesServeurs,
+  enveloppeDe,
+  lancerServeur,
+  DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+} from "./aides.ts";
 import {
   comptesDe,
   connecter,
@@ -28,7 +33,7 @@ let base: Base;
 
 beforeAll(async () => {
   base = await ouvrirUneBase();
-}, DELAI_DES_COMPTES_MS);
+}, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
 afterEach(arreterLesServeurs);
 afterAll(fermerLesBases);
 
