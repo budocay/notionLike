@@ -100,11 +100,15 @@ function detourneLaResolution(configuration: string): boolean {
 }
 
 describe("@notionlike/document résolu par son nom", () => {
-  it("F-002-AC32 F-002-AC31 importé par son nom de paquet, il rend exactement les exports de F-001", () => {
+  it("F-002-AC32 F-002-AC31 F-003-AC24 importé par son nom de paquet, il rend exactement les exports de F-001 et ceux de la façade de page de F-003", () => {
     expect(Object.keys(exportsDuDocument).sort()).toEqual([
       "ErreurDocument",
+      "TABLE_DES_VERSIONS_PAGE",
+      "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      "lireVersionPage",
       "ouvrirDocumentEspace",
+      "ouvrirDocumentPage",
     ]);
   });
 
@@ -140,8 +144,12 @@ describe("@notionlike/document résolu par son nom", () => {
 
     expect(Object.keys(await import(/* @vite-ignore */ declare)).sort()).toEqual([
       "ErreurDocument",
+      "TABLE_DES_VERSIONS_PAGE",
+      "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      "lireVersionPage",
       "ouvrirDocumentEspace",
+      "ouvrirDocumentPage",
     ]);
   });
 });

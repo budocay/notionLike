@@ -646,6 +646,7 @@ const CODES_DU_DOCUMENT = Object.keys({
   "position-invalide": true,
   "version-non-prise-en-charge": true,
   "facade-fermee": true,
+  "version-invalide": true,
 } satisfies Record<CodeErreurDocument, true>) as CodeErreurDocument[];
 
 function litUnCode(texte: string): boolean {
@@ -704,8 +705,8 @@ describe("codes d'erreur du document", () => {
     expect(message).not.toContain("fermee");
   });
 
-  it("F-002-AC15 chaque code d'erreur du document, les sept, a un message français distinct, sans code ni identifiant", () => {
-    expect(CODES_DU_DOCUMENT).toHaveLength(7);
+  it("F-002-AC15 F-003-AC24 chaque code d'erreur du document, les sept de F-002 et version-invalide, a un message français distinct, sans code ni identifiant", () => {
+    expect(CODES_DU_DOCUMENT).toHaveLength(8);
     const messages = CODES_DU_DOCUMENT.map((code) => {
       const message = messageErreur(code);
       expect(message.length, code).toBeGreaterThan(20);
