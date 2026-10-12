@@ -186,9 +186,23 @@ function poserLesCookies(reponse: Response, enTetes: Headers): void {
   }
 }
 
-// La réponse native, telle quelle : statut, type, cookies et corps (H2).
+// Une opération en échec n'ouvre rien : seuls les effacements de cookie que better-auth a posés
+// sont gardés (F-009-AC20, AC26).
+function poserLesEffacements(reponse: Response, enTetes: Headers): void {
+  for (const cookie of enTetes.getSetCookie()) {
+    if (/;\s*Max-Age=0(;|$)/i.test(cookie)) {
+      reponse.append("Set-Cookie", cookie);
+    }
+  }
+}
+
+// La réponse native, telle quelle : statut, type, cookies, consigne de cache et corps (H2).
 function recopier(reponse: Response, native: globalThis.Response, texte: string): void {
   poserLesCookies(reponse, native.headers);
+  const cache = native.headers.get("Cache-Control");
+  if (cache !== null) {
+    reponse.set("Cache-Control", cache);
+  }
   if (native.status === STATUT_TROP_DE_REQUETES) {
     reponse.set("Retry-After", attenteDe(native));
   }
@@ -221,11 +235,15 @@ function requeteNative(
   });
 }
 
-// F-009-AC20, AC26 : une erreur non prévue, ou une session que la base n'a pas supprimée alors que
-// better-auth annonce un succès. Dans ce second cas, le cookie que better-auth efface est gardé.
+// F-009-AC20, AC26 : une erreur non prévue, levée ou tue par better-auth, ou une session que la
+// base n'a pas supprimée alors que better-auth annonce un succès. Le cookie que better-auth efface
+// est gardé.
 function echecDe(traitement: Traitement): { code: CodeDEchec; erreur: unknown } | undefined {
   if ("suppressionEnEchec" in traitement) {
     return { code: "session-non-supprimee", erreur: traitement.suppressionEnEchec };
+  }
+  if ("erreurTaie" in traitement) {
+    return { code: "authentification-en-echec", erreur: traitement.erreurTaie };
   }
   const statut = traitement.reponse?.status ?? PREMIER_STATUT_SERVEUR;
   return statut >= PREMIER_STATUT_SERVEUR
@@ -257,11 +275,14 @@ function transmettre(route: Route, dependances: Dependances): RequestHandler {
       envoyerErreur(reponse, "requete-invalide");
       return;
     }
-    const traitement = await authentification.traiter(native);
+    const traitement =
+      route === "deconnexion"
+        ? await authentification.deconnecter(native)
+        : await authentification.traiter(native);
     const echec = echecDe(traitement);
     if (echec !== undefined || traitement.reponse === undefined) {
       journal.echecSansDonnee(echec?.code ?? ECHEC_PAR_DEFAUT, echec?.erreur, recue.idRequete);
-      poserLesCookies(reponse, traitement.reponse?.headers ?? new Headers());
+      poserLesEffacements(reponse, traitement.reponse?.headers ?? new Headers());
       envoyerErreur(reponse, "erreur-interne");
       return;
     }
@@ -298,8 +319,8 @@ function repondreMoi({
 }
 
 export function monterLesComptes(application: Express, dependances: Dependances): void {
-  // Le corps d'une route d'authentification est lu ici, quel que soit son type annoncé, pour que
-  // la limite de taille vaille pour tous (F-009-AC28).
+  // Le corps d'une route d'authentification est lu ici, quels que soient sa méthode et son type
+  // annoncé, pour que la limite de taille vaille pour toutes (F-009-AC28).
   const lireLeCorps = express.raw({ limit: LIMITE_CORPS_OCTETS, type: () => true });
   application.use(plafonnerLeDebit(dependances));
   application.use(fermerLesAutresRoutes);
@@ -308,7 +329,7 @@ export function monterLesComptes(application: Express, dependances: Dependances)
     if (METHODES[route] === "POST") {
       application.post(CHEMINS_COMPTES[route], lireLeCorps, transmission);
     } else {
-      application.get(CHEMINS_COMPTES[route], transmission);
+      application.get(CHEMINS_COMPTES[route], lireLeCorps, transmission);
     }
   }
   application.get(CHEMINS_COMPTES.moi, repondreMoi(dependances));
