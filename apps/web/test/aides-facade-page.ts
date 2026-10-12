@@ -5,6 +5,23 @@ import { type DocumentPage, ouvrirDocumentPage } from "@notionlike/document";
 import { afterEach, expect } from "vitest";
 import * as Y from "yjs";
 
+// Seul fichier de test d'apps/web qui nomme le type racine du contenu d'une page : ce que la façade
+// refuse d'ouvrir (version non prise en charge) y est lu et écrit à la main, comme le ferait une
+// réplique plus récente ou forgée.
+const TYPE_DU_CONTENU_DE_PAGE = "contenu";
+
+/** Le fragment du contenu, sans passer par la façade : lisible même si la version est refusée. */
+export function fragmentBrut(doc: Y.Doc): Y.XmlFragment {
+  return doc.getXmlFragment(TYPE_DU_CONTENU_DE_PAGE);
+}
+
+/** Un document dont le fragment porte ces blocs, écrits sans façade ni éditeur. */
+export function documentForge(...blocs: Y.XmlElement[]): Y.Doc {
+  const doc = new Y.Doc();
+  fragmentBrut(doc).insert(0, blocs);
+  return doc;
+}
+
 const departsDesPages = new Map<Y.Doc, number>();
 const pagesOuvertes: DocumentPage[] = [];
 
@@ -102,7 +119,7 @@ export function inventaireDuContenu(doc: Y.Doc): Inventaire {
       element.toArray().forEach(visiter);
     }
   };
-  ouvrirFacadeDePage(doc).contenu.toArray().forEach(visiter);
+  fragmentBrut(doc).toArray().forEach(visiter);
   return {
     noeuds: Object.fromEntries(
       [...noeuds]

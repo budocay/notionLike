@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { INVITE_DU_BLOC_VIDE } from "../../src/interface/messages.ts";
-import { ajouter, bloc, contenuLu } from "../aides-facade-page.ts";
+import { ajouter, bloc, contenuLu, documentForge } from "../aides-facade-page.ts";
 import {
   annuler,
   collerDuHtml,
@@ -209,31 +209,20 @@ describe("mises à jour reçues", () => {
 
 describe("accessibilité du contenu", () => {
   it("F-003-AC16 l'éditeur est une zone de texte multiligne nommée « Contenu de la page », et les titres et les listes sont rendus par leurs éléments HTML", () => {
-    const doc = new Y.Doc();
-    act(() =>
-      Y.applyUpdate(
-        doc,
-        (() => {
-          const source = new Y.Doc();
-          const contenu = source.getXmlFragment("contenu");
-          const element = bloc("listItem", "");
-          element.insert(0, [bloc("paragraph", "puce")]);
-          const liste = new Y.XmlElement("bulletList");
-          liste.insert(0, [element]);
-          const numero = bloc("listItem", "");
-          numero.insert(0, [bloc("paragraph", "numéro")]);
-          const numerotee = new Y.XmlElement("orderedList");
-          numerotee.insert(0, [numero]);
-          contenu.insert(0, [
-            bloc("heading", "Un", { level: 1 }),
-            bloc("heading", "Deux", { level: 2 }),
-            bloc("heading", "Trois", { level: 3 }),
-            liste,
-            numerotee,
-          ]);
-          return Y.encodeStateAsUpdate(source);
-        })(),
-      ),
+    const puce = bloc("listItem", "");
+    puce.insert(0, [bloc("paragraph", "puce")]);
+    const liste = bloc("bulletList", "");
+    liste.insert(0, [puce]);
+    const numero = bloc("listItem", "");
+    numero.insert(0, [bloc("paragraph", "numéro")]);
+    const numerotee = bloc("orderedList", "");
+    numerotee.insert(0, [numero]);
+    const doc = documentForge(
+      bloc("heading", "Un", { level: 1 }),
+      bloc("heading", "Deux", { level: 2 }),
+      bloc("heading", "Trois", { level: 3 }),
+      liste,
+      numerotee,
     );
 
     monterLEditeur(doc);
@@ -301,19 +290,9 @@ describe("l'édition n'écrit pas la version", () => {
 
 describe("contenu hors du schéma dans un document de version prise en charge", () => {
   it("F-003-AC17 un titre de niveau 9 et un attribut inconnu sont affichés sans exception et sans mise à jour à l'ouverture, et aucune commande n'est marquée pour ce niveau", () => {
-    const doc = new Y.Doc();
-    Y.applyUpdate(
-      doc,
-      (() => {
-        const source = new Y.Doc();
-        source
-          .getXmlFragment("contenu")
-          .insert(0, [
-            bloc("heading", "Niveau neuf", { level: 9 }),
-            bloc("paragraph", "avec attribut", { inconnu: "x" }),
-          ]);
-        return Y.encodeStateAsUpdate(source);
-      })(),
+    const doc = documentForge(
+      bloc("heading", "Niveau neuf", { level: 9 }),
+      bloc("paragraph", "avec attribut", { inconnu: "x" }),
     );
     const avant = etatEncodeDe(doc);
 
@@ -334,21 +313,11 @@ describe("contenu hors du schéma dans un document de version prise en charge", 
   });
 
   it("F-003-AC17 un nœud et une marque absents du schéma n'empêchent pas d'afficher le reste, sans exception", () => {
-    const doc = new Y.Doc();
-    Y.applyUpdate(
-      doc,
-      (() => {
-        const source = new Y.Doc();
-        const marque = new Y.XmlElement("paragraph");
-        const texte = new Y.XmlText();
-        texte.insert(0, "gras", { bold: true });
-        marque.insert(0, [texte]);
-        source
-          .getXmlFragment("contenu")
-          .insert(0, [bloc("paragraph", "connu"), bloc("blocFutur", "inconnu"), marque]);
-        return Y.encodeStateAsUpdate(source);
-      })(),
-    );
+    const marque = new Y.XmlElement("paragraph");
+    const texte = new Y.XmlText();
+    texte.insert(0, "gras", { bold: true });
+    marque.insert(0, [texte]);
+    const doc = documentForge(bloc("paragraph", "connu"), bloc("blocFutur", "inconnu"), marque);
 
     expect(() => monterLEditeur(doc)).not.toThrow();
 
