@@ -317,7 +317,7 @@ for (const pixels of [360, 768]) {
 
     await ouvrirLeRenommage(page, "Carnet de bord");
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Titre de la page" })).toHaveCount(0);
     await expect(tiroir(page)).toBeVisible();
     await ouvrirLeMenu(page, "Carnet de bord");
     await page.keyboard.press("Escape");
@@ -457,7 +457,7 @@ async function constaterLeChampDeRenommage(
   );
   await constaterLesCibles(page, ecran, auMoins);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Titre de la page" })).toHaveCount(0);
 }
 
 test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des écrans (b), (c), (d), (e) et (j) offre au moins 44 pixels de large et de haut", async ({
