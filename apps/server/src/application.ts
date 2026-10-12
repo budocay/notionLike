@@ -99,8 +99,16 @@ export function creerApplication({ configuration, base, journal }: Dependances):
   application.use(journaliserLaReponse(journal));
   application.use(poserLesEnTetesDeSecurite());
   application.use(autoriserLesOrigines(configuration.originesAutorisees));
+  // F-008-AC6 : un corps compressé est décompressé, et la limite vaut pour le corps décompressé ;
+  // un jeu de caractères autre qu'UTF ou un encodage inconnu est refusé par le lecteur (415), que
+  // le gestionnaire d'erreurs rend en 400 `requete-invalide`.
   application.use(
-    express.json({ limit: LIMITE_CORPS_OCTETS, strict: true, type: "application/json" }),
+    express.json({
+      limit: LIMITE_CORPS_OCTETS,
+      inflate: true,
+      strict: true,
+      type: "application/json",
+    }),
   );
   application.get(CHEMINS.sante, repondreSante);
   application.get(CHEMINS.pret, repondrePret(base, journal));

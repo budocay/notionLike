@@ -1,3 +1,5 @@
+import { gzipSync } from "node:zlib";
+
 import { CHEMINS } from "@notionlike/contrats";
 import { ouvrirBaseEmbarquee, type BaseEmbarquee } from "@notionlike/db/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -95,6 +97,102 @@ describe("corps des requêtes JSON", () => {
 
     expect(reponse.status).toBe(413);
     expect((await enveloppeDe(reponse)).code).toBe("corps-trop-grand");
+  });
+});
+
+describe("jeu de caractères et compression du corps", () => {
+  function posterAvec(
+    serveur: ServeurDEssai,
+    entetes: Readonly<Record<string, string>>,
+    corps: string | Uint8Array,
+  ): Promise<Response> {
+    return fetch(`${serveur.url}/inconnu`, { method: "POST", headers: entetes, body: corps });
+  }
+
+  function posterCompresse(serveur: ServeurDEssai, corps: Uint8Array): Promise<Response> {
+    return posterAvec(serveur, { ...JSON_ENTETES, "Content-Encoding": "gzip" }, corps);
+  }
+
+  it.each(["iso-8859-1", "windows-1252", "inconnu"])(
+    "F-008-AC6 un corps JSON annoncé dans le jeu de caractères %s, non pris en charge, reçoit 400 requete-invalide",
+    async (jeu) => {
+      const serveur = await lancerServeur(embarquee.base);
+
+      const reponse = await posterAvec(
+        serveur,
+        { "Content-Type": `application/json; charset=${jeu}` },
+        '{"a":"b"}',
+      );
+
+      expect(reponse.status).toBe(400);
+      expect((await enveloppeDe(reponse)).code).toBe("requete-invalide");
+    },
+  );
+
+  it("F-008-AC6 un corps JSON annoncé en utf-8 est lu, puis reçoit le 404 du chemin inconnu", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+
+    const reponse = await posterAvec(
+      serveur,
+      { "Content-Type": "application/json; charset=utf-8" },
+      '{"a":"b"}',
+    );
+
+    expect(reponse.status).toBe(404);
+    expect((await enveloppeDe(reponse)).code).toBe("ressource-introuvable");
+  });
+
+  it("F-008-AC6 un corps compressé par gzip est décompressé puis lu : 100 000 octets décompressés reçoivent le 404 du chemin inconnu", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+    const compresse = gzipSync(objetJsonDe(LIMITE_OCTETS));
+
+    const reponse = await posterCompresse(serveur, compresse);
+
+    expect(compresse.byteLength).toBeLessThan(LIMITE_OCTETS / 100);
+    expect(reponse.status).toBe(404);
+    expect((await enveloppeDe(reponse)).code).toBe("ressource-introuvable");
+  });
+
+  it("F-008-AC6 la limite vaut pour le corps décompressé : 100 001 octets compressés en moins de 1 000 reçoivent 413 corps-trop-grand", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+    const compresse = gzipSync(objetJsonDe(LIMITE_OCTETS + 1));
+
+    const reponse = await posterCompresse(serveur, compresse);
+
+    expect(compresse.byteLength).toBeLessThan(LIMITE_OCTETS / 100);
+    expect(reponse.status).toBe(413);
+    expect((await enveloppeDe(reponse)).code).toBe("corps-trop-grand");
+  });
+
+  it("F-008-AC6 un corps compressé dont le JSON décompressé est tronqué reçoit 400 requete-invalide", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+
+    const reponse = await posterCompresse(serveur, gzipSync('{"a":'));
+
+    expect(reponse.status).toBe(400);
+    expect((await enveloppeDe(reponse)).code).toBe("requete-invalide");
+  });
+
+  it("F-008-AC6 un corps annoncé gzip qui ne se décompresse pas reçoit 400 requete-invalide", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+
+    const reponse = await posterCompresse(serveur, new TextEncoder().encode('{"a":"b"}'));
+
+    expect(reponse.status).toBe(400);
+    expect((await enveloppeDe(reponse)).code).toBe("requete-invalide");
+  });
+
+  it("F-008-AC6 un corps JSON dans un encodage de compression non pris en charge reçoit 400 requete-invalide", async () => {
+    const serveur = await lancerServeur(embarquee.base);
+
+    const reponse = await posterAvec(
+      serveur,
+      { ...JSON_ENTETES, "Content-Encoding": "x-inconnu" },
+      '{"a":"b"}',
+    );
+
+    expect(reponse.status).toBe(400);
+    expect((await enveloppeDe(reponse)).code).toBe("requete-invalide");
   });
 });
 
