@@ -4,3 +4,4 @@
 - F-002 Application web locale : coquille, barre latérale des pages, persistance IndexedDB — 2026-10-09 — features/F-002.md
 - F-004 Identité visuelle sombre : jetons de design, coquille, largeurs d'écran — 2026-10-09 — features/F-004.md
 - F-030 Reprise de la persistance locale après une coupure — 2026-10-12 — features/F-030.md
+- F-008 Socle serveur : serveur Express, accès à la base, contrats partagés, pile Docker — 2026-10-12 — features/F-008.md
