@@ -144,6 +144,7 @@ describe("écran : jamais « enregistré » sans la preuve d'écriture", () => {
     observateur.observe(zone(), { childList: true, subtree: true, characterData: true });
     act(() => void operations(session).creerPage("Écrite"));
     await laisserFaire();
+    expect(observateur.takeRecords()).toEqual([]);
     observateur.disconnect();
     expect(reecritures).not.toHaveBeenCalled();
   });
@@ -165,9 +166,12 @@ describe("avertissement pendant la coupure", () => {
     const observateur = new MutationObserver(reecritures);
     observateur.observe(alerte, { childList: true, subtree: true, characterData: true });
 
+    // Un observateur livre son rappel dans une micro-tâche : les mutations en attente sont
+    // relevées ici de façon synchrone, sans quoi une alerte réécrite passerait inaperçue.
     act(() => void vi.advanceTimersByTime(6_000));
     expect(instants).toEqual([0, 2_000, 6_000]);
     expect(avertissement()).toBe(alerte);
+    expect(observateur.takeRecords()).toEqual([]);
     expect(reecritures).not.toHaveBeenCalled();
 
     act(() => void vi.advanceTimersByTime(1_500));
@@ -175,8 +179,12 @@ describe("avertissement pendant la coupure", () => {
 
     expect(instants).toEqual([0, 2_000, 6_000, 7_500]);
     expect(avertissement()).toBe(alerte);
-    observateur.disconnect();
+    expect(observateur.takeRecords()).toEqual([]);
     expect(reecritures).not.toHaveBeenCalled();
+    // Cet observateur voit une réécriture de l'alerte quand il y en a une.
+    alerte.querySelector("p")?.append(" ");
+    expect(observateur.takeRecords()).toHaveLength(1);
+    observateur.disconnect();
   });
 
   it("F-030-AC12 « Réessayer maintenant » est atteint par la tabulation et activé par Entrée, au clavier seul : une tentative est lancée, le focus reste sur le bouton", async () => {
@@ -283,6 +291,7 @@ describe("reprise à l'écran", () => {
     observateur.observe(zone(), { childList: true, subtree: true, characterData: true });
     act(() => void operations(session).creerPage("Après la reprise"));
     await laisserFaire();
+    expect(observateur.takeRecords()).toEqual([]);
     observateur.disconnect();
     expect(reecritures).not.toHaveBeenCalled();
   });
