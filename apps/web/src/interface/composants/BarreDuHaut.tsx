@@ -107,7 +107,10 @@ interface ProprietesZoneEtat {
   readonly echec: string | undefined;
   /** Texte affirmatif, que l'appelant ne donne qu'une fois l'enregistrement prouvé (F-030-AC29). */
   readonly affirmation?: string | undefined;
-  /** Phrase lue par les technologies d'assistance avec l'affirmation, sans être affichée. */
+  /**
+   * Phrase lue par les technologies d'assistance avec l'affirmation, sans être affichée ; une
+   * espace l'en sépare, dans la même zone : une seule annonce (F-030-AC14).
+   */
   readonly annonce?: string | undefined;
 }
 
@@ -130,7 +133,7 @@ export function ZoneEtat({ echec, affirmation, annonce }: ProprietesZoneEtat): R
         <>
           <span className={HAUT.pastilleAffirmee} aria-hidden="true" />
           {affirmation}
-          {annonce !== undefined && <span className={HAUT.annonce}>{annonce}</span>}
+          {annonce !== undefined && <span className={HAUT.annonce}> {annonce}</span>}
         </>
       )}
     </div>

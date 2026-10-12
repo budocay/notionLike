@@ -209,8 +209,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
     ]);
     expect(barre?.children[1]?.querySelectorAll("li").length).toBeGreaterThanOrEqual(9);
     expect(
-      within(barre as HTMLElement).getByRole("button", { name: "Nouvelle page" }),
-    ).toBeDefined();
+      within(barre as HTMLElement).queryByRole("button", { name: "Nouvelle page" }),
+    ).not.toBeNull();
     // Donnée fictive : l'entrée du pied ne s'active pas, et aucune autre barre de la page n'a de pied.
     expect(pied?.querySelector("a, button")).toBeNull();
     expect(pieds(container)).toEqual([pied]);
@@ -257,7 +257,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
     const montres = theme.filter(({ nom }) => /^--(color|degrade)-/.test(nom));
     expect(montres.length).toBeGreaterThanOrEqual(20);
     for (const { nom } of montres) {
-      expect(screen.getByText(nom.replace(/^--(color-)?/, "")), nom).toBeDefined();
+      expect(screen.queryByText(nom.replace(/^--(color-)?/, "")), nom).not.toBeNull();
     }
     const echelle = screen.getByRole("heading", { name: "Échelle typographique" }).parentElement;
     const tailles = theme.filter(

@@ -25,6 +25,7 @@ import {
   etatsSuccessifs,
   identifiantInscrit,
   inscrireALaPlaceDeLIdentifiant,
+  instancesAyantRelu,
   instantsDesOuvertures,
   refuserLOuvertureDe,
   simulerLHorloge,
@@ -174,10 +175,14 @@ describe("identifiant d'espace illisible", () => {
     expect(titres(ouvert.doc)).toEqual([]);
     expect([await enregistrements(baseDe(E1)), await enregistrements(baseDe(E3))]).toEqual(avant);
     expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E2), baseDe(E1), baseDe(E3)].sort());
+    expect(ouvert.persistance.aLaisseDesBasesNonRattachees()).toBe(true);
     ouvert.persistance.fermer();
+    // Rechargement : l'identifiant inscrit est lisible, le signalement ne revient pas.
     const recharge = await ouvrirLEspaceLocal(E3);
     expect(await identifiantInscrit()).toBe(E2);
     expect(titres(recharge.doc)).toEqual([]);
+    expect(recharge.persistance.aLaisseDesBasesNonRattachees()).toBe(false);
+    recharge.persistance.fermer();
   });
 
   it.each([
@@ -370,6 +375,54 @@ describe("base de l'appareil sans son magasin", () => {
     persistance.fermer();
   });
 
+  it("F-030-AC24 base de l'appareil en version 2, magasin présent et vide, à côté d'une base d'espace qui porte une page : l'absence de l'identifiant n'est pas un premier lancement, l'identifiant de cette base est inscrit, sa page est lue, aucune base n'est créée au nom du candidat", async () => {
+    await new Promise<void>((resoudre) => {
+      const demande = indexedDB.open(APPAREIL, 2);
+      demande.onupgradeneeded = () => demande.result.createObjectStore("reglages");
+      demande.onsuccess = () => {
+        demande.result.close();
+        resoudre();
+      };
+    });
+    await enregistrerUnePageDans(E1, "Page de E1");
+
+    const ouvert = await ouvrirLEspaceLocal(E2);
+
+    expect(await identifiantInscrit()).toBe(E1);
+    expect(titres(ouvert.doc)).toEqual(["Page de E1"]);
+    expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E1)]);
+    expect(ouvert.persistance.aLaisseDesBasesNonRattachees()).toBe(false);
+    ouvert.persistance.fermer();
+  });
+
+  it("F-030-AC24 réparation interrompue : la montée de version aboutit dans la tentative, l'échéance tombe avant l'inscription de l'identifiant ; la tentative suivante trouve la base en version 2 et inscrit l'identifiant de la base d'espace existante, pas le candidat", async () => {
+    await creerUneBase(APPAREIL, []);
+    await enregistrerUnePageDans(E1, "Page de E1");
+    simulerLHorloge();
+    // Première ouverture : la base sans magasin ; deuxième : la montée ; la troisième, qui
+    // précède l'inscription, reste sans réponse jusqu'à l'échéance.
+    const retenues = retenirLesOuvertures(3);
+    const doc = new Y.Doc();
+    const persistance = ouvrirEspaceLocal(doc, E2);
+    await laisserIndexedDbTravailler();
+    expect(persistance.lireEtat()).toBe("relecture");
+    vi.advanceTimersByTime(ECHEANCE_MS);
+    expect(persistance.lireEtat()).toBe("coupee");
+    retenues.cesser();
+    expect(await decrireLaBase(APPAREIL)).toEqual({
+      version: 2,
+      magasins: { reglages: { cleAutomatique: false, chemin: null, valeurs: [] } },
+    });
+
+    vi.advanceTimersToNextTimer();
+    await attendreEtat(persistance, "active");
+
+    expect(await identifiantInscrit()).toBe(E1);
+    expect(titres(doc)).toEqual(["Page de E1"]);
+    expect(await nomsDesBases()).toEqual([APPAREIL, baseDe(E1)]);
+    persistance.fermer();
+  });
+
   it("F-030-AC24 pendant sa transaction, la connexion du module à la base de l'appareil se ferme à la réception de `versionchange` : la montée de version demandée par un autre onglet n'est jamais bloquée", async () => {
     const bloquee = vi.fn();
     const montee = new Promise<void>((resoudre) => {
@@ -518,6 +571,47 @@ describe("base de document sans son magasin", () => {
     expect(persistance.lireEtat()).toBe("coupee");
     expect(ecritures).not.toHaveBeenCalled();
     expect(await enregistrements(baseDe(E1))).toEqual([[...illisible]]);
+    persistance.fermer();
+    await laisserIndexedDbTravailler();
+    expect(relever()).toEqual([]);
+  });
+
+  it("F-030-AC28 un enregistrement du magasin `updates` qui n'est pas un Uint8Array, même s'il s'appliquerait à un document, est une lecture en échec : coupure retentée, aucune instance construite, rien d'écrit, sans erreur non interceptée", async () => {
+    simulerLHorloge();
+    const relever = ecouterLesErreursNonInterceptees();
+    // Les deux octets d'une mise à jour vide, dans un tableau ordinaire : Yjs l'appliquerait.
+    const tableau = [0, 0];
+    await new Promise<void>((resoudre) => {
+      const demande = indexedDB.open(baseDe(E1));
+      demande.onupgradeneeded = () => {
+        demande.result.createObjectStore("updates", { autoIncrement: true }).add(tableau);
+        demande.result.createObjectStore("custom");
+      };
+      demande.onsuccess = () => {
+        demande.result.close();
+        resoudre();
+      };
+    });
+    expect(() => Y.applyUpdate(new Y.Doc(), tableau as unknown as Uint8Array)).not.toThrow();
+    const ecritures = vi.spyOn(IDBObjectStore.prototype, "add");
+    const facade = ouvrirFacade(new Y.Doc());
+    const instances = instancesAyantRelu(facade.doc);
+
+    const persistance = ouvrirPersistance(facade.doc, DOCUMENT);
+    await attendreEtat(persistance, "coupee");
+    facade.creerPage("En mémoire");
+    const instants = instantsDesOuvertures();
+    vi.advanceTimersToNextTimer();
+    await laisserIndexedDbTravailler();
+
+    expect(instants.length).toBeGreaterThan(0);
+    expect(persistance.lireEtat()).toBe("coupee");
+    expect(instances).toEqual([]);
+    expect(ecritures).not.toHaveBeenCalled();
+    expect(await decrireLaBase(baseDe(E1))).toMatchObject({
+      version: 1,
+      magasins: { updates: { valeurs: [tableau] }, custom: { valeurs: [] } },
+    });
     persistance.fermer();
     await laisserIndexedDbTravailler();
     expect(relever()).toEqual([]);

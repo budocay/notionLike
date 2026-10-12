@@ -31,7 +31,7 @@ import {
   nomsDesBases,
   suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
-import { simulerLHorloge } from "./aides-reprise.ts";
+import { simulerLHorloge, tenterDeQuitter } from "./aides-reprise.ts";
 
 const INTERFACE_DE_LA_PERSISTANCE = "src/persistance/index.ts";
 const SESSION = "src/espace/session-espace.ts";
@@ -42,7 +42,8 @@ const ECRAN_D_ENREGISTREMENT = "src/interface/Enregistrement.tsx";
 // être inscrit dans l'une d'elles.
 const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
   [SESSION]: "ouvre la persistance de l'espace, lit son état, s'y abonne, lui soumet l'état relu",
-  [GARDE_D_ONGLET]: "s'abonne, lit les modifications non enregistrées, demande une tentative",
+  [GARDE_D_ONGLET]:
+    "s'abonne, lit l'état et les modifications non enregistrées, demande une tentative",
 };
 const AIDES_DE_TEST = ["test/aides-persistance.ts", "test/aides-reprise.ts"];
 const TESTS_DE_LA_PERSISTANCE = [
@@ -214,7 +215,7 @@ describe("appelants de l'interface de persistance", () => {
         "reessayer",
         "soumettreLEtatRelu",
       ],
-      [GARDE_D_ONGLET]: ["aDesModificationsNonEnregistrees", "abonner", "reessayer"],
+      [GARDE_D_ONGLET]: ["aDesModificationsNonEnregistrees", "abonner", "lireEtat", "reessayer"],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
@@ -287,11 +288,18 @@ describe("chaque appelant de production traite la reprise", () => {
   });
 
   // Une persistance tenue par le test : le type impose chacun de ses membres.
-  function persistanceSimulee(): Persistance & { regler(nonEnregistre: boolean): void } {
+  interface PersistanceSimulee extends Persistance {
+    regler(nonEnregistre: boolean): void;
+    /** La persistance passe à l'état fermé sans que la garde d'onglet l'ait demandé. */
+    fermerParUnAutre(): void;
+  }
+
+  function persistanceSimulee(): PersistanceSimulee {
     const abonnes = new Set<() => void>();
     let nonEnregistre = false;
+    let etat: EtatPersistance = "coupee";
     return {
-      lireEtat: () => "coupee",
+      lireEtat: () => etat,
       abonner: (rappel) => {
         abonnes.add(rappel);
         return () => void abonnes.delete(rappel);
@@ -306,13 +314,15 @@ describe("chaque appelant de production traite la reprise", () => {
         nonEnregistre = valeur;
         abonnes.forEach((rappel) => rappel());
       },
+      fermerParUnAutre: () => {
+        etat = "fermee";
+        abonnes.forEach((rappel) => rappel());
+      },
     };
   }
 
   function quitterEstRetenu(): boolean {
-    const evenement = new Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(evenement);
-    return evenement.defaultPrevented;
+    return tenterDeQuitter().defaultPrevented;
   }
 
   it("F-030-AC19 la garde d'onglet traite la reprise : la confirmation avant de quitter, armée par une modification non enregistrée, est désarmée dès que la persistance n'en porte plus, et la garde arrêtée ne suit plus rien", () => {
@@ -332,6 +342,19 @@ describe("chaque appelant de production traite la reprise", () => {
     expect(quitterEstRetenu()).toBe(false);
     window.dispatchEvent(new Event("pagehide"));
     expect(persistance.reessayer).not.toHaveBeenCalled();
+  });
+
+  it("F-030-AC11 une persistance fermée par un autre que la garde d'onglet, alors qu'elle porte encore une modification non enregistrée, ne retient plus l'onglet", () => {
+    const persistance = persistanceSimulee();
+    const cesser = suivreLOnglet(persistance);
+    persistance.regler(true);
+    expect(quitterEstRetenu()).toBe(true);
+
+    persistance.fermerParUnAutre();
+
+    expect(persistance.aDesModificationsNonEnregistrees()).toBe(true);
+    expect(quitterEstRetenu()).toBe(false);
+    cesser();
   });
 
   it("F-030-AC16 deux persistances suivies dans le même onglet : la reprise de l'une ne retire pas la confirmation que l'autre demande encore, ni l'arrêt de sa garde ; la confirmation tombe quand plus aucune ne porte de modification", () => {
@@ -374,7 +397,7 @@ describe("chaque appelant de production traite la reprise", () => {
 
     rerender(ecran(pret(true)));
     expect(screen.getByRole("status").textContent).toBe(
-      "Enregistré sur cet appareilModifications enregistrées sur cet appareil.",
+      "Enregistré sur cet appareil Modifications enregistrées sur cet appareil.",
     );
     expect(screen.queryByRole("alert")).toBeNull();
 
@@ -415,6 +438,45 @@ describe("confinement de la bibliothèque de persistance", () => {
       "_db",
       "_dbref",
     ]);
+  });
+});
+
+// ── F-030-AC2 : une tentative à la fois, lancée par le suivi seul ────────────────────────────────
+
+const SUIVI = "src/persistance/suivi.ts";
+const TEMOIN = "src/persistance/temoin.ts";
+
+/** Membres qu'une classe expose : ses champs `readonly` sans dièse. */
+function membresExposes(source: string): string[] {
+  return [...source.matchAll(/^ {2}readonly (\w+) = /gm)].map(([, membre = ""]) => membre).sort();
+}
+
+describe("structure du module de persistance", () => {
+  it("F-030-AC2 le suivi n'expose aucun moyen de lancer une tentative hors de `reessayer`, qui n'en lance jamais pendant une autre : la première part à sa construction", () => {
+    expect(membresExposes(lire(SUIVI))).toEqual([
+      "aDesModificationsNonEnregistrees",
+      "aLaisseDesBasesNonRattachees",
+      "aReluLaBase",
+      "abonner",
+      "fermer",
+      "lireEtat",
+      "noterUneModification",
+      "reessayer",
+      "signalerDesBasesNonRattachees",
+    ]);
+    expect(membresExposes("  readonly lancer = (): void => {\n  readonly #prive = 1;\n")).toEqual([
+      "lancer",
+    ]);
+  });
+
+  it("F-030-AC26 le calcul du document témoin est séparé de l'entrée-sortie : son fichier n'importe que yjs et ne nomme pas indexedDB ; le nom du magasin des mises à jour n'a qu'une définition dans le module", () => {
+    expect(aretes.get(TEMOIN)?.filter((un) => !/node_modules\/yjs\//.test(un))).toEqual([]);
+    expect(aretes.get(TEMOIN)?.length).toBeGreaterThan(0);
+    expect(lire(TEMOIN)).not.toMatch(/indexedDB|IDB[A-Z]/);
+    const definitions = [...lireDossier("src")]
+      .filter(([, texte]) => /=\s*"updates"/.test(texte))
+      .map(([chemin]) => chemin);
+    expect(definitions).toEqual(["src/persistance/lecture-brute.ts"]);
   });
 });
 

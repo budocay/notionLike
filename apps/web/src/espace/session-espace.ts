@@ -45,7 +45,7 @@ export interface SessionEspace {
 const CONTEXTE_NON_SECURISE: EtatSession = { phase: "contexte-non-securise" };
 const CHARGEMENT: EtatSession = { phase: "chargement" };
 
-const SIGNALEMENT_DE_L_ABONNE_FAUTIF =
+const SIGNALEMENT_D_UN_ABONNE_DE_SESSION =
   "@notionlike/web : un abonné de la session d'espace a levé pendant la diffusion d'un changement.";
 
 export function demarrerSessionEspace(): SessionEspace {
@@ -206,7 +206,7 @@ function notifierSousGarde(notifier: () => void): void {
   try {
     notifier();
   } catch (exception) {
-    console.error(SIGNALEMENT_DE_L_ABONNE_FAUTIF, exception);
+    console.error(SIGNALEMENT_D_UN_ABONNE_DE_SESSION, exception);
   }
 }
 
@@ -218,7 +218,8 @@ function operationsDe(facade: DocumentEspace): OperationsEspace {
   };
 }
 
-type EtatPret = Extract<EtatSession, { phase: "pret" }>;
+/** L'état d'une session dont l'espace est ouvert : celui que l'écran de l'espace lit. */
+export type EtatPret = Extract<EtatSession, { phase: "pret" }>;
 
 // Ce que l'écran lit d'un état prêt : les opérations et la demande de tentative ne changent pas.
 function memeEtatPret(etat: EtatSession, suivant: EtatPret): boolean {

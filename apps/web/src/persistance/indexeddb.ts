@@ -1,12 +1,12 @@
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 
-import { lireLaBase, porteTout, temoinDe } from "./lecture-brute.ts";
+import { lireLaBase, MAGASIN_DES_MISES_A_JOUR } from "./lecture-brute.ts";
 import { type DesignationDocument, nomDeBase } from "./nom-de-base.ts";
 import { creerLesMagasinsManquants } from "./reparation.ts";
 import { type EtatPersistance, Suivi, type Tentative } from "./suivi.ts";
+import { porteTout, temoinDe } from "./temoin.ts";
 
-const MAGASIN_DES_MISES_A_JOUR = "updates";
 // Les magasins d'une base de document, tels que `y-indexeddb@9.0.12` les crée (F-030-AC20, AC28).
 const MAGASINS_D_UNE_BASE_DE_DOCUMENT = [
   { nom: MAGASIN_DES_MISES_A_JOUR, options: { autoIncrement: true } },
@@ -59,7 +59,8 @@ interface Relecture {
 /** Ce qu'une étape d'une tentative reçoit pour avancer sous l'échéance commune. */
 export interface Ouverture {
   attendue(): boolean;
-  couper(): void;
+  /** La tentative échoue : la persistance est coupée, une autre tentative suivra. */
+  echouer(): void;
   relire(nomDeLaBase: string): void;
   /** Des bases d'espace restent sur l'appareil sans que rien dise laquelle rattacher. */
   signalerDesBasesNonRattachees(): void;
@@ -71,7 +72,8 @@ export function ouvrirPersistance(doc: Y.Doc, designation: DesignationDocument):
 }
 
 // `commencer` est rappelé à chaque tentative : rien n'est retenu de l'issue des précédentes
-// (F-030-AC3). `indexedDB` absent se retente comme le reste : chaque demande d'ouverture du module
+// (F-030-AC3). La première tentative part à la construction du suivi, qui est seul à en lancer :
+// `fermer` et `noter` sont des déclarations, lisibles par elle. `indexedDB` absent se retente comme le reste : chaque demande d'ouverture du module
 // est faite sous garde, et l'absence de la globale y est une ouverture refusée parmi d'autres.
 export function ouvrirSousEcheance(
   doc: Y.Doc,
@@ -81,25 +83,24 @@ export function ouvrirSousEcheance(
   const suivi = new Suivi((tentative) =>
     commencer({
       attendue: tentative.attendue,
-      couper: tentative.echouer,
+      echouer: () => tentative.echouer(),
       relire: (nomDeLaBase) =>
         relire({ doc, nomDeLaBase, admet: (temoin) => admet(temoin), fermer }, tentative),
-      signalerDesBasesNonRattachees: suivi.signalerDesBasesNonRattachees,
+      signalerDesBasesNonRattachees: () => suivi.signalerDesBasesNonRattachees(),
     }),
   );
   // Ce que la bibliothèque applique au document en relisant la base n'est pas une modification
   // à enregistrer : elle signe ses transactions de son instance.
-  const noter = (_miseAJour: Uint8Array, origine: unknown): void => {
+  function noter(_miseAJour: Uint8Array, origine: unknown): void {
     if (!(origine instanceof IndexeddbPersistence)) {
       suivi.noterUneModification();
     }
-  };
-  const fermer = (): void => {
+  }
+  function fermer(): void {
     doc.off("update", noter);
     suivi.fermer();
-  };
+  }
   doc.on("update", noter);
-  suivi.lancer();
   return {
     lireEtat: suivi.lireEtat,
     abonner: suivi.abonner,
@@ -138,7 +139,8 @@ function relire(relecture: Relecture, tentative: Tentative): void {
 
 // L'état relu est jugé avant la construction de l'instance, qui écrirait l'état en mémoire dans
 // la base avant de lui appliquer ce qu'elle y lit (F-030-AC10, H3). Des enregistrements qui ne
-// s'appliquent pas à un document sont une lecture en échec : la bibliothèque y lèverait.
+// s'appliquent pas à un document sont une lecture en échec : la bibliothèque y lèverait. Un juge
+// qui lève n'a rien admis : la tentative échoue, et le témoin est détruit dans tous les cas.
 function fusionnerSiAdmis(
   relecture: Relecture,
   enregistrements: readonly Uint8Array[],
@@ -150,8 +152,15 @@ function fusionnerSiAdmis(
     tentative.echouer();
     return;
   }
-  const admis = relecture.admet(temoin);
-  temoin.destroy();
+  let admis: boolean;
+  try {
+    admis = relecture.admet(temoin);
+  } catch {
+    tentative.echouer();
+    return;
+  } finally {
+    temoin.destroy();
+  }
   if (!admis) {
     relecture.fermer();
   } else if (tentative.attendue()) {

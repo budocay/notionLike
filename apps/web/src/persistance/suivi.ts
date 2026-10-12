@@ -9,7 +9,7 @@ const PREMIERE_ATTENTE_MS = 2_000;
 const ATTENTE_PLAFOND_MS = 60_000;
 const INTERVALLE_MINIMAL_MS = 1_000;
 
-const SIGNALEMENT_DE_L_ABONNE_FAUTIF =
+const SIGNALEMENT_D_UN_ABONNE_DE_PERSISTANCE =
   "@notionlike/web : un abonné d'une persistance a levé pendant la diffusion d'un changement d'état.";
 
 /** Ce qu'une tentative reçoit pour avancer, et pour dire son issue. */
@@ -49,8 +49,10 @@ export class Suivi {
   #baseRelue = false;
   #basesNonRattachees = false;
 
+  /** La première tentative part ici : rien d'autre que le suivi n'en lance (F-030-AC2). */
   constructor(tenter: (tentative: Tentative) => void) {
     this.#tenter = tenter;
+    this.#lancer();
   }
 
   readonly lireEtat = (): EtatPersistance => this.#etat;
@@ -82,7 +84,7 @@ export class Suivi {
     return () => void this.#abonnes.delete(notifier);
   };
 
-  readonly lancer = (): void => {
+  readonly #lancer = (): void => {
     const jeton = {};
     this.#enCours = jeton;
     this.#attente = undefined;
@@ -118,7 +120,7 @@ export class Suivi {
       return;
     }
     clearTimeout(this.#attente);
-    this.lancer();
+    this.#lancer();
   };
 
   readonly fermer = (): void => {
@@ -175,7 +177,7 @@ export class Suivi {
   // armée avant de prévenir les abonnés : l'un d'eux peut fermer la persistance, ce qui la désarme.
   #couper(): void {
     this.#arreter();
-    this.#attente = setTimeout(this.lancer, this.#prochaineAttente);
+    this.#attente = setTimeout(this.#lancer, this.#prochaineAttente);
     this.#prochaineAttente = Math.min(this.#prochaineAttente * 2, ATTENTE_PLAFOND_MS);
     this.#passerA("coupee");
   }
@@ -198,7 +200,7 @@ export class Suivi {
         try {
           notifier();
         } catch (exception) {
-          console.error(SIGNALEMENT_DE_L_ABONNE_FAUTIF, exception);
+          console.error(SIGNALEMENT_D_UN_ABONNE_DE_PERSISTANCE, exception);
         }
       }
     }

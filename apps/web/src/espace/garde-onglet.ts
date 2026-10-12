@@ -34,8 +34,11 @@ export function suivreLOnglet(persistance: Persistance): () => void {
     evenement.returnValue = true;
   };
   // Inscrire deux fois le même écouteur, ou le retirer sans qu'il soit inscrit, est sans effet.
+  // Une persistance fermée garde ses modifications non enregistrées sans plus rien pouvoir en
+  // faire : elle ne retient pas l'onglet, qui que ce soit qui l'ait fermée (F-030-AC11).
   const ajusterLaConfirmation = (): void => {
-    if (persistance.aDesModificationsNonEnregistrees()) {
+    const ouverte = persistance.lireEtat() !== "fermee";
+    if (ouverte && persistance.aDesModificationsNonEnregistrees()) {
       window.addEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     } else {
       window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);

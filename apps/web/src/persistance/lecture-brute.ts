@@ -1,9 +1,9 @@
 // Lecture brute de la base d'un document (F-030, vocabulaire) : par l'API IndexedDB seule, sans la
 // bibliothèque de persistance, et sans écrire un octet. Une base absente le reste : sa création est
-// annulée. Le document témoin reçoit ce qui est lu ; rien ne l'affiche ni ne l'enregistre.
-import * as Y from "yjs";
+// annulée. Ce qui est lu va à un document témoin (`temoin.ts`).
 
-const MAGASIN_DES_MISES_A_JOUR = "updates";
+/** Magasin des mises à jour d'une base de document, tel que `y-indexeddb@9.0.12` le nomme. */
+export const MAGASIN_DES_MISES_A_JOUR = "updates";
 
 type LectureBrute =
   | { readonly issue: "echec" }
@@ -57,6 +57,12 @@ export function lireLaBase(nom: string, conclure: (lecture: LectureBrute) => voi
   return clore;
 }
 
+// Par l'étiquette du type et non par `instanceof` : un tableau d'octets cloné par le stockage peut
+// venir d'un autre domaine d'exécution que celui de ce module, où `instanceof` le refuserait.
+function estUnBlocDOctets(enregistrement: unknown): enregistrement is Uint8Array {
+  return Object.prototype.toString.call(enregistrement) === "[object Uint8Array]";
+}
+
 function lireLeMagasin(connexion: IDBDatabase, rendre: (lecture: LectureBrute) => void): void {
   // Cette connexion ne bloque jamais la réparation qu'un autre onglet lance (F-030-AC28).
   connexion.onversionchange = () => connexion.close();
@@ -73,43 +79,14 @@ function lireLeMagasin(connexion: IDBDatabase, rendre: (lecture: LectureBrute) =
     rendre(ECHEC);
     return;
   }
+  // Un enregistrement d'un autre type n'est pas une mise à jour : lecture en échec (F-030-AC28).
   lecture.onsuccess = () => {
-    rendre({ issue: "lue", enregistrements: lecture.result as Uint8Array[] });
+    const lus = lecture.result;
+    rendre(lus.every(estUnBlocDOctets) ? { issue: "lue", enregistrements: lus } : ECHEC);
   };
   lecture.onerror = (evenement) => {
     evenement.preventDefault();
     rendre(ECHEC);
   };
   transaction.onabort = () => rendre(ECHEC);
-}
-
-/** Document témoin rempli de ces enregistrements ; `undefined` si l'un d'eux est inapplicable. */
-export function temoinDe(enregistrements: readonly Uint8Array[]): Y.Doc | undefined {
-  const temoin = new Y.Doc();
-  try {
-    enregistrements.forEach((enregistrement) => Y.applyUpdate(temoin, enregistrement));
-    return temoin;
-  } catch {
-    temoin.destroy();
-    return undefined;
-  }
-}
-
-/**
- * Vrai si le témoin porte déjà tout cet état : le lui appliquer n'y change rien. Yjs n'émet de mise
- * à jour que pour ce qu'une transaction ajoute ou supprime : les suppressions, qu'un vecteur d'état
- * ne porte pas, sont donc couvertes (F-030 H13, exécuté).
- */
-export function porteTout(temoin: Y.Doc, etat: Uint8Array): boolean {
-  let change = false;
-  const noter = (): void => {
-    change = true;
-  };
-  temoin.on("update", noter);
-  try {
-    Y.applyUpdate(temoin, etat);
-  } finally {
-    temoin.off("update", noter);
-  }
-  return !change;
 }

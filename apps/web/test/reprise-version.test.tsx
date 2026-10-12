@@ -30,10 +30,14 @@ import {
   suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import {
+  annulerLesProchainsAjouts,
+  ecouterLesErreursNonInterceptees,
   etatsSuccessifs,
+  instancesAyantRelu,
   instantsDesOuvertures,
   rendreLOnglet,
   simulerLHorloge,
+  tenterDeQuitter,
 } from "./aides-reprise.ts";
 
 const PREFIXE = "notionlike:espace:";
@@ -72,7 +76,7 @@ function creerUnePage(session: ReturnType<typeof rendreApplication>["session"], 
 }
 
 describe("version non prise en charge découverte à la reprise", () => {
-  it("F-030-AC10 base passée à la version 2 pendant la coupure d'un document de version 1 modifié en mémoire : écran bloquant qui dit les modifications non enregistrées, persistance fermée, aucun enregistrement ajouté à la base, octet pour octet, plus aucune tentative", async () => {
+  it("F-030-AC10 F-030-AC11 base passée à la version 2 pendant la coupure d'un document de version 1 modifié en mémoire : écran bloquant qui dit les modifications non enregistrées, persistance fermée, aucun enregistrement ajouté à la base, octet pour octet, plus aucune tentative, et la confirmation avant de quitter, armée par la modification, est retirée", async () => {
     const connexions = suivreLesConnexionsTenues();
     const { session } = await ouvrirCoquille();
     creerUnePage(session, "Enregistrée par cette version");
@@ -87,9 +91,12 @@ describe("version non prise en charge découverte à la reprise", () => {
     const avant = await enregistrements(base);
     const enMemoire = etatEncode(session);
     const ecritures = vi.spyOn(IDBObjectStore.prototype, "add");
+    expect(tenterDeQuitter().defaultPrevented).toBe(true);
 
     act(() => void vi.advanceTimersToNextTimer());
     await act(() => laisserIndexedDbTravailler());
+
+    expect(tenterDeQuitter().defaultPrevented).toBe(false);
 
     expect(session.lireEtat()).toEqual({
       phase: "version-non-prise-en-charge",
@@ -199,31 +206,77 @@ describe("état relu soumis avant la fusion", () => {
     expect(await enregistrements(BASE)).toEqual(avant);
   });
 
-  it("F-030-AC10 un juge qui admet laisse la fusion se faire, et il est consulté à chaque tentative, pas sur une base absente", async () => {
-    simulerLHorloge();
-    refuserLesOuverturesParUneException();
-    const facade = ouvrirFacade(new Y.Doc());
-    const persistance = ouvrirPersistance(facade.doc, ESPACE);
+  it("F-030-AC10 sur une base absente, le juge n'est pas consulté : il n'y a pas d'état relu, et la persistance devient active", async () => {
     const juge = vi.fn(() => true);
+    const persistance = ouvrirPersistance(new Y.Doc(), ESPACE);
     persistance.soumettreLEtatRelu(juge);
-    vi.restoreAllMocks();
+    await attendreEtat(persistance, "active");
+
+    expect(juge).not.toHaveBeenCalled();
+    expect(await nomsDesBases()).toEqual([BASE]);
+    persistance.fermer();
+  });
+
+  it("F-030-AC10 un juge qui admet est consulté à chaque tentative qui relit la base, une fois par tentative, et laisse la fusion se faire", async () => {
+    await enregistrerUnePage("Dans la base");
+    simulerLHorloge();
+    // L'écriture de l'état complet de la première tentative est annulée : elle échoue après le juge.
+    annulerLesProchainsAjouts(1);
+    const facade = ouvrirFacade(new Y.Doc());
+    const juge = vi.fn(() => true);
+    const persistance = ouvrirPersistance(facade.doc, ESPACE);
+    persistance.soumettreLEtatRelu(juge);
+    await attendreEtat(persistance, "coupee");
+    expect(juge).toHaveBeenCalledTimes(1);
+
     vi.advanceTimersToNextTimer();
     await attendreEtat(persistance, "active");
-    expect(juge).not.toHaveBeenCalled();
 
-    const connexions = suivreLesConnexionsTenues();
-    persistance.reessayer();
-    facade.creerPage("Écrite avant la coupure");
-    await laisserIndexedDbTravailler();
-    // Une connexion n'entre dans la liste qu'une fois ouverte : constaté après l'attente.
-    expect(connexions).toEqual([]);
+    expect(juge).toHaveBeenCalledTimes(2);
+    expect(facade.lire().racines.map((page) => page.titre)).toEqual(["Dans la base"]);
     persistance.fermer();
-    const seconde = ouvrirPersistance(facade.doc, ESPACE);
-    seconde.soumettreLEtatRelu(juge);
-    await attendreEtat(seconde, "active");
+  });
 
+  it("F-030-AC10 F-030-AC18 un juge qui lève n'a rien admis : la tentative échoue aussitôt, sans attendre l'échéance, le témoin est détruit, aucune instance n'est construite, pas un octet n'est écrit, rien n'est appliqué à la mémoire ; la tentative suivante le consulte de nouveau", async () => {
+    await enregistrerUnePage("Dans la base");
+    const avant = await enregistrements(BASE);
+    simulerLHorloge();
+    const relever = ecouterLesErreursNonInterceptees();
+    const ecritures = vi.spyOn(IDBObjectStore.prototype, "add");
+    const facade = ouvrirFacade(new Y.Doc());
+    const instances = instancesAyantRelu(facade.doc);
+    const enMemoire = [...Y.encodeStateAsUpdate(facade.doc)];
+    const temoins: Y.Doc[] = [];
+    const juge = vi.fn((temoin: Y.Doc): boolean => {
+      temoins.push(temoin);
+      if (temoins.length === 1) {
+        throw new Error("juge en panne");
+      }
+      return true;
+    });
+
+    const persistance = ouvrirPersistance(facade.doc, ESPACE);
+    const etats = etatsSuccessifs(persistance);
+    persistance.soumettreLEtatRelu(juge);
+    await laisserIndexedDbTravailler();
+
+    // Aucune minuterie n'a été avancée : la coupure ne vient pas de l'échéance.
+    expect(etats).toEqual(["coupee"]);
     expect(juge).toHaveBeenCalledTimes(1);
-    seconde.fermer();
+    expect(temoins[0]?.isDestroyed).toBe(true);
+    expect(instances).toEqual([]);
+    expect(ecritures).not.toHaveBeenCalled();
+    expect(await enregistrements(BASE)).toEqual(avant);
+    expect([...Y.encodeStateAsUpdate(facade.doc)]).toEqual(enMemoire);
+
+    vi.advanceTimersToNextTimer();
+    await attendreEtat(persistance, "active");
+    expect(juge).toHaveBeenCalledTimes(2);
+    expect(temoins[1]?.isDestroyed).toBe(true);
+    expect(facade.lire().racines.map((page) => page.titre)).toEqual(["Dans la base"]);
+    persistance.fermer();
+    await laisserIndexedDbTravailler();
+    expect(relever()).toEqual([]);
   });
 });
 

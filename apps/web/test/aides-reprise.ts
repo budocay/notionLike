@@ -182,6 +182,23 @@ export function rendreLOnglet(visibilite: DocumentVisibilityState): void {
   act(() => void document.dispatchEvent(new Event("visibilitychange")));
 }
 
+/**
+ * Émet `beforeunload` et rend ce que ses écouteurs en ont fait. jsdom ne construit pas de
+ * `BeforeUnloadEvent` : la valeur de retour, propre à cet événement, est relevée par un accesseur
+ * posé sur l'événement émis.
+ */
+export function tenterDeQuitter(): { defaultPrevented: boolean; valeurDeRetour: unknown } {
+  const evenement = new Event("beforeunload", { cancelable: true });
+  let valeurDeRetour: unknown;
+  Object.defineProperty(evenement, "returnValue", {
+    set: (valeur: unknown) => {
+      valeurDeRetour = valeur;
+    },
+  });
+  window.dispatchEvent(evenement);
+  return { defaultPrevented: evenement.defaultPrevented, valeurDeRetour };
+}
+
 const BASE_DE_L_APPAREIL = "notionlike:appareil";
 const MAGASIN_DES_REGLAGES = "reglages";
 const CLE_DE_L_ESPACE_LOCAL = "espace-local";

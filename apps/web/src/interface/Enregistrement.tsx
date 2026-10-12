@@ -3,7 +3,7 @@
 // cet appareil », qu'il ne donne que pour un état dont la preuve d'écriture est faite (F-030-AC29).
 import { type ReactElement, type RefObject, useCallback, useState } from "react";
 
-import type { EtatSession } from "../espace/session-espace.ts";
+import type { EtatPret } from "../espace/session-espace.ts";
 import { ZoneEtat } from "./composants/BarreDuHaut.tsx";
 import { Avertissement } from "./composants/Etats.tsx";
 import {
@@ -16,8 +16,6 @@ import {
   REESSAYER_MAINTENANT,
 } from "./messages.ts";
 
-type EtatPret = Extract<EtatSession, { phase: "pret" }>;
-
 function phrasesDe(etat: EtatPret): string[] {
   return [
     ...(etat.enregistre ? [] : [AVERTISSEMENT_NON_ENREGISTRE]),
@@ -26,7 +24,7 @@ function phrasesDe(etat: EtatPret): string[] {
   ];
 }
 
-interface ProprietesAvertissement {
+interface ProprietesAvertissementDEnregistrement {
   readonly etat: EtatPret;
   /** Reçoit le focus quand la reprise retire le bouton qui l'avait. */
   readonly zonePrincipale: RefObject<HTMLElement | null>;
@@ -36,7 +34,9 @@ interface ProprietesAvertissement {
  * Avertissement affiché sans interruption de la coupure à la reprise, tentatives comprises : son
  * contenu ne dépend pas d'elles, il n'est donc annoncé qu'une fois (F-030-AC12).
  */
-export function AvertissementDEnregistrement(props: ProprietesAvertissement): ReactElement | null {
+export function AvertissementDEnregistrement(
+  props: ProprietesAvertissementDEnregistrement,
+): ReactElement | null {
   const { etat, zonePrincipale } = props;
   // Le bouton disparaît avec l'avertissement : s'il avait le focus, le focus irait au document.
   const refBouton = useCallback(

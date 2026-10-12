@@ -15,7 +15,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import type { EtatSession, SessionEspace } from "../espace/session-espace.ts";
+import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
 import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.ts";
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
@@ -45,7 +45,6 @@ import { useRepli } from "./repli.ts";
 import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 
-type EtatPret = Extract<EtatSession, { phase: "pret" }>;
 type Saisie = EcranBarre["saisie"];
 
 const ACCUEIL: Route = { forme: "accueil" };
@@ -104,14 +103,16 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
       actions={barre.actions}
       erreur={barre.erreur}
       boutonNouvellePage={barre.boutonNouvellePage}
-      fermeture={tiroir.ouvert ? <Fermeture tiroir={tiroir} /> : undefined}
+      fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
     />
   );
   return (
     <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
       <AvertissementDEnregistrement etat={etat} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
-        ouverture={tiroir.etroit ? <Ouverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
+        ouverture={
+          tiroir.etroit ? <BoutonDOuverture tiroir={tiroir} idBarre={idBarre} /> : undefined
+        }
         fil={
           page === undefined ? undefined : (
             <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
@@ -138,7 +139,10 @@ function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {
   };
 }
 
-function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string }): ReactElement {
+function BoutonDOuverture(props: {
+  readonly tiroir: Tiroir;
+  readonly idBarre: string;
+}): ReactElement {
   return (
     <BoutonIcone
       ref={props.tiroir.boutonDOuverture}
@@ -152,7 +156,7 @@ function Ouverture(props: { readonly tiroir: Tiroir; readonly idBarre: string })
   );
 }
 
-function Fermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElement {
+function BoutonDeFermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElement {
   return (
     <BoutonIcone
       ref={tiroir.boutonDeFermeture}

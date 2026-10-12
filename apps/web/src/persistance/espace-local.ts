@@ -39,9 +39,12 @@ function retenirLEspace(
   ouverture: Ouverture,
   poursuivre: (idEspace: string) => void,
 ): void {
-  ouvrirLaBaseDeLAppareil(ouverture, (connexion, reparee) => {
-    // Seule l'absence de valeur dans une base saine vaut premier lancement. Une valeur nulle est
-    // illisible, et l'absence de valeur dans un magasin qu'il a fallu recréer aussi (F-030-AC24).
+  ouvrirLaBaseDeLAppareil(ouverture, (connexion) => {
+    // Seule l'absence de valeur dans une base à sa première version vaut premier lancement. Une
+    // valeur nulle est illisible, et l'absence de valeur dans une base réparée aussi : « réparée »
+    // se lit sur la version de la base, que la montée vienne de cette tentative ou d'une tentative
+    // interrompue avant l'inscription (F-030-AC24).
+    const reparee = connexion.version > VERSION_D_UNE_BASE_NEUVE;
     const remplacable = (valeur: unknown): boolean => valeur === undefined && !reparee;
     lireOuInscrire({ connexion, ouverture, idAInscrire: idCandidat, remplacable }, (valeur) => {
       if (estUnIdentifiant(valeur)) {
@@ -79,7 +82,7 @@ function remplacerLaValeurIllisible(
         if (estUnIdentifiant(valeur)) {
           poursuivre(valeur);
         } else {
-          ouverture.couper();
+          ouverture.echouer();
         }
       });
     });
@@ -127,7 +130,7 @@ function lireOuInscrire(inscription: Inscription, poursuivre: (valeur: unknown) 
     transaction = connexion.transaction(MAGASIN_REGLAGES, "readwrite");
   } catch {
     connexion.close();
-    ouverture.couper();
+    ouverture.echouer();
     return;
   }
   const reglages = transaction.objectStore(MAGASIN_REGLAGES);
@@ -150,21 +153,20 @@ function lireOuInscrire(inscription: Inscription, poursuivre: (valeur: unknown) 
   };
   transaction.onabort = () => {
     connexion.close();
-    ouverture.couper();
+    ouverture.echouer();
   };
 }
 
-// `poursuivre` reçoit une connexion dont le magasin existe, et dit s'il a fallu le recréer.
+// `poursuivre` reçoit une connexion dont le magasin existe.
 function ouvrirLaBaseDeLAppareil(
   ouverture: Ouverture,
-  poursuivre: (connexion: IDBDatabase, reparee: boolean) => void,
-  reparee = false,
+  poursuivre: (connexion: IDBDatabase) => void,
 ): void {
   let demande: IDBOpenDBRequest;
   try {
     demande = indexedDB.open(BASE_APPAREIL);
   } catch {
-    ouverture.couper();
+    ouverture.echouer();
     return;
   }
   // Après l'échéance, une réponse tardive ne doit plus rien lire ni écrire (F-002-AC24).
@@ -180,9 +182,9 @@ function ouvrirLaBaseDeLAppareil(
     connexion.onversionchange = () => connexion.close();
     if (!ouverture.attendue() || connexion.version > VERSION_LA_PLUS_HAUTE_CONNUE) {
       connexion.close();
-      ouverture.couper();
+      ouverture.echouer();
     } else if (connexion.objectStoreNames.contains(MAGASIN_REGLAGES)) {
-      poursuivre(connexion, reparee);
+      poursuivre(connexion);
     } else {
       connexion.close();
       recreerLeMagasin(connexion.version, ouverture, poursuivre);
@@ -190,7 +192,7 @@ function ouvrirLaBaseDeLAppareil(
   };
   demande.onerror = (evenement) => {
     evenement.preventDefault();
-    ouverture.couper();
+    ouverture.echouer();
   };
 }
 
@@ -200,10 +202,10 @@ function ouvrirLaBaseDeLAppareil(
 function recreerLeMagasin(
   version: number,
   ouverture: Ouverture,
-  poursuivre: (connexion: IDBDatabase, reparee: boolean) => void,
+  poursuivre: (connexion: IDBDatabase) => void,
 ): void {
   if (version !== VERSION_D_UNE_BASE_NEUVE) {
-    ouverture.couper();
+    ouverture.echouer();
     return;
   }
   const reparation = {
@@ -214,9 +216,9 @@ function recreerLeMagasin(
   };
   creerLesMagasinsManquants(reparation, (faite) => {
     if (!faite) {
-      ouverture.couper();
+      ouverture.echouer();
     } else if (ouverture.attendue()) {
-      ouvrirLaBaseDeLAppareil(ouverture, poursuivre, true);
+      ouvrirLaBaseDeLAppareil(ouverture, poursuivre);
     }
   });
 }

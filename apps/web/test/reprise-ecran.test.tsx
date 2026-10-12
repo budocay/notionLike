@@ -26,6 +26,7 @@ import {
   instantsDesOuvertures,
   rendreLOnglet,
   simulerLHorloge,
+  tenterDeQuitter,
 } from "./aides-reprise.ts";
 
 const COUPURE =
@@ -253,7 +254,7 @@ describe("reprise à l'écran", () => {
     await tentativeSuivante();
 
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(zone().textContent).toBe(`${ENREGISTRE}${ANNONCE}`);
+    expect(zone().textContent).toBe(`${ENREGISTRE} ${ANNONCE}`);
     expect(document.body.textContent?.split(ANNONCE)).toHaveLength(2);
     expect(document.activeElement).toBe(nouvellePage);
     expect(await titresDansLaBase()).toEqual(["Pendant la coupure"]);
@@ -280,6 +281,40 @@ describe("reprise à l'écran", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+
+  it("F-030-AC5 état relu ancêtre de l'état en mémoire : pendant la reprise, la barre latérale affichée ne subit aucune mutation, et l'arborescence publiée par la session est la même", async () => {
+    const { session } = await ouvrirPuisCouper();
+    act(() => void operations(session).creerPage("Créée pendant la coupure"));
+    const barre = screen.getByRole("navigation", { name: "Pages" });
+    const avant = barre.innerHTML;
+    const etatAvant = session.lireEtat();
+    const mutations: MutationRecord[] = [];
+    const observateur = new MutationObserver((lot) => void mutations.push(...lot));
+    observateur.observe(barre, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+
+    await tentativeSuivante();
+    mutations.push(...observateur.takeRecords());
+    observateur.disconnect();
+
+    expect(zone().textContent).toContain(ENREGISTRE);
+    expect(mutations).toEqual([]);
+    expect(barre.innerHTML).toBe(avant);
+    expect(avant).toContain("Créée pendant la coupure");
+    expect(session.lireEtat()).toMatchObject({
+      arborescence: (etatAvant as { arborescence: unknown }).arborescence,
+    });
+    // L'observateur voit une mutation de cette barre quand il y en a une.
+    const temoin = new MutationObserver(() => undefined);
+    temoin.observe(barre, { subtree: true, childList: true });
+    act(() => void operations(session).creerPage("Après la reprise"));
+    expect(temoin.takeRecords().length).toBeGreaterThan(0);
+    temoin.disconnect();
   });
 
   it("F-030-AC15 la reprise ajoute à l'écran les pages relues de la base, sans rechargement ni état de chargement, sans fermer la saisie de titre en cours ni perdre son texte, en gardant la page sélectionnée", async () => {
@@ -384,20 +419,6 @@ describe("onglet quitté ou masqué pendant une coupure", () => {
       retirer(...(arguments_ as Parameters<typeof retirer>));
     });
     return () => poses.size;
-  }
-
-  // jsdom ne construit pas de `BeforeUnloadEvent` : la valeur de retour, propre à cet événement,
-  // est relevée par un accesseur posé sur l'événement émis.
-  function tenterDeQuitter(): { defaultPrevented: boolean; valeurDeRetour: unknown } {
-    const evenement = new Event("beforeunload", { cancelable: true });
-    let valeurDeRetour: unknown;
-    Object.defineProperty(evenement, "returnValue", {
-      set: (valeur: unknown) => {
-        valeurDeRetour = valeur;
-      },
-    });
-    window.dispatchEvent(evenement);
-    return { defaultPrevented: evenement.defaultPrevented, valeurDeRetour };
   }
 
   it("F-030-AC16 l'écouteur `beforeunload` n'est inscrit que tant qu'une modification n'est pas enregistrée : absent avant la coupure et pendant une coupure sans modification, présent après une modification, il annule l'événement ; absent après la reprise", async () => {
