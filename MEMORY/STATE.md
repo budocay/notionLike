@@ -6,17 +6,18 @@ Dépôt distant : `git@github.com:budocay/notionLike.git`, repris depuis Claude 
 
 `main` porte cinq features DONE : F-001, F-002, F-004, F-030, et F-008 (socle serveur), fusionnée le 2026-10-12 par la PR budocay/notionLike#1 (merge commit `2cc4a52`, dernier commit de la branche `a52b33f`). F-008 est acceptée par le dev sans dernier passage des gates (sept lignes `DEROGATION D-014` sur l'empreinte `777ae8247baa`). Ses points ouverts sont des dettes proposées (« Dette et limites » de `MEMORY/features/F-008.md`). Le correctif inachevé du dernier tour est archivé sur la branche `archive-F-008-dernier-tour`.
 
-Deux branches de travail, non fusionnées :
+Deux branches de travail, poussées, non fusionnées, code fini, revue pas encore lancée :
 
-- `F-009` (comptes et sessions côté serveur, better-auth, structurel), partie de `F-008-socle` avant sa fin, worktree cloud `/home/user/notionLike-F-009`. Tête `8fd1266`. Les 13 critères manquants sont couverts ; la relecture de `f8891ab` a trouvé 7 défauts, corrigés dans `83b5802`. L'adaptateur Drizzle de better-auth marche malgré les deux copies de `drizzle-orm` (test `adaptateur-drizzle.test.ts`). Dernier relevé de l'agent : 69 fichiers, 1669 tests, typecheck, lint, contrats (247 modules, 707 dépendances) et `ac-couverture` en code 0. Reste AC23, partiel : le patch du fichier d'exemple est prêt mais touche aussi `infra/tests/exemples.test.ts`, à poser par agent-backend et agent-devops.
-- `F-003` (éditeur de page, structurel), partie de `F-030`. Dernier commit `ddba41b`, travail interrompu et enregistré tel quel. 43 critères sur 44 cités ; manque F-003-AC39. `pnpm contrats` est rouge : Tiptap n'est pas admis par `.dependency-cruiser.cjs`.
+- `F-003` (éditeur de page, Tiptap, structurel, `Revue : reviewer-frontend`), tête `d5c8487`. `main` intégré (`02a99b0`), AC39 faite (`074ce40`), bout en bout de F-002, F-004 et F-030 réparé (`91016b7`, `f6089bd`), Tiptap admis par le dev (`c2ac84d`, quatre règles, 29 en tout), `ARCHITECTURE.md` aligné et ADR-0009 créé au statut « proposé », à accepter par le dev (`d5c8487`). Relevé d'agent-architecte-conception sur `c2ac84d` : 77 fichiers, 1712 tests, contrats 273 modules et 831 dépendances sans violation, typecheck, lint, `preuve:construction` OK, bout en bout `50 passed`, mais seulement avec la configuration temporaire `scratchpad/pw/playwright.conteneur.config.ts` (le conteneur a Chromium 1194, Playwright attend 1243). Limites écrites : pas de preuve au navigateur pour AC28, AC37, AC38, AC41, la partie navigateur d'AC44, ni les captures (b) et (f) ; F-003-AC35 n'est couvert par aucun test de couture ; deux `h1` quand le contenu porte un « Titre 1 » (à trancher par le dev) ; `y-protocols` absent de la règle `edition-confinee`.
+- `F-009` (comptes et sessions, better-auth, structurel, `Revue : reviewer-bdd, reviewer-backend, reviewer-api`), tête `4181e75`. `main` intégré : la fusion `b0fc4e4` est re-signée `Agent: dev` par délégation (D-008), parce qu'elle résout des conflits chez deux agents. Les 33 critères sont couverts, AC23 comprise (`9dfe0b0`, `161f580`), et des délais explicites sont posés sur les ouvertures de PGlite. Relevé d'agent-bdd : 80 fichiers, 1837 tests, code 0. Reste à faire : `ARCHITECTURE.md` et la fiche, puis la revue. F-009 change `apps/server/src` : la fumée Docker est à rejouer sur le poste du dev.
 
 Décisions du dev en vigueur : mode rapide, développements lancés sans attendre les gates, délégation des commits `Agent: dev` (D-008), sauf la validation d'une spec et les fichiers protégés. Le dev trouve le parcours trop long : il a coupé le dernier passage des gates de F-008 et veut avancer.
 
 ## Prochaine action prévue
 
-1. `F-009` : intégrer `main` (merge, conflits par leurs propriétaires), poser AC23, puis dossier de revue et gates en un seul passage.
-2. `F-003` : faire préparer et essayer sur copie, par agent-frontend, l'admission de Tiptap dans `.dependency-cruiser.cjs`, que le dev pose ; puis AC39, relecture de `ddba41b`, bout en bout, intégration de `main`. Le client reprend ensuite selon `ROADMAP.md`.
+1. `F-003` : `MEMORY/features/F-003.md`, puis `dossier-revue.sh F-003` et un seul passage de gates (reviewer-frontend, architecture, sécurité, craft). Un rejet sur un point mineur se propose au dev en `DEROGATION`, sans boucle. Puis `PROJECT_LOG.md`, `INDEX`, `gates-verts.sh`, fusion.
+2. `F-009` : alignement d'`ARCHITECTURE.md` par agent-architecte-conception, fiche, fumée par le dev, puis même parcours qu'au point 1.
+3. Le client reprend ensuite selon `ROADMAP.md`.
 
 ## Dettes ouvertes
 
