@@ -636,6 +636,10 @@ const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
 };
 const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
+  // F-010 : codes du serveur (enveloppe, codes natifs) et refus du schéma d'un formulaire.
+  "apps/web/src/compte/client-auth.ts": "classe le code d'une réponse du serveur",
+  "apps/web/src/compte/validation.ts": "lit le code d'un refus du schéma de contrats",
+  "apps/web/src/interface/messages-compte.ts": "passe un code d'enveloppe à sa table",
 };
 const TRADUCTEUR = "apps/web/src/interface/messages.ts";
 // Exhaustif par le type : un code ajouté au paquet sans entrée ici ne compile plus.

@@ -68,7 +68,9 @@ describe("frontières du module de persistance", () => {
   });
 
   it("F-002-AC22 les dépendances d'exécution d'apps/web sont celles du plan, y-indexeddb comprise une seule fois", () => {
+    // F-010 : contrats, et better-auth pour son seul sous-chemin `better-auth/client` (H9).
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
+      "@notionlike/contrats",
       "@notionlike/document",
       "@tiptap/core",
       "@tiptap/extension-collaboration",
@@ -80,6 +82,7 @@ describe("frontières du module de persistance", () => {
       "@tiptap/pm",
       "@tiptap/react",
       "@tiptap/y-tiptap",
+      "better-auth",
       "react",
       "react-dom",
       "y-indexeddb",

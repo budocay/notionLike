@@ -146,11 +146,14 @@ function etatsManquants(page: HTMLElement): string[] {
 describe("page de démonstration : ce qu'elle montre", () => {
   it("F-004-AC50 elle montre chaque composant de présentation de la feature", () => {
     expect(composantsExportes(sources).sort()).toEqual([
+      "ActionDeCompte",
       "Avertissement",
       "BarreDeBlocs",
       "BarreDuHaut",
       "BoutonIcone",
       "CadreDeBarre",
+      "CadreDeCompte",
+      "ChampDeCompte",
       "ChampTitre",
       "Chargement",
       "CheminDePage",
@@ -159,6 +162,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "EcranBloquant",
       "EcranPlein",
       "EntetePage",
+      "FormulaireDeCompte",
       "MenuActions",
       "NoteDePage",
       "Pictogramme",

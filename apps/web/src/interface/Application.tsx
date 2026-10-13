@@ -15,14 +15,16 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import type { Compte } from "../compte/index.ts";
 import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
 import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.ts";
 import { lireRoute, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
 import { BarreDuHaut } from "./composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "./composants/BoutonIcone.tsx";
-import { Coquille, EcranPlein, type TiroirDeCoquille } from "./composants/Coquille.tsx";
+import { Coquille, EcranPlein, Principale, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
+import { EcranDeCompte, type SorteDEcran } from "./EcranDeCompte.tsx";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -45,13 +47,20 @@ import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
 import { type Tiroir, useTiroir } from "./tiroir.ts";
+import { ZoneDeCompte } from "./ZoneDeCompte.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 
 type Saisie = EcranBarre["saisie"];
 
 const ACCUEIL: Route = { forme: "accueil" };
 
-export function Application({ session }: { readonly session: SessionEspace }): ReactElement {
+interface ProprietesApplication {
+  readonly session: SessionEspace;
+  /** État du compte et client d'authentification (F-010) ; absent, ni zone ni écrans de compte. */
+  readonly compte?: Compte | undefined;
+}
+
+export function Application({ session, compte }: ProprietesApplication): ReactElement {
   const etat = useSyncExternalStore(session.abonner, session.lireEtat);
   switch (etat.phase) {
     case "contexte-non-securise":
@@ -82,15 +91,20 @@ export function Application({ session }: { readonly session: SessionEspace }): R
         </EcranPlein>
       );
     case "pret":
-      return <EspacePret etat={etat} />;
+      return <EspacePret etat={etat} compte={compte} />;
   }
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
-// (avertissement, barre du haut, zone principale).
-function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
+// (avertissement, barre du haut, zone principale). Un écran de compte prend la place de la zone
+// principale ; tout le reste demeure, arborescence et repli compris (F-010-AC3).
+function EspacePret(props: {
+  readonly etat: EtatPret;
+  readonly compte: Compte | undefined;
+}): ReactElement {
+  const { etat, compte } = props;
   const { racines } = etat.arborescence;
-  const route = lireRoute(useSyncExternalStore(abonnerAuFragment, lireFragment));
+  const { route, ecran } = useRouteDeLEspace(compte);
   const selection = selectionDe(route, etat.arborescence);
   const barre = useBarreLaterale(etat, route, selection);
   const tiroir = useTiroir();
@@ -100,18 +114,12 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   const etatDeLaPage = usePageOuverte(etat.idEspace, page?.id);
   const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
 
-  const barreLaterale = (
-    <BarreLaterale
-      racines={racines}
-      ecran={barre.ecran}
-      actions={barre.actions}
-      erreur={barre.erreur}
-      boutonNouvellePage={barre.boutonNouvellePage}
-      fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
-    />
-  );
   return (
-    <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
+    <Coquille
+      fenetre
+      tiroir={attributsDuTiroir(tiroir, idBarre)}
+      barre={barreLateraleDe(barre, tiroir, compte)}
+    >
       <AvertissementDEnregistrement etat={enregistrement} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
         ouverture={
@@ -124,14 +132,61 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
         }
         etat={<ZoneDEnregistrement etat={enregistrement} />}
       />
-      <ZonePrincipale
-        ref={tiroir.zonePrincipale}
-        selection={selection}
-        espaceVide={racines.length === 0}
-        page={etatDeLaPage}
-      />
+      {compte !== undefined && ecran !== undefined ? (
+        <Principale ref={tiroir.zonePrincipale}>
+          <EcranDeCompte key={ecran} sorte={ecran} compte={compte} retour={route} />
+        </Principale>
+      ) : (
+        <ZonePrincipale
+          ref={tiroir.zonePrincipale}
+          selection={selection}
+          espaceVide={racines.length === 0}
+          page={etatDeLaPage}
+        />
+      )}
     </Coquille>
   );
+}
+
+function barreLateraleDe(barre: Barre, tiroir: Tiroir, compte: Compte | undefined): ReactElement {
+  return (
+    <BarreLaterale
+      racines={barre.racines}
+      ecran={barre.ecran}
+      actions={barre.actions}
+      erreur={barre.erreur}
+      boutonNouvellePage={barre.boutonNouvellePage}
+      fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
+      compte={compte === undefined ? undefined : <ZoneDeCompte compte={compte} />}
+    />
+  );
+}
+
+/**
+ * Route de l'application et écran de compte ouvert. Sur un écran de compte, la route est la
+ * dernière route de l'application, tenue en mémoire et posée par l'application seule : c'est la
+ * destination du retour, jamais lue dans l'adresse (F-010 H2). Sans compte, `#/connexion` et
+ * `#/inscription` désignent l'accueil, comme avant F-010.
+ */
+function useRouteDeLEspace(compte: Compte | undefined): {
+  readonly route: Route;
+  readonly ecran: SorteDEcran | undefined;
+} {
+  const fragment = useSyncExternalStore(abonnerAuFragment, lireFragment);
+  const lue = lireRoute(fragment);
+  const ecran = compte !== undefined && estUnEcranDeCompte(lue) ? lue.forme : undefined;
+  const [retour, setRetour] = useState<{ readonly fragment: string; readonly route: Route }>({
+    fragment: "",
+    route: ACCUEIL,
+  });
+  if (ecran === undefined && !estUnEcranDeCompte(lue) && retour.fragment !== fragment) {
+    setRetour({ fragment, route: lue });
+  }
+  return { route: ecran === undefined ? lue : retour.route, ecran };
+}
+
+function estUnEcranDeCompte(route: Route): route is { readonly forme: SorteDEcran } {
+  return route.forme === "connexion" || route.forme === "inscription";
 }
 
 function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {
@@ -173,12 +228,16 @@ function BoutonDeFermeture({ tiroir }: { readonly tiroir: Tiroir }): ReactElemen
   );
 }
 
-// La sélection n'est pas un état : elle se déduit de la route et de l'arborescence lue.
+// La sélection n'est pas un état : elle se déduit de la route et de l'arborescence lue. Une route
+// qui n'est ni une page ni une page refusée (accueil, écran de compte) n'en désigne aucune.
 function selectionDe(route: Route, arborescence: Arborescence): Selection {
-  if (route.forme === "accueil") {
+  if (route.forme === "page-introuvable") {
+    return { type: "introuvable" };
+  }
+  if (route.forme !== "page") {
     return { type: "accueil" };
   }
-  const page = route.forme === "page" ? trouverPage(arborescence.racines, route.idPage) : undefined;
+  const page = trouverPage(arborescence.racines, route.idPage);
   return page === undefined ? { type: "introuvable" } : { type: "page", page };
 }
 
@@ -190,6 +249,7 @@ function useTitreOnglet(selection: Selection): void {
 }
 
 interface Barre {
+  readonly racines: readonly PageLue[];
   readonly ecran: EcranBarre;
   readonly actions: ActionsBarre;
   readonly erreur: string | undefined;
@@ -237,6 +297,7 @@ function useBarreLaterale(etat: EtatPret, route: Route, selection: Selection): B
   };
 
   return {
+    racines: etat.arborescence.racines,
     ecran: { idPageCourante, repliees: repli.repliees, saisie },
     actions,
     erreur,

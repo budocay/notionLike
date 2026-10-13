@@ -1,7 +1,14 @@
 // Aides partagées des scénarios de bout en bout : ouverture, barre latérale, actions de rangée, fin
 // des écritures IndexedDB, écoute du réseau et de la console. Aucun test ici : Playwright ne lit
 // que `*.spec.ts`.
-import { type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
+import { CHEMINS_COMPTES } from "@notionlike/contrats";
+import {
+  type BrowserContext,
+  type ConsoleMessage,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 /** Base qui reçoit les mises à jour du document d'espace ; celle des réglages de l'appareil non. */
 const PREFIXE_DES_BASES_D_ESPACE = "notionlike:espace:";
@@ -222,12 +229,29 @@ export function originesEtrangeres(adresses: readonly string[], origine: string)
   });
 }
 
+/**
+ * F-010-AC26 : sans serveur, la lecture de l'état du compte (`GET /api/v1/moi`) échoue, comme la
+ * spec le prévoit, et le navigateur note cet échec de chargement dans la console. Seul cet échec-là
+ * est écarté : toute autre erreur, et tout autre échec de chargement, restent comptés.
+ */
+function estLEchecAttenduDuCompte(message: ConsoleMessage): boolean {
+  const { url } = message.location();
+  return (
+    /^Failed to load resource\b/.test(message.text()) &&
+    url !== "" &&
+    new URL(url).pathname === CHEMINS_COMPTES.moi
+  );
+}
+
 /** Erreurs et avertissements de la console, exceptions non interceptées, depuis l'appel. */
 export function ecouterLaConsole(page: Page): string[] {
   const messages: string[] = [];
   page.on("pageerror", (erreur) => messages.push(`exception : ${erreur.message}`));
   page.on("console", (message) => {
     const type = message.type();
+    if (estLEchecAttenduDuCompte(message)) {
+      return;
+    }
     if (
       type === "error" ||
       type === "warning" ||
