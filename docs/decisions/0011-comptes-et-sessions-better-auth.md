@@ -1,7 +1,8 @@
 # ADR-0011 — Comptes et sessions : better-auth monté derrière le code du serveur, session en base, schéma natif dans `packages/db`
 
-Statut : proposé
+Statut : accepté
 Date : 2026-10-13
+Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé pour F-009).
 
 ## Contexte et problème
 
