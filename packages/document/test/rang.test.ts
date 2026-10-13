@@ -1,7 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { BORNE_BASSE, BORNE_HAUTE, rangEntre, rangsCroissantsEntre } from "../src/rang.ts";
+import {
+  AUCUN_RANG_ADMIS,
+  BORNE_BASSE,
+  BORNE_HAUTE,
+  type Rang,
+  rangEntre as calculerRangEntre,
+  rangsCroissantsEntre as calculerRangsCroissantsEntre,
+} from "../src/rang.ts";
 import { GRAINE, NOMBRE_EXECUTIONS } from "./aides.ts";
 
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -18,6 +25,28 @@ const borneHaute = fc.oneof(fc.constant(BORNE_HAUTE), rang);
 const bornesOrdonnees = fc
   .tuple(borneBasse, borneHaute)
   .filter(([bas, haut]) => haut === BORNE_HAUTE || bas < haut);
+
+// Seule adaptation de F-029-AC14 : le calcul rend un rang ou le signalement `AUCUN_RANG_ADMIS`
+// (F-029-AC5). Sur le domaine de ces tests (6 unités au plus), il rend toujours un rang.
+function rangEntre(bas: Rang, haut: Rang | null): Rang {
+  const calcule = calculerRangEntre(bas, haut);
+  if (calcule === AUCUN_RANG_ADMIS) {
+    throw new Error(`aucun rang admis entre ${bas} et ${String(haut)}`);
+  }
+  return calcule;
+}
+
+function rangsCroissantsEntre<T>(
+  bas: Rang,
+  haut: Rang | null,
+  elements: readonly T[],
+): Map<T, Rang> {
+  const suite = calculerRangsCroissantsEntre(bas, haut, elements);
+  if (suite === AUCUN_RANG_ADMIS) {
+    throw new Error(`aucune suite admise entre ${bas} et ${String(haut)}`);
+  }
+  return suite;
+}
 
 function estSousLaBorneHaute(valeur: string, haut: string | null): boolean {
   return haut === BORNE_HAUTE || valeur < haut;

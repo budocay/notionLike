@@ -272,10 +272,11 @@ const CODES_ATTENDUS = Object.keys({
   "version-non-prise-en-charge": true,
   "facade-fermee": true,
   "version-invalide": true,
+  "rang-indisponible": true,
 } satisfies Record<CodeErreurDocument, true>);
 
 describe("codes d'erreur du paquet", () => {
-  it("F-003-AC24 la liste des codes est celle de F-002, les sept, plus version-invalide", () => {
+  it("F-003-AC24 F-029-AC16 la liste des codes est celle de F-002, les sept, plus version-invalide et rang-indisponible", () => {
     expect(CODES_ATTENDUS).toEqual([
       "page-introuvable",
       "page-a-la-corbeille",
@@ -285,6 +286,7 @@ describe("codes d'erreur du paquet", () => {
       "version-non-prise-en-charge",
       "facade-fermee",
       "version-invalide",
+      "rang-indisponible",
     ]);
   });
 });

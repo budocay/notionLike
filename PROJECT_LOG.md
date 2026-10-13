@@ -143,3 +143,15 @@
 - Tests: 2278 tests sur 103 fichiers — état: verts — preuve: checks.txt (empreinte `4b08a9c1cad0`)
 - Gates: SECURITY PASS · CRAFT PASS · revues reviewer-bdd, reviewer-backend, reviewer-api APPROVED · ARCHITECTURE non lancé, DEROGATION D-017
 - Mesures: boucles 1 passage, aucun rejet · faux positifs 0 · coût non mesuré
+
+## [2026-10-13] F-029 Rang borné dans le document d'espace
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/document`, `apps/web/src/interface/messages.ts` — agents: agent-frontend, agent-planif (relecture de la spec), orchestrateur — commits: 4491fd1..40231ce
+- Détail: rang de plus de 1024 caractères ignoré à la lecture, `rangEntre` sans récursion, écriture de `place` par `admettrePlace` avec redistribution des sœurs puis refus `rang-indisponible`. Mode économe.
+- Dette: résorbée D-005 ; introduite D-018 (F-029 acceptée par dérogation : AC7 (d) à la borne de 1024 éprouvé une seule fois, redistribution non testée directement contre une borne abaissée, ADR-0002, ADR-0003 et `ARCHITECTURE.md` à amender avant F-012, vulnérabilité modérée de `pnpm audit` à identifier) ; laissée D-010
+- ADR: ADR-0002 et ADR-0003 à amender (D-018)
+- Tests: 2372 tests sur 108 fichiers — état: verts — preuve: checks.txt (empreinte `8de67271dad6`)
+- Gates: CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED · SECURITY UNVERIFIED (dossier tronqué à la lecture, aucun constat dans la partie vue) · ARCHITECTURE non lancé ; les trois acceptés par DEROGATION D-018
+- Mesures: boucles 1 passage · coût non mesuré
