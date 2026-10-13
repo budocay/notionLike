@@ -23,6 +23,8 @@ export const TOUCHES_D_INTERACTION: Readonly<Record<string, readonly string[]>> 
   "src/interface/flottant.ts": ["Escape"],
   // Tiroir : Échap le ferme.
   "src/interface/tiroir.ts": ["Escape"],
+  // F-014 : Échap ferme une boîte de dialogue et abandonne un formulaire des écrans des espaces.
+  "src/interface/composants/Espaces.tsx": ["Escape"],
 };
 
 // Un nom de touche de raccourci écrit en chaîne : touche de fonction, ou modificateur.

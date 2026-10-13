@@ -17,14 +17,15 @@ import {
 
 import type { Compte } from "../compte/index.ts";
 import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
-import { abonnerAuFragment, allerA, lireFragment } from "../navigation/fragment.ts";
-import { lireRoute, type Route } from "../navigation/route.ts";
+import { allerA } from "../navigation/fragment.ts";
+import { fragmentDEcran, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
 import { BarreDuHaut } from "./composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "./composants/BoutonIcone.tsx";
+import { ActionDeCompte } from "./composants/Compte.tsx";
 import { Coquille, EcranPlein, Principale, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
-import { EcranDeCompte, type SorteDEcran } from "./EcranDeCompte.tsx";
+import { EcranDeCompte } from "./EcranDeCompte.tsx";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -42,12 +43,15 @@ import {
   titreAffiche,
   titreOnglet,
 } from "./messages.ts";
+import { ESPACES } from "./messages-espaces.ts";
+import { type NavigationDeLEspace, useNavigationDeLEspace } from "./navigation-espaces.ts";
 import { usePageOuverte } from "./page-ouverte.ts";
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
 import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { ZoneDeCompte } from "./ZoneDeCompte.tsx";
+import { ZoneDesEspaces } from "./ZoneDesEspaces.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 
 type Saisie = EcranBarre["saisie"];
@@ -104,7 +108,8 @@ function EspacePret(props: {
 }): ReactElement {
   const { etat, compte } = props;
   const { racines } = etat.arborescence;
-  const { route, ecran } = useRouteDeLEspace(compte);
+  const navigation = useNavigationDeLEspace(compte);
+  const { route } = navigation;
   const selection = selectionDe(route, etat.arborescence);
   const barre = useBarreLaterale(etat, route, selection);
   const tiroir = useTiroir();
@@ -132,9 +137,9 @@ function EspacePret(props: {
         }
         etat={<ZoneDEnregistrement etat={enregistrement} />}
       />
-      {compte !== undefined && ecran !== undefined ? (
+      {compte !== undefined && navigation.ecran !== undefined ? (
         <Principale ref={tiroir.zonePrincipale}>
-          <EcranDeCompte key={ecran} sorte={ecran} compte={compte} retour={route} />
+          <EcranAffiche compte={compte} navigation={navigation} />
         </Principale>
       ) : (
         <ZonePrincipale
@@ -157,36 +162,39 @@ function barreLateraleDe(barre: Barre, tiroir: Tiroir, compte: Compte | undefine
       erreur={barre.erreur}
       boutonNouvellePage={barre.boutonNouvellePage}
       fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
-      compte={compte === undefined ? undefined : <ZoneDeCompte compte={compte} />}
+      compte={
+        compte === undefined ? undefined : (
+          <>
+            <ZoneDeCompte compte={compte} />
+            <ActionDeCompte libelle={ESPACES} adresse={fragmentDEcran({ ecran: "espaces" })} />
+          </>
+        )
+      }
     />
   );
 }
 
-/**
- * Route de l'application et écran de compte ouvert. Sur un écran de compte, la route est la
- * dernière route de l'application, tenue en mémoire et posée par l'application seule : c'est la
- * destination du retour, jamais lue dans l'adresse (F-010 H2). Sans compte, `#/connexion` et
- * `#/inscription` désignent l'accueil, comme avant F-010.
- */
-function useRouteDeLEspace(compte: Compte | undefined): {
-  readonly route: Route;
-  readonly ecran: SorteDEcran | undefined;
-} {
-  const fragment = useSyncExternalStore(abonnerAuFragment, lireFragment);
-  const lue = lireRoute(fragment);
-  const ecran = compte !== undefined && estUnEcranDeCompte(lue) ? lue.forme : undefined;
-  const [retour, setRetour] = useState<{ readonly fragment: string; readonly route: Route }>({
-    fragment: "",
-    route: ACCUEIL,
-  });
-  if (ecran === undefined && !estUnEcranDeCompte(lue) && retour.fragment !== fragment) {
-    setRetour({ fragment, route: lue });
+/** Écran de compte (F-010) ou des espaces (F-014), à la place de la zone principale. */
+function EcranAffiche(props: {
+  readonly compte: Compte;
+  readonly navigation: NavigationDeLEspace;
+}): ReactElement | null {
+  const { compte, navigation } = props;
+  const { ecran } = navigation;
+  if (ecran === undefined) {
+    return null;
   }
-  return { route: ecran === undefined ? lue : retour.route, ecran };
-}
-
-function estUnEcranDeCompte(route: Route): route is { readonly forme: SorteDEcran } {
-  return route.forme === "connexion" || route.forme === "inscription";
+  return ecran.sorte === "compte" ? (
+    <EcranDeCompte
+      key={ecran.ecran}
+      sorte={ecran.ecran}
+      compte={compte}
+      retour={navigation.retour}
+      application={navigation.application}
+    />
+  ) : (
+    <ZoneDesEspaces compte={compte} ecran={ecran.ecran} navigation={navigation} />
+  );
 }
 
 function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {

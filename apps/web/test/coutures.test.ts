@@ -640,6 +640,12 @@ const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/compte/client-auth.ts": "classe le code d'une réponse du serveur",
   "apps/web/src/compte/validation.ts": "lit le code d'un refus du schéma de contrats",
   "apps/web/src/interface/messages-compte.ts": "passe un code d'enveloppe à sa table",
+  // F-014 : codes de l'enveloppe des routes d'espaces, classés par le client puis lus par les écrans.
+  "apps/web/src/compte/client-espaces.ts": "classe le code d'une réponse du serveur",
+  "apps/web/src/interface/messages-espaces.ts": "passe un code d'enveloppe à sa table",
+  "apps/web/src/interface/outils-espaces.ts": "rend le code d'une erreur classée",
+  "apps/web/src/interface/contexte-espace.ts": "choisit le texte propre au code, sinon la table",
+  "apps/web/src/interface/EcranDInvitation.tsx": "choisit le texte propre au code de l'acceptation",
 };
 const TRADUCTEUR = "apps/web/src/interface/messages.ts";
 // Exhaustif par le type : un code ajouté au paquet sans entrée ici ne compile plus.

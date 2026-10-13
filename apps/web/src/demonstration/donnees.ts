@@ -28,6 +28,34 @@ export const COMPTE_FICTIF = {
   retour: "Retour à l'application",
 } as const;
 
+// Écrans des espaces (F-014) : un espace, ses membres, une invitation, une confirmation.
+export const ESPACES_FICTIFS = {
+  titre: "Atelier Nord",
+  partie: "Membres",
+  texte: "Votre rôle : Propriétaire",
+  annonce: "Rôle de Inès Laurent : Lecteur",
+  alerte: "Un espace garde toujours au moins un propriétaire.",
+  colonnes: ["Nom", "Rôle", "Actions"],
+  membre: "Inès Laurent",
+  role: "Lecteur",
+  roles: [
+    { valeur: "proprietaire", libelle: "Propriétaire" },
+    { valeur: "editeur", libelle: "Éditeur" },
+    { valeur: "lecteur", libelle: "Lecteur" },
+  ],
+  nomDuChoix: "Rôle de Inès Laurent",
+  retirer: "Retirer",
+  renommer: "Renommer l'atelier",
+  occupe: "Requête en cours.",
+  formulaire: "Renommer l'espace",
+  lien: "Retour aux espaces",
+  boite: "Retirer Inès Laurent de l'espace ?",
+  avertissement: "Les pages que cette personne a ouvertes restent sur ses appareils.",
+  annuler: "Annuler",
+  copie: "Copiez le lien à la main",
+  lienFictif: "exemple.invalid/#/invitation/jeton-fictif",
+} as const;
+
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
 export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";

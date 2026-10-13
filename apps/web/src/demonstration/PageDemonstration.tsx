@@ -1,7 +1,7 @@
 // Page de démonstration (F-004-AC50) : chaque composant de présentation dans chacun de ses états,
 // sur des données fictives. Outil de développement, sans texte d'explication. Elle montre plusieurs
 // écrans l'un sous l'autre : sa racine n'est donc pas une zone principale, chaque aperçu a la sienne.
-import type { ReactElement, ReactNode } from "react";
+import { type ReactElement, type ReactNode, useRef } from "react";
 
 import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
@@ -14,6 +14,21 @@ import {
   FormulaireDeCompte,
 } from "../interface/composants/Compte.tsx";
 import { Coquille, EcranPlein, Principale } from "../interface/composants/Coquille.tsx";
+import {
+  Actions,
+  Alerte,
+  Annonce,
+  BoiteDeDialogue,
+  Bouton,
+  Choix,
+  EcranDEspaces,
+  Formulaire,
+  Lien,
+  LienEnLecture,
+  Partie,
+  Tableau,
+  Texte,
+} from "../interface/composants/Espaces.tsx";
 import {
   BarreDeBlocs,
   CorpsDePage,
@@ -66,6 +81,7 @@ import {
 import { afficherTouches, RACCOURCIS } from "../interface/raccourcis.ts";
 import {
   ADRESSE_FICTIVE,
+  ESPACES_FICTIFS,
   AFFIRMATION_FICTIVE,
   ANCETRES,
   ARBORESCENCE,
@@ -580,6 +596,90 @@ function SectionCompte(): ReactElement {
   );
 }
 
+// Écran d'un espace, son tableau de membres, une action occupée et une boîte d'alerte (F-014).
+function SectionEspaces(): ReactElement {
+  const F = ESPACES_FICTIFS;
+  return (
+    <Section titre="Espaces">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="Écran d'un espace">
+          <div className={PAGE.fondZone}>
+            <EcranDEspaces titre={F.titre}>
+              <Actions>
+                <Lien libelle={F.lien} adresse={ADRESSE_FICTIVE} />
+              </Actions>
+              <Texte>{F.texte}</Texte>
+              <Annonce texte={F.annonce} />
+              <Alerte phrases={[F.alerte]} />
+              <Partie titre={F.partie}>
+                <TableauFictif />
+              </Partie>
+            </EcranDEspaces>
+          </div>
+        </Specimen>
+        <Specimen etiquette="Renommage, action occupée">
+          <div className={PAGE.fondZone}>
+            <Formulaire nom={F.formulaire} surEnvoi={sansEffet}>
+              <LienEnLecture etiquette={F.copie} valeur={F.lienFictif} />
+              <Bouton libelle={F.renommer} raison={F.occupe} />
+            </Formulaire>
+          </div>
+        </Specimen>
+      </div>
+      <SpecimenDeBoite />
+    </Section>
+  );
+}
+
+function TableauFictif(): ReactElement {
+  const F = ESPACES_FICTIFS;
+  return (
+    <Tableau
+      legende={F.partie}
+      colonnes={F.colonnes}
+      lignes={[
+        {
+          cle: F.membre,
+          cellules: [
+            F.membre,
+            <Choix
+              key="role"
+              nom={F.nomDuChoix}
+              valeur="lecteur"
+              options={F.roles}
+              surChoix={sansEffet}
+            />,
+            <Bouton key="retirer" libelle={F.retirer} surActivation={sansEffet} />,
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function SpecimenDeBoite(): ReactElement {
+  const annuler = useRef<HTMLButtonElement>(null);
+  const F = ESPACES_FICTIFS;
+  return (
+    <Specimen etiquette="Boîte d'alerte d'un retrait">
+      <div className={PAGE.apercuDuTiroir}>
+        <BoiteDeDialogue
+          alerte
+          titre={F.boite}
+          phrases={[F.avertissement]}
+          initial={annuler}
+          surFermeture={sansEffet}
+        >
+          <Actions>
+            <Bouton refBouton={annuler} libelle={F.annuler} surActivation={sansEffet} />
+            <Bouton libelle={F.retirer} surActivation={sansEffet} />
+          </Actions>
+        </BoiteDeDialogue>
+      </div>
+    </Specimen>
+  );
+}
+
 function SpecimenDeFormulaire(): ReactElement {
   return (
     <Specimen etiquette="Formulaire de connexion, envoi refusé">
@@ -635,6 +735,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionReprise />
       <SectionCommandes />
       <SectionCompte />
+      <SectionEspaces />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>
           {contenu}

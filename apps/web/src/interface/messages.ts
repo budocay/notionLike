@@ -134,3 +134,8 @@ export function nomSousPages(titre: string): string {
 export function descriptionDeSousPage(niveau: number, titreDeLaMere: string): string {
   return `Niveau ${niveau}, sous-page de « ${titreCite(titreDeLaMere)} »`;
 }
+
+/** Acceptation réussie d'une invitation (F-014-AC23) : le nom de l'espace est cité comme un titre. */
+export function espaceRejoint(nom: string, libelleDuRole: string): string {
+  return `Vous avez rejoint « ${titreCite(nom)} » en tant que ${libelleDuRole}.`;
+}

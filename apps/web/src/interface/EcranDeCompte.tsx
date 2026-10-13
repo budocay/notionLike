@@ -1,7 +1,8 @@
 // Écrans de compte, `#/connexion` et `#/inscription` (F-010) : un formulaire dans la zone principale,
 // la barre latérale restant en place. Le mot de passe ne vit que dans l'état de ce composant : il
 // disparaît quand l'écran est quitté, par un succès, un retour ou un changement d'adresse
-// (F-010-AC11). Le retour se fait vers la route posée en mémoire par l'application (H2).
+// (F-010-AC11). Le retour se fait vers le fragment posé en mémoire par l'application, celui de la
+// destination de retour ou, à défaut, de la page sélectionnée (F-010 H2, F-014-AC41).
 import {
   type ComponentProps,
   type FormEvent,
@@ -21,9 +22,9 @@ import {
   validerConnexion,
   validerInscription,
 } from "../compte/validation.ts";
-import { allerA } from "../navigation/fragment.ts";
+import { allerAuRetour } from "../navigation/fragment.ts";
 import { ActionDeCompte, ChampDeCompte, FormulaireDeCompte } from "./composants/Compte.tsx";
-import { fragmentDe, type Route } from "../navigation/route.ts";
+import { fragmentDe } from "../navigation/route.ts";
 import {
   CONNEXION_EN_COURS,
   DEJA_UN_COMPTE,
@@ -51,8 +52,10 @@ export type SorteDEcran = "connexion" | "inscription";
 interface Proprietes {
   readonly sorte: SorteDEcran;
   readonly compte: Compte;
-  /** Route de l'application à retrouver en quittant l'écran, tenue en mémoire. */
-  readonly retour: Route;
+  /** Fragment de l'application à retrouver après un succès, tenu en mémoire. */
+  readonly retour: string;
+  /** Fragment de « Retour à l'application » : la page sélectionnée, sans la destination posée. */
+  readonly application: string;
 }
 
 const TEXTES = {
@@ -77,18 +80,19 @@ const ORDRE_DES_CHAMPS: readonly NomDeChamp[] = ["nom", "courriel", "motDePasse"
 const MS_PAR_SECONDE = 1000;
 
 /** Connecté, l'écran ne montre pas le formulaire : il rend la main à l'application (F-010-AC6). */
-export function EcranDeCompte({ sorte, compte, retour }: Proprietes): ReactElement | null {
+export function EcranDeCompte(props: Proprietes): ReactElement | null {
+  const { compte, retour } = props;
   const etat = useSyncExternalStore(compte.suivi.abonner, compte.suivi.lire);
   const connecte = etat.statut === "connecte";
   useEffect(() => {
     if (connecte) {
-      allerA(retour);
+      allerAuRetour(retour);
     }
   }, [connecte, retour]);
-  return connecte ? null : <Formulaire sorte={sorte} compte={compte} retour={retour} />;
+  return connecte ? null : <Formulaire {...props} />;
 }
 
-function Formulaire({ sorte, compte, retour }: Proprietes): ReactElement {
+function Formulaire({ sorte, compte, retour, application }: Proprietes): ReactElement {
   const f = useFormulaire(sorte, compte, retour);
   const textes = TEXTES[sorte];
   const champ = (nom: NomDeChamp): ComponentProps<typeof ChampDeCompte> => ({
@@ -115,7 +119,7 @@ function Formulaire({ sorte, compte, retour }: Proprietes): ReactElement {
         <>
           <p>{textes.question}</p>
           <ActionDeCompte libelle={textes.autre.libelle} adresse={fragmentDe(textes.autre)} />
-          <ActionDeCompte libelle={RETOUR_A_L_APPLICATION} adresse={fragmentDe(retour)} />
+          <ActionDeCompte libelle={RETOUR_A_L_APPLICATION} adresse={application} />
         </>
       }
     >
@@ -165,7 +169,7 @@ interface EtatDuFormulaire {
   readonly soumettre: (evenement: FormEvent) => void;
 }
 
-function useFormulaire(sorte: SorteDEcran, compte: Compte, retour: Route): EtatDuFormulaire {
+function useFormulaire(sorte: SorteDEcran, compte: Compte, retour: string): EtatDuFormulaire {
   const [saisie, setSaisie] = useState<Saisie>(SAISIE_VIDE);
   const [fautes, setFautes] = useState<Fautes>({});
   const [erreur, setErreur] = useState<ErreurDeCompte | undefined>(undefined);
@@ -212,7 +216,7 @@ function useFormulaire(sorte: SorteDEcran, compte: Compte, retour: Route): EtatD
 interface Moyens {
   readonly sorte: SorteDEcran;
   readonly compte: Compte;
-  readonly retour: Route;
+  readonly retour: string;
   readonly saisie: Saisie;
   readonly refs: EtatDuFormulaire["refs"];
   readonly verrou: RefObject<boolean>;
@@ -247,7 +251,7 @@ async function envoyer(m: Moyens): Promise<void> {
   if (resultat.ok) {
     m.viderLeMotDePasse();
     await m.compte.suivi.reverifier();
-    allerA(m.retour);
+    allerAuRetour(m.retour);
     return;
   }
   m.verrou.current = false;
