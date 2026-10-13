@@ -272,3 +272,30 @@ describe("rappel de garde qui lève", () => {
     expect(nombreDeParametresDeLOuverture()).toBe(1);
   });
 });
+
+describe("ouvertures des aides du paquet", () => {
+  it("F-003-AC35 recevoirLaVersion ferme la façade de son émettrice avant le retour : chaque type observé pendant l'appel n'a plus aucun observateur, et le document qui reçoit n'en gagne aucun", () => {
+    const espion = vi.spyOn(Y.AbstractType.prototype, "observe");
+    const doc = new Y.Doc();
+    const depart = observateursDe(doc);
+    try {
+      recevoirLaVersion(doc, VERSION_PAGE_PRISE_EN_CHARGE);
+      const types = [...new Set(espion.mock.contexts as Y.AbstractType<unknown>[])];
+
+      expect(types).toHaveLength(1);
+      expect(types.map((type) => type._eH.l.length + type._dEH.l.length)).toEqual([0]);
+      expect(observateursDe(doc)).toBe(depart);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("F-003-AC35 ouvrirPageSuivie ajoute un observateur au document, que la fermeture de la façade retire", () => {
+    const doc = new Y.Doc();
+    const page = ouvrirPageSuivie(doc);
+
+    expect(observateursAjoutes(doc)).toBe(1);
+    page.fermer();
+    expect(observateursAjoutes(doc)).toBe(0);
+  });
+});

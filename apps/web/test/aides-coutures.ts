@@ -1,6 +1,6 @@
 // Texte des fichiers de code et de test du workspace, par chemin depuis la racine du dépôt. Lus
 // comme des chaînes : aucun module d'un autre paquet n'est évalué (F-002-AC31, conception,
-// « Règles de dépendances »). Seul `coutures.test.ts` s'en sert.
+// « Règles de dépendances »). Seuls `coutures.test.ts` et `coutures-page.test.ts` s'en servent.
 const ICI = "apps/web/test";
 
 export function depuisLaRacine(dossier: string, relatif: string): string {
