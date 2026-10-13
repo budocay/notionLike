@@ -1,8 +1,6 @@
 // Le processus réel : `node apps/server/src/main.ts`, lancé depuis la racine du dépôt comme dans
 // l'image, sans Vitest entre les deux. Node y charge les trois paquets par leurs sources (ADR-0006).
-import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 
 import { CHEMINS } from "@notionlike/contrats";
@@ -12,67 +10,34 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   lireConfiguration,
   MOT_DE_PASSE_FACTICE,
+  SECRET_FACTICE,
   type Environnement,
 } from "../src/configuration.ts";
 import {
   enveloppeDe,
-  type LigneDeJournal,
   MOT_DE_PASSE_D_ESSAI,
   occuperUnPort,
   type PortOccupe,
   pretDe,
   santeDe,
+  ENV_D_ESSAI,
+  ENV_DES_COMPTES_D_ESSAI,
   URL_BASE_D_ESSAI,
 } from "./aides.ts";
+import {
+  arreterLesProcessus,
+  DELAI_DES_TESTS_DE_PROCESSUS_MS,
+  lancer,
+  urlDEcoute,
+  type Processus,
+} from "./aides-processus.ts";
 
-const RACINE = fileURLToPath(new URL("../../../", import.meta.url));
 const EXEMPLE = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
-const ENTREE = "apps/server/src/main.ts";
 const ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS = "apps/server/test/essai/main-fermeture-en-echec.ts";
-const DELAI_DES_TESTS_DE_PROCESSUS_MS = 20_000;
 const MARQUEUR = "valeur-fautive-a-ne-pas-afficher";
 
-interface FinDuProcessus {
-  readonly code: number | null;
-  readonly signal: NodeJS.Signals | null;
-}
-
-interface Processus {
-  readonly enfant: ChildProcess;
-  readonly fin: Promise<FinDuProcessus>;
-  sortieStandard(): string;
-  sortieDErreur(): string;
-  lignesDuJournal(): LigneDeJournal[];
-}
-
-const lances: Processus[] = [];
 const fauxServeurs: FauxPostgres[] = [];
 const portsOccupes: PortOccupe[] = [];
-
-// L'environnement de l'enfant est exactement celui du test : rien n'est hérité de Vitest.
-function lancer(env: Environnement, entree = ENTREE): Processus {
-  const enfant = spawn(process.execPath, [entree], { cwd: RACINE, env });
-  const sorties = { standard: "", erreur: "" };
-  enfant.stdout.on("data", (morceau: Buffer) => (sorties.standard += morceau.toString("utf8")));
-  enfant.stderr.on("data", (morceau: Buffer) => (sorties.erreur += morceau.toString("utf8")));
-  const processus: Processus = {
-    enfant,
-    fin: new Promise((resolve) => {
-      enfant.on("close", (code, signal) => {
-        resolve({ code, signal });
-      });
-    }),
-    sortieStandard: () => sorties.standard,
-    sortieDErreur: () => sorties.erreur,
-    lignesDuJournal: () =>
-      sorties.standard
-        .split("\n")
-        .filter((ligne) => ligne !== "")
-        .map((ligne) => JSON.parse(ligne) as LigneDeJournal),
-  };
-  lances.push(processus);
-  return processus;
-}
 
 interface ProcessusServi {
   readonly processus: Processus;
@@ -86,19 +51,8 @@ async function lancerSurFauxPostgres(options?: {
 }): Promise<ProcessusServi> {
   const faux = await demarrerFauxPostgres(MOT_DE_PASSE_D_ESSAI, options);
   fauxServeurs.push(faux);
-  const processus = lancer({ PORT: "0", URL_BASE_DONNEES: faux.url });
+  const processus = lancer({ ...ENV_DES_COMPTES_D_ESSAI, PORT: "0", URL_BASE_DONNEES: faux.url });
   return { processus, url: await urlDEcoute(processus), faux };
-}
-
-// Attend la ligne `ecoute` du journal et rend l'adresse où le processus sert.
-async function urlDEcoute(processus: Processus): Promise<string> {
-  const ligne = await expect
-    .poll(() => processus.lignesDuJournal().find(({ message }) => message === "ecoute"), {
-      timeout: 10_000,
-    })
-    .toBeDefined()
-    .then(() => processus.lignesDuJournal().find(({ message }) => message === "ecoute"));
-  return `http://${String(ligne?.hote)}:${String(ligne?.port)}`;
 }
 
 function variablesDe(texte: string): Environnement {
@@ -106,10 +60,7 @@ function variablesDe(texte: string): Environnement {
 }
 
 afterEach(async () => {
-  for (const { enfant, fin } of lances.splice(0)) {
-    enfant.kill("SIGKILL");
-    await fin;
-  }
+  await arreterLesProcessus();
   await Promise.all(fauxServeurs.splice(0).map((faux) => faux.arreter()));
   await Promise.all(portsOccupes.splice(0).map((occupe) => occupe.liberer()));
 });
@@ -118,7 +69,7 @@ describe("refus de démarrer", () => {
   it(
     "F-008-AC12 sans URL_BASE_DONNEES, le processus finit en code 1 en nommant la variable, sans rien écouter",
     async () => {
-      const processus = lancer({ PORT: "0" });
+      const processus = lancer({ ...ENV_DES_COMPTES_D_ESSAI, PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
@@ -131,6 +82,7 @@ describe("refus de démarrer", () => {
     "F-008-AC12 chaque variable invalide est nommée sur la sortie d'erreur, sans sa valeur",
     async () => {
       const processus = lancer({
+        ...ENV_DES_COMPTES_D_ESSAI,
         PORT: MARQUEUR,
         URL_BASE_DONNEES: `postgres://essai:${MARQUEUR}@127.0.0.1:5432/essai`,
         ORIGINES_AUTORISEES: `https://${MARQUEUR}.test/chemin`,
@@ -146,12 +98,14 @@ describe("refus de démarrer", () => {
   );
 
   it(
-    "F-008-AC14 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage",
+    "F-008-AC14 F-009-AC18 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
     async () => {
       const processus = lancer({ NODE_ENV: "production", ...variablesDe(EXEMPLE), PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
-      expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
+      expect(processus.sortieDErreur()).toBe(
+        "Configuration invalide : URL_BASE_DONNEES, BETTER_AUTH_SECRET\n",
+      );
       expect(processus.sortieStandard()).toBe("");
     },
     DELAI_DES_TESTS_DE_PROCESSUS_MS,
@@ -163,7 +117,7 @@ describe("refus de démarrer", () => {
       const occupe = await occuperUnPort();
       portsOccupes.push(occupe);
 
-      const processus = lancer({ PORT: String(occupe.port), URL_BASE_DONNEES: URL_BASE_D_ESSAI });
+      const processus = lancer({ ...ENV_D_ESSAI, PORT: String(occupe.port) });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe(
@@ -176,15 +130,20 @@ describe("refus de démarrer", () => {
 });
 
 describe("fichier d'exemple du serveur", () => {
-  it("F-008-AC14 le mot de passe de l'URL d'exemple est celui que le serveur refuse en production", () => {
+  it("F-008-AC14 F-009-AC18 F-009-AC23 le fichier d'exemple fournit toute variable obligatoire, et ses deux secrets sont ceux que le serveur refuse en production", () => {
     const variables = variablesDe(EXEMPLE);
 
     expect(new URL(variables.URL_BASE_DONNEES ?? "").password).toBe(MOT_DE_PASSE_FACTICE);
+    expect(variables.BETTER_AUTH_SECRET).toBe(SECRET_FACTICE);
     expect(lireConfiguration(variables)).toEqual({
       hote: "127.0.0.1",
       port: 3000,
       urlBaseDonnees: variables.URL_BASE_DONNEES,
       originesAutorisees: [],
+      secretDesSessions: SECRET_FACTICE,
+      urlPublique: "http://127.0.0.1:3000",
+      cookiesSecurises: false,
+      proxysDeConfiance: 0,
     });
   });
 
@@ -302,6 +261,7 @@ describe("service et arrêt", () => {
     async () => {
       const port = await portFerme();
       const processus = lancer({
+        ...ENV_DES_COMPTES_D_ESSAI,
         PORT: "0",
         URL_BASE_DONNEES: `postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.0.1:${port}/essai`,
       });
@@ -322,10 +282,7 @@ describe("service et arrêt", () => {
   it(
     "F-008-AC26 à SIGTERM, une fermeture de la base qui rejette par une erreur portant l'URL de connexion donne le code 1 et une phrase fixe, l'URL sur aucune des deux sorties",
     async () => {
-      const processus = lancer(
-        { PORT: "0", URL_BASE_DONNEES: URL_BASE_D_ESSAI },
-        ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS,
-      );
+      const processus = lancer({ ...ENV_D_ESSAI, PORT: "0" }, ENTREE_DONT_LA_BASE_NE_SE_FERME_PAS);
       await urlDEcoute(processus);
 
       processus.enfant.kill("SIGTERM");

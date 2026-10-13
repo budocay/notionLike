@@ -5,22 +5,27 @@ import { ErreurBase, type Base } from "@notionlike/db";
 import express, { type Express, type RequestHandler } from "express";
 import helmet from "helmet";
 
+import { creerAuthentification } from "./authentification.ts";
+import { monterLesComptes } from "./comptes.ts";
 import type { Configuration } from "./configuration.ts";
+import { creerCompteurs } from "./debit.ts";
 import {
   creerGestionnaireDErreurs,
   envoyerErreur,
   identifierLaRequete,
   idRequeteDe,
+  LIMITE_CORPS_OCTETS,
   repondreIntrouvable,
 } from "./enveloppe.ts";
 import type { Journal } from "./journal.ts";
-
-const LIMITE_CORPS_OCTETS = 100_000;
+import type { SuppressionDeSessions } from "./sessions.ts";
 
 interface Dependances {
   readonly configuration: Configuration;
   readonly base: Base;
   readonly journal: Journal;
+  // Créée par l'appelant, qui peut s'y abonner (F-009-AC33).
+  readonly suppression: SuppressionDeSessions;
 }
 
 function journaliserLaReponse(journal: Journal): RequestHandler {
@@ -53,18 +58,6 @@ function poserLesEnTetesDeSecurite(): RequestHandler {
   });
 }
 
-function autoriserLesOrigines(autorisees: readonly string[]): RequestHandler {
-  return (requete, reponse, suivant) => {
-    const origine = requete.get("Origin");
-    reponse.vary("Origin");
-    if (origine !== undefined && autorisees.includes(origine)) {
-      reponse.set("Access-Control-Allow-Origin", origine);
-      reponse.set("Access-Control-Allow-Credentials", "true");
-    }
-    suivant();
-  };
-}
-
 const repondreSante: RequestHandler = (_requete, reponse) => {
   const corps: ReponseSante = { etat: "ok" };
   reponse.json(corps);
@@ -89,7 +82,24 @@ function repondrePret(base: Base, journal: Journal): RequestHandler {
   };
 }
 
-export function creerApplication({ configuration, base, journal }: Dependances): Express {
+// Chaque application a ses compteurs de débit (F-009 H12) : ceux du plafond global et ceux que
+// better-auth tient par route.
+function monterLAuthentification(application: Express, dependances: Dependances): void {
+  const { configuration, journal } = dependances;
+  const consommer = creerCompteurs();
+  monterLesComptes(application, {
+    authentification: creerAuthentification({ ...dependances, consommer }),
+    journal,
+    consommer,
+    proxysDeConfiance: configuration.proxysDeConfiance,
+    urlPublique: configuration.urlPublique,
+  });
+}
+
+// F-009-AC32 : aucune réponse ne porte d'en-tête `Access-Control-Allow-*`, et aucune requête de
+// pré-vérification n'est traitée. `ORIGINES_AUTORISEES` ne sert qu'au contrôle d'`Origin`.
+export function creerApplication(dependances: Dependances): Express {
+  const { base, journal } = dependances;
   const application = express();
   application.disable("x-powered-by");
   application.disable("etag");
@@ -98,7 +108,7 @@ export function creerApplication({ configuration, base, journal }: Dependances):
   application.use(identifierLaRequete);
   application.use(journaliserLaReponse(journal));
   application.use(poserLesEnTetesDeSecurite());
-  application.use(autoriserLesOrigines(configuration.originesAutorisees));
+  monterLAuthentification(application, dependances);
   // F-008-AC6 : un corps compressé est décompressé, et la limite vaut pour le corps décompressé ;
   // un jeu de caractères autre qu'UTF ou un encodage inconnu est refusé par le lecteur (415), que
   // le gestionnaire d'erreurs rend en 400 `requete-invalide`.

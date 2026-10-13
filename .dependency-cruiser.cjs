@@ -53,13 +53,13 @@ module.exports = {
       name: "serveur-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0004 : depuis apps/server/src, seuls apps/server/src, l'entrée publique de db et de contrats, express, helmet, pino, zod et les modules intégrés de Node sont importables.",
+        "ADR-0004, F-009 : depuis apps/server/src, seuls apps/server/src, l'entrée publique de db et de contrats, express, helmet, pino, zod, better-auth, les paquets @better-auth/* et les modules intégrés de Node sont importables.",
       from: { path: "^apps/server/src/" },
       to: {
         pathNot: [
           "^apps/server/src/",
           "^packages/(db|contrats)/src/index\\.ts$",
-          "(^|/)node_modules/(express|helmet|pino|zod)/",
+          "(^|/)node_modules/(express|helmet|pino|zod|better-auth|@better-auth/[^/]+)/",
         ],
         dependencyTypesNot: ["core"],
       },
@@ -70,6 +70,54 @@ module.exports = {
       comment: "F-008-AC23 : seuls packages/db et apps/server importent packages/db.",
       from: { pathNot: "^(packages/db|apps/server)/" },
       to: { path: "^packages/db/" },
+    },
+    // F-009-AC24, par sous-chemin. Deux expressions par cible : le fichier que le sous-chemin désigne
+    // dans le paquet installé (better-auth/client -> dist/client/index, better-auth/react ->
+    // dist/client/react/, better-auth/client/plugins -> dist/client/plugins/), et le sous-chemin tel
+    // qu'il est écrit, que dependency-cruiser garde quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "better-auth-reserve-au-serveur",
+      severity: "error",
+      comment:
+        "F-009-AC24 : hors d'apps/server, ni better-auth (sa racine et ses sous-chemins autres que better-auth/client) ni un paquet @better-auth/* ne sont importables.",
+      from: { pathNot: "^apps/server/" },
+      to: {
+        path: [
+          "(^|/)node_modules/(better-auth|@better-auth/[^/]+)/",
+          "^(better-auth|@better-auth/[^/]+)(/|$)",
+        ],
+        pathNot: [
+          "(^|/)node_modules/better-auth/dist/client/index\\.(d\\.mts|mjs)$",
+          "^better-auth/client$",
+        ],
+      },
+    },
+    {
+      name: "better-auth-client-un-seul-module",
+      severity: "error",
+      comment:
+        "F-009-AC24 : better-auth/client n'est importé par aucun module du serveur ni d'un paquet, et par un seul module d'apps/web (F-010-AC22) ; tant que F-010 n'est pas livrée, aucun module ne l'importe.",
+      // F-010 n'ajoute ici que le chemin de son module : from: { pathNot: "^apps/web/src/<module>\\.ts$" }.
+      from: {},
+      to: {
+        path: [
+          "(^|/)node_modules/better-auth/dist/client/index\\.(d\\.mts|mjs)$",
+          "^better-auth/client$",
+        ],
+      },
+    },
+    {
+      name: "better-auth-react-et-greffons-interdits",
+      severity: "error",
+      comment:
+        "F-009-AC24 : better-auth/react et better-auth/client/plugins ne sont importés nulle part.",
+      from: {},
+      to: {
+        path: [
+          "(^|/)node_modules/better-auth/dist/client/(react|plugins)/",
+          "^better-auth/(react|client/plugins)(/|$)",
+        ],
+      },
     },
     {
       name: "infra-a-part",

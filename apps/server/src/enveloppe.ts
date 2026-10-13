@@ -7,6 +7,9 @@ import type { ErrorRequestHandler, RequestHandler, Response } from "express";
 
 import type { Journal } from "./journal.ts";
 
+// Taille maximale d'un corps de requête, sur toute route (F-008-AC6, F-009-AC28).
+export const LIMITE_CORPS_OCTETS = 100_000;
+
 const EN_TETE_ID_REQUETE = "X-Request-Id";
 const STATUT_CORPS_TROP_GRAND = 413;
 const PREMIER_STATUT_CLIENT = 400;
@@ -18,6 +21,8 @@ const REPONSES: Readonly<Record<CodeErreur, { statut: number; message: string }>
   "corps-trop-grand": { statut: 413, message: "Le corps de la requête est trop grand." },
   "base-indisponible": { statut: 503, message: "La base de données est indisponible." },
   "erreur-interne": { statut: 500, message: "Une erreur interne est survenue." },
+  "non-authentifie": { statut: 401, message: "Cette requête exige une session valide." },
+  "trop-de-requetes": { statut: 429, message: "Trop de requêtes : réessayez plus tard." },
 };
 
 // F-008-AC4 : l'identifiant est généré ici ; celui que la requête porterait n'est jamais lu.

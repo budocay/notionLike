@@ -16,10 +16,20 @@ import type { Base } from "@notionlike/db";
 import { creerApplication } from "../src/application.ts";
 import { lireConfiguration } from "../src/configuration.ts";
 import { creerJournal } from "../src/journal.ts";
+import { creerSuppressionDeSessions, type SuppressionDeSessions } from "../src/sessions.ts";
 import { demarrerServeur } from "../src/serveur.ts";
 
 export const MOT_DE_PASSE_D_ESSAI = "mot-de-passe-d-essai";
 export const URL_BASE_D_ESSAI = `postgres://essai:${MOT_DE_PASSE_D_ESSAI}@127.0.0.1:5432/essai`;
+export const SECRET_D_ESSAI = "essai-de-trente-deux-signes-au-moins";
+export const URL_PUBLIQUE_D_ESSAI = "http://app.exemple.test";
+
+// Les variables obligatoires (F-009-AC23) : tout test qui lit la configuration part d'elles.
+export const ENV_DES_COMPTES_D_ESSAI = {
+  BETTER_AUTH_SECRET: SECRET_D_ESSAI,
+  URL_PUBLIQUE: URL_PUBLIQUE_D_ESSAI,
+} as const;
+export const ENV_D_ESSAI = { URL_BASE_DONNEES: URL_BASE_D_ESSAI, ...ENV_DES_COMPTES_D_ESSAI };
 
 export const DELAI_DES_TESTS_LENTS_MS = 15_000;
 
@@ -37,6 +47,8 @@ export type LigneDeJournal = Readonly<Record<string, unknown>>;
 export interface ServeurDEssai {
   readonly url: string;
   readonly port: number;
+  // La fonction de suppression de session de ce serveur : un test s'y abonne (F-009-AC33).
+  readonly suppression: SuppressionDeSessions;
   texteDuJournal(): string;
   lignesDuJournal(): LigneDeJournal[];
   arreter(): Promise<void>;
@@ -59,10 +71,12 @@ export async function lancerServeur(base: Base, reglages: Reglages = {}): Promis
   });
   const configuration = lireConfiguration({
     PORT: "0",
-    URL_BASE_DONNEES: URL_BASE_D_ESSAI,
+    ...ENV_D_ESSAI,
     ...reglages.env,
   });
-  const application = creerApplication({ configuration, base, journal: creerJournal(sortie) });
+  const journal = creerJournal(sortie);
+  const suppression = creerSuppressionDeSessions(base, journal);
+  const application = creerApplication({ configuration, base, journal, suppression });
   const ecoute = await demarrerServeur({
     application,
     hote: configuration.hote,
@@ -73,6 +87,7 @@ export async function lancerServeur(base: Base, reglages: Reglages = {}): Promis
   const serveur: ServeurDEssai = {
     url: `http://${configuration.hote}:${ecoute.port}`,
     port: ecoute.port,
+    suppression,
     texteDuJournal,
     lignesDuJournal: () =>
       texteDuJournal()

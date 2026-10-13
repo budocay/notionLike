@@ -48,7 +48,7 @@ describe("fichiers d'exemple", () => {
     ]);
   });
 
-  it("F-008-AC13 apps/server/.env.example ne porte qu'un secret, factice et marqué comme tel", () => {
+  it("F-008-AC13 F-009-AC23 apps/server/.env.example ne porte que des secrets factices et marqués comme tels", () => {
     const exemple = lireExemple(lire("apps/server/.env.example"));
 
     expect(constatsValeursFactices(exemple)).toEqual([]);
@@ -57,6 +57,25 @@ describe("fichiers d'exemple", () => {
       "PORT",
       "URL_BASE_DONNEES",
       "ORIGINES_AUTORISEES",
+      "BETTER_AUTH_SECRET",
+      "URL_PUBLIQUE",
+    ]);
+  });
+
+  it("F-009-AC23 refuse un secret de session réel, ou que rien ne dit factice", () => {
+    const vraiSecret = lireExemple(
+      "# Secret de session.\nBETTER_AUTH_SECRET=Xo4kPq81zZXo4kPq81zZXo4kPq81zZ00\n",
+    );
+    const sansMarque = lireExemple(
+      "# Secret factice.\n\nBETTER_AUTH_SECRET=factice-a-remplacer-par-32-caracteres\n",
+    );
+
+    expect(constatsValeursFactices(vraiSecret)).toEqual([
+      "BETTER_AUTH_SECRET : la valeur n'est pas factice",
+      "BETTER_AUTH_SECRET : aucun commentaire ne la dit factice",
+    ]);
+    expect(constatsValeursFactices(sansMarque)).toEqual([
+      "BETTER_AUTH_SECRET : aucun commentaire ne la dit factice",
     ]);
   });
 

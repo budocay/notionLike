@@ -10,6 +10,7 @@ import { servir } from "../src/service.ts";
 import {
   attendre,
   DELAI_D_OUVERTURE_D_UNE_BASE_MS,
+  ENV_D_ESSAI,
   MOT_DE_PASSE_D_ESSAI,
   occuperUnPort,
   URL_BASE_D_ESSAI,
@@ -79,7 +80,7 @@ function fermetureNotee(): Promise<void> {
 
 function servirSurLePort(port: number, fermer: Base["fermer"]): Promise<void> {
   return servir({
-    configuration: lireConfiguration({ PORT: String(port), URL_BASE_DONNEES: URL_BASE_D_ESSAI }),
+    configuration: lireConfiguration({ ...ENV_D_ESSAI, PORT: String(port) }),
     base: baseQui(fermer),
     processus: processusTemoin,
   });
@@ -147,7 +148,7 @@ describe("initialisation impossible", () => {
     try {
       const service = await import("../src/service.ts");
       await service.servir({
-        configuration: lireConfiguration({ PORT: "0", URL_BASE_DONNEES: URL_BASE_D_ESSAI }),
+        configuration: lireConfiguration({ ...ENV_D_ESSAI, PORT: "0" }),
         base: baseQui(fermer),
         processus: processusTemoin,
       });

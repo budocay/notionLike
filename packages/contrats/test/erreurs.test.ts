@@ -5,13 +5,17 @@ import type { CodeErreur, EnveloppeErreur } from "../src/index.ts";
 
 const CONVENTION_DES_CODES = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-const CODES_DE_LA_SPEC: readonly CodeErreur[] = [
+const CODES_DE_F008: readonly CodeErreur[] = [
   "requete-invalide",
   "ressource-introuvable",
   "corps-trop-grand",
   "base-indisponible",
   "erreur-interne",
 ];
+
+const CODES_DE_F009: readonly CodeErreur[] = ["non-authentifie", "trop-de-requetes"];
+
+const CODES_DE_LA_SPEC = [...CODES_DE_F008, ...CODES_DE_F009];
 
 const CODES_MAL_FORMES = [
   ["un tiret bas", "requete_invalide"],
@@ -37,8 +41,12 @@ function suitLaConvention(code: string): boolean {
 }
 
 describe("liste fermée des codes d'erreur", () => {
-  it("F-008-AC22 la liste publiée est exactement celle des cinq codes de la spec", () => {
-    expect([...CODES_ERREUR]).toEqual(CODES_DE_LA_SPEC);
+  it("F-008-AC22 F-009-AC23 la liste publiée commence par les cinq codes de F-008, dans leur ordre", () => {
+    expect(CODES_ERREUR.slice(0, CODES_DE_F008.length)).toEqual(CODES_DE_F008);
+  });
+
+  it("F-009-AC22 F-009-AC23 la liste n'est modifiée que par l'ajout de non-authentifie et trop-de-requetes", () => {
+    expect([...CODES_ERREUR]).toEqual([...CODES_DE_F008, "non-authentifie", "trop-de-requetes"]);
   });
 
   it("F-008-AC22 aucun code publié n'échappe à la convention", () => {

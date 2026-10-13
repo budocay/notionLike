@@ -13,6 +13,7 @@
   "dependencies": {
     "@notionlike/contrats": "workspace:*",
     "@notionlike/db": "workspace:*",
+    "better-auth": "1.7.7",
     "express": "5.2.1",
     "helmet": "8.3.0",
     "pino": "10.3.1",

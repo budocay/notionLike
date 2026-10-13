@@ -45,6 +45,19 @@ describe("faux serveur PostgreSQL", () => {
     await faux.arreter();
   });
 
+  it("F-008-AC18 F-009-AC21 il termine aussi sans ligne une requête paramétrée, celle par laquelle le migrateur consigne une migration", async () => {
+    const faux = await demarrerFauxPostgres(MOT_DE_PASSE);
+    const client = new Client({ connectionString: faux.url });
+    await client.connect();
+
+    const resultat = await client.query("select $1::int", [1]);
+    await client.end();
+
+    expect(resultat.rows).toEqual([]);
+    expect(faux.messagesRecus).toEqual(["P", "B", "D", "E", "S", "X"]);
+    await faux.arreter();
+  });
+
   it("F-008-AC18 avec neFermeJamais, il reçoit l'adieu du pilote mais garde la connexion ouverte jusqu'à son arrêt", async () => {
     const faux = await demarrerFauxPostgres(MOT_DE_PASSE, { neFermeJamais: true });
 

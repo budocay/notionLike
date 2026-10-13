@@ -23,6 +23,9 @@ const JEUX_D_ESSAI = fileURLToPath(new URL("./migrations-essai", import.meta.url
 const PREMIER_LANCEMENT = join(JEUX_D_ESSAI, "premier-lancement");
 const LANCEMENT_DEFAILLANT = join(JEUX_D_ESSAI, "lancement-defaillant");
 const LANCEMENT_CORRIGE = join(JEUX_D_ESSAI, "lancement-corrige");
+// Le dossier réel tel que F-008 l'a livré : un journal sans entrée. Depuis F-009, le dossier réel
+// porte la migration des comptes, éprouvée par `comptes.test.ts`.
+const ETAT_F_008 = join(JEUX_D_ESSAI, "etat-f-008");
 const MOT_DE_PASSE = "mot-de-passe-de-test";
 const PHRASE_D_ECHEC = "La migration a échoué : aucune migration de ce lancement n'est appliquée.";
 // Horodatages des trois entrées des journaux d'essai, dans l'ordre.
@@ -76,8 +79,8 @@ describe("migrations sur une base embarquée", () => {
   }, DELAI_D_OUVERTURE_D_UNE_BASE_MS);
   afterEach(() => embarquee.base.fermer());
 
-  it("F-008-AC15 le dossier réel, sans migration, crée la table de suivi vide et aucune table", async () => {
-    expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+  it("F-008-AC15 un dossier sans migration, celui que F-008 a livré, crée la table de suivi vide et aucune table", async () => {
+    expect(await lancer(embarquee, ETAT_F_008)).toEqual({ code: 0, lignes: [] });
 
     expect(await suivi(embarquee)).toEqual([]);
     expect(await tablesPubliques(embarquee)).toEqual([]);
@@ -261,7 +264,8 @@ function journalDe(entries: unknown): Record<string, unknown> {
 
 describe("forme des dossiers de migrations", () => {
   it.each([
-    ["le dossier réel", DOSSIER_MIGRATIONS, 0],
+    ["le dossier réel", DOSSIER_MIGRATIONS, 1],
+    ["le jeu etat-f-008", ETAT_F_008, 0],
     ["le jeu premier-lancement", PREMIER_LANCEMENT, 1],
     ["le jeu lancement-defaillant", LANCEMENT_DEFAILLANT, 3],
     ["le jeu lancement-corrige", LANCEMENT_CORRIGE, 3],
@@ -340,6 +344,7 @@ const DEFINITION_DU_PILOTE = "packages/db/src/acces.ts";
 const QUI_NOMME_LE_PILOTE = ["packages/db/src/migration.ts", "packages/db/test/base-embarquee.ts"];
 const QUI_OUVRE_UNE_BASE_EMBARQUEE_ICI = [
   "packages/db/test/acces.test.ts",
+  "packages/db/test/comptes.test.ts",
   "packages/db/test/essai.ts",
   "packages/db/test/migration.test.ts",
 ];

@@ -6,6 +6,7 @@ import type { DestinationStream } from "pino";
 import { creerApplication } from "./application.ts";
 import type { Configuration } from "./configuration.ts";
 import { creerJournal, type Journal } from "./journal.ts";
+import { creerSuppressionDeSessions } from "./sessions.ts";
 import { demarrerServeur, type Ecoute } from "./serveur.ts";
 
 // Deux secondes de marge sous les 10 secondes de F-008-AC7.
@@ -83,7 +84,12 @@ async function demarrer({ configuration, base, processus }: Lancement): Promise<
   let application: ReturnType<typeof creerApplication>;
   try {
     journal = creerJournal(processus.stdout);
-    application = creerApplication({ configuration, base, journal });
+    application = creerApplication({
+      configuration,
+      base,
+      journal,
+      suppression: creerSuppressionDeSessions(base, journal),
+    });
   } catch {
     return INITIALISATION_IMPOSSIBLE;
   }

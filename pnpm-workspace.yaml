@@ -3,4 +3,10 @@ packages:
   - packages/*
 
 # Protection chaîne d'approvisionnement : un paquet publié depuis moins de 7 jours n'est pas installé.
+allowBuilds:
+  esbuild: false
+
 minimumReleaseAge: 10080
+
+overrides:
+  better-auth>drizzle-kit: "-"

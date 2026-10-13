@@ -40,19 +40,28 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
+      "comptes.ts": [
+        "CHEMINS_COMPTES",
+        "schemaCompte",
+        "schemaCompteNatif",
+        "schemaCorpsConnexion",
+        "schemaCorpsInscription",
+      ],
       "enveloppe.ts": ["CodeErreur", "EnveloppeErreur"],
     });
   });
 
-  it("F-008-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       "application.ts": ["Base", "ErreurBase"],
+      "authentification.ts": ["Base", "SessionSupprimee", "schemaComptes"],
       "journal.ts": ["CodeErreurBase"],
       "main.ts": ["ouvrirBase"],
       "service.ts": ["Base"],
+      "sessions.ts": ["Base", "SessionSupprimee", "SessionsVisees", "supprimerSessions"],
     });
   });
 
@@ -76,8 +85,9 @@ describe("appelants des deux paquets", () => {
 
 // Couture de F-008-AC25 : `demarrerServeur` rejette désormais quand l'écoute échoue, et `servir`
 // reçoit la base et le processus au lieu de les prendre lui-même. Leurs appelants sont énumérés :
-// `service.ts` change le rejet en phrase fixe (service.test.ts), `aides.ts` le laisse monter au
-// test qui lance le serveur ; `main.ts` et l'entrée d'essai donnent à `servir` ses dépendances.
+// `service.ts` change le rejet en phrase fixe (service.test.ts), `aides.ts` et `comptes-echec.test.ts`
+// (F-009, doublure de l'authentification) le laissent monter au test qui lance le serveur ;
+// `main.ts` et les entrées d'essai donnent à `servir` ses dépendances.
 function appelantsDe(nom: string): string[] {
   const appel = new RegExp(`(?<!function )\\b${nom}\\(`);
   return readdirSync(SERVEUR, { recursive: true, encoding: "utf8" })
@@ -91,6 +101,7 @@ describe("appelants de l'écoute et du service", () => {
     expect(appelantsDe("demarrerServeur")).toEqual([
       "src/service.ts",
       "test/aides.ts",
+      "test/comptes-echec.test.ts",
       "test/service.test.ts",
     ]);
   });
@@ -98,6 +109,7 @@ describe("appelants de l'écoute et du service", () => {
   it("F-008-AC26 les fichiers qui appellent servir sont énumérés", () => {
     expect(appelantsDe("servir")).toEqual([
       "src/main.ts",
+      "test/essai/main-base-embarquee.ts",
       "test/essai/main-fermeture-en-echec.ts",
       "test/service.test.ts",
     ]);
