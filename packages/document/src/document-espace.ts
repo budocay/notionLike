@@ -13,6 +13,7 @@ import {
 } from "./arbre.ts";
 import { ErreurDocument } from "./erreurs.ts";
 import {
+  admettrePlace,
   ecrireMiseALaCorbeille,
   ecrireNouvellePage,
   ecrirePlace,
@@ -22,8 +23,18 @@ import {
   lireEntrees,
   LONGUEUR_MAX_TITRE,
   type Place,
+  type PlaceAdmise,
 } from "./format.ts";
-import { BORNE_BASSE, BORNE_HAUTE, type Rang, rangEntre, rangsCroissantsEntre } from "./rang.ts";
+import {
+  AUCUN_RANG_ADMIS,
+  BORNE_BASSE,
+  BORNE_HAUTE,
+  LONGUEUR_MAX_RANG,
+  type Rang,
+  rangEntre,
+  rangsCroissantsEntre,
+  rangsRepartis,
+} from "./rang.ts";
 
 declare const crypto: { randomUUID(): string };
 // Le paquet compile sans DOM ni types Node ; `console` existe pourtant sous l'un comme sous l'autre.
@@ -67,7 +78,15 @@ export function creerDocumentEspace(): DocumentEspace {
 }
 
 export function ouvrirDocumentEspace(doc: Y.Doc): DocumentEspace {
-  let lecture = lectureAdmise(doc);
+  return ouvrirDocumentEspaceBorne(doc, LONGUEUR_MAX_RANG);
+}
+
+/**
+ * Point d'entrée interne, non réexporté par `index.ts` : la façade, avec une longueur maximale de
+ * rang choisie, pour la lecture comme pour l'écriture. Seuls les tests l'abaissent (F-029-AC10).
+ */
+export function ouvrirDocumentEspaceBorne(doc: Y.Doc, borne: number): DocumentEspace {
+  let lecture = lectureAdmise(doc, borne);
   let fermee = false;
   const abonnes = new Set<() => void>();
 
@@ -77,7 +96,7 @@ export function ouvrirDocumentEspace(doc: Y.Doc): DocumentEspace {
     if (fermee) {
       return;
     }
-    const relue = lectureAdmise(doc);
+    const relue = lectureAdmise(doc, borne);
     if (!memeLecture(relue, lecture)) {
       lecture = relue;
       // La copie tient à l'écart les abonnés inscrits pendant la diffusion ; le test d'appartenance
@@ -111,19 +130,19 @@ export function ouvrirDocumentEspace(doc: Y.Doc): DocumentEspace {
     },
     creerPage: (titre, ou = A_LA_RACINE) => {
       exigerFacadeOuverte();
-      return creerPage(doc, titre, ou);
+      return creerPage(doc, borne, titre, ou);
     },
     renommerPage: (id, titre) => {
       exigerFacadeOuverte();
-      renommerPage(doc, id, titre);
+      renommerPage(doc, borne, id, titre);
     },
     deplacerPage: (id, ou) => {
       exigerFacadeOuverte();
-      deplacerPage(doc, id, ou);
+      deplacerPage(doc, borne, id, ou);
     },
     mettreALaCorbeille: (id) => {
       exigerFacadeOuverte();
-      mettreALaCorbeille(doc, id);
+      mettreALaCorbeille(doc, borne, id);
     },
     fermer: () => {
       fermee = true;
@@ -144,8 +163,8 @@ function notifierSousGarde(notifier: () => void): void {
 }
 
 // `undefined` tant que la version du document n'est pas prise en charge : rien n'est alors lu.
-function lectureAdmise(doc: Y.Doc): Arborescence | undefined {
-  return estDeVersionPriseEnCharge(doc) ? lireEtat(doc).arborescence : undefined;
+function lectureAdmise(doc: Y.Doc, borne: number): Arborescence | undefined {
+  return estDeVersionPriseEnCharge(doc) ? lireEtat(doc, borne).arborescence : undefined;
 }
 
 function memeLecture(a: Arborescence | undefined, b: Arborescence | undefined): boolean {
@@ -165,33 +184,34 @@ function exigerVersionPriseEnCharge(doc: Y.Doc): void {
   }
 }
 
-function creerPage(doc: Y.Doc, titre: string, ou: Emplacement): IdPage {
+function creerPage(doc: Y.Doc, borne: number, titre: string, ou: Emplacement): IdPage {
   exigerVersionPriseEnCharge(doc);
   exigerTitreAdmis(titre);
-  const etat = lireEtat(doc);
+  const etat = lireEtat(doc, borne);
   const soeurs = soeursLues(etat, ou.parent);
   const position = positionAdmise(ou.position, soeurs.length);
-  const insertion = insertionALaPosition(etat, soeurs, position);
-  const places = placesDesAutresPages(etat, insertion, undefined);
+  const insertion = insertionALaPosition(etat, soeurs, position, borne);
+  const places = placesAdmises(placesDesAutresPages(etat, insertion, undefined), borne);
+  const place = admettrePlace({ parent: ou.parent, rang: insertion.rang }, borne);
   const id = crypto.randomUUID();
   doc.transact(() => {
-    ecrireNouvellePage(doc, { id, titre, parent: ou.parent, rang: insertion.rang });
+    ecrireNouvellePage(doc, { id, titre, place });
     ecrirePlaces(doc, places);
   });
   return id;
 }
 
-function renommerPage(doc: Y.Doc, id: IdPage, titre: string): void {
+function renommerPage(doc: Y.Doc, borne: number, id: IdPage, titre: string): void {
   exigerVersionPriseEnCharge(doc);
   exigerTitreAdmis(titre);
-  if (exigerPageLue(lireEtat(doc), id).titre !== titre) {
+  if (exigerPageLue(lireEtat(doc, borne), id).titre !== titre) {
     doc.transact(() => ecrireTitre(doc, id, titre));
   }
 }
 
-function deplacerPage(doc: Y.Doc, id: IdPage, ou: Emplacement): void {
+function deplacerPage(doc: Y.Doc, borne: number, id: IdPage, ou: Emplacement): void {
   exigerVersionPriseEnCharge(doc);
-  const etat = lireEtat(doc);
+  const etat = lireEtat(doc, borne);
   const page = exigerPageLue(etat, id);
   const soeurs = soeursLues(etat, ou.parent);
   exigerDestinationHorsDeLaDescendance(page, ou.parent);
@@ -199,21 +219,22 @@ function deplacerPage(doc: Y.Doc, id: IdPage, ou: Emplacement): void {
   const position = positionAdmise(ou.position, autresSoeurs.length);
   const dejaEnPlace = soeurs[position]?.id === id;
   if (!dejaEnPlace) {
-    const insertion = insertionALaPosition(etat, autresSoeurs, position);
+    const insertion = insertionALaPosition(etat, autresSoeurs, position, borne);
     const places = placesDesAutresPages(etat, insertion, ancetreCoupee(etat, id));
     places.set(id, { parent: ou.parent, rang: insertion.rang });
-    doc.transact(() => ecrirePlaces(doc, places));
+    const admises = placesAdmises(places, borne);
+    doc.transact(() => ecrirePlaces(doc, admises));
   }
 }
 
-function mettreALaCorbeille(doc: Y.Doc, id: IdPage): void {
+function mettreALaCorbeille(doc: Y.Doc, borne: number, id: IdPage): void {
   exigerVersionPriseEnCharge(doc);
-  exigerPageLue(lireEtat(doc), id);
+  exigerPageLue(lireEtat(doc, borne), id);
   doc.transact(() => ecrireMiseALaCorbeille(doc, id));
 }
 
-function lireEtat(doc: Y.Doc): EtatLu {
-  const entrees = lireEntrees(doc);
+function lireEtat(doc: Y.Doc, borne: number): EtatLu {
+  const entrees = lireEntrees(doc, borne);
   return { entrees, ...lireArbre(entrees) };
 }
 
@@ -270,18 +291,53 @@ function positionAdmise(position: number | undefined, nombreDeSoeurs: number): n
 }
 
 // Entre deux sœurs de même rang, aucun rang n'existe : celles de ce rang qui suivent la position
-// sont réattribuées, jusqu'à la première sœur d'un rang supérieur (ADR-0002, « Rangs »).
+// sont réattribuées, jusqu'à la première sœur d'un rang supérieur (ADR-0002, « Rangs »). Si la
+// borne ne laisse aucun rang admis à la position, la réattribution s'élargit à la fratrie (F-029).
 function insertionALaPosition(
   etat: EtatLu,
   soeurs: readonly PageLue[],
   position: number,
+  borne: number,
 ): Insertion {
   const rangs = soeurs.map((soeur) => exigerEntree(etat, soeur.id).rang);
   const fin = finDesRangsEgauxAuPrecedent(rangs, position);
   const haut = rangs[fin] ?? BORNE_HAUTE;
-  const rang = rangEntre(rangs[position - 1] ?? BORNE_BASSE, haut);
-  const reattribuees = soeurs.slice(position, fin).map((soeur) => soeur.id);
-  return { rang, rangsReattribues: rangsCroissantsEntre(rang, haut, reattribuees) };
+  const rang = rangEntre(rangs[position - 1] ?? BORNE_BASSE, haut, borne);
+  if (rang !== AUCUN_RANG_ADMIS) {
+    const reattribuees = soeurs.slice(position, fin).map((soeur) => soeur.id);
+    const rangsReattribues = rangsCroissantsEntre(rang, haut, reattribuees, borne);
+    if (rangsReattribues !== AUCUN_RANG_ADMIS) {
+      return { rang, rangsReattribues };
+    }
+  }
+  return insertionElargie(soeurs, rangs, position, borne);
+}
+
+// Réattribution élargie (F-029-AC7) : toute la fratrie lue, page insérée comprise, reçoit des rangs
+// courts répartis dans l'ordre demandé. Seules les sœurs dont le rang change sont réécrites. Le refus
+// `rang-indisponible` (F-029-AC10) vient après tous les autres contrôles de l'opération.
+function insertionElargie(
+  soeurs: readonly PageLue[],
+  rangs: readonly Rang[],
+  position: number,
+  borne: number,
+): Insertion {
+  const repartis = rangsRepartis(soeurs.length + 1, borne);
+  const rang = repartis === AUCUN_RANG_ADMIS ? undefined : repartis[position];
+  if (repartis === AUCUN_RANG_ADMIS || rang === undefined) {
+    throw new ErreurDocument(
+      "rang-indisponible",
+      `Aucun rang admis ne permet de placer la page en position ${position}.`,
+    );
+  }
+  const rangsReattribues = new Map<IdPage, Rang>();
+  soeurs.forEach((soeur, indice) => {
+    const nouveau = repartis[indice < position ? indice : indice + 1];
+    if (nouveau !== undefined && nouveau !== rangs[indice]) {
+      rangsReattribues.set(soeur.id, nouveau);
+    }
+  });
+  return { rang, rangsReattribues };
 }
 
 function finDesRangsEgauxAuPrecedent(rangs: readonly Rang[], position: number): number {
@@ -319,6 +375,15 @@ function placesDesAutresPages(
   return places;
 }
 
-function ecrirePlaces(doc: Y.Doc, places: ReadonlyMap<IdPage, Place>): void {
+function placesAdmises(
+  places: ReadonlyMap<IdPage, Place>,
+  borne: number,
+): Map<IdPage, PlaceAdmise> {
+  const admises = new Map<IdPage, PlaceAdmise>();
+  places.forEach((place, id) => admises.set(id, admettrePlace(place, borne)));
+  return admises;
+}
+
+function ecrirePlaces(doc: Y.Doc, places: ReadonlyMap<IdPage, PlaceAdmise>): void {
   places.forEach((place, id) => ecrirePlace(doc, id, place));
 }

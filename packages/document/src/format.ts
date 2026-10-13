@@ -3,6 +3,7 @@
 import * as Y from "yjs";
 
 import type { EntreePage, IdPage } from "./arbre.ts";
+import { ErreurDocument } from "./erreurs.ts";
 import { estUnRang } from "./rang.ts";
 
 export const LONGUEUR_MAX_TITRE = 200;
@@ -20,14 +21,36 @@ export interface Place {
   readonly rang: string;
 }
 
-type NouvellePage = Omit<EntreePage, "corbeille">;
+declare const placeAdmise: unique symbol;
+/** Place dont le rang est admis : seule `admettrePlace` en produit une (F-029-AC6). */
+export type PlaceAdmise = Place & { readonly [placeAdmise]: true };
+
+interface NouvellePage {
+  readonly id: IdPage;
+  readonly titre: string;
+  readonly place: PlaceAdmise;
+}
 
 export function ecrireVersion(doc: Y.Doc): void {
   doc.getMap(TYPE_META).set(CLE_VERSION, VERSION_DE_FORMAT);
 }
 
-export function ecrireNouvellePage(doc: Y.Doc, { id, titre, parent, rang }: NouvellePage): void {
-  const place: Place = { parent, rang };
+/**
+ * Seul point de contrôle du rang écrit (F-029-AC6) : toute écriture de `place` exige une
+ * `PlaceAdmise`, obtenue ici avant l'ouverture de la transaction. Un rang non admis est refusé par
+ * `rang-indisponible`, sans rien écrire.
+ */
+export function admettrePlace(place: Place, longueurMaxRang: number): PlaceAdmise {
+  if (!estUnRang(place.rang, longueurMaxRang)) {
+    throw new ErreurDocument(
+      "rang-indisponible",
+      "Aucun rang admis ne permet de placer la page à cet endroit.",
+    );
+  }
+  return { parent: place.parent, rang: place.rang } as PlaceAdmise;
+}
+
+export function ecrireNouvellePage(doc: Y.Doc, { id, titre, place }: NouvellePage): void {
   const champs = new Y.Map<unknown>();
   champs.set(CHAMP_TITRE, titre);
   champs.set(CHAMP_PLACE, place);
@@ -39,7 +62,7 @@ export function ecrireTitre(doc: Y.Doc, id: IdPage, titre: string): void {
   champsDe(doc, id)?.set(CHAMP_TITRE, titre);
 }
 
-export function ecrirePlace(doc: Y.Doc, id: IdPage, place: Place): void {
+export function ecrirePlace(doc: Y.Doc, id: IdPage, place: PlaceAdmise): void {
   champsDe(doc, id)?.set(CHAMP_PLACE, place);
 }
 
@@ -56,10 +79,11 @@ export function estDeVersionPriseEnCharge(doc: Y.Doc): boolean {
 // Une entrée mal formée est ignorée, sans exception (ADR-0002, étape 2). Un champ peut manquer sans
 // que personne n'ait mal écrit : quand Yjs retient une mise à jour qui remplace un champ, l'ancienne
 // valeur est déjà supprimée et la nouvelle n'est pas encore là.
-export function lireEntrees(doc: Y.Doc): Map<IdPage, EntreePage> {
+// Un rang plus long que `longueurMaxRang` rend l'entrée mal formée (F-029-AC1).
+export function lireEntrees(doc: Y.Doc, longueurMaxRang: number): Map<IdPage, EntreePage> {
   const entrees = new Map<IdPage, EntreePage>();
   doc.getMap(TYPE_PAGES).forEach((valeur, id) => {
-    const entree = lireEntree(id, valeur);
+    const entree = lireEntree(id, valeur, longueurMaxRang);
     if (entree !== undefined) {
       entrees.set(id, entree);
     }
@@ -72,13 +96,13 @@ function champsDe(doc: Y.Doc, id: IdPage): Y.Map<unknown> | undefined {
   return valeur instanceof Y.Map ? valeur : undefined;
 }
 
-function lireEntree(id: IdPage, valeur: unknown): EntreePage | undefined {
+function lireEntree(id: IdPage, valeur: unknown, longueurMaxRang: number): EntreePage | undefined {
   if (!(valeur instanceof Y.Map)) {
     return undefined;
   }
   const titre: unknown = valeur.get(CHAMP_TITRE);
   const corbeille: unknown = valeur.get(CHAMP_CORBEILLE);
-  const place = lirePlace(valeur.get(CHAMP_PLACE));
+  const place = lirePlace(valeur.get(CHAMP_PLACE), longueurMaxRang);
   if (!estUnTitreAdmis(titre) || typeof corbeille !== "boolean" || place === undefined) {
     return undefined;
   }
@@ -89,7 +113,7 @@ function estUnTitreAdmis(valeur: unknown): valeur is string {
   return typeof valeur === "string" && valeur.length <= LONGUEUR_MAX_TITRE;
 }
 
-function lirePlace(valeur: unknown): Place | undefined {
+function lirePlace(valeur: unknown, longueurMaxRang: number): Place | undefined {
   if (!estUnObjet(valeur)) {
     return undefined;
   }
@@ -97,7 +121,7 @@ function lirePlace(valeur: unknown): Place | undefined {
   if ((parent !== null && typeof parent !== "string") || typeof rang !== "string") {
     return undefined;
   }
-  return estUnRang(rang) ? { parent, rang } : undefined;
+  return estUnRang(rang, longueurMaxRang) ? { parent, rang } : undefined;
 }
 
 // Un tableau ou un type partagé Yjs passent ici, et sont écartés ensuite : ni l'un ni l'autre ne

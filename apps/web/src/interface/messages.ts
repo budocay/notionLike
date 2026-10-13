@@ -80,6 +80,8 @@ const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
     "Cet espace a été fermé dans cet onglet : l'action n'a pas été effectuée. Rechargez la page pour le rouvrir.",
   "version-invalide":
     "Cette page ne peut pas passer à la version de format demandée : l'action n'a pas été effectuée.",
+  "rang-indisponible":
+    "Impossible de placer la page à cet endroit : l'action n'a pas été effectuée.",
 };
 
 export function messageErreur(code: CodeErreurDocument): string {
