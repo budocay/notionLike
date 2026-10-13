@@ -12,7 +12,9 @@ import {
   type ReponseSante,
 } from "@notionlike/contrats";
 import type { Base } from "@notionlike/db";
+import type { Express } from "express";
 
+import type { Adhesions } from "../src/adhesions.ts";
 import { creerApplication } from "../src/application.ts";
 import { lireConfiguration } from "../src/configuration.ts";
 import { creerJournal } from "../src/journal.ts";
@@ -46,6 +48,8 @@ export type LigneDeJournal = Readonly<Record<string, unknown>>;
 
 export interface ServeurDEssai {
   readonly url: string;
+  // L'application servie : un test y énumère les routes enregistrées (F-011-AC8, AC32).
+  readonly application: Express;
   readonly port: number;
   // La fonction de suppression de session de ce serveur : un test s'y abonne (F-009-AC33).
   readonly suppression: SuppressionDeSessions;
@@ -57,6 +61,10 @@ export interface ServeurDEssai {
 export interface Reglages {
   readonly env?: Readonly<Record<string, string>>;
   readonly delaiArretMs?: number;
+  // F-011 H10 : l'horloge des invitations et du plafond d'acceptation.
+  readonly horloge?: () => Date;
+  // F-011-AC32 : le module des écritures d'adhésion, auquel le test s'abonne.
+  readonly adhesions?: Adhesions;
 }
 
 const serveursLances: ServeurDEssai[] = [];
@@ -76,7 +84,14 @@ export async function lancerServeur(base: Base, reglages: Reglages = {}): Promis
   });
   const journal = creerJournal(sortie);
   const suppression = creerSuppressionDeSessions(base, journal);
-  const application = creerApplication({ configuration, base, journal, suppression });
+  const application = creerApplication({
+    configuration,
+    base,
+    journal,
+    suppression,
+    ...(reglages.horloge === undefined ? {} : { horloge: reglages.horloge }),
+    ...(reglages.adhesions === undefined ? {} : { adhesions: reglages.adhesions }),
+  });
   const ecoute = await demarrerServeur({
     application,
     hote: configuration.hote,
@@ -86,6 +101,7 @@ export async function lancerServeur(base: Base, reglages: Reglages = {}): Promis
   const texteDuJournal = (): string => morceaux.join("");
   const serveur: ServeurDEssai = {
     url: `http://${configuration.hote}:${ecoute.port}`,
+    application,
     port: ecoute.port,
     suppression,
     texteDuJournal,
