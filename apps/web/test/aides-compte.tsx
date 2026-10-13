@@ -14,6 +14,7 @@ import { StrictMode } from "react";
 import { afterEach } from "vitest";
 
 import { creerClientDeCompte } from "../src/compte/client-auth.ts";
+import { creerClientDesEspaces } from "../src/compte/client-espaces.ts";
 import type { Compte } from "../src/compte/index.ts";
 import type { Requeter } from "../src/compte/moi.ts";
 import { suivreLeCompte } from "../src/compte/suivi-du-compte.ts";
@@ -155,7 +156,11 @@ afterEach(() => {
 export function compteSimule(serveur: ServeurSimule, delaiMs?: number): Compte {
   const suivi = suivreLeCompte(serveur.requeter, delaiMs);
   suivis.push(suivi);
-  return { suivi, client: creerClientDeCompte({ requeter: serveur.requeter, delaiMs }) };
+  return {
+    suivi,
+    client: creerClientDeCompte({ requeter: serveur.requeter, delaiMs }),
+    espaces: creerClientDesEspaces(serveur.requeter, delaiMs),
+  };
 }
 
 export interface ApplicationAvecCompte {
