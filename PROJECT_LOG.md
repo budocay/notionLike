@@ -119,3 +119,15 @@
 - Tests: 1760 tests sur 78 fichiers (relevé d'agent-frontend sur `4ee3568`) ; bout en bout 51 scénarios, avec la configuration temporaire du conteneur (Chromium 1194) — état: verts — preuve: checks.txt du premier dossier (`0e26d9307fac`, 77 fichiers, 1712 tests) ; AC35 et AC28 ajoutés ensuite, relevés par l'agent
 - Gates: premier passage (`0e26d9307fac`) : SECURITY PASS · CRAFT PASS · ARCHITECTURE FAIL · revue reviewer-frontend CHANGES_REQUESTED ; empreinte finale `670976c29707` acceptée par DEROGATION D-015 du dev pour les quatre gates
 - Mesures: boucles 1 passage · constats confirmés : couture d'AC35 absente, scénario d'AC28 absent (livrés dans le tour ciblé), cycle de modules, ADR tardif, tests d'autres features modifiés non déclarés · faux positifs non comptés · coût non mesuré
+
+## [2026-10-13] F-009 Comptes et sessions côté serveur (better-auth)
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/server`, `packages/db`, `packages/contrats`, `infra/tests` — agents: agent-backend, agent-bdd, agent-devops, agent-architecte-conception, orchestrateur, dev (règles de dépendances `8ad53a3`, scripts d'esbuild `eace358`, override pnpm `fb1ea83`) — commits: a07bcf0..fb1ea83 (code), intégration de `main` (F-003) `428d688`
+- Détail: inscription, connexion, session en base avec cookie opaque signé, déconnexion vérifiée, `/api/v1/moi`, limitation de débit, journal sans secret, contrôle d'`Origin` à la place de CORS ; better-auth 1.7.7 réduit à une liste fermée de routes ; schéma des comptes et migration `0000_comptes` ; `drizzle-kit`, `tsx` et `esbuild` sortis de l'image de production par l'override `better-auth>drizzle-kit: "-"`. Fumée Docker du dev sur la tête portant `fb1ea83` : `FUMEE: OK (constats 1 à 11)`, `EXIT 0`, `trivy image` sans constat HIGH ni CRITICAL.
+- Dette: introduite D-016 (F-009 acceptée par le dev par dérogation après l'intégration de F-003 ; points du gate d'architecture non traités : couture des appelants de `creerApplication` et `lireConfiguration`, variables du service `serveur` dans Compose non vérifiées) ; limites dans « Dette et limites » de `MEMORY/features/F-009.md` ; laissées D-002, D-007, D-008, D-011, D-014
+- ADR: ADR-0011 (accepté par le dev le 2026-10-13, après le code)
+- Tests: 2048 tests sur 95 fichiers après l'intégration de F-003 (relevé d'agent-architecte-conception sur `428d688`) — état: verts — preuve: checks.txt du dossier `0f16e390dec9` (80 fichiers, 1837 tests) ; fumée Docker relevée par le dev
+- Gates: passage unique sur `0f16e390dec9` : SECURITY PASS · CRAFT PASS · revues reviewer-bdd, reviewer-backend, reviewer-api APPROVED · ARCHITECTURE FAIL (couture d'AC23, Compose, contradictions d'`ARCHITECTURE.md` corrigées depuis) ; empreinte finale après l'intégration de F-003 acceptée par DEROGATION D-016 du dev
+- Mesures: boucles 1 passage · constats confirmés : 7 défauts de `f8891ab` corrigés dans `83b5802` ; image de production porteuse d'esbuild (55 constats trivy), corrigée par `fb1ea83` · faux positifs non comptés · coût non mesuré
