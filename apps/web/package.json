@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@notionlike/contrats": "workspace:*",
     "@notionlike/document": "workspace:*",
     "@tiptap/core": "3.31.4",
     "@tiptap/extension-collaboration": "3.31.4",
@@ -25,6 +26,7 @@
     "@tiptap/pm": "3.31.4",
     "@tiptap/react": "3.31.4",
     "@tiptap/y-tiptap": "3.0.9",
+    "better-auth": "1.7.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "y-indexeddb": "9.0.12",

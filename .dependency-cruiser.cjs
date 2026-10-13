@@ -96,9 +96,8 @@ module.exports = {
       name: "better-auth-client-un-seul-module",
       severity: "error",
       comment:
-        "F-009-AC24 : better-auth/client n'est importé par aucun module du serveur ni d'un paquet, et par un seul module d'apps/web (F-010-AC22) ; tant que F-010 n'est pas livrée, aucun module ne l'importe.",
-      // F-010 n'ajoute ici que le chemin de son module : from: { pathNot: "^apps/web/src/<module>\\.ts$" }.
-      from: {},
+        "F-009-AC24, F-010-AC22 : better-auth/client n'est importé par aucun module du serveur ni d'un paquet, et par un seul module d'apps/web, src/compte/client-auth.ts.",
+      from: { pathNot: "^apps/web/src/compte/client-auth\\.ts$" },
       to: {
         path: [
           "(^|/)node_modules/better-auth/dist/client/index\\.(d\\.mts|mjs)$",
@@ -242,16 +241,31 @@ module.exports = {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007, F-003-AC27 : hors persistance, espace, navigation, identifiants, édition et page, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+        "ADR-0007, F-003-AC27, F-010 : hors persistance, espace, navigation, identifiants, édition, page et compte, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
       from: {
         path: "^apps/web/src/",
-        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page)/",
+        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte)/",
       },
       to: {
         pathNot: [
           "^apps/web/src/(?!(persistance|identifiants)/)",
           "^packages/document/src/index\\.ts$",
           "(^|/)node_modules/(react|react-dom)/",
+        ],
+      },
+    },
+    {
+      name: "web-compte-liste-blanche",
+      severity: "error",
+      comment:
+        "F-010-AC22, F-010-AC27 : le module de compte n'importe que lui-même, l'entrée publique de @notionlike/contrats et better-auth/client (réservé à compte/client-auth.ts par better-auth-client-un-seul-module) : ni React, ni l'interface, ni la persistance.",
+      from: { path: "^apps/web/src/compte/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/compte/",
+          "^packages/contrats/src/index\\.ts$",
+          "(^|/)node_modules/better-auth/dist/client/index\\.(d\\.mts|mjs)$",
+          "^better-auth/client$",
         ],
       },
     },

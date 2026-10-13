@@ -182,6 +182,22 @@ export default tseslint.config(
     },
   },
   {
+    // F-010-AC21 : seul ce fichier d'apps/web nomme fetch ; les autres globales y restent interdites.
+    files: ["apps/web/src/compte/reseau.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: [
+            ...GLOBALES_INTERDITES_WEB.filter(({ name }) => name !== "fetch"),
+            GLOBALE_INDEXEDDB,
+          ],
+          checkGlobalObject: true,
+        },
+      ],
+    },
+  },
+  {
     files: FICHIERS_NOM_DE_BASE_WEB,
     rules: {
       "no-restricted-syntax": ["error", SYNTAXE_HTML_BRUT],
