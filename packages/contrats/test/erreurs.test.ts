@@ -15,7 +15,18 @@ const CODES_DE_F008: readonly CodeErreur[] = [
 
 const CODES_DE_F009: readonly CodeErreur[] = ["non-authentifie", "trop-de-requetes"];
 
-const CODES_DE_LA_SPEC = [...CODES_DE_F008, ...CODES_DE_F009];
+// F-011-AC31 : les sept codes de F-011, ajoutés après ceux de F-009.
+const CODES_DE_F011: readonly CodeErreur[] = [
+  "acces-refuse",
+  "origine-refusee",
+  "identifiant-indisponible",
+  "dernier-proprietaire",
+  "deja-membre",
+  "invitation-invalide",
+  "quota-atteint",
+];
+
+const CODES_DE_LA_SPEC = [...CODES_DE_F008, ...CODES_DE_F009, ...CODES_DE_F011];
 
 const CODES_MAL_FORMES = [
   ["un tiret bas", "requete_invalide"],
@@ -45,8 +56,16 @@ describe("liste fermée des codes d'erreur", () => {
     expect(CODES_ERREUR.slice(0, CODES_DE_F008.length)).toEqual(CODES_DE_F008);
   });
 
-  it("F-009-AC22 F-009-AC23 la liste n'est modifiée que par l'ajout de non-authentifie et trop-de-requetes", () => {
-    expect([...CODES_ERREUR]).toEqual([...CODES_DE_F008, "non-authentifie", "trop-de-requetes"]);
+  it("F-009-AC22 F-009-AC23 les codes de F-009 suivent ceux de F-008, dans leur ordre", () => {
+    expect(CODES_ERREUR.slice(0, CODES_DE_F008.length + CODES_DE_F009.length)).toEqual([
+      ...CODES_DE_F008,
+      "non-authentifie",
+      "trop-de-requetes",
+    ]);
+  });
+
+  it("F-011-AC31 F-011-AC33 la liste n'est modifiée que par l'ajout des sept codes de F-011, à la fin", () => {
+    expect([...CODES_ERREUR]).toEqual([...CODES_DE_F008, ...CODES_DE_F009, ...CODES_DE_F011]);
   });
 
   it("F-008-AC22 aucun code publié n'échappe à la convention", () => {

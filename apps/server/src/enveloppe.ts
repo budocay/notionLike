@@ -23,6 +23,18 @@ const REPONSES: Readonly<Record<CodeErreur, { statut: number; message: string }>
   "erreur-interne": { statut: 500, message: "Une erreur interne est survenue." },
   "non-authentifie": { statut: 401, message: "Cette requête exige une session valide." },
   "trop-de-requetes": { statut: 429, message: "Trop de requêtes : réessayez plus tard." },
+  // F-011-AC31, H12 : 404 pour ce qu'un compte ne doit pas voir, 403 pour un rôle insuffisant ou
+  // une origine refusée, 409 pour un conflit d'état.
+  "acces-refuse": { statut: 403, message: "Votre rôle ne permet pas cette action." },
+  "origine-refusee": { statut: 403, message: "L'origine de la requête est refusée." },
+  "identifiant-indisponible": { statut: 409, message: "Cet identifiant est indisponible." },
+  "dernier-proprietaire": {
+    statut: 409,
+    message: "L'espace doit garder au moins un propriétaire.",
+  },
+  "deja-membre": { statut: 409, message: "Le compte est déjà membre de cet espace." },
+  "invitation-invalide": { statut: 404, message: "L'invitation est invalide." },
+  "quota-atteint": { statut: 409, message: "Un quota est atteint." },
 };
 
 // F-008-AC4 : l'identifiant est généré ici ; celui que la requête porterait n'est jamais lu.
