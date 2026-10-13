@@ -102,11 +102,25 @@ describe("structure du paquet", () => {
     expect(fautesDuManifeste(fautif)).toEqual([faute]);
   });
 
-  it("F-008-AC17 F-009-AC23 l'entrée publique n'exporte que ouvrirBase, ErreurBase, le schéma des comptes et la suppression de sessions", () => {
+  it("F-008-AC17 F-009-AC23 F-011-AC32 l'entrée publique n'exporte que ouvrirBase, ErreurBase, le schéma des comptes, la suppression de sessions, les rôles et les requêtes des espaces, des membres et des invitations", () => {
     expect(Object.keys(entreePublique).sort()).toEqual([
       "ErreurBase",
+      "ROLES",
+      "ROLES_INVITABLES",
+      "accepterInvitation",
+      "changerRole",
+      "creerEspace",
+      "creerInvitation",
+      "lireAdhesion",
+      "listerEspaces",
+      "listerInvitationsEnAttente",
+      "listerMembres",
       "ouvrirBase",
+      "renommerEspace",
+      "retirerMembre",
+      "revoquerInvitation",
       "schemaComptes",
+      "supprimerEspace",
       "supprimerSessions",
     ]);
   });

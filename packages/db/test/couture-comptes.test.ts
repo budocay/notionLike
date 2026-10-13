@@ -6,14 +6,17 @@ import { describe, expect, it } from "vitest";
 
 import { faitEntrer, fichiersDuWorkspace } from "./fichiers-du-workspace.ts";
 
-// Dans le paquet : la définition, la requête sur les sessions, les tests qui interrogent, et ce
-// fichier, qui porte les motifs cherchés.
+// Dans le paquet : la définition, la requête sur les sessions, depuis F-011 le type commun des
+// requêtes des espaces (`requetes.ts`, que les trois modules d'espaces importent), les tests qui
+// interrogent, et ce fichier, qui porte les motifs cherchés.
 const QUI_LIT_L_ACCES_ICI = [
   "packages/db/test/couture-comptes.test.ts",
   "packages/db/src/acces.ts",
+  "packages/db/src/requetes.ts",
   "packages/db/src/sessions.ts",
   "packages/db/test/acces.test.ts",
   "packages/db/test/comptes.test.ts",
+  "packages/db/test/espaces.test.ts",
   "packages/db/test/migration.test.ts",
   "packages/db/test/sessions.test.ts",
 ];
