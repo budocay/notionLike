@@ -600,7 +600,6 @@ describe("raccourcis : une seule source", () => {
       "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],
       "src/interface/flottant.ts": ["Escape"],
       "src/interface/tiroir.ts": ["Escape"],
-      "src/interface/composants/Espaces.tsx": ["Escape"],
     });
     expect(lire(DECLARATION)).toContain('touche: "F2"');
     // Les modificateurs ne sont lus que par la déclaration, pour une frappe, et par le module des

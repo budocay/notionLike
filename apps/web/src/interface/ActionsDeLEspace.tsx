@@ -16,6 +16,7 @@ import {
   ESPACE_SUPPRIME,
   etiquetteConfirmation,
   ETIQUETTE_NOM_D_ESPACE,
+  NOMBRE_DE_MEMBRES_INCONNU,
   nomQuitter,
   nomRenommer,
   nomSupprimer,
@@ -31,7 +32,7 @@ import {
   titreSuppression,
   VALIDER_LE_NOM,
 } from "./messages-espaces.ts";
-import { useBoite } from "./outils-espaces.ts";
+import { useBoite, touchesDeBoite, toucheDAbandon } from "./outils-espaces.ts";
 
 type Confirmation = "suppression" | "depart";
 
@@ -59,7 +60,13 @@ export function ActionsDeLEspace({
           confirmer={boite.ouvrir}
         />
       )}
-      {boite.ouverte === "suppression" && <Suppression contexte={contexte} fermer={boite.fermer} />}
+      {boite.ouverte === "suppression" && contexte.membres !== undefined && (
+        <Suppression
+          contexte={contexte}
+          nombreDeMembres={contexte.membres.length}
+          fermer={boite.fermer}
+        />
+      )}
       {boite.ouverte === "depart" && <Depart contexte={contexte} fermer={boite.fermer} />}
     </>
   );
@@ -95,7 +102,9 @@ function BarreDActions(props: {
         <Bouton
           libelle={SUPPRIMER_CET_ESPACE}
           nom={nomSupprimer(espace.nom)}
-          raison={raison}
+          raison={
+            raison ?? (props.contexte.membres === undefined ? NOMBRE_DE_MEMBRES_INCONNU : undefined)
+          }
           surActivation={() => props.confirmer("suppression")}
         />
       )}
@@ -132,7 +141,11 @@ function Renommage(props: {
     }
   };
   return (
-    <Formulaire nom={RENOMMER} surEnvoi={() => void valider()} surEchap={props.fermer}>
+    <Formulaire
+      nom={RENOMMER}
+      surEnvoi={() => void valider()}
+      surTouche={toucheDAbandon(props.fermer)}
+    >
       <ChampDeCompte
         etiquette={ETIQUETTE_NOM_D_ESPACE}
         marque={MARQUE_OBLIGATOIRE}
@@ -156,7 +169,9 @@ interface ProprietesBoite {
   readonly fermer: () => void;
 }
 
-function Suppression({ contexte, fermer }: ProprietesBoite): ReactElement {
+/** Ouverte seulement quand les membres ont été lus : l'avertissement en donne le vrai nombre. */
+function Suppression(props: ProprietesBoite & { readonly nombreDeMembres: number }): ReactElement {
+  const { contexte, fermer } = props;
   const { espace } = contexte;
   const [saisie, setSaisie] = useState("");
   const annuler = useRef<HTMLButtonElement>(null);
@@ -175,9 +190,9 @@ function Suppression({ contexte, fermer }: ProprietesBoite): ReactElement {
     <BoiteDeDialogue
       alerte
       titre={titreSuppression(espace.nom)}
-      phrases={texteSuppression(contexte.membres?.length ?? 1)}
+      phrases={texteSuppression(props.nombreDeMembres)}
       initial={annuler}
-      surFermeture={fermer}
+      surTouche={touchesDeBoite(fermer)}
     >
       <ChampDeCompte
         etiquette={etiquetteConfirmation(espace.nom)}
@@ -221,7 +236,7 @@ function Depart({ contexte, fermer }: ProprietesBoite): ReactElement {
       titre={titreDepart(contexte.espace.nom)}
       phrases={[TEXTE_DEPART]}
       initial={annuler}
-      surFermeture={fermer}
+      surTouche={touchesDeBoite(fermer)}
     >
       <Actions>
         <Bouton refBouton={annuler} libelle={ANNULER} surActivation={fermer} />

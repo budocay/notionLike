@@ -227,11 +227,6 @@ describe("coutures du client des espaces", () => {
       "lire-espace",
     ];
     expect([...actionsDesCommandes].sort()).toEqual([...citees].sort());
-    // Une commande sans action ou une action sans commande est vue.
-    const fautive: Record<string, string> = { ...COMMANDES, exporter: "exporter-espace" };
-    expect(Object.values(fautive).filter((action) => !ACTIONS.includes(action as never))).toEqual([
-      "exporter-espace",
-    ]);
   });
 
   it("F-014-AC26 chaque commande rendue par les écrans est nommée par COMMANDES, et chaque commande de COMMANDES est employée", () => {

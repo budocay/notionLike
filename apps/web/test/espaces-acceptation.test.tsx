@@ -78,20 +78,23 @@ describe("ouverture d'un lien d'invitation", () => {
       if (bloquer) {
         window.addEventListener("hashchange", bloqueur, { capture: true });
       }
-      const longueur = window.history.length;
-      const serveur = serveurDeLInvite(true);
-      const { utilisateur } = await ouvrirLOngletA(serveur, LIEN);
+      try {
+        const longueur = window.history.length;
+        const serveur = serveurDeLInvite(true);
+        const { utilisateur } = await ouvrirLOngletA(serveur, LIEN);
 
-      expect((await titrePrincipal()).textContent).toBe("Invitation");
-      await screen.findByRole("button", { name: "Rejoindre l'espace" });
-      expect(window.location.hash).toBe("#/invitation");
-      expect(window.history.length).toBe(longueur);
-      expect(serveur.routesAppelees().filter((route) => route !== ROUTES.moi)).toEqual([]);
+        expect((await titrePrincipal()).textContent).toBe("Invitation");
+        await screen.findByRole("button", { name: "Rejoindre l'espace" });
+        expect(window.location.hash).toBe("#/invitation");
+        expect(window.history.length).toBe(longueur);
+        expect(serveur.routesAppelees().filter((route) => route !== ROUTES.moi)).toEqual([]);
 
-      await utilisateur.click(screen.getByRole("button", { name: "Rejoindre l'espace" }));
-      await screen.findByText(/Vous avez rejoint/);
-      expect(corpsDe(serveur, R.accepter)).toEqual([{ jeton: JETON_INVITATION }]);
-      window.removeEventListener("hashchange", bloqueur, { capture: true });
+        await utilisateur.click(screen.getByRole("button", { name: "Rejoindre l'espace" }));
+        await screen.findByText(/Vous avez rejoint/);
+        expect(corpsDe(serveur, R.accepter)).toEqual([{ jeton: JETON_INVITATION }]);
+      } finally {
+        window.removeEventListener("hashchange", bloqueur, { capture: true });
+      }
     },
   );
 

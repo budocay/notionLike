@@ -3,7 +3,7 @@
 // par le serveur la permet (F-014-AC27) ; le serveur reste seul juge (F-014-AC28).
 import { type ReactElement, useSyncExternalStore } from "react";
 
-import type { Compte } from "../compte/index.ts";
+import type { Compte, ErreurDEspaces } from "../compte/index.ts";
 import { fragmentDEcran } from "../navigation/route.ts";
 import { ActionsDeLEspace } from "./ActionsDeLEspace.tsx";
 import {
@@ -23,6 +23,7 @@ import {
   DEMANDE_UNE_CONNEXION,
   libelleDuRole,
   REESSAYER,
+  RELIRE_L_ESPACE,
   RETOUR_AUX_ESPACES,
   texteDEchec,
   TITRE_DES_ESPACES,
@@ -59,16 +60,7 @@ export function EcranDUnEspace({ compte, idEspace, revenirALaListe }: Proprietes
     return (
       <EcranDEspaces titre={TITRE_DES_ESPACES}>
         {retour}
-        {ecran.echecDeLecture === undefined ? (
-          <Texte>{CHARGEMENT_DE_L_ESPACE}</Texte>
-        ) : (
-          <>
-            <Alerte phrases={texteDEchec(ecran.echecDeLecture)} />
-            <Actions>
-              <Bouton libelle={REESSAYER} surActivation={ecran.relireTout} />
-            </Actions>
-          </>
-        )}
+        <EspaceNonLu echec={ecran.echecDeLecture} relire={ecran.relireTout} />
       </EcranDEspaces>
     );
   }
@@ -78,9 +70,32 @@ export function EcranDUnEspace({ compte, idEspace, revenirALaListe }: Proprietes
       <Texte>{`${VOTRE_ROLE} ${libelleDuRole(contexte.espace.role)}`}</Texte>
       <Annonce texte={ecran.annonce ?? ""} />
       {ecran.alerte !== undefined && <Alerte phrases={ecran.alerte} />}
+      {ecran.horsLigne && (
+        <Actions>
+          <Bouton libelle={RELIRE_L_ESPACE} surActivation={ecran.relireTout} />
+        </Actions>
+      )}
       <ActionsDeLEspace contexte={contexte} />
       <MembresDeLEspace contexte={contexte} />
       <InvitationsDeLEspace contexte={contexte} />
     </EcranDEspaces>
+  );
+}
+
+/** L'espace pas encore lu : son chargement, ou l'échec de la lecture avec « Réessayer ». */
+function EspaceNonLu(props: {
+  readonly echec: ErreurDEspaces | undefined;
+  readonly relire: () => void;
+}): ReactElement {
+  if (props.echec === undefined) {
+    return <Texte>{CHARGEMENT_DE_L_ESPACE}</Texte>;
+  }
+  return (
+    <>
+      <Alerte phrases={texteDEchec(props.echec)} />
+      <Actions>
+        <Bouton libelle={REESSAYER} surActivation={props.relire} />
+      </Actions>
+    </>
   );
 }

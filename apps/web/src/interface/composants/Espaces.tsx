@@ -65,8 +65,8 @@ export function Annonce({ texte }: { readonly texte: string }): ReactElement {
 export function Alerte({ phrases }: { readonly phrases: readonly string[] }): ReactElement {
   return (
     <div role="alert" className={ESPACES.alerte}>
-      {phrases.map((phrase) => (
-        <p key={phrase}>{phrase}</p>
+      {phrases.map((phrase, rang) => (
+        <p key={`${String(rang)}:${phrase}`}>{phrase}</p>
       ))}
     </div>
   );
@@ -196,22 +196,16 @@ export function Choix(props: ProprietesChoix): ReactElement {
   );
 }
 
-/** Formulaire envoyé par Entrée ; Échap l'abandonne sans requête (F-014-AC9, AC35). */
+/** Formulaire envoyé par Entrée ; ses touches (Échap) sont lues par qui le rend (F-014-AC9, AC35). */
 export function Formulaire(props: {
   readonly nom: string;
   readonly surEnvoi: () => void;
-  readonly surEchap?: (() => void) | undefined;
+  readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
   readonly children: ReactNode;
 }): ReactElement {
   const envoyer = (evenement: FormEvent): void => {
     evenement.preventDefault();
     props.surEnvoi();
-  };
-  const touche = (evenement: KeyboardEvent): void => {
-    if (evenement.key === ECHAP && props.surEchap !== undefined) {
-      evenement.preventDefault();
-      props.surEchap();
-    }
   };
   return (
     <form
@@ -219,7 +213,7 @@ export function Formulaire(props: {
       aria-label={props.nom}
       className={ESPACES.formulaire}
       onSubmit={envoyer}
-      onKeyDown={touche}
+      onKeyDown={props.surTouche}
     >
       {props.children}
     </form>
@@ -247,10 +241,6 @@ export function LienEnLecture(props: {
   );
 }
 
-const ECHAP = "Escape";
-const FOCALISABLES =
-  "button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], textarea:not([disabled])";
-
 interface ProprietesBoite {
   /** Vrai : boîte d'alerte, qui demande une confirmation (F-014-AC36). */
   readonly alerte: boolean;
@@ -258,67 +248,69 @@ interface ProprietesBoite {
   readonly phrases: readonly string[];
   /** Élément qui reçoit le focus à l'ouverture : « Annuler » pour une alerte. */
   readonly initial: RefObject<HTMLElement | null>;
-  readonly surFermeture: () => void;
+  /** Touches de la boîte (Échap, Tab, Maj+Tab), lues par qui la rend. */
+  readonly surTouche: (evenement: KeyboardEvent<HTMLElement>) => void;
+  /** Vrai sur la page de démonstration : la boîte est montrée sans rendre la page inerte. */
+  readonly apercu?: boolean | undefined;
   readonly children: ReactNode;
 }
 
 /**
- * Boîte de dialogue modale : focus posé à l'ouverture, Échap la ferme. Le focus y est retenu par
- * deux bornes : atteinte par Tab ou Maj+Tab, chacune le renvoie à l'autre bout de la boîte.
+ * Boîte de dialogue modale : focus posé à l'ouverture ; tant qu'elle est ouverte, tout le reste de
+ * la page est inerte (ni focus, ni pointeur, ni technologies d'assistance), sans élément caché.
  */
 export function BoiteDeDialogue(props: ProprietesBoite): ReactElement {
   const idTitre = useId();
   const idTexte = useId();
-  const boite = useRef<HTMLDivElement>(null);
-  const { initial } = props;
+  const plan = useRef<HTMLDivElement>(null);
+  const { initial, apercu } = props;
   useEffect(() => {
+    const restaurer =
+      apercu === true || plan.current === null ? undefined : rendreLeResteInerte(plan.current);
     initial.current?.focus();
-  }, [initial]);
-  const touche = (evenement: KeyboardEvent): void => {
-    if (evenement.key === ECHAP) {
-      evenement.preventDefault();
-      evenement.stopPropagation();
-      props.surFermeture();
-    }
-  };
+    return restaurer;
+  }, [initial, apercu]);
   return (
-    <div className={ESPACES.plan}>
+    <div ref={plan} className={ESPACES.plan}>
       <div className={ESPACES.voile} />
       <div
-        ref={boite}
         role={props.alerte ? "alertdialog" : "dialog"}
         aria-modal="true"
         aria-labelledby={idTitre}
         aria-describedby={idTexte}
         className={ESPACES.boite}
-        onKeyDown={touche}
+        onKeyDown={props.surTouche}
       >
-        <Borne boite={boite} vers="dernier" />
         <h2 id={idTitre} className={ESPACES.intertitre}>
           {props.titre}
         </h2>
         <div id={idTexte} className={ESPACES.formulaire}>
-          {props.phrases.map((phrase) => (
-            <p key={phrase} className={ESPACES.texte}>
+          {props.phrases.map((phrase, rang) => (
+            <p key={`${String(rang)}:${phrase}`} className={ESPACES.texte}>
               {phrase}
             </p>
           ))}
         </div>
         {props.children}
-        <Borne boite={boite} vers="premier" />
       </div>
     </div>
   );
 }
 
-/** Borne de la boîte : elle ne garde jamais le focus, elle le passe au premier ou au dernier élément. */
-function Borne(props: {
-  readonly boite: RefObject<HTMLDivElement | null>;
-  readonly vers: "premier" | "dernier";
-}): ReactElement {
-  const renvoyer = (): void => {
-    const elements = [...(props.boite.current?.querySelectorAll<HTMLElement>(FOCALISABLES) ?? [])];
-    (props.vers === "premier" ? elements[0] : elements.at(-1))?.focus();
-  };
-  return <span tabIndex={0} aria-hidden="true" onFocus={renvoyer} />;
+const INERTE = "inert";
+
+/** Pose `inert` sur chaque frère de la boîte et de ses ancêtres ; rend de quoi le retirer. */
+function rendreLeResteInerte(plan: HTMLElement): () => void {
+  const poses: Element[] = [];
+  for (let noeud: Element | null = plan; noeud !== null && noeud !== document.body;) {
+    const parent: Element | null = noeud.parentElement;
+    for (const frere of parent?.children ?? []) {
+      if (frere !== noeud && !frere.hasAttribute(INERTE)) {
+        frere.setAttribute(INERTE, "");
+        poses.push(frere);
+      }
+    }
+    noeud = parent;
+  }
+  return () => poses.forEach((element) => element.removeAttribute(INERTE));
 }

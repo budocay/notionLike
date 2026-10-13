@@ -60,7 +60,13 @@ import {
   TITRE_DES_ESPACES,
   VERIFICATION_EN_COURS,
 } from "./messages-espaces.ts";
-import { codeDe, useRelectureAuRetour, useVerrou, type Sortie } from "./outils-espaces.ts";
+import {
+  codeDe,
+  useRelectureAuRetour,
+  useVerrou,
+  type Sortie,
+  toucheDAbandon,
+} from "./outils-espaces.ts";
 
 type Liste =
   | { readonly statut: "attente" }
@@ -221,7 +227,11 @@ function FormulaireDeCreation(props: {
   const creation = useCreation(props.compte, nom, champ);
   useEffect(() => champ.current?.focus(), []);
   return (
-    <Formulaire nom={NOUVEL_ESPACE} surEnvoi={creation.creer} surEchap={props.fermer}>
+    <Formulaire
+      nom={NOUVEL_ESPACE}
+      surEnvoi={creation.creer}
+      surTouche={toucheDAbandon(props.fermer)}
+    >
       <ChampDeCompte
         etiquette={ETIQUETTE_NOM_D_ESPACE}
         marque={MARQUE_OBLIGATOIRE}

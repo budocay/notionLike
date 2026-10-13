@@ -17,6 +17,7 @@ import {
   PLUS_ACCESSIBLE,
   PLUS_LE_DROIT,
   REQUETE_EN_COURS,
+  SERVEUR_INJOIGNABLE_RAISON,
   texteDEchec,
 } from "./messages-espaces.ts";
 import { useRelectureAuRetour, useVerrou, type Verrou, type Sortie } from "./outils-espaces.ts";
@@ -32,6 +33,9 @@ export interface ContexteDEspace {
   readonly moi: string;
   readonly membres: readonly MembreLu[] | undefined;
   readonly invitations: readonly InvitationLue[] | undefined;
+  /** La dernière lecture des membres, des invitations, a échoué : l'écran le dit et propose de relire. */
+  readonly echecDesMembres: boolean;
+  readonly echecDesInvitations: boolean;
   readonly verrou: Verrou;
   /** Raison d'une action permise mais momentanément impossible (F-014-AC29). */
   readonly raison: string | undefined;
@@ -52,6 +56,8 @@ export interface EtatDeLEcran {
   readonly alerte: readonly string[] | undefined;
   /** Échec de la première lecture, quand l'espace n'a pas encore pu être lu. */
   readonly echecDeLecture: ErreurDEspaces | undefined;
+  /** Le dernier appel a échoué par le réseau : les actions attendent une relecture réussie. */
+  readonly horsLigne: boolean;
   readonly relireTout: () => void;
 }
 
@@ -60,6 +66,9 @@ interface Lectures {
   readonly membres: readonly MembreLu[] | undefined;
   readonly invitations: readonly InvitationLue[] | undefined;
   readonly echec: ErreurDEspaces | undefined;
+  readonly echecDesMembres: boolean;
+  readonly echecDesInvitations: boolean;
+  readonly horsLigne: boolean;
 }
 
 const RIEN: Lectures = {
@@ -67,7 +76,18 @@ const RIEN: Lectures = {
   membres: undefined,
   invitations: undefined,
   echec: undefined,
+  echecDesMembres: false,
+  echecDesInvitations: false,
+  horsLigne: false,
 };
+
+/** Raison d'une action désactivée (F-014-AC29) : une requête en cours, ou le serveur injoignable. */
+function raisonDe(occupe: boolean, horsLigne: boolean): string | undefined {
+  if (occupe) {
+    return REQUETE_EN_COURS;
+  }
+  return horsLigne ? SERVEUR_INJOIGNABLE_RAISON : undefined;
+}
 
 export function useEcranDUnEspace(
   compte: Compte,
@@ -93,11 +113,16 @@ export function useEcranDUnEspace(
           moi,
           membres: lectures.membres,
           invitations: lectures.invitations,
+          echecDesMembres: lectures.echecDesMembres,
+          echecDesInvitations: lectures.echecDesInvitations,
           verrou,
-          raison: verrou.occupe ? REQUETE_EN_COURS : undefined,
+          raison: raisonDe(verrou.occupe, lectures.horsLigne),
           annoncer: messages.annoncer,
           alerter: messages.alerter,
-          echouer: (erreur, propres = {}) => traiter(erreur, propres, relire.espace),
+          echouer: (erreur, propres = {}) => {
+            setLectures((avant) => ({ ...avant, horsLigne: erreur.type === "hors-ligne" }));
+            traiter(erreur, propres, relire.espace);
+          },
           relireTout: relire.tout,
           relireInvitations: relire.invitations,
           revenirALaListe,
@@ -109,6 +134,7 @@ export function useEcranDUnEspace(
     annonce: messages.annonce,
     alerte: messages.alerte,
     echecDeLecture: lectures.espace === undefined ? lectures.echec : undefined,
+    horsLigne: lectures.horsLigne,
     relireTout: relire.tout,
   };
 }
@@ -202,21 +228,29 @@ function relectures(
   traiter: Traiter,
 ): Relecture {
   // Un échec de lecture est dit comme celui d'une action ; tant que l'espace n'a pas été lu,
-  // l'écran le montre à la place de l'espace, avec « Réessayer ».
-  const echouer = (erreur: ErreurDEspaces): void => {
-    setLectures((avant) => ({ ...avant, echec: erreur }));
-    traiter(erreur, {}, () => void lireLEspace());
+  // l'écran le montre à la place de l'espace, avec « Réessayer ». Un 403 sur une lecture ne
+  // relance pas de lecture : une seule relecture suit un refus (pas de boucle).
+  const echouer = (erreur: ErreurDEspaces, siEchec: Partial<Lectures>): void => {
+    setLectures((avant) => ({
+      ...avant,
+      ...siEchec,
+      echec: erreur,
+      horsLigne: erreur.type === "hors-ligne",
+    }));
+    traiter(erreur, {}, () => undefined);
   };
   const lire = lecteur(setLectures, echouer);
   const lireLEspace = (): Promise<EspaceLu | undefined> =>
     lire(
       () => compte.espaces.lireEspace(idEspace),
       (espace) => ({ espace, echec: undefined }),
+      {},
     );
   const lireInvitations = (): void =>
     void lire(
       () => compte.espaces.listerInvitations(idEspace),
-      (invitations) => ({ invitations }),
+      (invitations) => ({ invitations, echecDesInvitations: false }),
+      { echecDesInvitations: true },
     );
   const tout = async (): Promise<void> => {
     const espace = await lireLEspace();
@@ -225,7 +259,8 @@ function relectures(
     }
     void lire(
       () => compte.espaces.listerMembres(idEspace),
-      (membres) => ({ membres }),
+      (membres) => ({ membres, echecDesMembres: false }),
+      { echecDesMembres: true },
     );
     if (peut(espace.role, "voir-invitations")) {
       lireInvitations();
@@ -243,20 +278,21 @@ function relectures(
 type Lire = <T>(
   appel: () => Promise<Resultat<T>>,
   poser: (valeur: T) => Partial<Lectures>,
+  siEchec: Partial<Lectures>,
 ) => Promise<T | undefined>;
 
 /** Une lecture : sa valeur posée dans l'état, ou son échec dit ; rien ne lève. */
 function lecteur(
   setLectures: (maj: (avant: Lectures) => Lectures) => void,
-  echouer: (erreur: ErreurDEspaces) => void,
+  echouer: (erreur: ErreurDEspaces, siEchec: Partial<Lectures>) => void,
 ): Lire {
-  return async (appel, poser) => {
+  return async (appel, poser, siEchec) => {
     const resultat = await appel();
     if (!resultat.ok) {
-      echouer(resultat.erreur);
+      echouer(resultat.erreur, siEchec);
       return undefined;
     }
-    setLectures((avant) => ({ ...avant, ...poser(resultat.valeur) }));
+    setLectures((avant) => ({ ...avant, ...poser(resultat.valeur), horsLigne: false }));
     return resultat.valeur;
   };
 }

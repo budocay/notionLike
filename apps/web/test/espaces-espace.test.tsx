@@ -13,6 +13,7 @@ import {
   estDesactive,
   ID_BOB,
   ID_ESPACE,
+  invitations200,
   liste200,
   membre,
   membres200,
@@ -134,7 +135,7 @@ describe("membres", () => {
     );
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Supprimer l'espace/ })).toBeNull(),
+      expect(screen.queryByRole("button", { name: /^Supprimer cet espace/ })).toBeNull(),
     );
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("region", { name: "Invitations en attente" })).toBeNull();
@@ -224,7 +225,7 @@ describe("renommer, supprimer, quitter", () => {
   it("F-014-AC10 F-014-AC36 la suppression : une alerte qui cite le nom, le nombre de membres, l'irréversible et le sort des copies ; « Supprimer définitivement » désactivé tant que le nom exact n'est pas saisi ; Échap ferme sans rien, focus rendu", async () => {
     const serveur = serveurDeLEspace("proprietaire");
     const { utilisateur } = await ouvrirLEspace(serveur);
-    const origine = bouton("Supprimer l'espace Projet Atlas");
+    const origine = bouton("Supprimer cet espace : Projet Atlas");
 
     await utilisateur.click(origine);
     const boite = screen.getByRole("alertdialog", { name: "Supprimer l'espace Projet Atlas ?" });
@@ -258,7 +259,7 @@ describe("renommer, supprimer, quitter", () => {
     const { utilisateur, session } = await ouvrirLEspace(serveur);
     const etatAvant = session.lireEtat();
 
-    await utilisateur.click(bouton("Supprimer l'espace Projet Atlas"));
+    await utilisateur.click(bouton("Supprimer cet espace : Projet Atlas"));
     await utilisateur.type(
       screen.getByRole("textbox", { name: /Saisissez le nom exact/ }),
       "Projet Atlas",
@@ -280,12 +281,12 @@ describe("renommer, supprimer, quitter", () => {
     serveur.poser(R.retirer(COMPTE.id), () => enveloppe(409, "dernier-proprietaire"));
     const { utilisateur } = await ouvrirLEspace(serveur);
 
-    await utilisateur.click(bouton("Quitter l'espace Projet Atlas"));
+    await utilisateur.click(bouton("Quitter cet espace : Projet Atlas"));
     const boite = screen.getByRole("alertdialog", { name: "Quitter l'espace Projet Atlas ?" });
     expect(boite.textContent).toContain("Vous n'y aurez plus accès");
     expect(boite.textContent).toContain("nouvelle invitation");
     await utilisateur.click(
-      within(boite).getByRole("button", { name: "Quitter l'espace Projet Atlas" }),
+      within(boite).getByRole("button", { name: "Quitter cet espace : Projet Atlas" }),
     );
 
     expect(
@@ -297,7 +298,7 @@ describe("renommer, supprimer, quitter", () => {
     expect(serveur.routesAppelees()).toContain(R.retirer(COMPTE.id));
   });
 
-  it("F-014-AC12 un lecteur quitte : 204, retour à la liste sans l'espace", async () => {
+  it("F-014-AC12 un lecteur quitte : 204, retour à la liste sans l'espace, et l'annonce « Vous avez quitté l'espace »", async () => {
     const serveur = serveurDeLEspace("lecteur");
     serveur.poser(R.retirer(COMPTE.id), () => {
       serveur.poser(R.espaces, () => liste200([]));
@@ -305,21 +306,59 @@ describe("renommer, supprimer, quitter", () => {
     });
     const { utilisateur } = await ouvrirLEspace(serveur);
 
-    await utilisateur.click(bouton("Quitter l'espace Projet Atlas"));
+    await utilisateur.click(bouton("Quitter cet espace : Projet Atlas"));
     await utilisateur.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Quitter l'espace Projet Atlas",
+        name: "Quitter cet espace : Projet Atlas",
       }),
     );
 
     await waitFor(() => expect(window.location.hash).toBe("#/espaces"));
     expect(await screen.findByText("Vous n'êtes membre d'aucun espace du serveur.")).toBeTruthy();
+    const annonce = await screen.findByText("Vous avez quitté l'espace");
+    expect(annonce.getAttribute("role")).toBe("status");
+  });
+
+  it("F-014-AC10 tant que les membres ne sont pas lus, « Supprimer cet espace » est désactivé avec sa raison : l'avertissement ne peut pas donner un faux nombre", async () => {
+    const serveur = serveurDeLEspace("proprietaire");
+    serveur.poser(R.membres(), () => jamais());
+    await ouvrirA(serveur, ECRAN);
+
+    const supprimer = await screen.findByRole("button", {
+      name: "Supprimer cet espace : Projet Atlas",
+    });
+    expect(estDesactive(supprimer)).toBe(true);
+    expect(descriptionDe(supprimer)).toBe(
+      "Le nombre de membres de l'espace n'est pas encore connu.",
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("F-014-AC36 ouverte, la boîte rend le reste de la page inerte, sans élément focalisable caché ; fermée, plus rien n'est inerte", async () => {
+    const serveur = serveurDeLEspace("proprietaire");
+    const { utilisateur } = await ouvrirLEspace(serveur);
+
+    await utilisateur.click(bouton("Quitter cet espace : Projet Atlas"));
+    const boite = screen.getByRole("alertdialog");
+    const nouvellePage = document.querySelector("nav button") as HTMLElement;
+    expect(nouvellePage.closest("[inert]")).not.toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Retour aux espaces" }).closest("[inert]"),
+    ).not.toBeNull();
+    expect(boite.closest("[inert]")).toBeNull();
+    expect(
+      document.querySelectorAll("[aria-hidden='true'][tabindex], [aria-hidden='true'] [tabindex]"),
+    ).toHaveLength(0);
+
+    await utilisateur.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
 
   it("F-014-AC36 F-014-AC35 dans une boîte d'alerte, Tab et Maj+Tab restent dans la boîte", async () => {
     const serveur = serveurDeLEspace("proprietaire");
     const { utilisateur } = await ouvrirLEspace(serveur);
-    await utilisateur.click(bouton("Quitter l'espace Projet Atlas"));
+    await utilisateur.click(bouton("Quitter cet espace : Projet Atlas"));
     const boite = screen.getByRole("alertdialog");
 
     for (let rang = 0; rang < 4; rang += 1) {
@@ -345,8 +384,8 @@ describe("droits : la matrice décide de l'affichage, le serveur de l'action", (
       await ouvrirLEspace(serveur);
       const presentes = {
         Renommer: screen.queryByRole("button", { name: /^Renommer l'espace/ }) !== null,
-        Quitter: screen.queryByRole("button", { name: /^Quitter l'espace/ }) !== null,
-        Supprimer: screen.queryByRole("button", { name: /^Supprimer l'espace/ }) !== null,
+        Quitter: screen.queryByRole("button", { name: /^Quitter cet espace/ }) !== null,
+        Supprimer: screen.queryByRole("button", { name: /^Supprimer cet espace/ }) !== null,
         Rôle: screen.queryAllByRole("combobox", { name: /^Rôle de / }).length > 0,
         Retirer: screen.queryAllByRole("button", { name: /^Retirer / }).length > 0,
         Invitations: screen.queryByRole("region", { name: "Invitations en attente" }) !== null,
@@ -385,7 +424,7 @@ describe("droits : la matrice décide de l'affichage, le serveur de l'action", (
       await screen.findByText("Vous n'avez plus le droit de faire cela dans cet espace."),
     ).toBeTruthy();
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /^Supprimer l'espace/ })).toBeNull(),
+      expect(screen.queryByRole("button", { name: /^Supprimer cet espace/ })).toBeNull(),
     );
   });
 
@@ -451,6 +490,63 @@ describe("droits : la matrice décide de l'affichage, le serveur de l'action", (
 
     expect(await screen.findByText("L'opération a échoué. Réessayez.")).toBeTruthy();
     expect(estDesactive(bouton("Renommer l'espace Projet Atlas"))).toBe(false);
+  });
+
+  it("F-014-AC29 F-014-AC31 serveur injoignable : le message, puis les actions permises visibles mais désactivées avec leur raison, jusqu'à une relecture réussie", async () => {
+    const serveur = serveurDeLEspace("proprietaire");
+    serveur.retirer(R.role(ID_BOB));
+    const { utilisateur } = await ouvrirLEspace(serveur);
+
+    await utilisateur.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle de Bob Durand" }),
+      "lecteur",
+    );
+
+    expect(
+      await screen.findByText(
+        "Serveur injoignable. Vos pages restent disponibles sur cet appareil.",
+      ),
+    ).toBeTruthy();
+    for (const element of [
+      bouton("Renommer l'espace Projet Atlas"),
+      bouton("Supprimer cet espace : Projet Atlas"),
+      bouton("Retirer Bob Durand de l'espace"),
+      screen.getByRole("combobox", { name: "Rôle de Bob Durand" }),
+    ]) {
+      await waitFor(() => expect(estDesactive(element)).toBe(true));
+      expect(descriptionDe(element)).toBe(
+        "Serveur injoignable : relisez l'espace quand la connexion revient.",
+      );
+    }
+    await utilisateur.click(bouton("Relire l'espace"));
+    await waitFor(() => expect(estDesactive(bouton("Renommer l'espace Projet Atlas"))).toBe(false));
+    expect(screen.queryByRole("button", { name: "Relire l'espace" })).toBeNull();
+  });
+
+  it("F-014-AC13 F-014-AC16 F-014-AC31 l'échec de la lecture des membres ou des invitations est dit, distinct du chargement, avec une commande pour relire", async () => {
+    const serveur = serveurDeLEspace("proprietaire");
+    serveur.poser(R.membres(), () => enveloppe(500, "erreur-interne"));
+    serveur.poser(R.invitations, () => enveloppe(503, "base-indisponible"));
+    const { utilisateur } = await ouvrirA(serveur, ECRAN);
+
+    const membres = await screen.findByRole("region", { name: "Membres" });
+    expect(
+      await within(membres).findByText("Les membres de cet espace n'ont pas pu être lus."),
+    ).toBeTruthy();
+    expect(within(membres).queryByText("Chargement des membres…")).toBeNull();
+    const invitations = screen.getByRole("region", { name: "Invitations en attente" });
+    expect(
+      await within(invitations).findByText("Les invitations de cet espace n'ont pas pu être lues."),
+    ).toBeTruthy();
+
+    serveur.poser(R.membres(), () => membres200([BOB_EDITEUR]));
+    await utilisateur.click(within(membres).getByRole("button", { name: "Relire les membres" }));
+    expect(await within(membres).findByRole("table", { name: "Membres" })).toBeTruthy();
+    serveur.poser(R.invitations, () => invitations200([]));
+    await utilisateur.click(
+      within(invitations).getByRole("button", { name: "Relire les invitations" }),
+    );
+    expect(await within(invitations).findByText("Aucune invitation en attente.")).toBeTruthy();
   });
 
   it("F-014-AC32 au retour de l'onglet, l'espace et ses membres sont relus", async () => {

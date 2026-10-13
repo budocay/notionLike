@@ -34,6 +34,14 @@ export const CONNECTEZ_VOUS = "Connectez-vous pour voir les espaces du serveur."
 export const DEMANDE_UNE_CONNEXION = "Demande une connexion au serveur.";
 export const VERIFICATION_EN_COURS = "Vérification du compte en cours.";
 export const REQUETE_EN_COURS = "Requête en cours.";
+export const SERVEUR_INJOIGNABLE_RAISON =
+  "Serveur injoignable : relisez l'espace quand la connexion revient.";
+export const RELIRE_L_ESPACE = "Relire l'espace";
+export const RELIRE_LES_MEMBRES = "Relire les membres";
+export const RELIRE_LES_INVITATIONS = "Relire les invitations";
+export const MEMBRES_NON_LUS = "Les membres de cet espace n'ont pas pu être lus.";
+export const INVITATIONS_NON_LUES = "Les invitations de cet espace n'ont pas pu être lues.";
+export const NOMBRE_DE_MEMBRES_INCONNU = "Le nombre de membres de l'espace n'est pas encore connu.";
 export const COLONNE_NOM = "Nom";
 export const COLONNE_ROLE = "Votre rôle";
 
@@ -152,11 +160,12 @@ export function nomRevoquer(role: Role, creeLe: string): string {
 export function nomRenommer(nom: string): string {
   return `Renommer l'espace ${nom}`;
 }
+// Le nom accessible commence par le libellé visible (WCAG 2.5.3, « label in name »).
 export function nomSupprimer(nom: string): string {
-  return `Supprimer l'espace ${nom}`;
+  return `Supprimer cet espace : ${nom}`;
 }
 export function nomQuitter(nom: string): string {
-  return `Quitter l'espace ${nom}`;
+  return `Quitter cet espace : ${nom}`;
 }
 export function nomCreerUnLien(nom: string): string {
   return `Créer un lien d'invitation pour l'espace ${nom}`;

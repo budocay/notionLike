@@ -93,7 +93,7 @@ test("F-014-AC40 deux comptes : créer, inviter en lecteur, rejoindre, passer é
     bob.getByRole("row", { name: new RegExp(`${nomDeLEspace}.*Lecteur`) }),
   ).toBeVisible();
   await bob.getByRole("link", { name: `Ouvrir l'espace ${nomDeLEspace}` }).click();
-  await expect(bob.getByRole("button", { name: /^Supprimer l'espace/ })).toHaveCount(0);
+  await expect(bob.getByRole("button", { name: /^Supprimer cet espace/ })).toHaveCount(0);
   await expect(bob.getByRole("combobox")).toHaveCount(0);
   await expect(bob.getByRole("button", { name: /^Retirer / })).toHaveCount(0);
 
@@ -116,7 +116,7 @@ test("F-014-AC40 deux comptes : créer, inviter en lecteur, rejoindre, passer é
   await expect(bob.getByRole("link", { name: `Ouvrir l'espace ${nomDeLEspace}` })).toHaveCount(0);
 
   // Alice supprime l'espace en saisissant son nom.
-  await alice.getByRole("button", { name: `Supprimer l'espace ${nomDeLEspace}` }).click();
+  await alice.getByRole("button", { name: `Supprimer cet espace : ${nomDeLEspace}` }).click();
   const suppression = alice.getByRole("alertdialog");
   await suppression.getByRole("textbox").fill(nomDeLEspace);
   await suppression.getByRole("button", { name: /^Supprimer définitivement/ }).click();

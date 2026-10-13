@@ -668,7 +668,8 @@ function SpecimenDeBoite(): ReactElement {
           titre={F.boite}
           phrases={[F.avertissement]}
           initial={annuler}
-          surFermeture={sansEffet}
+          surTouche={sansEffet}
+          apercu
         >
           <Actions>
             <Bouton refBouton={annuler} libelle={F.annuler} surActivation={sansEffet} />

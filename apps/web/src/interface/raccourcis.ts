@@ -16,6 +16,15 @@ export const RACCOURCIS = {
   barreDeBlocs: { touche: "F10", modificateurs: ["Alt"] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
+// Touches d'une boîte de dialogue et d'un formulaire des écrans des espaces (F-014-AC35, AC36) : ce
+// ne sont pas des raccourcis affichés, mais elles sont déclarées ici, seule source des noms de
+// touche : Échap ferme ou abandonne, Tab et Maj+Tab bouclent dans la boîte.
+export const TOUCHES_DE_BOITE = {
+  fermer: { touche: "Escape", modificateurs: [] },
+  suivant: { touche: "Tab", modificateurs: [] },
+  precedent: { touche: "Tab", modificateurs: ["Maj"] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
 const PLATEFORME_D_APPLE = /^(Mac|iPhone|iPad|iPod)/;
 const MODIFICATEUR_D_APPLE = { Mod: "⌘", Alt: "⌥", Maj: "⇧" } as const;
 const MODIFICATEUR_COURANT = { Mod: "Ctrl", Alt: "Alt", Maj: "Maj" } as const;

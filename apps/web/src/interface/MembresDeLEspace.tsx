@@ -6,16 +6,9 @@ import { type ReactElement, type ReactNode, useRef } from "react";
 import type { MembreLu } from "../compte/index.ts";
 import { type Role, ROLES } from "../compte/regles-espaces.ts";
 import { peut } from "./commandes-espaces.ts";
-import {
-  Actions,
-  BoiteDeDialogue,
-  Bouton,
-  Choix,
-  Partie,
-  Tableau,
-  Texte,
-} from "./composants/Espaces.tsx";
+import { Actions, BoiteDeDialogue, Bouton, Choix, Partie, Tableau } from "./composants/Espaces.tsx";
 import type { ContexteDEspace } from "./contexte-espace.ts";
+import { EchecOuChargement } from "./EchecOuChargement.tsx";
 import {
   ANNULER,
   AVERTISSEMENT_RETRAIT,
@@ -28,6 +21,8 @@ import {
   libelleDuRole,
   LIBELLES_DES_ROLES,
   MEMBRES,
+  MEMBRES_NON_LUS,
+  RELIRE_LES_MEMBRES,
   membreRetire,
   nomRetirer,
   nomRoleDuMembre,
@@ -36,7 +31,7 @@ import {
   titreRetrait,
   VOUS,
 } from "./messages-espaces.ts";
-import { useBoite } from "./outils-espaces.ts";
+import { useBoite, touchesDeBoite } from "./outils-espaces.ts";
 
 const OPTIONS_DE_ROLE = ROLES.map((role) => ({ valeur: role, libelle: LIBELLES_DES_ROLES[role] }));
 
@@ -53,7 +48,13 @@ export function MembresDeLEspace({
   return (
     <Partie titre={MEMBRES}>
       {membres === undefined ? (
-        <Texte>{CHARGEMENT_DES_MEMBRES}</Texte>
+        <EchecOuChargement
+          echec={contexte.echecDesMembres}
+          texteDEchec={MEMBRES_NON_LUS}
+          chargement={CHARGEMENT_DES_MEMBRES}
+          relire={contexte.relireTout}
+          libelle={RELIRE_LES_MEMBRES}
+        />
       ) : (
         <TableauDesMembres contexte={contexte} membres={membres} retirer={boite.ouvrir} />
       )}
@@ -130,11 +131,12 @@ function RoleDuMembre(props: {
     }
     if (resultat.ok) {
       contexte.annoncer(roleChange(membre.nom, resultat.valeur.role));
+      // La commande prend le rôle relu ; le sien changé, tout l'écran suit (AC27).
+      contexte.relireTout();
     } else {
+      // Commande contrôlée : elle garde le rôle d'avant, que le serveur n'a pas changé (AC14).
       contexte.echouer(resultat.erreur, { "dernier-proprietaire": DERNIER_PROPRIETAIRE_ROLE });
     }
-    // La commande reprend le rôle que le serveur rend ; le sien changé, tout l'écran suit (AC27).
-    contexte.relireTout();
   };
   return (
     <Choix
@@ -180,7 +182,7 @@ function Retrait(props: {
       titre={titreRetrait(membre.nom)}
       phrases={[AVERTISSEMENT_RETRAIT]}
       initial={annuler}
-      surFermeture={fermer}
+      surTouche={touchesDeBoite(fermer)}
     >
       <Actions>
         <Bouton refBouton={annuler} libelle={ANNULER} surActivation={fermer} />

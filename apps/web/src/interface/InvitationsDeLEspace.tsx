@@ -19,6 +19,7 @@ import {
   Texte,
 } from "./composants/Espaces.tsx";
 import type { ContexteDEspace } from "./contexte-espace.ts";
+import { EchecOuChargement } from "./EchecOuChargement.tsx";
 import {
   AUCUNE_INVITATION,
   avertissementDuLien,
@@ -36,6 +37,8 @@ import {
   INVITATION_PLUS_EN_ATTENTE,
   INVITATION_REVOQUEE,
   INVITATIONS,
+  INVITATIONS_NON_LUES,
+  RELIRE_LES_INVITATIONS,
   LIEN_AFFICHE_A_LA_CREATION,
   LIEN_COPIE,
   LIEN_D_INVITATION,
@@ -48,7 +51,7 @@ import {
   REVOQUER,
   ROLE_DE_L_INVITATION,
 } from "./messages-espaces.ts";
-import { codeDe, useBoite } from "./outils-espaces.ts";
+import { codeDe, useBoite, touchesDeBoite } from "./outils-espaces.ts";
 
 const OPTIONS = ROLES_INVITABLES.map((role) => ({
   valeur: role,
@@ -78,11 +81,13 @@ export function InvitationsDeLEspace({
 
 function Creation(props: {
   readonly contexte: ContexteDEspace;
-  readonly montrer: (invitation: InvitationCreeeLue) => void;
+  readonly montrer: (invitation: InvitationCreeeLue, origine: Element | null) => void;
 }): ReactElement {
   const { contexte } = props;
   const [role, setRole] = useState<RoleInvitable>("lecteur");
   const creer = async (): Promise<void> => {
+    // Pendant la requête, la commande est désactivée et peut perdre le focus : l'origine est prise avant.
+    const origine = document.activeElement;
     const resultat = await contexte.verrou.executer(() =>
       contexte.compte.espaces.creerInvitation(contexte.idEspace, { role }),
     );
@@ -90,7 +95,7 @@ function Creation(props: {
       return;
     }
     if (resultat.ok) {
-      props.montrer(resultat.valeur);
+      props.montrer(resultat.valeur, origine);
       contexte.relireInvitations();
     } else {
       contexte.echouer(resultat.erreur, { "quota-atteint": QUOTA_D_INVITATIONS });
@@ -117,7 +122,15 @@ function Creation(props: {
 function ListeDesInvitations({ contexte }: { readonly contexte: ContexteDEspace }): ReactElement {
   const { invitations } = contexte;
   if (invitations === undefined) {
-    return <Texte>{CHARGEMENT_DES_INVITATIONS}</Texte>;
+    return (
+      <EchecOuChargement
+        echec={contexte.echecDesInvitations}
+        texteDEchec={INVITATIONS_NON_LUES}
+        chargement={CHARGEMENT_DES_INVITATIONS}
+        relire={contexte.relireInvitations}
+        libelle={RELIRE_LES_INVITATIONS}
+      />
+    );
   }
   if (invitations.length === 0) {
     return <Texte>{AUCUNE_INVITATION}</Texte>;
@@ -212,7 +225,7 @@ function LienCree(props: {
         LIEN_NE_SERA_PLUS_AFFICHE,
       ]}
       initial={copier}
-      surFermeture={props.fermer}
+      surTouche={touchesDeBoite(props.fermer)}
     >
       {copie === "a-la-main" ? (
         <LienEnLecture etiquette={COPIEZ_A_LA_MAIN} valeur={lien} />
