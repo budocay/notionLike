@@ -115,7 +115,7 @@ const fermerLesAutresRoutes: RequestHandler = (requete, reponse, suivant) => {
 };
 
 // Le corps lu par `express.raw`, s'il est annoncé en JSON et lisible comme tel.
-function corpsJsonDe(requete: Request): unknown {
+export function corpsJsonDe(requete: Request): unknown {
   if (!Buffer.isBuffer(requete.body) || requete.is("application/json") !== "application/json") {
     return undefined;
   }
@@ -291,30 +291,49 @@ function transmettre(route: Route, dependances: Dependances): RequestHandler {
   };
 }
 
-// F-009-AC10, AC11, AC20 : la session est lue en base à chaque requête ; sans session valide, ou
-// si la lecture échoue, le traitement de la route n'a pas lieu.
-function repondreMoi({
-  authentification,
-  journal,
-  proxysDeConfiance,
-}: Dependances): RequestHandler {
+export type DependancesDeSession = Pick<
+  Dependances,
+  "authentification" | "journal" | "proxysDeConfiance"
+>;
+
+export interface CompteConnecte {
+  readonly id: string;
+  readonly nom: string;
+  readonly courriel: string;
+}
+
+// F-009-AC10, AC11, AC20, F-011-AC8 : la session est lue en base à chaque requête d'une route
+// protégée. Sans session valide (401), ou si la lecture échoue (500), la réponse est écrite ici et
+// `undefined` rendu : le traitement de la route n'a pas lieu.
+export async function compteDeLaSession(
+  { authentification, journal, proxysDeConfiance }: DependancesDeSession,
+  requete: Request,
+  reponse: Response,
+): Promise<CompteConnecte | undefined> {
+  const enTetes = enTetesPourBetterAuth(requete, adresseDe(requete, proxysDeConfiance));
+  const lue = await authentification
+    .lireLaSession(enTetes)
+    .catch((erreur: unknown) => ({ erreur }));
+  if (lue !== undefined && "erreur" in lue) {
+    journal.echecSansDonnee("verification-de-session-en-echec", lue.erreur, idRequeteDe(reponse));
+    envoyerErreur(reponse, "erreur-interne");
+    return undefined;
+  }
+  if (lue === undefined) {
+    envoyerErreur(reponse, "non-authentifie");
+    return undefined;
+  }
+  poserLesCookies(reponse, lue.enTetes);
+  const { id, name, email } = lue.compte;
+  return { id, nom: name, courriel: email };
+}
+
+function repondreMoi(dependances: Dependances): RequestHandler {
   return async (requete, reponse) => {
-    const enTetes = enTetesPourBetterAuth(requete, adresseDe(requete, proxysDeConfiance));
-    const lue = await authentification
-      .lireLaSession(enTetes)
-      .catch((erreur: unknown) => ({ erreur }));
-    if (lue !== undefined && "erreur" in lue) {
-      journal.echecSansDonnee("verification-de-session-en-echec", lue.erreur, idRequeteDe(reponse));
-      envoyerErreur(reponse, "erreur-interne");
-      return;
+    const compte = await compteDeLaSession(dependances, requete, reponse);
+    if (compte !== undefined) {
+      reponse.json(schemaCompte.parse(compte));
     }
-    if (lue === undefined) {
-      envoyerErreur(reponse, "non-authentifie");
-      return;
-    }
-    const { id, name, email } = lue.compte;
-    poserLesCookies(reponse, lue.enTetes);
-    reponse.json(schemaCompte.parse({ id, nom: name, courriel: email }));
   };
 }
 

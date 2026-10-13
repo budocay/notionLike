@@ -24,6 +24,26 @@ interface EvenementDeCompte {
   readonly idCompte?: string | undefined;
 }
 
+// F-011-AC29 : les événements des espaces. Une ligne ne porte que des identifiants : ni jeton, ni
+// empreinte, ni courriel, ni nom de compte ou d'espace.
+export type TypeDEvenementDEspace =
+  | "espace-cree"
+  | "espace-supprime"
+  | "invitation-creee"
+  | "invitation-revoquee"
+  | "invitation-acceptee"
+  | "membre-retire"
+  | "role-change"
+  | "action-refusee";
+
+export interface EvenementDEspace {
+  readonly type: TypeDEvenementDEspace;
+  readonly idRequete: string;
+  readonly idCompte: string;
+  readonly idEspace: string;
+  readonly idCompteVise?: string | undefined;
+}
+
 // Un échec dont l'erreur peut porter une requête SQL et ses paramètres (courriel, jeton, empreinte) :
 // seuls un code fixe et le nom de la classe de l'erreur sont écrits, jamais son message.
 export type CodeDEchec =
@@ -37,6 +57,7 @@ export type NiveauDeBibliotheque = "debug" | "info" | "warn" | "error";
 export interface Journal {
   requete(ligne: LigneDeRequete): void;
   evenementDeCompte(evenement: EvenementDeCompte): void;
+  evenementDEspace(evenement: EvenementDEspace): void;
   echecSansDonnee(code: CodeDEchec, erreur: unknown, idRequete?: string): void;
   // Ligne du journal interne de better-auth : son niveau et les classes des erreurs jointes.
   bibliotheque(niveau: NiveauDeBibliotheque, jointes: readonly unknown[]): void;
@@ -92,6 +113,9 @@ export function creerJournal(sortie: DestinationStream): Journal {
     },
     evenementDeCompte({ type, idRequete, adresse, idCompte }) {
       lignes.info({ type, idRequete, adresse, idCompte }, "compte");
+    },
+    evenementDEspace({ type, idRequete, idCompte, idEspace, idCompteVise }) {
+      lignes.info({ type, idRequete, idCompte, idEspace, idCompteVise }, "espace");
     },
     echecSansDonnee(code, erreur, idRequete) {
       lignes.error({ idRequete, code, classe: classeDe(erreur) }, "echec");

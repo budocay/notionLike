@@ -16,7 +16,8 @@ export type Consommer = (cle: string, plafond: Plafond) => Decision;
 const MS_PAR_SECONDE = 1000;
 const ENTREES_MAX = 100_000;
 
-export function creerCompteurs(): Consommer {
+// L'horloge, en millisecondes, est injectable pour les tests des fenêtres (F-011 H10).
+export function creerCompteurs(horloge: () => number = Date.now): Consommer {
   const fenetres = new Map<string, { fin: number; compte: number }>();
 
   // Borne la mémoire : au plafond, les fenêtres closes sont oubliées, puis la plus ancienne.
@@ -33,7 +34,7 @@ export function creerCompteurs(): Consommer {
   }
 
   return (cle, plafond) => {
-    const maintenant = Date.now();
+    const maintenant = horloge();
     if (fenetres.size >= ENTREES_MAX) {
       faireDeLaPlace(maintenant);
     }

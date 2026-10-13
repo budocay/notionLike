@@ -40,9 +40,11 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC31 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
+      "adhesions.ts": ["Role"],
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
+      "autorisation.ts": ["Action", "MATRICE_DES_DROITS", "Role"],
       "comptes.ts": [
         "CHEMINS_COMPTES",
         "schemaCompte",
@@ -51,13 +53,62 @@ describe("appelants des deux paquets", () => {
         "schemaCorpsInscription",
       ],
       "enveloppe.ts": ["CodeErreur", "EnveloppeErreur"],
+      "espaces.ts": [
+        "Action",
+        "CHEMINS_ESPACES",
+        "FORME_DU_JETON",
+        "Methode",
+        "QUOTAS",
+        "schemaCorpsAcceptation",
+        "schemaCorpsChangementDeRole",
+        "schemaCorpsCreationEspace",
+        "schemaCorpsCreationInvitation",
+        "schemaCorpsRenommage",
+        "schemaEspace",
+        "schemaInvitationCreee",
+        "schemaListeEspaces",
+        "schemaListeInvitations",
+        "schemaListeMembres",
+        "schemaListeMembresVueParUnProprietaire",
+        "schemaMembreVuParUnProprietaire",
+      ],
     });
   });
 
-  it("F-008-AC23 F-009-AC23 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC32 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
+      // F-011-AC32 : le seul module qui écrit une adhésion.
+      "adhesions.ts": [
+        "Acceptation",
+        "AdhesionSupprimee",
+        "Base",
+        "CreationEspace",
+        "IssueAcceptation",
+        "IssueChangementDeRole",
+        "IssueCreationEspace",
+        "IssueRetrait",
+        "MembreVise",
+        "accepterInvitation",
+        "changerRole",
+        "creerEspace",
+        "retirerMembre",
+        "supprimerEspace",
+      ],
       "application.ts": ["Base", "ErreurBase"],
       "authentification.ts": ["Base", "SessionSupprimee", "schemaComptes"],
+      // F-011-AC32 : le seul module qui lit une adhésion pour autoriser.
+      "autorisation.ts": ["Base", "EspaceDuMembre", "lireAdhesion"],
+      "espaces.ts": [
+        "Base",
+        "EspaceDuMembre",
+        "InvitationLue",
+        "creerInvitation",
+        "listerEspaces",
+        "listerInvitationsEnAttente",
+        "listerMembres",
+        "renommerEspace",
+        "revoquerInvitation",
+      ],
       "journal.ts": ["CodeErreurBase"],
       "main.ts": ["ouvrirBase"],
       "service.ts": ["Base"],
