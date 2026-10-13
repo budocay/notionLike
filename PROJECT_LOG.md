@@ -155,3 +155,15 @@
 - Tests: 2372 tests sur 108 fichiers — état: verts — preuve: checks.txt (empreinte `8de67271dad6`)
 - Gates: CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED · SECURITY UNVERIFIED (dossier tronqué à la lecture, aucun constat dans la partie vue) · ARCHITECTURE non lancé ; les trois acceptés par DEROGATION D-018
 - Mesures: boucles 1 passage · coût non mesuré
+
+## [2026-10-13] F-010 Écrans d'inscription, de connexion et de déconnexion
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web` (module `src/compte/`, écrans et zone de compte, routes, relais `/api` de Vite) — agents: agent-frontend, orchestrateur ; fichiers protégés par le dev — commits: a390e54..f134cb2
+- Détail: écrans `#/inscription` et `#/connexion`, zone de compte dans la barre latérale (connecté, déconnecté, inconnu), état suivi par `GET /api/v1/moi`, client `better-auth/client`, messages d'erreur en français ; l'application locale reste utilisable sans compte ni serveur. Mode économe. Écarts acceptés par le dev : `Compte.tsx`, filtre de console dans `e2e/aides.ts` (AC26 disait « sans modification »), relais dans `vite.config.ts`, paquet client +125 Ko, scénario contre le vrai serveur ignoré.
+- Dette: introduite D-019 (gate d'architecture non lancé, accepté par dérogation du dev) ; laissées D-003 (parcours réel prouvé seulement sous DOM simulé), D-007, D-017
+- ADR: aucun
+- Tests: 2497 tests sur 113 fichiers — état: verts — preuve: checks.txt (empreinte `9d33a31a271c`)
+- Gates: SECURITY PASS · CRAFT PASS · revue reviewer-frontend APPROVED (deux remarques de lisibilité dans `EcranDeCompte.tsx`) · ARCHITECTURE non lancé, DEROGATION D-019
+- Mesures: boucles 1 passage, aucun rejet · faux positifs 0 · coût non mesuré
