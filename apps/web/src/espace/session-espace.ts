@@ -2,7 +2,7 @@
 import { type Arborescence, type DocumentEspace, ouvrirDocumentEspace } from "@notionlike/document";
 import * as Y from "yjs";
 
-import { ouvrirEspaceLocal, type Persistance } from "../persistance/index.ts";
+import { ouvrirEspaceLocal, type PersistanceEspaceLocal } from "../persistance/index.ts";
 import { suivreLOnglet } from "./garde-onglet.ts";
 import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 
@@ -19,6 +19,11 @@ export type EtatSession =
   | {
       readonly phase: "pret";
       readonly arborescence: Arborescence;
+      /**
+       * Espace dont l'arborescence est affichée, tel que l'appareil l'a retenu : il désigne la base
+       * de chaque page (F-003-AC1). `undefined` tant que le stockage n'a pas pu le dire.
+       */
+      readonly idEspace: string | undefined;
       /**
        * Vrai seulement après la preuve d'écriture (F-030-AC26). Faux : ce qui est saisi n'est pas
        * encore enregistré, l'avertissement est affiché et des tentatives de reprise se suivent.
@@ -99,20 +104,20 @@ function creerDiffusion(): Diffusion {
   };
 }
 
-function sessionOuverte(doc: Y.Doc, persistance: Persistance): SessionEspace {
+function sessionOuverte(doc: Y.Doc, persistance: PersistanceEspaceLocal): SessionEspace {
   const session = new SessionOuverte(doc, persistance);
   return { lireEtat: session.lireEtat, abonner: session.abonner, doc, fermer: session.fermer };
 }
 
 class SessionOuverte {
   readonly #doc: Y.Doc;
-  readonly #persistance: Persistance;
+  readonly #persistance: PersistanceEspaceLocal;
   readonly #diffusion = creerDiffusion();
   readonly #arrets: readonly (() => void)[];
   #ouverte: FacadeOuverte | undefined;
   #etatReluRefuse = false;
 
-  constructor(doc: Y.Doc, persistance: Persistance) {
+  constructor(doc: Y.Doc, persistance: PersistanceEspaceLocal) {
     this.#doc = doc;
     this.#persistance = persistance;
     // La base peut porter une version de format que cette application ne prend pas en charge : la
@@ -163,6 +168,7 @@ class SessionOuverte {
     const suivant: EtatPret = {
       phase: "pret",
       arborescence,
+      idEspace: this.#persistance.idEspace(),
       enregistre: this.#persistance.lireEtat() === "active",
       baseRelue: this.#persistance.aReluLaBase(),
       basesNonRattachees: this.#persistance.aLaisseDesBasesNonRattachees(),
@@ -226,6 +232,7 @@ function memeEtatPret(etat: EtatSession, suivant: EtatPret): boolean {
   return (
     etat.phase === "pret" &&
     etat.arborescence === suivant.arborescence &&
+    etat.idEspace === suivant.idEspace &&
     etat.enregistre === suivant.enregistre &&
     etat.baseRelue === suivant.baseRelue &&
     etat.basesNonRattachees === suivant.basesNonRattachees

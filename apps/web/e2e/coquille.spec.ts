@@ -90,7 +90,7 @@ async function boite(
 async function dureesALEcranLarge(page: Page): Promise<Record<string, number>> {
   await ouvrirLeMenu(page, "Carnet 1");
   const durees = {
-    apparition: await style(page.getByRole("main").locator("> div"), "animation-duration"),
+    apparition: await style(page.getByRole("main").locator("> div").first(), "animation-duration"),
     depliage: await style(rangeeDe(page, TITRE_DE_5).locator("xpath=.."), "animation-duration"),
     actions: await style(actionsDeRangee(page, "Carnet 1"), "transition-duration"),
     chevron: await style(chevronDe(page, TITRE_DE_5), "transition-duration"),
@@ -132,7 +132,8 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
     await couleurDuJeton(page, "--color-surface-application"),
   );
   expect(await style(page.locator(":root"), "color-scheme")).toBe("dark");
-  await page.locator("body").click({ position: { x: 600, y: 600 } });
+  // Depuis F-003, la zone principale porte l'éditeur : la navigation part d'un point de la barre.
+  await barreLaterale(page).click({ position: { x: 4, y: 4 } });
   await page.keyboard.press("Tab");
   const commande = page.locator(":focus");
   await expect(commande).toHaveCount(1);
@@ -149,7 +150,9 @@ test("F-004-AC22 F-004-AC49 à 1280, sans émulation : fond de la page et contou
   expect([rapide, moyenne, lente].every((duree) => duree > 0)).toBe(true);
   expect(new Set([rapide, moyenne, lente]).size).toBe(3);
   expect(await style(chevronDe(page, TITRE_DE_5), "transition-property")).toBe("transform");
-  expect(await style(page.getByRole("main").locator("> div"), "animation-name")).toBe("apparition");
+  expect(await style(page.getByRole("main").locator("> div").first(), "animation-name")).toBe(
+    "apparition",
+  );
   expect(await style(rangeeDe(page, TITRE_DE_5).locator("xpath=.."), "animation-name")).toBe(
     "depliage",
   );

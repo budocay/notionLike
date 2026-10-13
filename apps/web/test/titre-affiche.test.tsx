@@ -150,10 +150,11 @@ describe("titre affiché : règle", () => {
   );
 });
 
-// Couture : tout module qui lit le titre d'une page le montre par `titreAffiche`. La seule lecture
-// brute admise est celle qui remplit le champ de renommage, où le titre enregistré est attendu.
+// Couture : tout module qui lit le titre d'une page le montre par `titreAffiche`, ou n'en tire que
+// son absence de caractère visible par `titreEstVide` (« Sans titre » atténué, F-003-AC39). La seule
+// lecture brute admise est celle qui remplit le champ de renommage, où le titre enregistré est attendu.
 describe("titre affiché : lectures du titre dans le code", () => {
-  const LECTURE = /(titreAffiche\()?((?:[A-Za-z]+\.)*page\.titre)\b/gu;
+  const LECTURE = /(titreAffiche\(|titreEstVide\()?((?:[A-Za-z]+\.)*page\.titre)\b/gu;
   const sources = import.meta.glob<string>("../src/**/*.{ts,tsx}", {
     query: "?raw",
     import: "default",
@@ -173,13 +174,14 @@ describe("titre affiché : lectures du titre dans le code", () => {
     return { affichees: affichees.sort(), brutes: brutes.sort() };
   }
 
-  it("F-002-AC10 F-002-AC11 chaque lecture du titre d'une page passe par `titreAffiche`, sauf le champ de renommage", () => {
+  it("F-002-AC10 F-002-AC11 F-003-AC39 chaque lecture du titre d'une page passe par `titreAffiche` ou `titreEstVide`, sauf le champ de renommage", () => {
     expect(lectures()).toEqual({
       affichees: [
         '../src/interface/Application.tsx : const titre = selection.type === "page" ? titreAffiche(selection.page.titre) : undefined;',
         "../src/interface/FilDAriane.tsx : courante={titreAffiche(page.titre)}",
         "../src/interface/RangeePage.tsx : const titre = titreAffiche(page.titre);",
-        "../src/interface/ZonePrincipale.tsx : return <EntetePage key={selection.page.id} titre={titreAffiche(selection.page.titre)} />;",
+        "../src/interface/ZonePrincipale.tsx : titre={titreAffiche(selection.page.titre)}",
+        "../src/interface/ZonePrincipale.tsx : vide={titreEstVide(selection.page.titre)}",
       ],
       brutes: ["../src/interface/RangeePage.tsx : titreInitial={page.titre}"],
     });

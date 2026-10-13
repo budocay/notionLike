@@ -430,7 +430,7 @@ describe("tiroir sur écran étroit", () => {
     await coquille.utilisateur.click(screen.getByRole("button", { name: "Nouvelle page" }));
     await screen.findByRole("textbox", { name: "Titre de la page" });
     await coquille.utilisateur.keyboard("{Escape}");
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Titre de la page" })).toBeNull();
     expect(conteneurDeLaBarre().getAttribute("role")).toBe("dialog");
   });
 

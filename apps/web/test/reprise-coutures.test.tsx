@@ -36,6 +36,8 @@ import { simulerLHorloge, tenterDeQuitter } from "./aides-reprise.ts";
 const INTERFACE_DE_LA_PERSISTANCE = "src/persistance/index.ts";
 const SESSION = "src/espace/session-espace.ts";
 const GARDE_D_ONGLET = "src/espace/garde-onglet.ts";
+const PAGES_OUVERTES = "src/page/pages-ouvertes.ts";
+const SESSION_DE_PAGE = "src/page/session-page.ts";
 const ECRAN_D_ENREGISTREMENT = "src/interface/Enregistrement.tsx";
 
 // Les sortes d'appelants de l'interface de persistance. Tout fichier d'apps/web qui l'importe doit
@@ -44,11 +46,21 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
   [SESSION]: "ouvre la persistance de l'espace, lit son état, s'y abonne, lui soumet l'état relu",
   [GARDE_D_ONGLET]:
     "s'abonne, lit l'état et les modifications non enregistrées, demande une tentative",
+  [PAGES_OUVERTES]:
+    "ouvre la persistance d'une page, la tient tant qu'une modification n'est pas écrite, la ferme",
+  [SESSION_DE_PAGE]: "lit l'état de la persistance d'une page, s'y abonne, lui soumet l'état relu",
 };
-const AIDES_DE_TEST = ["test/aides-persistance.ts", "test/aides-reprise.ts"];
+const AIDES_DE_TEST = [
+  "test/aides-page.tsx",
+  "test/aides-persistance.ts",
+  "test/aides-reprise.ts",
+  "test/aides-session-page.tsx",
+];
 const TESTS_DE_LA_PERSISTANCE = [
   "test/coquille-echecs.test.tsx",
+  "test/coutures-page.test.ts",
   "test/coutures.test.ts",
+  "test/page-echecs.test.tsx",
   "test/persistance-echecs.test.ts",
   "test/persistance-ouverture.test.ts",
   "test/persistance-validation.test.ts",
@@ -69,6 +81,8 @@ const TESTS_DE_LA_PERSISTANCE = [
 const LECTEURS_DE_L_ETAT_DE_LA_SESSION: Readonly<Record<string, string>> = {
   "src/interface/Application.tsx": "choisit l'écran selon la phase",
   [ECRAN_D_ENREGISTREMENT]: "avertissement et zone d'état, selon `enregistre` (F-030-AC29)",
+  "src/interface/etat-d-enregistrement.ts":
+    "n'affirme l'enregistrement que si la page ouverte l'est aussi (F-003-AC18)",
   "src/main.tsx": "démarre la session",
 };
 const LECTEURS_DE_L_ETAT_DE_LA_SESSION_DANS_LES_TESTS: readonly string[] = [
@@ -216,6 +230,15 @@ describe("appelants de l'interface de persistance", () => {
         "soumettreLEtatRelu",
       ],
       [GARDE_D_ONGLET]: ["aDesModificationsNonEnregistrees", "abonner", "lireEtat", "reessayer"],
+      [PAGES_OUVERTES]: ["aDesModificationsNonEnregistrees", "abonner", "fermer", "lireEtat"],
+      [SESSION_DE_PAGE]: [
+        "aReluLaBase",
+        "abonner",
+        "fermer",
+        "lireEtat",
+        "reessayer",
+        "soumettreLEtatRelu",
+      ],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
@@ -379,6 +402,7 @@ describe("chaque appelant de production traite la reprise", () => {
     const pret = (enregistre: boolean): Extract<EtatSession, { phase: "pret" }> => ({
       phase: "pret",
       arborescence: { racines: [], corbeille: [] },
+      idEspace: ESPACE_A,
       enregistre,
       baseRelue: true,
       basesNonRattachees: false,
@@ -480,17 +504,20 @@ describe("structure du module de persistance", () => {
   });
 });
 
-// ── F-030-AC21 : sans objet tant que F-003 n'est pas fusionnée ───────────────────────────────────
+// ── F-030-AC21 : F-003, livrée après, porte la reprise des pages (F-003-AC18, H18) ───────────────
 
 describe("documents de page", () => {
-  it("F-030-AC21 F-003 n'étant pas fusionnée, le critère est sans objet et la preuve le constate : aucune base de page ni de table n'est ouverte en production, la session d'espace est la seule à ouvrir une persistance, par ouvrirEspaceLocal", async () => {
-    const production = Object.keys(APPELANTS_DE_PRODUCTION).map((chemin) => lire(chemin));
-    expect(production.filter((texte) => /\bouvrirPersistance\b/.test(texte))).toEqual([]);
-    expect(production.filter((texte) => /\bouvrirEspaceLocal\(/.test(texte))).toHaveLength(1);
-    expect([...aretes.keys()].filter((module) => /^src\/(editeur|page)\//.test(module))).toEqual(
-      [],
-    );
+  it("F-030-AC21 F-003-AC18 F-003 étant livrée après F-030, c'est elle qui porte la reprise des pages : sa session et ses pages ouvertes sont dans l'énumération de F-030-AC19, un seul fichier de production ouvre une base de page, par ouvrirPersistance, et la session d'espace reste la seule à appeler ouvrirEspaceLocal", async () => {
+    const quiAppellent = (motif: RegExp): string[] =>
+      Object.keys(APPELANTS_DE_PRODUCTION).filter((chemin) => motif.test(lire(chemin)));
+    expect(quiAppellent(/\bouvrirPersistance\(/)).toEqual([PAGES_OUVERTES]);
+    expect(quiAppellent(/\bouvrirEspaceLocal\(/)).toEqual([SESSION]);
+    expect([...aretes.keys()].filter((module) => /^src\/page\//.test(module)).sort()).toEqual([
+      PAGES_OUVERTES,
+      SESSION_DE_PAGE,
+    ]);
 
+    // Sans page sélectionnée, aucune base de page ni de table n'est ouverte.
     rendreApplication();
     await screen.findByRole("button", { name: "Nouvelle page" });
     expect((await nomsDesBases()).filter((nom) => /^notionlike:(page|table):/.test(nom))).toEqual(

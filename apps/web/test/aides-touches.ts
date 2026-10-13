@@ -16,6 +16,8 @@ export const TOUCHES_D_INTERACTION: Readonly<Record<string, readonly string[]>> 
   // Saisie d'un titre : Entrée valide, Échap annule.
   "src/interface/SaisieTitre.tsx": ["Enter", "Escape"],
   // Menu « ⋯ » : les flèches parcourent les entrées.
+  // Barre de blocs de l'éditeur : les flèches parcourent les commandes, Échap rend le focus.
+  "src/interface/composants/Edition.tsx": ["ArrowLeft", "ArrowRight", "Escape"],
   "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],
   // Menu et liste du fil d'Ariane : Échap ferme la surface.
   "src/interface/flottant.ts": ["Escape"],

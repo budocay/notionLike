@@ -118,7 +118,8 @@ describe("coquille : échecs et limites", () => {
     const { utilisateur } = await ouvrirCoquille();
     await creerPageNommee(utilisateur, "Avant la coupure");
     expect(screen.queryByRole("alert")).toBeNull();
-    const connexionDeLEspace = connexions.at(-1);
+    // Depuis F-003, la page créée a sa propre base : la connexion visée est celle de l'espace.
+    const connexionDeLEspace = connexions.find((connexion) => /:espace:/.test(connexion.name));
     if (connexionDeLEspace === undefined) {
       throw new Error("Aucune connexion ouverte par la session.");
     }

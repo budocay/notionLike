@@ -76,15 +76,17 @@ interface ProprietesEntete {
   readonly titre: string;
   /** Phrase sous le titre : invitation de l'accueil, explication de « Page introuvable ». */
   readonly explication?: string | undefined;
+  /** Titre de page sans caractère visible : « Sans titre » s'affiche en texte atténué (F-003-AC39). */
+  readonly vide?: boolean | undefined;
 }
 
 /** Tête de la zone principale : le titre sur un halo immobile, qui ne reçoit aucun pointeur. */
-export function EntetePage({ titre, explication }: ProprietesEntete): ReactElement {
+export function EntetePage({ titre, explication, vide = false }: ProprietesEntete): ReactElement {
   return (
     <div className={ETATS.zone}>
       <div className={ETATS.halo} aria-hidden="true" />
       <div className={ETATS.contenu}>
-        <h1 className={ETATS.titre}>{titre}</h1>
+        <h1 className={vide ? ETATS.titreVide : ETATS.titre}>{titre}</h1>
         {explication !== undefined && <p className={ETATS.explication}>{explication}</p>}
       </div>
     </div>

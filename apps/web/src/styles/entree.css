@@ -192,3 +192,86 @@
 @utility retard-long {
   animation-delay: calc(var(--duree-boucle-chargement) / 3);
 }
+
+/* Barre de blocs de l'éditeur : posée dans la zone d'édition aux coordonnées que le module
+   d'édition calcule, sans prendre de place dans le contenu. Une entrée, sans animation de sortie. */
+@utility barre-flottante {
+  left: calc(var(--barre-gauche, 0) * 1px);
+  top: calc(var(--barre-haut, 0) * 1px);
+  opacity: 1;
+  transition: opacity var(--duree-rapide) var(--ease-sortie);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+/* Zone de saisie de l'éditeur : ni cadre ni contour, le curseur dit seul où l'on écrit. C'est la
+   seule suppression du contour de focus de l'application (F-003-AC37, AC44). */
+@utility saisie-sans-contour {
+  & [contenteditable] {
+    outline: none;
+  }
+}
+
+/* Contenu d'une page : titres, paragraphes, listes, invite du bloc vide. */
+@utility contenu-de-page {
+  & [contenteditable] {
+    white-space: pre-wrap;
+  }
+
+  & :is(h1, h2, h3, p, ul, ol) {
+    margin-block: var(--spacing-petit);
+  }
+
+  /* Trois niveaux sous le titre de la page, tous plus petits que lui (F-003-AC39). */
+  & h1 {
+    font-size: var(--text-intertitre);
+    line-height: var(--text-intertitre--line-height);
+    font-weight: var(--font-weight-titre);
+    letter-spacing: var(--tracking-serre);
+    margin-block-start: var(--spacing-ample);
+  }
+
+  & h2 {
+    font-size: var(--text-courant);
+    line-height: var(--text-courant--line-height);
+    font-weight: var(--font-weight-titre);
+    margin-block-start: var(--spacing-normal);
+  }
+
+  & h3 {
+    font-size: var(--text-interface);
+    line-height: var(--text-interface--line-height);
+    font-weight: var(--font-weight-fort);
+    letter-spacing: var(--tracking-etiquette);
+    text-transform: uppercase;
+    color: var(--color-texte-secondaire);
+    margin-block-start: var(--spacing-moyen);
+  }
+
+  & :is(ul, ol) {
+    padding-inline-start: var(--spacing-ample);
+  }
+
+  & ul {
+    list-style: disc;
+  }
+
+  & ol {
+    list-style: decimal;
+  }
+
+  & li > p {
+    margin-block: var(--spacing-mince);
+  }
+
+  /* Invite du bloc vide : elle ne fait pas partie du contenu (F-003-AC40). */
+  & [data-invite]::before {
+    content: attr(data-invite);
+    float: left;
+    height: 0;
+    color: var(--color-texte-discret);
+    pointer-events: none;
+  }
+}

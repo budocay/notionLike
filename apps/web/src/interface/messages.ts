@@ -53,6 +53,17 @@ export const TITRE_VERSION_NON_PRISE_EN_CHARGE = "Mise à jour nécessaire";
 export const EXPLICATION_VERSION_NON_PRISE_EN_CHARGE =
   "Cet espace a été enregistré par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";
 
+/** Nom accessible de la zone de saisie de l'éditeur (F-003-AC16). */
+export const NOM_DE_LA_ZONE_DE_SAISIE = "Contenu de la page";
+/** Invite du bloc vide tant que le menu slash de F-005 n'est pas livré (F-003-AC40). */
+export const INVITE_DU_BLOC_VIDE = "Écris quelque chose…";
+export const NOM_DE_LA_BARRE_DE_BLOCS = "Type de bloc";
+
+/** Tenu à la place de l'éditeur d'une page que cette application ne sait pas lire (F-003-AC19). */
+export const PAGE_DE_VERSION_NON_PRISE_EN_CHARGE =
+  "Cette page a été enregistrée par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";
+export const CHARGEMENT_DE_LA_PAGE = "Chargement de la page…";
+
 /** Ajouté à l'explication quand le document portait des modifications non enregistrées (F-030-AC10). */
 export const MODIFICATIONS_NON_ENREGISTREES_PERDUES =
   "Les modifications faites depuis l'ouverture n'ont pas pu être enregistrées sur cet appareil.";
@@ -67,6 +78,8 @@ const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
     "Cet espace demande une version plus récente de l'application : l'action n'a pas été effectuée.",
   "facade-fermee":
     "Cet espace a été fermé dans cet onglet : l'action n'a pas été effectuée. Rechargez la page pour le rouvrir.",
+  "version-invalide":
+    "Cette page ne peut pas passer à la version de format demandée : l'action n'a pas été effectuée.",
 };
 
 export function messageErreur(code: CodeErreurDocument): string {
@@ -79,6 +92,11 @@ const CARACTERE_VISIBLE = /[^\p{White_Space}\p{Cc}\p{Cf}\p{Default_Ignorable_Cod
 /** Titre à montrer et à nommer : le titre enregistré, ou « Sans titre » s'il n'a aucun caractère visible. */
 export function titreAffiche(titre: string): string {
   return CARACTERE_VISIBLE.test(titre) ? titre : SANS_TITRE;
+}
+
+/** Vrai quand le titre n'a aucun caractère visible : « Sans titre » s'affiche alors atténué (F-003-AC39). */
+export function titreEstVide(titre: string): boolean {
+  return !CARACTERE_VISIBLE.test(titre);
 }
 
 export function titreOnglet(titrePage: string | undefined): string {

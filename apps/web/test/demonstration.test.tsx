@@ -147,6 +147,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
   it("F-004-AC50 elle montre chaque composant de présentation de la feature", () => {
     expect(composantsExportes(sources).sort()).toEqual([
       "Avertissement",
+      "BarreDeBlocs",
       "BarreDuHaut",
       "BoutonIcone",
       "CadreDeBarre",
@@ -154,16 +155,20 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "Chargement",
       "CheminDePage",
       "Coquille",
+      "CorpsDePage",
       "EcranBloquant",
       "EcranPlein",
       "EntetePage",
       "MenuActions",
+      "NoteDePage",
       "Pictogramme",
       "Principale",
       "Raccourci",
       "Rangee",
       "Sceau",
       "TeteDeBarre",
+      "ZoneDEdition",
+      "ZoneDeSaisie",
       "ZoneEtat",
     ]);
     expect(composantsManquants(sources, lire(PAGE))).toEqual([]);
