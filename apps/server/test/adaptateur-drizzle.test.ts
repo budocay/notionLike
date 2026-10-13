@@ -1,9 +1,12 @@
 // Couture entre better-auth et `@notionlike/db` : l'adaptateur Drizzle de better-auth reçoit
-// `Base["db"]` et `schemaComptes` tels que `@notionlike/db` les publie. pnpm installe deux copies
-// physiques de drizzle-orm@0.45.3 : celle de `packages/db`, qui a construit les tables et l'accès,
-// et celle de l'adaptateur, dont il tire ses opérateurs (`eq`, `inArray`…) et `is(…, Column)`.
-// Ce test constate qu'il y a bien deux copies, que leurs classes diffèrent, puis que chaque
-// opération de l'adaptateur rend, sur la base embarquée, ce qu'une lecture directe y trouve.
+// `Base["db"]` et `schemaComptes` tels que `@notionlike/db` les publie. Selon la résolution de pnpm,
+// `packages/db` (qui a construit les tables et l'accès) et l'adaptateur (qui en tire ses opérateurs
+// `eq`, `inArray`… et `is(…, Column)`) chargent la même copie physique de drizzle-orm@0.45.3, ou
+// deux copies dont les classes diffèrent. Ce test constate que l'une ou l'autre disposition tient :
+// même copie, ou copies distinctes reliées par le marqueur `Symbol.for("drizzle:entityKind")` que
+// la garde `is` lit sans instanceof ; le cas des copies distinctes est aussi donné en données, pour
+// rester exercé quand il n'y a qu'une copie. Puis chaque opération de l'adaptateur rend, sur la base
+// embarquée, ce qu'une lecture directe y trouve.
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -20,6 +23,13 @@ import { DELAI_DES_COMPTES_MS } from "./aides-comptes.ts";
 
 const SECRET_D_ESSAI = "secret-d-essai-de-trente-deux-caracteres-au-moins";
 const COMPTE = { name: "Ada", email: "ada@exemple.test", password: "mot-de-passe-d-essai" };
+
+// Le marqueur que chaque classe de drizzle-orm porte en propriété statique, partagé entre copies.
+const ENTITE = Symbol.for("drizzle:entityKind");
+
+function marqueurDe(classe: object): unknown {
+  return (classe as Record<symbol, unknown>)[ENTITE];
+}
 
 interface CopieDeDrizzle {
   readonly dossier: string;
@@ -65,17 +75,38 @@ function construire() {
   });
 }
 
-describe("deux copies de drizzle-orm", () => {
-  it("F-009-AC21 F-009-AC23 packages/db et l'adaptateur de better-auth chargent deux copies distinctes de drizzle-orm, dont les classes diffèrent", () => {
+describe("copies de drizzle-orm", () => {
+  it("F-009-AC21 F-009-AC23 packages/db et l'adaptateur de better-auth chargent drizzle-orm@0.45.3 : une même copie, ou des copies distinctes que le marqueur partagé relie", () => {
     const deLaBase = copieDeDrizzleVuePar(PAQUET_DB);
     const deLAdaptateur = copieDeDrizzleVuePar(PAQUET_ADAPTATEUR);
+    const memeCopie = deLaBase.dossier === deLAdaptateur.dossier;
+    // Le cas des copies distinctes, en données : une classe étrangère à la copie de l'adaptateur,
+    // reliée à sa colonne par le seul marqueur, qu'un contrôle par instanceof refuserait.
+    class ColonneDUneAutreCopie {
+      static readonly [ENTITE] = marqueurDe(deLaBase.Column);
+    }
+    const colonnes = [
+      { nom: "colonne de packages/db", valeur: schemaComptes.user.email, instance: memeCopie },
+      {
+        nom: "colonne d'une copie distincte",
+        valeur: new ColonneDUneAutreCopie(),
+        instance: false,
+      },
+    ];
 
-    expect(deLaBase.dossier).not.toBe(deLAdaptateur.dossier);
     expect(deLaBase.dossier).toMatch(/drizzle-orm@0\.45\.3_/);
     expect(deLAdaptateur.dossier).toMatch(/drizzle-orm@0\.45\.3_/);
-    expect(deLaBase.Column).not.toBe(deLAdaptateur.Column);
+    expect(deLaBase.Column === deLAdaptateur.Column).toBe(memeCopie);
     expect(schemaComptes.user.email).toBeInstanceOf(deLaBase.Column);
-    expect(schemaComptes.user.email).not.toBeInstanceOf(deLAdaptateur.Column);
+    expect(marqueurDe(deLaBase.Column)).toBe("Column");
+    expect(marqueurDe(deLAdaptateur.Column)).toBe(marqueurDe(deLaBase.Column));
+    expect(
+      colonnes.map(({ nom, valeur }) => ({
+        nom,
+        instance: valeur instanceof deLAdaptateur.Column,
+        reconnue: deLAdaptateur.is(valeur, deLAdaptateur.Column),
+      })),
+    ).toEqual(colonnes.map(({ nom, instance }) => ({ nom, instance, reconnue: true })));
   });
 
   it("F-009-AC21 F-009-AC23 la copie de l'adaptateur reconnaît pourtant une colonne de packages/db : sa garde `is` ne repose pas sur instanceof", () => {
