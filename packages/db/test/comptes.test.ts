@@ -13,6 +13,9 @@ import { DOSSIER_MIGRATIONS, lancerMigration } from "../src/migration.ts";
 import { ouvrirBaseEmbarquee, ouvrirBaseEmbarqueeMigree, type BaseEmbarquee } from "./essai.ts";
 
 const ETAT_F_008 = fileURLToPath(new URL("./migrations-essai/etat-f-008", import.meta.url));
+// Le dossier réel tel que F-009 l'a livré (la seule migration des comptes) : la descente des comptes
+// suit celle des espaces (`descentes/0001_espaces.sql`), éprouvée par `espaces-migration.test.ts`.
+const ETAT_F_009 = fileURLToPath(new URL("./migrations-essai/etat-f-009", import.meta.url));
 const DESCENTE = fileURLToPath(new URL("../descentes/0000_comptes.sql", import.meta.url));
 const PHRASE_D_ECHEC = "La migration a échoué : aucune migration de ce lancement n'est appliquée.";
 const TABLES = ["account", "session", "user", "verification"];
@@ -49,8 +52,14 @@ async function valeurs(db: Db, requete: ReturnType<typeof sql>): Promise<unknown
   );
 }
 
+// Depuis F-011, la migration des espaces suit celle des comptes : les constats de ce fichier ne
+// portent que sur les quatre tables des comptes, ceux des espaces sont dans `espaces-migration.test.ts`.
 const tablesPubliques = (db: Db): Promise<unknown[]> =>
-  valeurs(db, sql`select tablename from pg_tables where schemaname = 'public' order by tablename`);
+  valeurs(
+    db,
+    sql`select tablename from pg_tables where schemaname = 'public'
+        and tablename in ('account', 'session', 'user', 'verification') order by tablename`,
+  );
 
 const suivi = (db: Db): Promise<unknown[]> =>
   valeurs(db, sql`select created_at::text from drizzle.__drizzle_migrations order by id`);
@@ -62,6 +71,7 @@ const colonnes = (db: Db): Promise<unknown[]> =>
           || case when is_nullable = 'NO' then ' not null' else '' end
           || coalesce(' default ' || column_default, '')
         from information_schema.columns where table_schema = 'public'
+        and table_name in ('account', 'session', 'user', 'verification')
         order by table_name, ordinal_position`,
   );
 
@@ -70,7 +80,9 @@ const contraintes = (db: Db): Promise<unknown[]> =>
   valeurs(
     db,
     sql`select conname || ' : ' || pg_get_constraintdef(oid) from pg_constraint
-        where connamespace = 'public'::regnamespace and contype <> 'n' order by conname`,
+        where connamespace = 'public'::regnamespace and contype <> 'n'
+        and conrelid::regclass::text in ('account', 'session', '"user"', 'verification')
+        order by conname`,
   );
 
 // Les index que la migration crée elle-même : ceux des clés primaires et des unicités sont déjà
@@ -79,6 +91,7 @@ const indexAjoutes = (db: Db): Promise<unknown[]> =>
   valeurs(
     db,
     sql`select indexdef from pg_indexes where schemaname = 'public'
+        and tablename in ('account', 'session', 'user', 'verification')
         and indexname not in (select conname from pg_constraint) order by indexname`,
   );
 
@@ -230,8 +243,9 @@ describe("migration des comptes", () => {
   it(
     "F-009-AC21 la descente ramène une base peuplée à l'état laissé par F-008, et la commande réapplique ensuite la migration",
     async () => {
-      const embarquee = await ouvrirBaseEmbarqueeMigree();
+      const embarquee = await ouvrirBaseEmbarquee();
       const { db } = embarquee.base;
+      expect(await lancer(embarquee, ETAT_F_009)).toEqual({ code: 0, lignes: [] });
       await ouvrirSession(db, await creerCompte(db, "descente@exemple.test"), "jeton-descente");
       const instructions = readFileSync(DESCENTE, "utf8")
         .split("--> statement-breakpoint")

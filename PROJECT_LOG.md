@@ -131,3 +131,15 @@
 - Tests: 2048 tests sur 95 fichiers après l'intégration de F-003 (relevé d'agent-architecte-conception sur `428d688`) — état: verts — preuve: checks.txt du dossier `0f16e390dec9` (80 fichiers, 1837 tests) ; fumée Docker relevée par le dev
 - Gates: passage unique sur `0f16e390dec9` : SECURITY PASS · CRAFT PASS · revues reviewer-bdd, reviewer-backend, reviewer-api APPROVED · ARCHITECTURE FAIL (couture d'AC23, Compose, contradictions d'`ARCHITECTURE.md` corrigées depuis) ; empreinte finale après l'intégration de F-003 acceptée par DEROGATION D-016 du dev
 - Mesures: boucles 1 passage · constats confirmés : 7 défauts de `f8891ab` corrigés dans `83b5802` ; image de production porteuse d'esbuild (55 constats trivy), corrigée par `fb1ea83` · faux positifs non comptés · coût non mesuré
+
+## [2026-10-13] F-011 Espaces, membres, invitations et droits (API REST)
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/db`, `packages/contrats`, `apps/server` — agents: agent-bdd, agent-backend, agent-planif (relecture de la spec), orchestrateur — commits: f348fd5..485c83c
+- Détail: tables espaces, adhésions, invitations et leur migration ; douze routes REST, matrice des droits, sept codes d'erreur ; refus répondus par l'enveloppe, jamais levés. Mode économe (décision du dev du 2026-10-13).
+- Dette: introduite D-017 (gate d'architecture de F-011 non lancé, accepté par dérogation du dev : `ARCHITECTURE.md` à aligner plus tard) ; limites dans `MEMORY/features/F-011.md` ; laissées D-002, D-011, D-014
+- ADR: aucun
+- Tests: 2278 tests sur 103 fichiers — état: verts — preuve: checks.txt (empreinte `4b08a9c1cad0`)
+- Gates: SECURITY PASS · CRAFT PASS · revues reviewer-bdd, reviewer-backend, reviewer-api APPROVED · ARCHITECTURE non lancé, DEROGATION D-017
+- Mesures: boucles 1 passage, aucun rejet · faux positifs 0 · coût non mesuré
