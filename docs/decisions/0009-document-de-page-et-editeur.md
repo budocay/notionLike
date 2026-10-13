@@ -1,7 +1,8 @@
 # ADR-0009 — Document de page : contenu Tiptap dans un fragment Yjs, version à maximum, éditeur confiné
 
-Statut : proposé
+Statut : accepté
 Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé)
+Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé par le gate d'architecture de F-003).
 
 ## Contexte et problème
 
