@@ -7,3 +7,6 @@ allowBuilds:
   esbuild: false
 
 minimumReleaseAge: 10080
+
+overrides:
+  better-auth>drizzle-kit: "-"
