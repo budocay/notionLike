@@ -9,6 +9,24 @@ export const TITRE_LONG =
   );
 
 export const NOM_DE_L_ESPACE_FICTIF = "Carnets d'Inès";
+/** Textes de la zone et du formulaire de compte, tels que l'application les affiche (F-010). */
+export const COMPTE_FICTIF = {
+  zone: "Compte",
+  indisponible: "Compte indisponible hors connexion",
+  nonConnecte: "Non connecté.",
+  connecte: "Connecté : Inès Laurent",
+  reessayer: "Réessayer",
+  seConnecter: "Se connecter",
+  creer: "Créer un compte",
+  seDeconnecter: "Se déconnecter",
+  pagesRestent: "Vos pages restent sur cet appareil.",
+  courriel: "Courriel",
+  motDePasse: "Mot de passe",
+  obligatoire: "(obligatoire)",
+  faute: "Saisissez une adresse courriel valide, de la forme nom@exemple.fr.",
+  refus: "Courriel ou mot de passe incorrect.",
+  retour: "Retour à l'application",
+} as const;
 
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).

@@ -7,6 +7,12 @@ import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/Bar
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
+import {
+  ActionDeCompte,
+  CadreDeCompte,
+  ChampDeCompte,
+  FormulaireDeCompte,
+} from "../interface/composants/Compte.tsx";
 import { Coquille, EcranPlein, Principale } from "../interface/composants/Coquille.tsx";
 import {
   BarreDeBlocs,
@@ -64,6 +70,7 @@ import {
   ANCETRES,
   ARBORESCENCE,
   ENTREE_DE_PIED_FICTIVE,
+  COMPTE_FICTIF,
   NOM_DE_L_ESPACE_FICTIF,
   PAGE_COURANTE,
   type PageFictive,
@@ -542,6 +549,71 @@ function SectionCommandes(): ReactElement {
   );
 }
 
+// La zone de compte dans ses trois états et le formulaire d'un écran de compte (F-010).
+function SectionCompte(): ReactElement {
+  return (
+    <Section titre="Compte">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="Zone de compte, compte inconnu">
+          <CadreDeCompte nom={COMPTE_FICTIF.zone} phrases={[COMPTE_FICTIF.indisponible]}>
+            <ActionDeCompte libelle={COMPTE_FICTIF.reessayer} surActivation={sansEffet} />
+          </CadreDeCompte>
+        </Specimen>
+        <Specimen etiquette="Zone de compte, déconnecté">
+          <CadreDeCompte nom={COMPTE_FICTIF.zone} phrases={[COMPTE_FICTIF.nonConnecte]}>
+            <ActionDeCompte libelle={COMPTE_FICTIF.seConnecter} adresse={ADRESSE_FICTIVE} />
+            <ActionDeCompte libelle={COMPTE_FICTIF.creer} adresse={ADRESSE_FICTIVE} />
+          </CadreDeCompte>
+        </Specimen>
+        <Specimen etiquette="Zone de compte, connecté">
+          <CadreDeCompte nom={COMPTE_FICTIF.zone} phrases={[COMPTE_FICTIF.connecte]}>
+            <ActionDeCompte
+              libelle={COMPTE_FICTIF.seDeconnecter}
+              surActivation={sansEffet}
+              desactivee
+            />
+          </CadreDeCompte>
+        </Specimen>
+      </div>
+      <SpecimenDeFormulaire />
+    </Section>
+  );
+}
+
+function SpecimenDeFormulaire(): ReactElement {
+  return (
+    <Specimen etiquette="Formulaire de connexion, envoi refusé">
+      <div className={PAGE.fondZone}>
+        <FormulaireDeCompte
+          titre={COMPTE_FICTIF.seConnecter}
+          introduction={COMPTE_FICTIF.pagesRestent}
+          envoi={COMPTE_FICTIF.seConnecter}
+          enCours={false}
+          bloque={false}
+          attente=""
+          alerte={COMPTE_FICTIF.refus}
+          surEnvoi={(evenement) => evenement.preventDefault()}
+          pied={<ActionDeCompte libelle={COMPTE_FICTIF.retour} adresse={ADRESSE_FICTIVE} />}
+        >
+          <ChampDeCompte
+            etiquette={COMPTE_FICTIF.courriel}
+            marque={COMPTE_FICTIF.obligatoire}
+            faute={COMPTE_FICTIF.faute}
+            type="email"
+            defaultValue="alice@"
+          />
+          <ChampDeCompte
+            etiquette={COMPTE_FICTIF.motDePasse}
+            marque={COMPTE_FICTIF.obligatoire}
+            faute={undefined}
+            type="password"
+          />
+        </FormulaireDeCompte>
+      </div>
+    </Specimen>
+  );
+}
+
 export function PageDemonstration({ jetons }: { readonly jetons: string }): ReactElement {
   return (
     <div className={PAGE.cadre} data-demonstration={MARQUEUR_DE_DEMONSTRATION}>
@@ -562,6 +634,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionEtats />
       <SectionReprise />
       <SectionCommandes />
+      <SectionCompte />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>
           {contenu}

@@ -220,7 +220,8 @@ function classesSansLecteur(fichiers: ReadonlyMap<string, string>): string[] {
 
 describe("fichiers de classes", () => {
   it("F-004-AC16 un fichier de classes n'est lu que par les fichiers de son dossier : hors des composants, l'application rend des composants et n'habille aucune balise", () => {
-    expect([...textes.keys()].filter((chemin) => FICHIER_DE_CLASSES.test(chemin)).length).toBe(12);
+    // Treize depuis F-010 : compte.classes.ts, la zone et les écrans de compte.
+    expect([...textes.keys()].filter((chemin) => FICHIER_DE_CLASSES.test(chemin)).length).toBe(13);
     expect(classesLuesDAilleurs(textes)).toEqual([]);
   });
 

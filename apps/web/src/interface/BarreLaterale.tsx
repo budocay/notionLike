@@ -15,6 +15,8 @@ interface Proprietes {
   readonly boutonNouvellePage: RefObject<HTMLButtonElement | null>;
   /** Bouton de fermeture, quand la barre est ouverte en tiroir. */
   readonly fermeture?: ReactNode | undefined;
+  /** Zone de compte (F-010), dans la tête, après « Nouvelle page » : le pied reste à F-007. */
+  readonly compte?: ReactNode | undefined;
 }
 
 // Tête : le sceau et « Nouvelle page ». « Rechercher » y vient avec F-024, « Corbeille » dans le
@@ -22,13 +24,16 @@ interface Proprietes {
 export function BarreLaterale(props: Proprietes): ReactElement {
   const { racines, ecran, actions } = props;
   const tete = (
-    <TeteDeBarre
-      nomEspace={NOM_APPLICATION}
-      libelleNouvellePage={NOUVELLE_PAGE}
-      surNouvellePage={() => actions.creerPage(null)}
-      boutonNouvellePage={props.boutonNouvellePage}
-      fermeture={props.fermeture}
-    />
+    <>
+      <TeteDeBarre
+        nomEspace={NOM_APPLICATION}
+        libelleNouvellePage={NOUVELLE_PAGE}
+        surNouvellePage={() => actions.creerPage(null)}
+        boutonNouvellePage={props.boutonNouvellePage}
+        fermeture={props.fermeture}
+      />
+      {props.compte}
+    </>
   );
   return (
     <CadreDeBarre nom={NOM_BARRE_LATERALE} tete={tete} erreur={props.erreur}>
