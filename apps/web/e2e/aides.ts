@@ -5,6 +5,8 @@ import { type BrowserContext, expect, type Locator, type Page } from "@playwrigh
 
 /** Base qui reçoit les mises à jour du document d'espace ; celle des réglages de l'appareil non. */
 const PREFIXE_DES_BASES_D_ESPACE = "notionlike:espace:";
+/** Bases des documents de page (F-003-AC1). */
+export const PREFIXE_DES_BASES_DE_PAGE = "notionlike:page:";
 const MAGASIN_DES_MISES_A_JOUR = "updates";
 const PROTOCOLES_RESEAU = new Set(["http:", "https:", "ws:", "wss:"]);
 
@@ -162,15 +164,18 @@ export async function nomsDesBases(page: Page): Promise<string[]> {
 // d'écriture pendant l'action même, et IndexedDB ordonne les transactions d'un même magasin, toutes
 // connexions confondues ; une lecture ouverte après l'action ne se termine donc qu'une fois ces
 // écritures validées. Le scénario de F-002-AC2 prouve qu'un rechargement immédiat ne perd rien sans
-// cette attente.
-export async function ecrituresAbouties(page: Page): Promise<void> {
+// cette attente. Par défaut, les bases d'espace ; `prefixe` en désigne d'autres.
+export async function ecrituresAbouties(
+  page: Page,
+  prefixe = PREFIXE_DES_BASES_D_ESPACE,
+): Promise<void> {
   await page.evaluate(
     async ({ prefixe, magasin }) => {
       const noms = (await indexedDB.databases())
         .map((base) => base.name ?? "")
         .filter((nom) => nom.startsWith(prefixe));
       if (noms.length === 0) {
-        throw new Error("Aucune base d'espace dans ce navigateur.");
+        throw new Error(`Aucune base ${prefixe}* dans ce navigateur.`);
       }
       const attendre = (nom: string): Promise<void> =>
         new Promise<void>((resoudre, rejeter) => {
@@ -189,7 +194,7 @@ export async function ecrituresAbouties(page: Page): Promise<void> {
         });
       await Promise.all(noms.map(attendre));
     },
-    { prefixe: PREFIXE_DES_BASES_D_ESPACE, magasin: MAGASIN_DES_MISES_A_JOUR },
+    { prefixe, magasin: MAGASIN_DES_MISES_A_JOUR },
   );
 }
 

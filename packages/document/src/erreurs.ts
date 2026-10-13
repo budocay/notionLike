@@ -5,7 +5,8 @@ export type CodeErreurDocument =
   | "titre-trop-long"
   | "position-invalide"
   | "version-non-prise-en-charge"
-  | "facade-fermee";
+  | "facade-fermee"
+  | "version-invalide";
 
 export class ErreurDocument extends Error {
   readonly code: CodeErreurDocument;

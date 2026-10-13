@@ -220,7 +220,7 @@ function classesSansLecteur(fichiers: ReadonlyMap<string, string>): string[] {
 
 describe("fichiers de classes", () => {
   it("F-004-AC16 un fichier de classes n'est lu que par les fichiers de son dossier : hors des composants, l'application rend des composants et n'habille aucune balise", () => {
-    expect([...textes.keys()].filter((chemin) => FICHIER_DE_CLASSES.test(chemin)).length).toBe(11);
+    expect([...textes.keys()].filter((chemin) => FICHIER_DE_CLASSES.test(chemin)).length).toBe(12);
     expect(classesLuesDAilleurs(textes)).toEqual([]);
   });
 
@@ -323,6 +323,32 @@ describe("interdits : cas conformes et cas fautifs", () => {
       "src/a.css : contour de focus supprimé : « outline: none »",
     ]);
     expect(fautesDe("src/a.css", "a { outline-offset: var(--epaisseur-contour); }")).toEqual([]);
+  });
+
+  it("F-003-AC44 F-004-AC10 la seule suppression du contour admise est la règle nommée de la zone de saisie, une fois, dans la feuille d'entrée : ailleurs, répétée, sous un autre nom ou sur un autre sélecteur, elle est refusée", () => {
+    const regle =
+      "@utility saisie-sans-contour {\n  & [contenteditable] {\n    outline: none;\n  }\n}\n";
+    const refus = (chemin: string): string[] => [
+      `${chemin} : contour de focus supprimé : « outline: none »`,
+    ];
+
+    expect(lire("src/styles/entree.css")).toContain(regle);
+    expect(fautesDe("src/styles/entree.css", regle)).toEqual([]);
+    expect(fautesDe("src/styles/entree.css", `${regle}${regle}`)).toEqual(
+      refus("src/styles/entree.css"),
+    );
+    expect(fautesDe("src/demonstration/demonstration.css", regle)).toEqual(
+      refus("src/demonstration/demonstration.css"),
+    );
+    expect(
+      fautesDe("src/styles/entree.css", regle.replace("saisie-sans-contour", "autre-zone")),
+    ).toEqual(refus("src/styles/entree.css"));
+    expect(fautesDe("src/styles/entree.css", regle.replace("[contenteditable]", "button"))).toEqual(
+      refus("src/styles/entree.css"),
+    );
+    expect(fautesDe("src/styles/entree.css", `${regle}a:focus-visible { outline: none; }`)).toEqual(
+      refus("src/styles/entree.css"),
+    );
   });
 
   it("F-004-AC21 F-004-AC18 une adresse externe est refusée", () => {

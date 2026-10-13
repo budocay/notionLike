@@ -24,6 +24,7 @@ import { BoutonIcone } from "./composants/BoutonIcone.tsx";
 import { Coquille, EcranPlein, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
+import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
   CHARGEMENT,
@@ -39,6 +40,7 @@ import {
   titreAffiche,
   titreOnglet,
 } from "./messages.ts";
+import { usePageOuverte } from "./page-ouverte.ts";
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
@@ -95,6 +97,8 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   const idBarre = useId();
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
+  const etatDeLaPage = usePageOuverte(etat.idEspace, page?.id);
+  const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
 
   const barreLaterale = (
     <BarreLaterale
@@ -108,7 +112,7 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
   );
   return (
     <Coquille fenetre tiroir={attributsDuTiroir(tiroir, idBarre)} barre={barreLaterale}>
-      <AvertissementDEnregistrement etat={etat} zonePrincipale={tiroir.zonePrincipale} />
+      <AvertissementDEnregistrement etat={enregistrement} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
         ouverture={
           tiroir.etroit ? <BoutonDOuverture tiroir={tiroir} idBarre={idBarre} /> : undefined
@@ -118,12 +122,13 @@ function EspacePret({ etat }: { readonly etat: EtatPret }): ReactElement {
             <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
           )
         }
-        etat={<ZoneDEnregistrement etat={etat} />}
+        etat={<ZoneDEnregistrement etat={enregistrement} />}
       />
       <ZonePrincipale
         ref={tiroir.zonePrincipale}
         selection={selection}
         espaceVide={racines.length === 0}
+        page={etatDeLaPage}
       />
     </Coquille>
   );

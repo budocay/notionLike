@@ -12,6 +12,8 @@ export interface Combinaison {
 
 export const RACCOURCIS = {
   renommer: { touche: "F2", modificateurs: [] },
+  /** Depuis la zone de saisie, mène à la barre de blocs quand elle est affichée (F-003-AC42). */
+  barreDeBlocs: { touche: "F10", modificateurs: ["Alt"] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
 const PLATEFORME_D_APPLE = /^(Mac|iPhone|iPad|iPod)/;

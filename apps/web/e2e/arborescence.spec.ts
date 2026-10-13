@@ -28,6 +28,7 @@ import {
 
 const UUID_CANONIQUE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PREFIXE_DU_FRAGMENT_DE_PAGE = "#/page/";
+const PREFIXE_DES_BASES_DE_PAGE = "notionlike:page:";
 const TITRE_D_ONGLET_SANS_PAGE = "notionLike";
 /** Forme d'UUID canonique, que nulle page ne porte dans un espace neuf. */
 const PAGE_ABSENTE = "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e";
@@ -200,7 +201,10 @@ test("F-002-AC2 des pages créées puis un rechargement immédiat, sans attendre
     ["1", "Écrite juste avant"],
   ]);
   expect(relue.slice(0, avantLaDerniere.length)).toEqual(avantLaDerniere);
-  const bases = await nomsDesBases(page);
+  // Depuis F-003, chaque page ouverte a sa base : seules celles de l'appareil et de l'espace sont comptées.
+  const bases = (await nomsDesBases(page)).filter(
+    (nom) => !nom.startsWith(PREFIXE_DES_BASES_DE_PAGE),
+  );
   expect(bases).toHaveLength(2);
   expect(bases[0]).toBe("notionlike:appareil");
   expect(bases[1]).toMatch(/^notionlike:espace:[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
@@ -241,7 +245,11 @@ test("F-002-AC27 F-002-AC13 l'adresse d'une page porte un UUID canonique ; un fr
 
   await creerPageNommee(page, "Créée depuis page introuvable");
   expect(await titres(page)).toEqual(["Vraie page", "Créée depuis page introuvable"]);
-  expect(await nomsDesBases(page)).toHaveLength(2);
+  const bases = await nomsDesBases(page);
+  expect(bases.filter((nom) => !nom.startsWith(PREFIXE_DES_BASES_DE_PAGE))).toHaveLength(2);
+  expect(
+    bases.filter((nom) => nom.includes(PAGE_ABSENTE) || nom.includes(id.toUpperCase())),
+  ).toEqual([]);
 });
 
 test("F-002-AC10 un titre sans caractère visible, saisi au clavier puis validé, donne un lien et des commandes nommés « Sans titre » dans Chromium ; le titre enregistré reste celui saisi, rechargement compris", async ({

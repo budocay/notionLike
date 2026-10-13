@@ -6,7 +6,7 @@ import * as Y from "yjs";
 
 import type { SessionEspace } from "../src/espace/session-espace.ts";
 import { ouvrirPersistance } from "../src/persistance/index.ts";
-import { docDe, ouvrirCoquille, rendreApplication } from "./aides-coquille.tsx";
+import { docDe, fermerLOnglet, ouvrirCoquille, rendreApplication } from "./aides-coquille.tsx";
 import { ouvrirFacade } from "./aides-facade.ts";
 import {
   attendreEtat,
@@ -418,8 +418,9 @@ describe("reprise à l'écran", () => {
       fille = ops.creerPage("Fille", { parent: mere });
     });
     await laisserIndexedDbTravailler();
-    premiere.session.fermer();
-    document.body.replaceChildren();
+    // Depuis F-003, une application restée montée ouvrirait la page que l'adresse désigne, et ses
+    // minuteries se mêleraient à celles de la suivante : l'onglet est fermé pour de bon.
+    fermerLOnglet(premiere);
     simulerLHorloge();
     refuserLesOuverturesParUneException();
     window.location.hash = `#/page/${fille}`;

@@ -43,3 +43,16 @@ export const PAGE_COURANTE = "Décisions à prendre avant jeudi";
 
 /** Entrée du pied de la barre latérale : fictive, F-007 y posera la sienne (F-004-AC30). */
 export const ENTREE_DE_PIED_FICTIVE = "Corbeille";
+
+/** Commandes de la barre de blocs, telles que l'éditeur les donne ; « Titre 1 » est le type courant. */
+export const COMMANDES_DE_BLOC_FICTIVES = [
+  { nom: "Paragraphe", repere: "¶", active: false },
+  { nom: "Titre 1", repere: "T1", active: true },
+  { nom: "Titre 2", repere: "T2", active: false },
+  { nom: "Titre 3", repere: "T3", active: false },
+  { nom: "Liste à puces", repere: "•", active: false },
+  { nom: "Liste numérotée", repere: "1.", active: false },
+] as const;
+
+/** La barre de blocs est posée sous le bloc vide de l'aperçu, sans le recouvrir. */
+export const POSITION_DE_BARRE_FICTIVE = { gauche: 0, haut: 44 } as const;

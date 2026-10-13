@@ -129,7 +129,7 @@ export async function toutRefermer(page: Page): Promise<void> {
   for (const ouvert of [
     listeDuFil,
     page.getByRole("menu"),
-    page.getByRole("textbox"),
+    page.getByRole("textbox", { name: "Titre de la page" }),
     tiroir(page),
   ]) {
     if ((await ouvert.count()) > 0) {

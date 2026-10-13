@@ -63,15 +63,27 @@ describe("frontières du module de persistance", () => {
       "type DesignationDocument",
       "type EtatPersistance",
       "type Persistance",
+      "type PersistanceEspaceLocal",
     ]);
   });
 
   it("F-002-AC22 les dépendances d'exécution d'apps/web sont celles du plan, y-indexeddb comprise une seule fois", () => {
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
       "@notionlike/document",
+      "@tiptap/core",
+      "@tiptap/extension-collaboration",
+      "@tiptap/extension-document",
+      "@tiptap/extension-heading",
+      "@tiptap/extension-list",
+      "@tiptap/extension-paragraph",
+      "@tiptap/extension-text",
+      "@tiptap/pm",
+      "@tiptap/react",
+      "@tiptap/y-tiptap",
       "react",
       "react-dom",
       "y-indexeddb",
+      "y-protocols",
       "yjs",
     ]);
     expect(Object.keys(manifesteWeb.devDependencies)).not.toContain("y-indexeddb");
@@ -100,11 +112,15 @@ function detourneLaResolution(configuration: string): boolean {
 }
 
 describe("@notionlike/document résolu par son nom", () => {
-  it("F-002-AC32 F-002-AC31 importé par son nom de paquet, il rend exactement les exports de F-001", () => {
+  it("F-002-AC32 F-002-AC31 F-003-AC24 importé par son nom de paquet, il rend exactement les exports de F-001 et ceux de la façade de page de F-003", () => {
     expect(Object.keys(exportsDuDocument).sort()).toEqual([
       "ErreurDocument",
+      "TABLE_DES_VERSIONS_PAGE",
+      "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      "lireVersionPage",
       "ouvrirDocumentEspace",
+      "ouvrirDocumentPage",
     ]);
   });
 
@@ -140,8 +156,12 @@ describe("@notionlike/document résolu par son nom", () => {
 
     expect(Object.keys(await import(/* @vite-ignore */ declare)).sort()).toEqual([
       "ErreurDocument",
+      "TABLE_DES_VERSIONS_PAGE",
+      "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      "lireVersionPage",
       "ouvrirDocumentEspace",
+      "ouvrirDocumentPage",
     ]);
   });
 });

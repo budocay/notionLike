@@ -194,16 +194,64 @@ module.exports = {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007 : hors persistance, espace, navigation et identifiants, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+        "ADR-0007, F-003-AC27 : hors persistance, espace, navigation, identifiants, édition et page, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
       from: {
         path: "^apps/web/src/",
-        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants)/",
+        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page)/",
       },
       to: {
         pathNot: [
           "^apps/web/src/(?!(persistance|identifiants)/)",
           "^packages/document/src/index\\.ts$",
           "(^|/)node_modules/(react|react-dom)/",
+        ],
+      },
+    },
+    {
+      name: "edition-confinee",
+      severity: "error",
+      comment:
+        "F-003-AC27 : Tiptap, ProseMirror et leur liaison Yjs ne sont importés que par le module d'édition (src/edition/) et l'aide de ses tests (test/edition/).",
+      from: { path: "^(apps|packages)/", pathNot: "^apps/web/(src|test)/edition/" },
+      to: { path: "(^|/)node_modules/(@tiptap|prosemirror-[^/]+|y-prosemirror)/" },
+    },
+    {
+      name: "web-edition-par-son-interface",
+      severity: "error",
+      comment:
+        "F-003-AC27 : hors du module d'édition, seul son index.ts est importable (tests compris).",
+      from: { path: "^apps/web/", pathNot: "^apps/web/src/edition/" },
+      to: { path: "^apps/web/src/edition/", pathNot: "^apps/web/src/edition/index\\.ts$" },
+    },
+    {
+      name: "web-edition-liste-blanche",
+      severity: "error",
+      comment:
+        "F-003-AC27 : le module d'édition n'importe que lui-même, le composant de présentation de l'édition, les textes de l'interface, react, yjs et les paquets Tiptap qu'il emploie.",
+      from: { path: "^apps/web/src/edition/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/edition/",
+          "^apps/web/src/interface/composants/Edition\\.tsx$",
+          "^apps/web/src/interface/messages\\.ts$",
+          "(^|/)node_modules/(react|yjs)/",
+          "(^|/)node_modules/@tiptap/(core|pm|react|extension-(collaboration|document|heading|list|paragraph|text))/",
+        ],
+      },
+    },
+    {
+      name: "web-page-liste-blanche",
+      severity: "error",
+      comment:
+        "F-003 : la session de page n'importe qu'elle-même, l'interface de la persistance, la garde d'onglet, les exports de @notionlike/document et yjs (ni React, ni Tiptap).",
+      from: { path: "^apps/web/src/page/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/page/",
+          "^apps/web/src/persistance/index\\.ts$",
+          "^apps/web/src/espace/garde-onglet\\.ts$",
+          "^packages/document/src/index\\.ts$",
+          "(^|/)node_modules/yjs/",
         ],
       },
     },

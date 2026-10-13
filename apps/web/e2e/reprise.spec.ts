@@ -63,8 +63,16 @@ test("F-030-AC22 ouverture avec un stockage défaillant : avertissement, page cr
 
   await reglerLaPanne(page, false);
   await page.waitForTimeout(1_000);
-  await page.getByRole("button", { name: REESSAYER }).click();
-  await expect(avertissement(page)).toHaveCount(0);
+  // Depuis F-003, une page ouverte a sa propre base et ses tentatives : une tentative automatique
+  // peut aboutir avant le clic et retirer le bouton avec l'avertissement. Le clic n'est qu'un
+  // raccourci ; ce qui est constaté est le retrait de l'avertissement sans rechargement.
+  const reessayer = page.getByRole("button", { name: REESSAYER });
+  await expect(async () => {
+    if (await reessayer.isVisible()) {
+      await reessayer.click({ timeout: 1_000 });
+    }
+    await expect(avertissement(page)).toHaveCount(0, { timeout: 1_000 });
+  }).toPass();
   await expect(zoneDEtat(page)).toContainText(ENREGISTRE);
   await expect(lienDePage(page, "Renommée pendant la coupure")).toBeVisible();
 

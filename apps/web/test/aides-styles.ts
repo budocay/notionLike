@@ -131,7 +131,21 @@ function extensionDe(chemin: string): string {
   return chemin.slice(chemin.lastIndexOf(".") + 1);
 }
 
-function fautesDInterdits(chemin: string, texte: string): string[] {
+// La seule suppression du contour de focus admise (F-003-AC44, F-004-AC10) : la règle nommée de la
+// zone de saisie de l'éditeur, une fois, dans la feuille d'entrée. Elle est retirée du texte avant
+// le contrôle ; toute autre suppression, ou cette règle ailleurs ou une seconde fois, reste vue.
+const FEUILLE_DE_LA_ZONE_DE_SAISIE = "src/styles/entree.css";
+const REGLE_DE_LA_ZONE_DE_SAISIE =
+  /@utility saisie-sans-contour\s*\{\s*&\s*\[contenteditable\]\s*\{\s*outline:\s*none;\s*\}\s*\}/;
+
+function sansLaRegleDeLaZoneDeSaisie(chemin: string, texte: string): string {
+  return chemin === FEUILLE_DE_LA_ZONE_DE_SAISIE
+    ? texte.replace(REGLE_DE_LA_ZONE_DE_SAISIE, "")
+    : texte;
+}
+
+function fautesDInterdits(chemin: string, source: string): string[] {
+  const texte = sansLaRegleDeLaZoneDeSaisie(chemin, source);
   const extension = extensionDe(chemin);
   return INTERDITS.filter(({ pour }) => pour === undefined || pour.includes(extension)).flatMap(
     ({ motif, faute }) => {
@@ -243,7 +257,9 @@ function fautesCss(chemin: string, source: string, contexte: Contexte): string[]
   const texte = sansCommentaires(source);
   const inconnus = [...texte.matchAll(/var\(\s*(--[\w-]+)/g)]
     .map(([, nom = ""]) => nom)
-    .filter((nom) => !contexte.jetons.has(nom) && !/^--(tw-|niveau$)/.test(nom))
+    .filter(
+      (nom) => !contexte.jetons.has(nom) && !/^--(tw-|niveau$|barre-gauche$|barre-haut$)/.test(nom),
+    )
     .map((nom) => `${chemin} : jeton non déclaré : « ${nom} »`);
   return [
     ...inconnus,
