@@ -16,6 +16,7 @@ export const TYPES = {
   presence: 1,
   authentification: 2,
   demandeDePresence: 3,
+  reponseDeSynchronisation: 4,
   sansEtat: 5,
   diffusionInterne: 6,
   fermeture: 7,
@@ -53,6 +54,17 @@ export const brut = {
   miseAJour: (nom: string, miseAJour: Uint8Array) =>
     message(nom, TYPES.synchronisation, (encodeur) => {
       encoding.writeVarUint(encodeur, syncProtocole.messageYjsUpdate);
+      encoding.writeVarUint8Array(encodeur, miseAJour);
+    }),
+  // Le même message de mise à jour, porté par le type de réponse de synchronisation (4).
+  reponseMiseAJour: (nom: string, miseAJour: Uint8Array) =>
+    message(nom, TYPES.reponseDeSynchronisation, (encodeur) => {
+      encoding.writeVarUint(encodeur, syncProtocole.messageYjsUpdate);
+      encoding.writeVarUint8Array(encodeur, miseAJour);
+    }),
+  reponseEtape2: (nom: string, miseAJour: Uint8Array) =>
+    message(nom, TYPES.reponseDeSynchronisation, (encodeur) => {
+      encoding.writeVarUint(encodeur, syncProtocole.messageYjsSyncStep2);
       encoding.writeVarUint8Array(encodeur, miseAJour);
     }),
   presence: (nom: string, octets: Uint8Array) =>
