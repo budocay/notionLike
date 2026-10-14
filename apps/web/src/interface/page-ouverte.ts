@@ -17,8 +17,9 @@ interface Ouverte {
 }
 
 // Les documents de page de l'onglet vivent autant que l'écran de l'espace : les fermer libère
-// aussi ceux qu'une coupure faisait conserver.
-function usePagesOuvertes(): PagesOuvertes {
+// aussi ceux qu'une coupure faisait conserver. L'écran de la corbeille les reçoit pour fermer ceux
+// d'une page supprimée avant d'effacer sa base (F-007-AC32).
+export function usePagesOuvertes(): PagesOuvertes {
   const [pages] = useState(creerPagesOuvertes);
   useEffect(() => () => pages.fermer(), [pages]);
   return pages;
@@ -30,10 +31,10 @@ function usePagesOuvertes(): PagesOuvertes {
  * le double montage du mode strict ouvre, ferme, puis rouvre (F-003-AC33).
  */
 export function usePageOuverte(
+  pages: PagesOuvertes,
   idEspace: string | undefined,
   idPage: string | undefined,
 ): EtatDeLaPage {
-  const pages = usePagesOuvertes();
   const [ouverte, setOuverte] = useState<Ouverte | undefined>(undefined);
   useEffect(() => {
     if (idPage === undefined) {

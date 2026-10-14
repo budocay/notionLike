@@ -297,6 +297,8 @@ describe("couture du module de persistance", () => {
 
     expect(quiAppellent("ouvrirEspaceLocal")).toEqual([
       "src/espace/session-espace.ts",
+      // F-007 : délai et échec de l'ouverture, constatés pour les appelants (F-007-AC26).
+      "test/corbeille-effacement.test.ts",
       "test/page-echecs.test.tsx",
       "test/persistance-echecs.test.ts",
       "test/persistance-ouverture.test.ts",

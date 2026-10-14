@@ -258,6 +258,8 @@ describe("barre latérale", () => {
       "Actions de la page « Parent »",
       "Ajouter une sous-page à « Sans titre »",
       "Actions de la page « Sans titre »",
+      // F-007 : l'entrée du pied, après l'arborescence.
+      "Corbeille",
     ]);
     // Renommer et mettre à la corbeille sont des entrées du menu de la page, natives elles aussi.
     for (const titre of ["Parent", "Sans titre"]) {

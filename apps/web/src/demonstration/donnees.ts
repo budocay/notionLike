@@ -56,6 +56,21 @@ export const ESPACES_FICTIFS = {
   lienFictif: "exemple.invalid/#/invitation/jeton-fictif",
 } as const;
 
+// Écran de la corbeille (F-007) : une racine et sa descendance, une racine seule.
+export const CORBEILLE_FICTIVE = {
+  nom: "Corbeille",
+  vide: "La corbeille est vide",
+  racine: "Notes de réunion",
+  sousPages: "2 sous-pages",
+  fille: "Mardi",
+  petiteFille: "Points ouverts",
+  aucune: "Aucune sous-page",
+  seule: "Brouillon d'annonce",
+  restaurer: "Restaurer",
+  supprimer: "Supprimer définitivement",
+  uneSousPage: "1 sous-page",
+} as const;
+
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
 export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";

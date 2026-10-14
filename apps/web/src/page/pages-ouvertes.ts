@@ -4,7 +4,13 @@
 import * as Y from "yjs";
 
 import { suivreLOnglet } from "../espace/garde-onglet.ts";
-import { ErreurPersistance, ouvrirPersistance, type Persistance } from "../persistance/index.ts";
+import {
+  effacerBaseDePage,
+  ErreurPersistance,
+  type IssueDEffacement,
+  ouvrirPersistance,
+  type Persistance,
+} from "../persistance/index.ts";
 import { demarrerSessionPage, type SessionPage, sessionDePageIntrouvable } from "./session-page.ts";
 
 export interface DesignationDePage {
@@ -18,6 +24,13 @@ export interface PagesOuvertes {
   ouvrir(designation: DesignationDePage): SessionPage;
   /** Ferme la session ouverte et libère tout document conservé. Les pages restent utilisables. */
   fermer(): void;
+  /**
+   * Pages supprimées définitivement (F-007-AC11, AC21, AC32) : ferme la session de chacune et libère
+   * son document, conservé ou affiché, persistance fermée et `Y.Doc` détruit, dans tous les cas ;
+   * puis efface sa base de l'espace donné. `idEspace` absent (espace inconnu, persistance de
+   * l'espace coupée) : aucune base n'est effacée, l'issue est `echec`. Jamais rejetée.
+   */
+  effacer(idEspace: string | undefined, idPages: readonly string[]): Promise<IssueDEffacement>;
 }
 
 /** Un document de page tenu par l'onglet, affiché ou conservé. */
@@ -43,21 +56,16 @@ export function creerPagesOuvertes(): PagesOuvertes {
   const conservees = new Map<string, Tenue>();
   let courante: Courante | undefined;
 
-  const fermerLaCourante = (): void => {
+  // `conserver` faux : la page est supprimée, son document est libéré même non enregistré.
+  const fermerLaCourante = (conserver = true): void => {
     if (courante === undefined) {
       return;
     }
     const { idPage, tenue, session } = courante;
     courante = undefined;
     session.fermer();
-    if (doitEtreConservee(tenue)) {
-      conservees.set(idPage, tenue);
-      attendreLEcriture(tenue, () => {
-        if (conservees.get(idPage) === tenue) {
-          conservees.delete(idPage);
-          liberer(tenue);
-        }
-      });
+    if (conserver && doitEtreConservee(tenue)) {
+      conserverJusquALEcriture(conservees, idPage, tenue);
     } else {
       liberer(tenue);
     }
@@ -84,10 +92,52 @@ export function creerPagesOuvertes(): PagesOuvertes {
     },
     fermer: () => {
       fermerLaCourante();
-      [...conservees.values()].forEach(liberer);
-      conservees.clear();
+      libererLesConservees(conservees, [...conservees.keys()]);
+    },
+    effacer: (idEspace, idPages) => {
+      if (courante !== undefined && idPages.includes(courante.idPage)) {
+        fermerLaCourante(false);
+      }
+      libererLesConservees(conservees, idPages);
+      return idEspace === undefined ? Promise.resolve("echec") : effacerLesBases(idEspace, idPages);
     },
   };
+}
+
+function conserverJusquALEcriture(
+  conservees: Map<string, Tenue>,
+  idPage: string,
+  tenue: Tenue,
+): void {
+  conservees.set(idPage, tenue);
+  attendreLEcriture(tenue, () => {
+    if (conservees.get(idPage) === tenue) {
+      conservees.delete(idPage);
+      liberer(tenue);
+    }
+  });
+}
+
+function libererLesConservees(conservees: Map<string, Tenue>, idPages: readonly string[]): void {
+  for (const idPage of idPages) {
+    const conservee = conservees.get(idPage);
+    conservees.delete(idPage);
+    if (conservee !== undefined) {
+      liberer(conservee);
+    }
+  }
+}
+
+// Rien de ce que l'onglet tenait sur ces pages n'existe plus : une persistance rouverte sur un
+// document resté en mémoire réécrirait son contenu dans une base recréée (F-007 H17).
+async function effacerLesBases(
+  idEspace: string,
+  idPages: readonly string[],
+): Promise<IssueDEffacement> {
+  const issues = await Promise.all(
+    [...new Set(idPages)].map((idPage) => effacerBaseDePage({ idEspace, idPage })),
+  );
+  return issues.every((issue) => issue === "effacee") ? "effacee" : "echec";
 }
 
 // Le document conservé de cette page s'il y en a un, sinon un document vierge. `undefined` : la

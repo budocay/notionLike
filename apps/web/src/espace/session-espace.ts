@@ -6,7 +6,10 @@ import { ouvrirEspaceLocal, type PersistanceEspaceLocal } from "../persistance/i
 import { suivreLOnglet } from "./garde-onglet.ts";
 import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 
-type OperationsEspace = Pick<DocumentEspace, "creerPage" | "renommerPage" | "mettreALaCorbeille">;
+type OperationsEspace = Pick<
+  DocumentEspace,
+  "creerPage" | "renommerPage" | "mettreALaCorbeille" | "restaurerPage" | "supprimerDefinitivement"
+>;
 
 export type EtatSession =
   | { readonly phase: "contexte-non-securise" }
@@ -62,7 +65,9 @@ export function demarrerSessionEspace(): SessionEspace {
       fermer: () => undefined,
     };
   }
-  const doc = new Y.Doc();
+  // Ramasse-miettes actif, explicitement : le contenu d'une page supprimée définitivement est libéré
+  // du document tenu en mémoire et de son état encodé (F-007-AC29, H14).
+  const doc = new Y.Doc({ gc: true });
   return sessionOuverte(doc, ouvrirEspaceLocal(doc, crypto.randomUUID()));
 }
 
@@ -221,6 +226,8 @@ function operationsDe(facade: DocumentEspace): OperationsEspace {
     creerPage: facade.creerPage,
     renommerPage: facade.renommerPage,
     mettreALaCorbeille: facade.mettreALaCorbeille,
+    restaurerPage: facade.restaurerPage,
+    supprimerDefinitivement: facade.supprimerDefinitivement,
   };
 }
 

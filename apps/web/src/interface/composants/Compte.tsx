@@ -38,20 +38,27 @@ interface ProprietesAction {
   readonly adresse?: string | undefined;
   readonly surActivation?: (() => void) | undefined;
   readonly desactivee?: boolean | undefined;
+  /** Vrai : l'action mène à l'écran affiché, marquée courante (F-007-AC1). */
+  readonly courante?: boolean | undefined;
 }
 
 export function ActionDeCompte(props: ProprietesAction): ReactElement {
   return props.adresse === undefined ? (
     <button
       type="button"
-      className={COMPTE.action}
+      className={props.courante === true ? COMPTE.actionCourante : COMPTE.action}
+      aria-current={props.courante === true ? "page" : undefined}
       disabled={props.desactivee}
       onClick={props.surActivation}
     >
       {props.libelle}
     </button>
   ) : (
-    <a href={props.adresse} className={COMPTE.action}>
+    <a
+      href={props.adresse}
+      className={props.courante === true ? COMPTE.actionCourante : COMPTE.action}
+      aria-current={props.courante === true ? "page" : undefined}
+    >
       {props.libelle}
     </a>
   );

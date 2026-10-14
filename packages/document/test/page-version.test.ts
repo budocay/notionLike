@@ -273,6 +273,8 @@ const CODES_ATTENDUS = Object.keys({
   "facade-fermee": true,
   "version-invalide": true,
   "rang-indisponible": true,
+  // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
+  "page-hors-corbeille": true,
 } satisfies Record<CodeErreurDocument, true>);
 
 describe("codes d'erreur du paquet", () => {
@@ -287,6 +289,7 @@ describe("codes d'erreur du paquet", () => {
       "facade-fermee",
       "version-invalide",
       "rang-indisponible",
+      "page-hors-corbeille",
     ]);
   });
 });

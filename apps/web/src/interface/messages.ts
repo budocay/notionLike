@@ -82,6 +82,8 @@ const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
     "Cette page ne peut pas passer à la version de format demandée : l'action n'a pas été effectuée.",
   "rang-indisponible":
     "Impossible de placer la page à cet endroit : l'action n'a pas été effectuée.",
+  "page-hors-corbeille":
+    "Cette page n'est plus dans la corbeille : l'action n'a pas été effectuée.",
 };
 
 export function messageErreur(code: CodeErreurDocument): string {
@@ -133,6 +135,20 @@ export function nomSousPages(titre: string): string {
 /** Description du lien d'une rangée de niveau 2 ou plus (F-004-AC55). */
 export function descriptionDeSousPage(niveau: number, titreDeLaMere: string): string {
   return `Niveau ${niveau}, sous-page de « ${titreCite(titreDeLaMere)} »`;
+}
+
+// Écran de la corbeille (F-007) : les noms composés autour d'un titre ; les autres textes sont dans
+// messages-corbeille.ts.
+export function nomRestaurer(titre: string): string {
+  return `Restaurer « ${titreCite(titre)} »`;
+}
+
+export function nomSupprimer(titre: string): string {
+  return `Supprimer définitivement « ${titreCite(titre)} »`;
+}
+
+export function titreDeLaConfirmation(titre: string): string {
+  return `Supprimer définitivement « ${titreCite(titre)} » ?`;
 }
 
 /** Acceptation réussie d'une invitation (F-014-AC23) : le nom de l'espace est cité comme un titre. */

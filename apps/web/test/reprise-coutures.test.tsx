@@ -58,6 +58,8 @@ const AIDES_DE_TEST = [
 ];
 const TESTS_DE_LA_PERSISTANCE = [
   "test/coquille-echecs.test.tsx",
+  // F-007 : effacement des bases de page.
+  "test/corbeille-effacement.test.ts",
   "test/coutures-page.test.ts",
   "test/coutures.test.ts",
   "test/page-echecs.test.tsx",
@@ -406,7 +408,14 @@ describe("chaque appelant de production traite la reprise", () => {
       enregistre,
       baseRelue: true,
       basesNonRattachees: false,
-      operations: { creerPage: vi.fn(), renommerPage: vi.fn(), mettreALaCorbeille: vi.fn() },
+      operations: {
+        creerPage: vi.fn(),
+        renommerPage: vi.fn(),
+        mettreALaCorbeille: vi.fn(),
+        // F-007 : opérations de la corbeille.
+        restaurerPage: vi.fn(),
+        supprimerDefinitivement: vi.fn(),
+      },
       reessayer: vi.fn(),
     });
     const ecran = (etat: Extract<EtatSession, { phase: "pret" }>) => (

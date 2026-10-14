@@ -131,7 +131,8 @@ describe("rangée : titre et actions", () => {
       nomAjouterSousPage("Lundi"),
       nomDuMenu("Lundi"),
     ]);
-    expect(barre().textContent).not.toMatch(/Renommer|Sous-page|Corbeille/);
+    // Depuis F-007, le pied porte l'entrée « Corbeille » : seule l'arborescence est lue ici.
+    expect(barre().querySelector("ul")?.textContent).not.toMatch(/Renommer|Sous-page|Corbeille/);
 
     act(() =>
       within(carnet)
@@ -535,16 +536,18 @@ describe("tête, pied et raccourcis", () => {
     expect(lister("src").filter((chemin) => /palette|recherche/i.test(chemin))).toEqual([]);
   });
 
-  it("F-004-AC30 le pied ne porte aucune entrée, F-007 n'étant pas livrée : la barre finit par l'arborescence, qui défile seule", async () => {
+  it("F-004-AC30 F-007-AC1 F-007 étant livrée, le pied porte l'entrée « Corbeille » et nulle part ailleurs : la barre finit par le pied, l'arborescence défile seule entre la tête et lui", async () => {
     await ouvrirTroisNiveaux();
 
     const zones = [...barre().children];
-    expect(zones).toHaveLength(2);
+    expect(zones).toHaveLength(3);
     expect(zones[1]?.classList.contains("overflow-y-auto")).toBe(true);
     expect(zones[1]?.querySelectorAll("li")).toHaveLength(4);
     expect(zones[0]?.querySelector("li")).toBeNull();
-    expect(barre().textContent).not.toContain("Corbeille");
-    expect(lister("src").filter((chemin) => /corbeille/i.test(chemin))).toEqual([]);
+    expect(zones[2]?.textContent).toBe("Corbeille");
+    expect(within(zones[2] as HTMLElement).getByRole("button").textContent).toBe("Corbeille");
+    expect(zones[0]?.textContent).not.toContain("Corbeille");
+    expect(zones[1]?.textContent).not.toContain("Corbeille");
   });
 
   it("F-004-AC31 F-003-AC42 la déclaration des raccourcis ne porte que F2 et, depuis F-003, Alt+F10 ; F2 agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
