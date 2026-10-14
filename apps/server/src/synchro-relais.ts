@@ -7,7 +7,9 @@
 import "./stockage-local-neutre.ts";
 
 import { MessageType } from "@hocuspocus/server";
+import { LONGUEUR_MAX_DU_NOM_DE_DOCUMENT } from "@notionlike/contrats";
 import * as decoding from "lib0/decoding";
+import * as encoding from "lib0/encoding";
 import type { WebSocket } from "ws";
 
 import type { ReglagesSynchro } from "./synchro-reglages.ts";
@@ -33,6 +35,15 @@ export interface Connexion {
   fenetre: { debut: number; nombre: number };
   fermee: boolean;
 }
+
+// Borne de l'adresse d'un message, en octets : un nom conforme (79 caractères ASCII), le NUL, puis
+// un suffixe de session de 64 octets au plus (le client officiel en écrit une dizaine). Un message
+// dont l'adresse la dépasse n'est jamais remis à la bibliothèque : ni elle, ni le suivi des
+// ouvertures n'en gardent rien. Une demande d'ouverture reçoit le refus `nom-de-document-invalide`
+// (F-012-AC7) écrit par le relais ; tout autre message est écarté.
+const SUFFIXE_DE_SESSION_MAX = 64;
+export const LONGUEUR_MAX_DE_L_ADRESSE =
+  LONGUEUR_MAX_DU_NOM_DE_DOCUMENT + 1 + SUFFIXE_DE_SESSION_MAX;
 
 interface EnTete {
   readonly adresse: string;
@@ -113,23 +124,47 @@ export interface Relais {
   observerLEnvoi(donnees: Uint8Array): void;
 }
 
-export function creerRelais(
-  connexion: Connexion,
-  reglages: ReglagesSynchro,
-  maintenant: () => number,
-  depasser: () => void,
-): Relais {
+export interface DependancesDuRelais {
+  readonly reglages: ReglagesSynchro;
+  maintenant(): number;
+  // Le débit est dépassé : la connexion est fermée.
+  depasser(): void;
+  // Une demande d'ouverture d'adresse trop longue : le refus est écrit au client.
+  refuserLAdresse(refus: Uint8Array, adresse: string): void;
+}
+
+// Le refus d'ouverture de la bibliothèque (`PermissionDenied`), adressé comme la demande.
+function refusDAdresse(adresse: string): Uint8Array {
+  const encodeur = encoding.createEncoder();
+  encoding.writeVarString(encodeur, adresse);
+  encoding.writeVarUint(encodeur, MessageType.Auth);
+  encoding.writeVarUint(encodeur, ISSUES_D_AUTHENTIFICATION.refusee);
+  encoding.writeVarString(encodeur, "nom-de-document-invalide");
+  return encoding.toUint8Array(encodeur);
+}
+
+export function creerRelais(connexion: Connexion, dependances: DependancesDuRelais): Relais {
+  const { reglages } = dependances;
   return {
     recevoir(donnees, remettre) {
       if (connexion.fermee) {
         return;
       }
-      if (!dansLeDebit(connexion, maintenant(), reglages)) {
-        depasser();
+      if (!dansLeDebit(connexion, dependances.maintenant(), reglages)) {
+        dependances.depasser();
         return;
       }
       const entete = enTeteDe(donnees);
-      if (entete !== undefined && aRemettre(connexion, entete, donnees.byteLength, reglages)) {
+      if (entete === undefined) {
+        return;
+      }
+      if (Buffer.byteLength(entete.adresse, "utf8") > LONGUEUR_MAX_DE_L_ADRESSE) {
+        if (entete.type === MessageType.Auth) {
+          dependances.refuserLAdresse(refusDAdresse(entete.adresse), entete.adresse);
+        }
+        return;
+      }
+      if (aRemettre(connexion, entete, donnees.byteLength, reglages)) {
         remettre(donnees);
       }
     },

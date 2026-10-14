@@ -10,7 +10,11 @@ import { STATUS_CODES, type IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 
 import { Hocuspocus, type Connection } from "@hocuspocus/server";
-import { CHEMIN_SYNCHRO, CODE_DE_FERMETURE_A_L_ARRET } from "@notionlike/contrats";
+import {
+  CHEMIN_SYNCHRO,
+  CODE_DE_FERMETURE_A_L_ARRET,
+  LONGUEUR_MAX_DU_NOM_DE_DOCUMENT,
+} from "@notionlike/contrats";
 import type { Base } from "@notionlike/db";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
 
@@ -22,7 +26,7 @@ import type { Configuration } from "./configuration.ts";
 import type { Journal, TypeDEvenementDeSynchro } from "./journal.ts";
 import { origineDuPassageAdmise } from "./origine.ts";
 import type { SuppressionDeSessions } from "./sessions.ts";
-import { creerAcces, type Contexte } from "./synchro-acces.ts";
+import { creerAcces, FERMETURE_D_OUVERTURE, type Contexte } from "./synchro-acces.ts";
 import {
   MINUTERIE_DU_SYSTEME,
   REGLAGES_SYNCHRO,
@@ -167,7 +171,7 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
     defaillance: dependances.defaillance,
     fermerLesOuvertures: (nom, motif) => {
       for (const ouverture of hocuspocus.documents.get(nom)?.getConnections() ?? []) {
-        ouverture.close({ code: 1000, reason: motif });
+        ouverture.close({ code: FERMETURE_D_OUVERTURE, reason: motif });
       }
     },
   });
@@ -207,6 +211,7 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
     code: number,
     motif: string,
     type: TypeDEvenementDeSynchro = "acces-retire",
+    erreur?: unknown,
   ): void {
     if (connexion.fermee) {
       return;
@@ -218,6 +223,7 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
       idCompte: connexion.idCompte,
       motif: motif === "" ? undefined : motif,
       code,
+      erreur,
     });
     connexion.prise.close(code, motif);
     // La bibliothèque ne voit plus rien de cette connexion : ses ouvertures sont fermées tout de
@@ -247,8 +253,22 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
         erreur: tropGrand ? undefined : erreur,
       });
     });
-    const relais = creerRelais(connexion, reglages, minuterie.maintenant, () => {
-      fermerLaConnexion(connexion, POLITIQUE, "trop-de-requetes", "limite-atteinte");
+    const relais = creerRelais(connexion, {
+      reglages,
+      maintenant: minuterie.maintenant,
+      depasser: () => {
+        fermerLaConnexion(connexion, POLITIQUE, "trop-de-requetes", "limite-atteinte");
+      },
+      refuserLAdresse: (refus, adresse) => {
+        journal.evenementDeSynchro({
+          type: "ouverture-refusee",
+          adresse: connexion.adresse,
+          idCompte: connexion.idCompte,
+          document: `${adresse.slice(0, LONGUEUR_MAX_DU_NOM_DE_DOCUMENT)}…`,
+          motif: "nom-de-document-invalide",
+        });
+        prise.send(refus);
+      },
     });
     const client = hocuspocus.handleConnection(
       {
@@ -271,10 +291,14 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
       relais.recevoir(octetsDe(donnees), client.handleMessage);
     });
     prise.on("close", (code) => {
+      // Une connexion fermée par le serveur a déjà quitté la bibliothèque (`fermerLaConnexion`).
+      const detachee = connexion.fermee;
       connexions.delete(connexion);
       clients.delete(connexion);
       connexion.fermee = true;
-      client.handleClose({ code, reason: "" });
+      if (!detachee) {
+        client.handleClose({ code, reason: "" });
+      }
       journal.evenementDeSynchro({
         type: "connexion-fermee",
         adresse: connexion.adresse,
@@ -357,33 +381,55 @@ export function creerSynchronisation(dependances: DependancesDeSynchro): Synchro
     if (socket.destroyed) {
       return;
     }
+    // La place réservée est liée à la socket : rendue à l'établissement, ou à sa fermeture quand
+    // `ws` avorte la poignée de main (en-tête `Upgrade`, clé ou version invalides) sans rappeler.
     reservees += 1;
-    serveurWs.handleUpgrade(requete, socket, tete, (prise) => {
-      reservees -= 1;
-      etablir(prise, examen.identite);
-    });
+    let reservee = true;
+    const rendre = (): void => {
+      if (reservee) {
+        reservee = false;
+        reservees -= 1;
+      }
+    };
+    socket.once("close", rendre);
+    try {
+      serveurWs.handleUpgrade(requete, socket, tete, (prise) => {
+        rendre();
+        etablir(prise, examen.identite);
+      });
+    } catch {
+      rendre();
+      socket.destroy();
+    }
   }
 
-  async function reverifierLaConnexion(connexion: Connexion): Promise<void> {
+  // La session de la connexion : vraie si elle vit encore ; sinon la connexion est fermée.
+  async function sessionVivante(connexion: Connexion): Promise<boolean> {
     let session: Awaited<ReturnType<Authentification["lireLaSession"]>>;
     try {
       session = await authentification.lireLaSession(connexion.enTetes);
-    } catch {
-      fermerLaConnexion(connexion, POLITIQUE, "erreur-interne");
-      return;
+    } catch (erreur) {
+      fermerLaConnexion(connexion, POLITIQUE, "erreur-interne", "acces-retire", erreur);
+      return false;
     }
     if (session?.idSession !== connexion.idSession) {
       fermerLaConnexion(connexion, POLITIQUE, "non-authentifie");
-      return;
+      return false;
     }
-    await acces.reverifier(connexion);
+    return true;
   }
 
-  // F-012-AC14 : le filet de 60 secondes, sur l'horloge injectée.
+  // F-012-AC14 : le filet de 60 secondes, sur l'horloge injectée. Les sessions d'abord, puis le
+  // rôle, lu une seule fois par espace et par compte pour toutes les ouvertures de la passe.
+  async function reverifierTout(): Promise<void> {
+    const vivantes = [...connexions].filter((connexion) => !connexion.fermee);
+    const valides = await Promise.all(vivantes.map(sessionVivante));
+    await acces.reverifier(new Set(vivantes.filter((_connexion, rang) => valides[rang])));
+  }
+
   function programmerLeFilet(): void {
     annulerLeFilet = minuterie.programmer(() => {
-      const vivantes = [...connexions].filter((connexion) => !connexion.fermee);
-      void Promise.all(vivantes.map(reverifierLaConnexion)).finally(() => {
+      void reverifierTout().finally(() => {
         if (!arret) {
           programmerLeFilet();
         }

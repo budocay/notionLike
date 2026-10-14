@@ -85,14 +85,26 @@ describe("appelants des deux paquets", () => {
         "schemaMembreVuParUnProprietaire",
       ],
       // F-012-AC27 : la synchronisation, par ses quatre modules.
-      "synchro-acces.ts": ["DocumentNomme", "Role", "nomDeDocument", "schemaNomDeDocument"],
+      "synchro-acces.ts": [
+        "DocumentNomme",
+        "LONGUEUR_MAX_DU_NOM_DE_DOCUMENT",
+        "Role",
+        "nomDeDocument",
+        "schemaNomDeDocument",
+      ],
       "synchro-reglages.ts": ["LIMITES_SYNCHRO", "LimitesSynchro"],
+      // F-012-AC7 : la borne de l'adresse d'un message.
+      "synchro-relais.ts": ["LONGUEUR_MAX_DU_NOM_DE_DOCUMENT"],
       "synchro-stockage.ts": [
         "DocumentNomme",
         "VERSION_DU_DOCUMENT_D_ESPACE",
         "schemaNomDeDocument",
       ],
-      "synchronisation.ts": ["CHEMIN_SYNCHRO", "CODE_DE_FERMETURE_A_L_ARRET"],
+      "synchronisation.ts": [
+        "CHEMIN_SYNCHRO",
+        "CODE_DE_FERMETURE_A_L_ARRET",
+        "LONGUEUR_MAX_DU_NOM_DE_DOCUMENT",
+      ],
     });
   });
 
@@ -201,6 +213,49 @@ describe("appelants de l'écoute et du service", () => {
       "test/essai/main-base-embarquee.ts",
       "test/essai/main-fermeture-en-echec.ts",
       "test/service.test.ts",
+    ]);
+  });
+});
+
+// Couture de F-012 : `adresseDe` et `enTetesPourBetterAuth` reçoivent un type structurel (une
+// requête d'Express le satisfait, la demande de passage en WebSocket aussi, par un adaptateur), et
+// `enTetesPourBetterAuth` est exporté ; le journal gagne `evenementDeSynchro`. Leurs appelants et
+// les implémentations du journal sont énumérés : chacun est exercé par ses tests de bout en bout
+// (routes de F-009, F-011, F-027 ; `synchro-connexion.test.ts` pour la synchronisation).
+function implementationsDuJournal(): string[] {
+  const methode = /(?<![.\w])evenementDeCompte\s*\(/;
+  return readdirSync(SERVEUR, { recursive: true, encoding: "utf8" })
+    .filter((chemin) => /^(src|test)\/.*\.ts$/.test(chemin))
+    .filter((chemin) => methode.test(readFileSync(new URL(chemin, SERVEUR), "utf8")))
+    .sort();
+}
+
+describe("appelants des fonctions élargies par F-012", () => {
+  it("F-012-AC26 F-012-AC31 les appelants de adresseDe sont énumérés", () => {
+    expect(appelantsDe("adresseDe")).toEqual([
+      "src/comptes.ts",
+      "src/gestion-du-compte.ts",
+      "src/synchronisation.ts",
+    ]);
+  });
+
+  it("F-012-AC1 F-012-AC31 les appelants de enTetesPourBetterAuth sont énumérés", () => {
+    expect(appelantsDe("enTetesPourBetterAuth")).toEqual([
+      "src/comptes.ts",
+      "src/synchronisation.ts",
+    ]);
+  });
+
+  it("F-012-AC26 le journal n'a qu'une implémentation, et ses constructeurs sont énumérés", () => {
+    expect(implementationsDuJournal()).toEqual(["src/journal.ts"]);
+    expect(appelantsDe("creerJournal")).toEqual([
+      "src/service.ts",
+      "test/aides.ts",
+      "test/comptes-echec.test.ts",
+      "test/couture-espaces.test.ts",
+      "test/fabrique.ts",
+      "test/suppression.test.ts",
+      "test/synchro-coutures.test.ts",
     ]);
   });
 });

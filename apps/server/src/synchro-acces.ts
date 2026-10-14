@@ -2,6 +2,7 @@
 // d'ouverture, prise à chaque ouverture par le module d'autorisation de F-011, et la réévaluation des
 // ouvertures vivantes, sur signal du module des adhésions ou par la revérification périodique.
 import {
+  LONGUEUR_MAX_DU_NOM_DE_DOCUMENT,
   nomDeDocument,
   schemaNomDeDocument,
   type DocumentNomme,
@@ -34,7 +35,7 @@ export interface OuvertureVivante {
   close(evenement: { code: number; reason: string }): void;
 }
 
-const FERMETURE_D_OUVERTURE = 1000;
+export const FERMETURE_D_OUVERTURE = 1000;
 
 interface Dependances {
   readonly base: Base;
@@ -55,7 +56,7 @@ export interface Acces {
   // Une ouverture établie après un changement de droits survenu pendant sa décision est refermée.
   verifierLEtablissement(ouverture: OuvertureVivante): void;
   surChangementDAdhesion(changement: ChangementDAdhesion): void;
-  reverifier(connexion: Connexion): Promise<void>;
+  reverifier(connexions: ReadonlySet<Connexion>): Promise<void>;
 }
 
 function cleDesDroits(idEspace: string, idCompte: string): string {
@@ -70,7 +71,7 @@ export function creerAcces(dependances: Dependances): Acces {
     return epoques.get(cleDesDroits(idEspace, idCompte)) ?? 0;
   }
 
-  function fermer(ouverture: OuvertureVivante, motif: string): void {
+  function fermer(ouverture: OuvertureVivante, motif: string, erreur?: unknown): void {
     const { connexion, ouverture: decision } = ouverture.context;
     journal.evenementDeSynchro({
       type: "acces-retire",
@@ -78,6 +79,7 @@ export function creerAcces(dependances: Dependances): Acces {
       idCompte: connexion.idCompte,
       document: decision === undefined ? undefined : nomDeDocument(decision.document),
       motif,
+      erreur,
     });
     ouverture.close({ code: FERMETURE_D_OUVERTURE, reason: motif });
   }
@@ -100,38 +102,55 @@ export function creerAcces(dependances: Dependances): Acces {
     }
   }
 
-  function refuser(connexion: Connexion, nom: string, motif: string): never {
+  // Le nom d'un refus est écrit au plus sur la longueur d'un nom conforme (F-012-AC26).
+  function refuser(connexion: Connexion, nom: string, motif: string, erreur?: unknown): never {
     journal.evenementDeSynchro({
       type: "ouverture-refusee",
       adresse: connexion.adresse,
       idCompte: connexion.idCompte,
-      document: nom,
+      document:
+        nom.length > LONGUEUR_MAX_DU_NOM_DE_DOCUMENT
+          ? `${nom.slice(0, LONGUEUR_MAX_DU_NOM_DE_DOCUMENT)}…`
+          : nom,
       motif,
+      erreur,
     });
     throw refus(motif);
   }
 
-  async function reverifierLOuverture(ouverture: OuvertureVivante): Promise<void> {
-    const { connexion, ouverture: decision } = ouverture.context;
-    if (decision === undefined) {
-      return;
-    }
-    let ecrit: boolean | undefined;
-    try {
-      const issue = await decider(base, {
-        idEspace: decision.document.idEspace,
-        idCompte: connexion.idCompte,
-        action: "ecrire-contenu",
-      });
-      ecrit = issue.issue === "introuvable" ? undefined : issue.issue === "autorisee";
-    } catch {
-      fermer(ouverture, "erreur-interne");
-      return;
-    }
+  // Le droit d'écrire du compte sur l'espace : vrai, faux, ou `undefined` pour un non-membre.
+  async function droitDEcrire(idEspace: string, idCompte: string): Promise<boolean | undefined> {
+    const issue = await decider(base, { idEspace, idCompte, action: "ecrire-contenu" });
+    return issue.issue === "introuvable" ? undefined : issue.issue === "autorisee";
+  }
+
+  function appliquer(ouverture: OuvertureVivante, ecrit: boolean | undefined): void {
     if (ecrit === undefined) {
       fermer(ouverture, "acces-refuse");
     } else if (ecrit === ouverture.readOnly) {
       changerLeDroit(ouverture, ecrit);
+    }
+  }
+
+  // Une lecture par espace et par compte ; son issue vaut pour chaque ouverture du groupe.
+  async function reverifierLeGroupe(groupe: readonly OuvertureVivante[]): Promise<void> {
+    const [premiere] = groupe;
+    const decision = premiere?.context.ouverture;
+    if (premiere === undefined || decision === undefined) {
+      return;
+    }
+    try {
+      const ecrit = await droitDEcrire(
+        decision.document.idEspace,
+        premiere.context.connexion.idCompte,
+      );
+      for (const ouverture of groupe) {
+        appliquer(ouverture, ecrit);
+      }
+    } catch (erreur) {
+      for (const ouverture of groupe) {
+        fermer(ouverture, "erreur-interne", erreur);
+      }
     }
   }
 
@@ -144,6 +163,12 @@ export function creerAcces(dependances: Dependances): Acces {
       if (ouvertesDe(connexion) + connexion.accordeesEnVol >= dependances.documentsParConnexion) {
         return refuser(connexion, nom, "quota-atteint");
       }
+      // F-012-AC24 : la place est réservée avant toute attente, rendue sur refus ou erreur ; un
+      // accord la garde jusqu'à son envoi, que le relais observe.
+      connexion.accordeesEnVol += 1;
+      const rendre = (): void => {
+        connexion.accordeesEnVol = Math.max(0, connexion.accordeesEnVol - 1);
+      };
       const { idEspace } = lu.data;
       const epoque = epoqueDe(idEspace, connexion.idCompte);
       let decision: Awaited<ReturnType<typeof decider>>;
@@ -154,21 +179,14 @@ export function creerAcces(dependances: Dependances): Acces {
           action: "lire-contenu",
         });
       } catch (erreur) {
-        journal.evenementDeSynchro({
-          type: "ouverture-refusee",
-          adresse: connexion.adresse,
-          idCompte: connexion.idCompte,
-          document: nom,
-          motif: "erreur-interne",
-          erreur,
-        });
-        throw refus("erreur-interne");
+        rendre();
+        return refuser(connexion, nom, "erreur-interne", erreur);
       }
       if (decision.issue !== "autorisee" || connexion.fermee) {
+        rendre();
         return refuser(connexion, nom, "acces-refuse");
       }
       accorder(!permet(decision.adhesion.role, "ecrire-contenu"));
-      connexion.accordeesEnVol += 1;
       return { ouverture: { document: lu.data, epoque } };
     },
     verifierLEtablissement(ouverture) {
@@ -204,15 +222,18 @@ export function creerAcces(dependances: Dependances): Acces {
         fermer(ouverture, "acces-refuse");
       }
     },
-    // F-012-AC14, AC15 : le filet. La session d'abord : sans elle, la connexion entière est fermée
-    // par l'appelant ; puis le rôle sur l'espace de chaque ouverture de la connexion.
-    async reverifier(connexion) {
-      const siennes = [...dependances.ouvertures()].filter(
-        (ouverture) => ouverture.context.connexion === connexion,
-      );
-      for (const ouverture of siennes) {
-        await reverifierLOuverture(ouverture);
+    // F-012-AC14, AC15 : le filet, pour les connexions dont la session vit encore. Les ouvertures
+    // sont groupées par espace et par compte : une seule lecture du rôle par groupe.
+    async reverifier(connexions) {
+      const groupes = new Map<string, OuvertureVivante[]>();
+      for (const ouverture of dependances.ouvertures()) {
+        const { connexion, ouverture: decision } = ouverture.context;
+        if (decision !== undefined && connexions.has(connexion)) {
+          const cle = cleDesDroits(decision.document.idEspace, connexion.idCompte);
+          groupes.set(cle, [...(groupes.get(cle) ?? []), ouverture]);
+        }
       }
+      await Promise.all([...groupes.values()].map(reverifierLeGroupe));
     },
   };
 }

@@ -22,6 +22,7 @@ import {
   type ClientBrut,
   type EspaceDEssai,
 } from "./aides-synchro.ts";
+import { laisseDesStructuresEnAttente } from "../src/synchro-stockage.ts";
 import { demarrerServeurDEssai, type ServeurDEssai } from "./fabrique.ts";
 
 const TEMOIN = "TEMOIN-DU-CONTENU-7f3a";
@@ -322,6 +323,78 @@ describe("échec de l'enregistrement (F-012-AC21)", () => {
         `select 1 from "espace" where "id" = '${autre.idEspace}'`,
       )) as { rows: unknown[] };
       expect(espaces.rows).toEqual([]);
+    },
+    DELAI_SYNCHRO_MS,
+  );
+});
+
+describe("mise à jour incomplète (F-012-AC20)", () => {
+  it("F-012-AC20 trou d'horloge, origine absente et suppression d'éléments inconnus laissent des structures en attente ; une mise à jour complète non", () => {
+    const serveurVide = new Y.Doc();
+    const a = new Y.Doc();
+    a.getText("t").insert(0, "x");
+    const insertionDeA = Y.encodeStateAsUpdate(a);
+    const b = new Y.Doc();
+    Y.applyUpdate(b, insertionDeA);
+    const avantB = Y.encodeStateVector(b);
+    b.getText("t").insert(1, "y");
+    const suiteDeB = Y.encodeStateAsUpdate(b, avantB);
+    const avantSuppression = Y.encodeStateVector(a);
+    a.getText("t").delete(0, 1);
+    const suppressionSeule = Y.encodeStateAsUpdate(a, avantSuppression);
+    b.getText("t").insert(0, "1");
+    const apresUn = Y.encodeStateVector(b);
+    b.getText("t").insert(0, "2");
+    const aTrou = Y.encodeStateAsUpdate(b, apresUn);
+
+    expect(laisseDesStructuresEnAttente(serveurVide, insertionDeA)).toBe(false);
+    expect(laisseDesStructuresEnAttente(serveurVide, suiteDeB)).toBe(true);
+    expect(laisseDesStructuresEnAttente(serveurVide, suppressionSeule)).toBe(true);
+    const connu = new Y.Doc();
+    Y.applyUpdate(connu, insertionDeA);
+    Y.applyUpdate(connu, suiteDeB);
+    expect(laisseDesStructuresEnAttente(connu, aTrou)).toBe(true);
+    expect(laisseDesStructuresEnAttente(connu, suppressionSeule)).toBe(false);
+    for (const doc of [serveurVide, a, b, connu]) {
+      doc.destroy();
+    }
+  });
+
+  it(
+    "F-012-AC20 une mise à jour à trou d'horloge est refusée avant d'être appliquée, et le document se recharge après un redémarrage",
+    async () => {
+      const document = page();
+      const client = await editeurSur(document);
+      await ecrire(client, document, "a");
+      const temoin = await editeurSur(document, serveur, espace.proprietaire);
+      const copie = new Y.Doc();
+      Y.applyUpdate(copie, Y.encodeStateAsUpdate(client.doc(document)));
+      copie.getText("contenu").insert(1, "b");
+      const apresB = Y.encodeStateVector(copie);
+      copie.getText("contenu").insert(2, "c");
+      const aTrou = Y.encodeStateAsUpdate(copie, apresB);
+      const depuis = client.recus.length;
+      const depuisTemoin = temoin.recus.length;
+
+      client.envoyer(brut.miseAJour(document, aTrou));
+
+      expect(await client.attendre((lu) => lu.type === "fermeture", depuis)).toEqual({
+        nom: document,
+        type: "fermeture",
+        raison: "erreur-interne",
+      });
+      await pause(serveur.reglages.attenteMaxDEnregistrementMs + 200);
+      expect(temoin.depuis(depuisTemoin)).toEqual([]);
+      expect(await texteStocke(serveur, document)).toBe("a");
+      expect(lignes("mise-a-jour-incomplete").some((ligne) => ligne.document === document)).toBe(
+        true,
+      );
+
+      await temoin.fermer();
+      await client.fermer();
+      await serveur.redemarrer();
+      const relu = await editeurSur(document);
+      expect(texteDe(relu.doc(document))).toBe("a");
     },
     DELAI_SYNCHRO_MS,
   );

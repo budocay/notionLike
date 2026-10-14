@@ -316,6 +316,15 @@ describe("filet de 60 secondes (F-012-AC14, AC15)", () => {
       } finally {
         await serveur.base.db.execute(`alter table "session_cachee" rename to "session"`);
       }
+      // F-012-AC26 : chaque fermeture consigne la classe de l'erreur, jamais son message.
+      const echecs = serveur
+        .lignesDuJournal()
+        .filter((ligne) => ligne.type === "acces-retire" && ligne.motif === "erreur-interne");
+      expect(echecs.map((ligne) => ligne.code ?? "ouverture")).toEqual(["ouverture", 1008]);
+      for (const ligne of echecs) {
+        expect(ligne.classe).toEqual(expect.any(String));
+        expect(JSON.stringify(ligne)).not.toMatch(/select|relation/i);
+      }
     },
     DELAI_SYNCHRO_MS,
   );

@@ -191,6 +191,32 @@ describe("nom de document (F-012-AC7)", () => {
   );
 });
 
+describe("adresse d'un message bornée (F-012-AC7, AC26)", () => {
+  it(
+    "F-012-AC7 F-012-AC26 une adresse au suffixe de session démesuré est refusée par le relais, sans ouverture ni chargement, et son nom est tronqué au journal",
+    async () => {
+      const client = await connecterBrut(serveur, { cookie: espace.editeur.cookie });
+      const valide = nom("page");
+      const adresse = `${valide}\0${"s".repeat(10_000)}`;
+
+      const refus = await client.ouvrir(adresse);
+      client.envoyer(brut.miseAJour(adresse, miseAJourTexte("x", new Y.Doc())));
+      await pause(200);
+
+      expect(refus).toEqual({ nom: adresse, type: "refusee", texte: "nom-de-document-invalide" });
+      expect(client.recus.filter((lu) => lu.nom === adresse)).toHaveLength(1);
+      expect(chargements).not.toContain(valide);
+      const lignes = serveur
+        .lignesDuJournal()
+        .filter((ligne) => String(ligne.document ?? "").startsWith(valide));
+      expect(lignes).toHaveLength(1);
+      expect(String(lignes[0]?.document).length).toBeLessThanOrEqual(80);
+      expect(client.prise.readyState).toBe(1);
+    },
+    DELAI_SYNCHRO_MS,
+  );
+});
+
 describe("rattachement à l'espace (F-012-AC8)", () => {
   it.each<TypeDeDocument>(["page", "table"])(
     "F-012-AC8 %s : le même identifiant dans un autre espace est un document propre à chaque espace",

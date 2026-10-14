@@ -77,6 +77,7 @@ export type TypeDEvenementDeSynchro =
   | "ouverture-refusee"
   | "acces-retire"
   | "limite-atteinte"
+  | "mise-a-jour-incomplete"
   | "chargement-en-echec"
   | "enregistrement-en-echec"
   | "enregistrement-abandonne"

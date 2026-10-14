@@ -225,6 +225,38 @@ describe("plafond des documents ouverts (F-012-AC24)", () => {
   );
 
   it(
+    "F-012-AC24 une rafale de demandes d'ouverture sans attente n'obtient pas plus que le plafond : les autres reçoivent quota-atteint",
+    async () => {
+      const membre = await reduit.inscrire("rafale");
+      await reduit.ajouterMembre(
+        espaceReduit.proprietaire.cookie,
+        espaceReduit.idEspace,
+        membre.cookie,
+        "editeur",
+      );
+      const client = await connecterBrut(reduit, { cookie: membre.cookie });
+      const documents = Array.from({ length: 10 }, () => page(espaceReduit.idEspace));
+
+      for (const document of documents) {
+        client.envoyer(brut.ouverture(document));
+        client.envoyer(brut.etape1(document, client.doc(document)));
+      }
+      await attendreQue(
+        () =>
+          client.recus.filter((lu) => lu.type === "accordee" || lu.type === "refusee").length ===
+          10,
+      );
+
+      const reponses = client.recus.filter((lu) => lu.type === "accordee" || lu.type === "refusee");
+      expect(reponses.filter((lu) => lu.type === "accordee")).toHaveLength(3);
+      expect(
+        reponses.filter((lu) => lu.type === "refusee").map((lu) => ("texte" in lu ? lu.texte : "")),
+      ).toEqual(Array<string>(7).fill("quota-atteint"));
+    },
+    DELAI_SYNCHRO_MS,
+  );
+
+  it(
     "F-012-AC24 F-012-AC34 une connexion qui ouvre et referme tour à tour 300 documents avec le client officiel ne reçoit aucun refus",
     async () => {
       const prise = priseDeFournisseur(serveur, espace.editeur.cookie);

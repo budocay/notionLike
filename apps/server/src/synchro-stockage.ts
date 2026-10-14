@@ -100,12 +100,61 @@ export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): bool
   }
 }
 
+// Les horloges connues d'un document, étendues par les structures d'une mise à jour. Un trou
+// d'horloge rend `undefined` : la structure qui le suit resterait en attente.
+function horlogesCouvertes(
+  document: Y.Doc,
+  structures: readonly unknown[],
+): Map<number, number> | undefined {
+  const connues = Y.decodeStateVector(Y.encodeStateVector(document));
+  for (const structure of structures) {
+    if (structure instanceof Y.Item || structure instanceof Y.GC) {
+      const { client, clock } = structure.id;
+      const fin = connues.get(client) ?? 0;
+      if (clock > fin) {
+        return undefined;
+      }
+      connues.set(client, Math.max(fin, clock + structure.length));
+    }
+  }
+  return connues;
+}
+
+function dependancesConnues(item: Y.Item, connues: ReadonlyMap<number, number>): boolean {
+  const parent = item.parent instanceof Y.ID ? item.parent : null;
+  return [item.origin, item.rightOrigin, parent].every(
+    (id) => id === null || id.clock < (connues.get(id.client) ?? 0),
+  );
+}
+
+// Une mise à jour qu'aucun état connu ne porte (trou d'horloge ; origine, voisine ou parent
+// absents ; suppression d'éléments inconnus) resterait en attente dans le document, et l'instantané
+// qui la contiendrait ne se rechargerait plus (F-012-AC20) : elle est refusée avant application.
+export function laisseDesStructuresEnAttente(document: Y.Doc, miseAJour: Uint8Array): boolean {
+  const { structs, ds } = Y.decodeUpdate(miseAJour);
+  const connues = horlogesCouvertes(document, structs);
+  if (connues === undefined) {
+    return true;
+  }
+  const items = structs.filter((structure) => structure instanceof Y.Item);
+  if (!items.every((item) => dependancesConnues(item, connues))) {
+    return true;
+  }
+  return [...ds.clients].some(([client, suppressions]) =>
+    suppressions.some(({ clock, len }) => clock + len > (connues.get(client) ?? 0)),
+  );
+}
+
+function aDesStructuresEnAttente(doc: Y.Doc): boolean {
+  return doc.store.pendingStructs !== null || doc.store.pendingDs !== null;
+}
+
 // Un instantané illisible, ou qui laisse des structures en attente, ne s'applique pas (F-012-AC20).
 function sAppliqueSeul(instantane: Uint8Array): boolean {
   const essai = new Y.Doc({ gc: true });
   try {
     Y.applyUpdate(essai, instantane);
-    return essai.store.pendingStructs === null && essai.store.pendingDs === null;
+    return !aDesStructuresEnAttente(essai);
   } catch {
     return false;
   } finally {
@@ -154,6 +203,10 @@ export function creerStockage(dependances: Dependances): Stockage {
 
   async function ecrire(etat: EtatDocument): Promise<void> {
     dependances.defaillance?.("enregistrement", etat.nom);
+    // Jamais d'instantané qui porte des structures en attente : l'essai échoue, et sera relancé.
+    if (aDesStructuresEnAttente(etat.document)) {
+      throw new TypeError("structures en attente");
+    }
     const rang = etat.rang;
     // L'état courant, au moment de l'essai (F-012-AC21).
     const instantane = Y.encodeStateAsUpdate(etat.document);
@@ -281,12 +334,22 @@ export function creerStockage(dependances: Dependances): Stockage {
         return;
       }
       let apport: Uint8Array;
+      let incomplete: boolean;
       try {
         if (Y.snapshotContainsUpdate(Y.snapshot(document), miseAJour)) {
           return;
         }
         apport = Y.diffUpdate(miseAJour, Y.encodeStateVector(document));
+        incomplete = laisseDesStructuresEnAttente(document, miseAJour);
       } catch {
+        throw refus("erreur-interne");
+      }
+      if (incomplete) {
+        journal.evenementDeSynchro({
+          type: "mise-a-jour-incomplete",
+          document: etat.nom,
+          motif: "erreur-interne",
+        });
         throw refus("erreur-interne");
       }
       if (etat.cle.type === "espace" && !versionAdmiseApres(document, miseAJour)) {
