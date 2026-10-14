@@ -211,8 +211,8 @@ function operationsDeLaCorbeille(etat: EtatPret, pages: PagesOuvertes): Operatio
 }
 
 // La suppression reste faite quoi qu'il advienne de l'effacement (F-007 H8). Pendant une coupure
-// de la persistance de l'espace, ou tant que l'espace est inconnu, l'effacement n'est pas tenté :
-// son issue est un échec, que l'écran signale (F-007-AC21).
+// de la persistance de l'espace, ou tant que l'espace est inconnu, l'effacement des bases n'est pas
+// tenté : son issue est un échec, que l'écran signale (F-007-AC21).
 function supprimerDefinitivement(
   etat: EtatPret,
   pages: PagesOuvertes,
@@ -222,11 +222,10 @@ function supprimerDefinitivement(
   if (essai.refus !== undefined) {
     return { refus: messageErreur(essai.refus) };
   }
-  const effacement: Promise<"effacee" | "echec"> =
-    etat.enregistre && etat.idEspace !== undefined
-      ? pages.effacer(etat.idEspace, essai.valeur)
-      : Promise.resolve("echec");
-  return { refus: undefined, effacement };
+  // Les documents des pages retirées sont fermés et détruits dans tous les cas ; seul l'effacement
+  // des bases est omis quand il ne peut pas être tenté.
+  const idEspace = etat.enregistre ? etat.idEspace : undefined;
+  return { refus: undefined, effacement: pages.effacer(idEspace, essai.valeur) };
 }
 
 function barreLateraleDe(

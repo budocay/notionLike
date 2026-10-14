@@ -13,7 +13,6 @@ import {
   lireRoute,
 } from "../src/navigation/route.ts";
 import { lire, lister } from "./aides-disque.ts";
-import { demarrerSession } from "./aides-facade.ts";
 import { type Aretes, atteintsDepuis, graphe } from "./aides-graphe.ts";
 import { PAGE_P } from "./aides-identifiants.ts";
 
@@ -132,20 +131,35 @@ describe("formes d'adresse", () => {
   });
 });
 
+/** Vrai si ce texte construit un `Y.Doc`. */
+function construitUnYDoc(texte: string): boolean {
+  return /\bnew\s+Y\.Doc\s*\(/.test(texte);
+}
+
+/** Vrai si ce texte coupe le ramasse-miettes d'un `Y.Doc`, à la construction ou après. */
+function coupeLeRamasseMiettes(texte: string): boolean {
+  return /\bgc\s*:\s*false\b|\.gc\s*=\s*false\b/.test(texte);
+}
+
 describe("ramasse-miettes des documents d'espace", () => {
+  it.each([
+    ["à la construction", "const doc = new Y.Doc({ gc: false });", true],
+    ["avec d'autres options", "new Y.Doc({ guid: 'x', gc:false })", true],
+    ["après la construction", "const doc = new Y.Doc();\ndoc.gc = false;", true],
+    ["laissé par défaut", "const doc = new Y.Doc();", false],
+    ["posé explicitement", "const doc = new Y.Doc({ gc: true });", false],
+  ])(
+    "F-007-AC29 la détection d'un ramasse-miettes coupé voit un module %s",
+    (_cas, texte, coupe) => {
+      expect(construitUnYDoc(texte)).toBe(true);
+      expect(coupeLeRamasseMiettes(texte)).toBe(coupe);
+    },
+  );
+
   it("F-007-AC29 les modules d'apps/web qui construisent un Y.Doc sont énumérés, aucun ne coupe le ramasse-miettes, et la session le pose explicitement", () => {
-    const constructeurs = sources().filter((chemin) => /new Y\.Doc\(/.test(lire(chemin)));
+    const constructeurs = sources().filter((chemin) => construitUnYDoc(lire(chemin)));
     expect(constructeurs).toEqual(CONSTRUCTEURS_DE_Y_DOC);
-    for (const chemin of constructeurs) {
-      expect(lire(chemin), chemin).not.toMatch(/gc\s*:\s*false|\.gc\s*=\s*false/);
-    }
+    expect(sources().filter((chemin) => coupeLeRamasseMiettes(lire(chemin)))).toEqual([]);
     expect(lire("src/espace/session-espace.ts")).toMatch(/new Y\.Doc\(\{ gc: true \}\)/);
-    expect(/gc\s*:\s*false/.test("new Y.Doc({ gc: false })")).toBe(true);
-  });
-
-  it("F-007-AC29 le document de la session d'espace a son ramasse-miettes actif", () => {
-    const session = demarrerSession();
-
-    expect(session.doc?.gc).toBe(true);
   });
 });

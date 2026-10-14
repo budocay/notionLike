@@ -2,6 +2,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { ErreurDocument } from "@notionlike/document";
 import { describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
 
 import { messageErreur } from "../src/interface/messages.ts";
 import {
@@ -21,14 +22,24 @@ import {
   nomsDesBases,
   suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
+import { refuserLOuvertureDe } from "./aides-reprise.ts";
 import { nomDeLaBaseDePage } from "./aides-session-page.tsx";
+import { entrerDansLEditeur, taper } from "./edition/aides-edition.tsx";
 
 const CONTENU_NON_EFFACE =
   "La suppression est faite, mais le contenu de ces pages n'a pas pu être effacé de cet appareil.";
+const NON_ECRIT = "modification jamais écrite";
 const PIEGE = '<img src="x" onerror="alert(1)">';
 
 type SessionEspace = CoquilleRendue["session"];
 type Operations = Extract<ReturnType<SessionEspace["lireEtat"]>, { phase: "pret" }>["operations"];
+
+/** Vrai si l'état complet du document porte ce texte, détruit ou non. */
+function portePourTexte(doc: unknown, texte: string): boolean {
+  return (
+    doc instanceof Y.Doc && new TextDecoder().decode(Y.encodeStateAsUpdate(doc)).includes(texte)
+  );
+}
 
 function operations(session: SessionEspace): Operations {
   const etat = session.lireEtat();
@@ -435,29 +446,43 @@ describe("erreurs et limites", () => {
     );
   });
 
-  it("F-007-AC21 persistance de l'espace coupée : l'effacement n'est pas tenté, la suppression est maintenue et l'avertissement affiché", async () => {
+  it("F-007-AC21 F-007-AC32 persistance de l'espace coupée : l'effacement n'est pas tenté, la suppression est maintenue, l'avertissement affiché, et le document conservé de la page supprimée est tout de même détruit", async () => {
     const connexions = suivreLesConnexionsTenues();
-    const coquille = await espaceAvecCorbeille();
-    await ouvrirLaCorbeille(coquille);
-    const suppression = vi.spyOn(indexedDB, "deleteDatabase");
-    const deLEspace = connexions.find((connexion) =>
-      connexion.name.startsWith("notionlike:espace:"),
-    );
-    act(() => fermerDeForce(deLEspace as IDBDatabase));
+    const coquille = await ouvrirCoquille();
+    const brouillon = await creerUnePage(coquille, "Brouillon");
+    const baseDuBrouillon = nomDeLaBaseDePage(brouillon);
+    const tenue = (prefixe: string): IDBDatabase =>
+      connexions.find((connexion) => connexion.name.startsWith(prefixe)) as IDBDatabase;
+    // La page ne peut plus rien écrire : sa modification la fait conserver quand on la quitte.
+    const deLaPage = tenue(baseDuBrouillon);
+    refuserLOuvertureDe(baseDuBrouillon);
+    act(() => fermerDeForce(deLaPage));
+    entrerDansLEditeur();
+    taper(NON_ECRIT);
+    const destructions = vi.spyOn(Y.Doc.prototype, "destroy");
+    const detruits = (): Y.Doc[] =>
+      destructions.mock.contexts.filter((doc): doc is Y.Doc => portePourTexte(doc, NON_ECRIT));
+    act(() => operations(coquille.session).mettreALaCorbeille(brouillon.idPage));
+    await act(() => laisserIndexedDbTravailler());
+    expect(detruits()).toEqual([]);
+    act(() => fermerDeForce(tenue("notionlike:espace:")));
     await waitFor(() => expect(coquille.session.lireEtat()).toMatchObject({ enregistre: false }));
+    const suppression = vi.spyOn(indexedDB, "deleteDatabase");
+    await ouvrirLaCorbeille(coquille);
 
     await coquille.utilisateur.click(
-      screen.getByRole("button", { name: "Supprimer définitivement « Parent »" }),
+      screen.getByRole("button", { name: "Supprimer définitivement « Brouillon »" }),
     );
     await coquille.utilisateur.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Supprimer définitivement « Parent »",
+        name: "Supprimer définitivement « Brouillon »",
       }),
     );
 
     expect((await dansLaPrincipale().findByRole("alert")).textContent).toBe(CONTENU_NON_EFFACE);
     expect(suppression).not.toHaveBeenCalled();
     expect(corbeilleLue(coquille.session)).toEqual([]);
+    expect(detruits()).toHaveLength(1);
   });
 
   it("F-007-AC22 un titre fait de balisage s'affiche comme du texte dans la liste, les noms accessibles et la confirmation", async () => {

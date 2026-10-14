@@ -25,11 +25,12 @@ export interface PagesOuvertes {
   /** Ferme la session ouverte et libère tout document conservé. Les pages restent utilisables. */
   fermer(): void;
   /**
-   * Pages supprimées définitivement (F-007-AC11, AC32) : ferme la session de chacune et libère son
-   * document, conservé ou affiché, persistance fermée et `Y.Doc` détruit, puis efface sa base de
-   * l'espace donné. Rend `echec` si une base au moins n'a pas pu être effacée ; jamais rejetée.
+   * Pages supprimées définitivement (F-007-AC11, AC21, AC32) : ferme la session de chacune et libère
+   * son document, conservé ou affiché, persistance fermée et `Y.Doc` détruit, dans tous les cas ;
+   * puis efface sa base de l'espace donné. `idEspace` absent (espace inconnu, persistance de
+   * l'espace coupée) : aucune base n'est effacée, l'issue est `echec`. Jamais rejetée.
    */
-  effacer(idEspace: string, idPages: readonly string[]): Promise<IssueDEffacement>;
+  effacer(idEspace: string | undefined, idPages: readonly string[]): Promise<IssueDEffacement>;
 }
 
 /** Un document de page tenu par l'onglet, affiché ou conservé. */
@@ -98,7 +99,7 @@ export function creerPagesOuvertes(): PagesOuvertes {
         fermerLaCourante(false);
       }
       libererLesConservees(conservees, idPages);
-      return effacerLesBases(idEspace, idPages);
+      return idEspace === undefined ? Promise.resolve("echec") : effacerLesBases(idEspace, idPages);
     },
   };
 }

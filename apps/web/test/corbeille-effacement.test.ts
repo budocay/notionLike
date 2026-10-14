@@ -277,6 +277,33 @@ describe("ce que l'onglet tient sur une page supprimée", () => {
     pages.fermer();
   });
 
+  it("F-007-AC21 F-007-AC32 sans espace désigné, aucune base n'est effacée, mais le document conservé de la page est détruit et ses tentatives cessent", async () => {
+    simulerLHorloge();
+    refuserLOuvertureDe(nomDeLaBaseDePage({ idEspace: ESPACE_A, idPage: PAGE_B }));
+    const pages = creerPagesOuvertes();
+    const coupee = pages.ouvrir({ idEspace: ESPACE_A, idPage: PAGE_B });
+    await attendrePhase(coupee, "pret");
+    const doc = documentDe(coupee);
+    doc.getMap("temoin").set("contenu", TEMOIN);
+    const autre = pages.ouvrir({ idEspace: ESPACE_A, idPage: PAGE_A });
+    await attendrePhase(autre, "pret");
+    expect(doc.isDestroyed).toBe(false);
+    const suppression = vi.spyOn(indexedDB, "deleteDatabase");
+
+    const issue = await pages.effacer(undefined, [PAGE_B]);
+    vi.restoreAllMocks();
+    vi.advanceTimersByTime(ATTENTE_PLAFOND_MS);
+    await laisserIndexedDbTravailler();
+
+    expect(issue).toBe("echec");
+    expect(suppression).not.toHaveBeenCalled();
+    expect(doc.isDestroyed).toBe(true);
+    expect(await nomsDesBases()).not.toContain(
+      nomDeLaBaseDePage({ idEspace: ESPACE_A, idPage: PAGE_B }),
+    );
+    pages.fermer();
+  });
+
   it("F-007-AC33 une autre instance du module tient la base ouverte : après l'effacement, son écriture suivante est un échec d'écriture, sans exception pour l'appelant, la modification restant en mémoire", async () => {
     const relevees = ecouterLesErreursNonInterceptees();
     const autreOnglet = new Y.Doc();
