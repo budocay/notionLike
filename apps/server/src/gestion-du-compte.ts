@@ -254,12 +254,19 @@ function revoquerUneSession(dependances: DependancesDuCompte): RequestHandler {
   return async (requete, reponse) => {
     const contexte = contexteDe(requete, reponse);
     const idSession = parametre(requete, "idSession");
-    const visee = UUID_CANONIQUE.test(idSession) ? idSession : undefined;
     const corps = corpsSelon(schemaCorpsRevocation, contexte);
-    if (
-      corps === undefined ||
-      !(await motDePasseVerifie(dependances, contexte, corps.motDePasseActuel, visee))
-    ) {
+    if (corps === undefined) {
+      return;
+    }
+    // F-027-AC11 : un identifiant qui n'a pas la forme canonique (majuscules comprises) ne désigne
+    // aucune session : 404 avant la comparaison avec la session courante et avant toute lecture
+    // en base, la vérification du mot de passe comprise. PostgreSQL compare les `uuid` sans tenir
+    // compte de la casse : sans cette garde, la session courante en majuscules passerait le 409.
+    if (!UUID_CANONIQUE.test(idSession)) {
+      envoyerErreur(reponse, "ressource-introuvable");
+      return;
+    }
+    if (!(await motDePasseVerifie(dependances, contexte, corps.motDePasseActuel, idSession))) {
       return;
     }
     if (idSession === contexte.idSession) {

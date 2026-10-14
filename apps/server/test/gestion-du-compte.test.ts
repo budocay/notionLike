@@ -544,6 +544,35 @@ describe("révocation d'une session", () => {
     DELAI_MS,
   );
 
+  it.each([
+    ["de la session courante", "courante"],
+    ["d'une autre session du même compte", "autre"],
+  ])(
+    "F-027-AC11 l'identifiant %s en majuscules : 404 ressource-introuvable avant toute lecture en base, aucune session supprimée",
+    async (_cas, laquelle) => {
+      const titulaire = await preparer();
+      const autre = await ouvrirUneSession(base, titulaire.id);
+      const visee = laquelle === "courante" ? titulaire.idSession : autre.idSession;
+      const avant = await texteDeLaBase(base);
+      const recus = ecouterLesSuppressions(serveur);
+      const calcul = vi.spyOn(crypto, "argon2");
+
+      await erreurDe(
+        await revoquer(serveur, titulaire.cookie, visee.toUpperCase()),
+        404,
+        "ressource-introuvable",
+      );
+
+      // Ni le mot de passe vérifié (calcul d'empreinte), ni la session lue ou supprimée.
+      expect(calcul).not.toHaveBeenCalled();
+      expect(recus).toEqual([]);
+      expect(await texteDeLaBase(base)).toBe(avant);
+      expect(await statutDeMoi(titulaire.cookie)).toBe(200);
+      expect(await statutDeMoi(autre.cookie)).toBe(200);
+    },
+    DELAI_MS,
+  );
+
   it(
     "F-027-AC6 F-027-AC10 un mot de passe actuel faux : 403, la session visée reste",
     async () => {
