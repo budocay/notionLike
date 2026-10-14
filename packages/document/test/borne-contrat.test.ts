@@ -136,6 +136,8 @@ describe("contrat public", () => {
       "facade-fermee",
       "version-invalide",
       "rang-indisponible",
+      // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
+      "page-hors-corbeille",
     ]);
   });
 });

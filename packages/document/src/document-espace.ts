@@ -17,6 +17,7 @@ import {
   ecrireMiseALaCorbeille,
   ecrireNouvellePage,
   ecrirePlace,
+  ecrireRestauration,
   ecrireTitre,
   ecrireVersion,
   estDeVersionPriseEnCharge,
@@ -24,6 +25,7 @@ import {
   LONGUEUR_MAX_TITRE,
   type Place,
   type PlaceAdmise,
+  retirerEntree,
 } from "./format.ts";
 import {
   AUCUN_RANG_ADMIS,
@@ -56,6 +58,13 @@ export interface DocumentEspace {
   renommerPage(id: IdPage, titre: string): void;
   deplacerPage(id: IdPage, ou: Emplacement): void;
   mettreALaCorbeille(id: IdPage): void;
+  /** Baisse le drapeau d'une racine de la corbeille (F-007) : rien d'autre n'est écrit. */
+  restaurerPage(id: IdPage): void;
+  /**
+   * Retire du document, en une transaction, l'entrée d'une page de la corbeille et celles de sa
+   * descendance lue (F-007). Rend leurs identifiants, la page visée d'abord.
+   */
+  supprimerDefinitivement(id: IdPage): readonly IdPage[];
   fermer(): void;
 }
 
@@ -71,8 +80,10 @@ interface Insertion {
 
 const A_LA_RACINE: Emplacement = { parent: null };
 
+// Le ramasse-miettes de Yjs reste actif sur tout document d'espace (F-007 H14) : sans lui, le
+// contenu d'une entrée retirée resterait dans le document et dans son état encodé (F-007-AC29).
 export function creerDocumentEspace(): DocumentEspace {
-  const doc = new Y.Doc();
+  const doc = new Y.Doc({ gc: true });
   ecrireVersion(doc);
   return ouvrirDocumentEspace(doc);
 }
@@ -143,6 +154,14 @@ export function ouvrirDocumentEspaceBorne(doc: Y.Doc, borne: number): DocumentEs
     mettreALaCorbeille: (id) => {
       exigerFacadeOuverte();
       mettreALaCorbeille(doc, borne, id);
+    },
+    restaurerPage: (id) => {
+      exigerFacadeOuverte();
+      restaurerPage(doc, borne, id);
+    },
+    supprimerDefinitivement: (id) => {
+      exigerFacadeOuverte();
+      return supprimerDefinitivement(doc, borne, id);
     },
     fermer: () => {
       fermee = true;
@@ -233,6 +252,28 @@ function mettreALaCorbeille(doc: Y.Doc, borne: number, id: IdPage): void {
   doc.transact(() => ecrireMiseALaCorbeille(doc, id));
 }
 
+// Ordre des contrôles (F-007 H5) : version, page introuvable, page hors corbeille, puis, pour la
+// restauration seule, page dont le parent lu est aussi à la corbeille.
+function restaurerPage(doc: Y.Doc, borne: number, id: IdPage): void {
+  exigerVersionPriseEnCharge(doc);
+  const etat = lireEtat(doc, borne);
+  exigerPageALaCorbeille(etat, id);
+  if (!etat.arborescence.corbeille.some((racine) => racine.id === id)) {
+    throw new ErreurDocument(
+      "page-a-la-corbeille",
+      `La page ${id} est sous une page à la corbeille : seule celle-ci se restaure.`,
+    );
+  }
+  doc.transact(() => ecrireRestauration(doc, id));
+}
+
+function supprimerDefinitivement(doc: Y.Doc, borne: number, id: IdPage): readonly IdPage[] {
+  exigerVersionPriseEnCharge(doc);
+  const retirees = identifiantsDuSousArbre(exigerPageALaCorbeille(lireEtat(doc, borne), id));
+  doc.transact(() => retirees.forEach((retiree) => retirerEntree(doc, retiree)));
+  return retirees;
+}
+
 function lireEtat(doc: Y.Doc, borne: number): EtatLu {
   const entrees = lireEntrees(doc, borne);
   return { entrees, ...lireArbre(entrees) };
@@ -262,6 +303,25 @@ function exigerPageLue(etat: EtatLu, id: IdPage): PageLue {
     throw new ErreurDocument("page-a-la-corbeille", `La page ${id} est à la corbeille.`);
   }
   return page;
+}
+
+// La page telle que la corbeille la lit, avec toute sa descendance.
+function exigerPageALaCorbeille(etat: EtatLu, id: IdPage): PageLue {
+  exigerEntree(etat, id);
+  const page = trouverPage(etat.arborescence.corbeille, id);
+  if (page === undefined) {
+    throw new ErreurDocument("page-hors-corbeille", `La page ${id} n'est pas à la corbeille.`);
+  }
+  return page;
+}
+
+// Parcours itératif : la profondeur d'un arbre reçu n'est pas bornée.
+function identifiantsDuSousArbre(racine: PageLue): IdPage[] {
+  const aVoir: PageLue[] = [racine];
+  for (const page of aVoir) {
+    page.enfants.forEach((enfant) => aVoir.push(enfant));
+  }
+  return aVoir.map((page) => page.id);
 }
 
 function exigerDestinationHorsDeLaDescendance(page: PageLue, parent: IdPage | null): void {

@@ -70,6 +70,18 @@ export function ecrireMiseALaCorbeille(doc: Y.Doc, id: IdPage): void {
   champsDe(doc, id)?.set(CHAMP_CORBEILLE, true);
 }
 
+export function ecrireRestauration(doc: Y.Doc, id: IdPage): void {
+  champsDe(doc, id)?.set(CHAMP_CORBEILLE, false);
+}
+
+/**
+ * Retire l'entrée de la page (F-007 H2) : la clé quitte `pages`, et le ramasse-miettes de Yjs, actif
+ * sur tout document d'espace (F-007 H14), libère son contenu du document tenu en mémoire.
+ */
+export function retirerEntree(doc: Y.Doc, id: IdPage): void {
+  doc.getMap(TYPE_PAGES).delete(id);
+}
+
 // Une clé `version` absente vaut la version 1 : règle permanente du format (ADR-0002, étape 1).
 export function estDeVersionPriseEnCharge(doc: Y.Doc): boolean {
   const meta = doc.getMap(TYPE_META);

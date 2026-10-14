@@ -7,7 +7,8 @@ export type CodeErreurDocument =
   | "version-non-prise-en-charge"
   | "facade-fermee"
   | "version-invalide"
-  | "rang-indisponible";
+  | "rang-indisponible"
+  | "page-hors-corbeille";
 
 export class ErreurDocument extends Error {
   readonly code: CodeErreurDocument;

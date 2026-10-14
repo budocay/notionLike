@@ -46,7 +46,12 @@ const PRODUCTION = [SESSION];
 // F-030-AC10 : la garde de version ouvre une façade sur un document témoin, le temps de le juger.
 const GARDE_DE_VERSION = "apps/web/src/espace/garde-version.ts";
 const JUGES_D_UN_TEMOIN = [GARDE_DE_VERSION];
-const AIDES_SUIVIES = ["apps/web/test/aides-facade.ts", "packages/document/test/fermeture.test.ts"];
+const AIDES_SUIVIES = [
+  "apps/web/test/aides-facade.ts",
+  "packages/document/test/fermeture.test.ts",
+  // F-007 : aide suivie des tests de la corbeille du paquet.
+  "packages/document/test/aides-corbeille.ts",
+];
 const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [
   "packages/document/test/abonnement.test.ts",
@@ -659,6 +664,8 @@ const CODES_DU_DOCUMENT = Object.keys({
   "facade-fermee": true,
   "version-invalide": true,
   "rang-indisponible": true,
+  // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
+  "page-hors-corbeille": true,
 } satisfies Record<CodeErreurDocument, true>) as CodeErreurDocument[];
 
 function litUnCode(texte: string): boolean {
@@ -790,7 +797,8 @@ describe("codes d'erreur du document", () => {
   });
 
   it("F-002-AC15 F-003-AC24 F-029-AC16 chaque code d'erreur du document, les sept de F-002, version-invalide et rang-indisponible, a un message français distinct, sans code ni identifiant", () => {
-    expect(CODES_DU_DOCUMENT).toHaveLength(9);
+    // F-007 : dix codes, page-hors-corbeille compris.
+    expect(CODES_DU_DOCUMENT).toHaveLength(10);
     const messages = CODES_DU_DOCUMENT.map((code) => {
       const message = messageErreur(code);
       expect(message.length, code).toBeGreaterThan(20);
