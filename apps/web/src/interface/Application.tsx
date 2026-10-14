@@ -46,7 +46,7 @@ import {
 } from "./messages.ts";
 import { ESPACES } from "./messages-espaces.ts";
 import { type NavigationDeLEspace, useNavigationDeLEspace } from "./navigation-espaces.ts";
-import { usePageOuverte } from "./page-ouverte.ts";
+import { usePageOuverte, usePagesOuvertes } from "./page-ouverte.ts";
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
@@ -117,7 +117,8 @@ function EspacePret(props: {
   const idBarre = useId();
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
-  const etatDeLaPage = usePageOuverte(etat.idEspace, page?.id);
+  const pages = usePagesOuvertes();
+  const etatDeLaPage = usePageOuverte(pages, etat.idEspace, page?.id);
   const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
 
   return (

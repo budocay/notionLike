@@ -58,6 +58,8 @@ const AIDES_DE_TEST = [
 ];
 const TESTS_DE_LA_PERSISTANCE = [
   "test/coquille-echecs.test.tsx",
+  // F-007 : effacement des bases de page.
+  "test/corbeille-effacement.test.ts",
   "test/coutures-page.test.ts",
   "test/coutures.test.ts",
   "test/page-echecs.test.tsx",
