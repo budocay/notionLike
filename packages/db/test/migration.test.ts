@@ -264,9 +264,10 @@ function journalDe(entries: unknown): Record<string, unknown> {
 
 describe("forme des dossiers de migrations", () => {
   it.each([
-    ["le dossier réel", DOSSIER_MIGRATIONS, 2],
+    ["le dossier réel", DOSSIER_MIGRATIONS, 3],
     ["le jeu etat-f-008", ETAT_F_008, 0],
     ["le jeu etat-f-009", join(JEUX_D_ESSAI, "etat-f-009"), 1],
+    ["le jeu etat-f-011", join(JEUX_D_ESSAI, "etat-f-011"), 2],
     ["le jeu premier-lancement", PREMIER_LANCEMENT, 1],
     ["le jeu lancement-defaillant", LANCEMENT_DEFAILLANT, 3],
     ["le jeu lancement-corrige", LANCEMENT_CORRIGE, 3],
@@ -346,6 +347,7 @@ const QUI_NOMME_LE_PILOTE = ["packages/db/src/migration.ts", "packages/db/test/b
 const QUI_OUVRE_UNE_BASE_EMBARQUEE_ICI = [
   "packages/db/test/acces.test.ts",
   "packages/db/test/comptes.test.ts",
+  "packages/db/test/documents-migration.test.ts",
   "packages/db/test/espaces-migration.test.ts",
   "packages/db/test/espaces.test.ts",
   "packages/db/test/essai.ts",

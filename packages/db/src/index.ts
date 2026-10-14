@@ -1,4 +1,14 @@
 export { ouvrirBase, schemaComptes, type Base } from "./acces.ts";
+export {
+  compterDocuments,
+  enregistrerDocument,
+  lireDocument,
+  type CleDocument,
+  type DocumentLu,
+  type EnregistrementDocument,
+  type IssueEnregistrementDocument,
+  type TypeDocument,
+} from "./documents.ts";
 export { ErreurBase, type CodeErreurBase } from "./erreurs.ts";
 export {
   creerEspace,
@@ -45,5 +55,5 @@ export {
   type MembreLu,
   type MembreVise,
 } from "./membres.ts";
-export { ROLES, ROLES_INVITABLES } from "./schema.ts";
+export { ROLES, ROLES_INVITABLES, TYPES_DE_DOCUMENT } from "./schema.ts";
 export { supprimerSessions, type SessionSupprimee, type SessionsVisees } from "./sessions.ts";
