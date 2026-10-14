@@ -13,15 +13,27 @@ interface LigneDeRequete {
   readonly dureeMs: number;
 }
 
-// F-009-AC19 : les événements des comptes, et rien d'autre que ces champs.
+// F-009-AC19 : les événements des comptes, et rien d'autre que ces champs. F-027-AC18 : ceux de la
+// gestion du compte, qui ne portent ni nom, ni courriel, ni mot de passe, ni empreinte, ni jeton.
 export type TypeDEvenement =
-  "inscription" | "connexion" | "connexion-refusee" | "deconnexion" | "debit-depasse";
+  | "inscription"
+  | "connexion"
+  | "connexion-refusee"
+  | "deconnexion"
+  | "debit-depasse"
+  | "nom-change"
+  | "mot-de-passe-change"
+  | "mot-de-passe-incorrect"
+  | "session-revoquee"
+  | "sessions-revoquees";
 
 interface EvenementDeCompte {
   readonly type: TypeDEvenement;
   readonly idRequete: string;
   readonly adresse: string;
   readonly idCompte?: string | undefined;
+  // F-027-AC18 : la session visée par une révocation, par son identifiant.
+  readonly idSession?: string | undefined;
 }
 
 // F-011-AC29 : les événements des espaces. Une ligne ne porte que des identifiants : ni jeton, ni
@@ -111,8 +123,8 @@ export function creerJournal(sortie: DestinationStream): Journal {
     requete({ idRequete, methode, chemin, statut, dureeMs }) {
       lignes.info({ idRequete, methode, chemin, statut, dureeMs }, "requete");
     },
-    evenementDeCompte({ type, idRequete, adresse, idCompte }) {
-      lignes.info({ type, idRequete, adresse, idCompte }, "compte");
+    evenementDeCompte({ type, idRequete, adresse, idCompte, idSession }) {
+      lignes.info({ type, idRequete, adresse, idCompte, idSession }, "compte");
     },
     evenementDEspace({ type, idRequete, idCompte, idEspace, idCompteVise }) {
       lignes.info({ type, idRequete, idCompte, idEspace, idCompteVise }, "espace");

@@ -48,6 +48,8 @@ export interface Traitement extends Appel {
 
 interface SessionLue {
   readonly compte: { readonly id: string; readonly name: string; readonly email: string };
+  // L'identifiant de la ligne de session (F-009-AC21), jamais son jeton (F-027-AC9, AC11).
+  readonly idSession: string;
   // Les en-têtes que better-auth pose en lisant la session (cookie prolongé ou effacé).
   readonly enTetes: Headers;
 }
@@ -210,7 +212,7 @@ export function creerAuthentification(dependances: Dependances): Authentificatio
       const lue = await auth.api.getSession({ headers: enTetes, returnHeaders: true });
       return lue.response === null
         ? undefined
-        : { compte: lue.response.user, enTetes: lue.headers };
+        : { compte: lue.response.user, idSession: lue.response.session.id, enTetes: lue.headers };
     },
   };
 }
