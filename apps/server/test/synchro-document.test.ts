@@ -1,16 +1,14 @@
 // Couture du format du document d'espace (F-012-AC29, AC38 à AC40) : le serveur relaie et stocke ce
 // que l'interface publique de `@notionlike/document` écrit, sans l'interpréter, à la seule clé de
-// version près. Chaque façade ouverte ici est fermée (F-002-AC30).
+// version près. Chaque façade ouverte ici est fermée (F-002-AC30). Les deux modules hors du paquet
+// du document qui nomment ses types racines y sont couverts, rang borné compris (F-029-AC16) :
+// `apps/server/src/synchro-stockage.ts`, qui lit la seule clé de version, et
+// `packages/contrats/src/synchro.ts`, qui publie la liste des versions admises.
 import { randomUUID } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 
 import { nomDeDocument, VERSION_DU_DOCUMENT_D_ESPACE } from "@notionlike/contrats";
-import {
-  creerDocumentEspace,
-  ErreurDocument,
-  ouvrirDocumentEspace,
-  type DocumentEspace,
-} from "@notionlike/document";
+import { ErreurDocument } from "@notionlike/document";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
@@ -27,12 +25,12 @@ import {
   type ClientBrut,
   type EspaceDEssai,
 } from "./aides-synchro.ts";
+import { creerFacade, fermerLesFacades, ouvrirFacade } from "./aides-facade.ts";
 import { demarrerServeurDEssai, type ServeurDEssai } from "./fabrique.ts";
 
 const SRC = new URL("../src/", import.meta.url);
 
 let serveur: ServeurDEssai;
-const facades: DocumentEspace[] = [];
 
 beforeAll(async () => {
   serveur = await demarrerServeurDEssai({
@@ -40,19 +38,12 @@ beforeAll(async () => {
   });
 }, DELAI_SYNCHRO_MS);
 afterEach(async () => {
-  for (const facade of facades.splice(0)) {
-    facade.fermer();
-  }
+  fermerLesFacades();
   await fermerLesClients();
 });
 afterAll(async () => {
   await serveur.fermer();
 });
-
-function suivre(facade: DocumentEspace): DocumentEspace {
-  facades.push(facade);
-  return facade;
-}
 
 // Un espace neuf de la fabrique, et le nom de son document d'espace.
 async function nouvelEspace(): Promise<{ espace: EspaceDEssai; nom: string }> {
@@ -66,7 +57,7 @@ async function nouvelEspace(): Promise<{ espace: EspaceDEssai; nom: string }> {
 // L'arborescence lue par un second client dans un document ouvert par `ouvrirDocumentEspace`.
 async function lirePar(cookie: string, nom: string) {
   const ouvert = await fournisseurSynchronise(priseDeFournisseur(serveur, cookie), nom);
-  const facade = suivre(ouvrirDocumentEspace(ouvert.doc));
+  const facade = ouvrirFacade(ouvert.doc);
   return { ouvert, facade, arbre: facade.lire() };
 }
 
@@ -103,7 +94,7 @@ describe("couture du format du document d'espace (F-012-AC29)", () => {
     "F-012-AC29 une arborescence écrite par l'interface publique, enregistrée puis rechargée après un redémarrage, est relue à l'identique",
     async () => {
       const { espace: neuf, nom } = await nouvelEspace();
-      const original = suivre(creerDocumentEspace());
+      const original = creerFacade();
       const a = original.creerPage("A");
       const b = original.creerPage("B", { parent: a });
       const c = original.creerPage("C", { parent: a });
@@ -134,7 +125,7 @@ describe("couture du format du document d'espace (F-012-AC29)", () => {
       const stocke = await serveur.lireInstantane(nom);
       const applique = new Y.Doc();
       Y.applyUpdate(applique, stocke ?? new Uint8Array([0, 0]));
-      expect(suivre(ouvrirDocumentEspace(applique)).lire()).toEqual(original.lire());
+      expect(ouvrirFacade(applique).lire()).toEqual(original.lire());
     },
     DELAI_SYNCHRO_MS,
   );
@@ -234,7 +225,7 @@ describe("version du document d'espace (F-012-AC38, AC39)", () => {
   it(
     "F-012-AC39 un document créé par creerDocumentEspace est accepté, sa version figure dans la liste publiée, et chaque version que le paquet refuse, le serveur la refuse",
     async () => {
-      const cree = suivre(creerDocumentEspace());
+      const cree = creerFacade();
       cree.creerPage("Première");
       expect(VERSION_DU_DOCUMENT_D_ESPACE.admises).toContain(
         cree.doc
@@ -251,7 +242,7 @@ describe("version du document d'espace (F-012-AC38, AC39)", () => {
         essai.getMap("meta").set("version", version);
         const paquetRefuse = (() => {
           try {
-            suivre(ouvrirDocumentEspace(essai)).lire();
+            ouvrirFacade(essai).lire();
             return false;
           } catch (erreur) {
             return (
@@ -299,7 +290,7 @@ describe("rang borné de bout en bout (F-012-AC40)", () => {
     "F-012-AC40 %s est relayée et stockée ; un second client lit l'arborescence sans exception et y crée une page",
     async (_cas, rangs) => {
       const { nom, espace: neuf } = await nouvelEspace();
-      const original = suivre(creerDocumentEspace());
+      const original = creerFacade();
       const premiere = original.creerPage("Première");
       const ecrivain = await fournisseurSynchronise(
         priseDeFournisseur(serveur, neuf.editeur.cookie),
