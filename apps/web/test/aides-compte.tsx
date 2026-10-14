@@ -15,6 +15,7 @@ import { afterEach } from "vitest";
 
 import { creerClientDeCompte } from "../src/compte/client-auth.ts";
 import { creerClientDesEspaces } from "../src/compte/client-espaces.ts";
+import { creerClientDeLaGestionDuCompte } from "../src/compte/client-gestion-du-compte.ts";
 import type { Compte } from "../src/compte/index.ts";
 import type { Requeter } from "../src/compte/moi.ts";
 import { suivreLeCompte } from "../src/compte/suivi-du-compte.ts";
@@ -160,6 +161,7 @@ export function compteSimule(serveur: ServeurSimule, delaiMs?: number): Compte {
     suivi,
     client: creerClientDeCompte({ requeter: serveur.requeter, delaiMs }),
     espaces: creerClientDesEspaces(serveur.requeter, delaiMs),
+    gestion: creerClientDeLaGestionDuCompte(serveur.requeter, delaiMs),
   };
 }
 

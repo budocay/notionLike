@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 import { faitEntrer, fichiersDuWorkspace } from "./fichiers-du-workspace.ts";
 
 // Dans le paquet : la définition, la requête sur les sessions, depuis F-011 le type commun des
-// requêtes des espaces (`requetes.ts`, que les trois modules d'espaces importent), les tests qui
-// interrogent, et ce fichier, qui porte les motifs cherchés.
+// requêtes des espaces (`requetes.ts`, que les trois modules d'espaces et, depuis F-027, celui de
+// la gestion du compte importent), les tests qui interrogent, et ce fichier, qui porte les motifs
+// cherchés.
 const QUI_LIT_L_ACCES_ICI = [
   "packages/db/test/couture-comptes.test.ts",
   "packages/db/src/acces.ts",
@@ -17,6 +18,7 @@ const QUI_LIT_L_ACCES_ICI = [
   "packages/db/test/acces.test.ts",
   "packages/db/test/comptes.test.ts",
   "packages/db/test/espaces.test.ts",
+  "packages/db/test/gestion-du-compte.test.ts",
   "packages/db/test/migration.test.ts",
   "packages/db/test/sessions.test.ts",
 ];
@@ -33,8 +35,11 @@ const QUI_TRANSMET_L_ACCES = [
 ];
 // Ils portent le code sans en dresser la liste : un code de plus ne les touche pas.
 const QUI_NOMME_LE_CODE = ["apps/server/src/journal.ts", "packages/db/src/index.ts"];
+// Depuis F-027, le test des requêtes de la gestion du compte supprime les sessions d'un compte sauf
+// une (F-027-AC4, AC12) ; le seul appelant hors du paquet reste la fonction du serveur.
 const QUI_NOMME_LA_SUPPRESSION_ICI = [
   "packages/db/src/index.ts",
+  "packages/db/test/gestion-du-compte.test.ts",
   "packages/db/test/sessions.test.ts",
 ];
 
@@ -88,7 +93,7 @@ function entrer(clause: string, source = "@notionlike/db"): string {
 describe("couture des comptes", () => {
   const fichiers = fichiersDuWorkspace();
 
-  it('F-009-AC23 F-009-AC33 énumère qui lit Base["db"], qui nomme CodeErreurBase et qui appelle supprimerSessions : chacun est inscrit et existe encore', () => {
+  it('F-009-AC23 F-009-AC33 F-027-AC20 énumère qui lit Base["db"], qui nomme CodeErreurBase et qui appelle supprimerSessions : chacun est inscrit et existe encore', () => {
     expect(fautesDeCouture(fichiers)).toEqual([]);
 
     const inscrits = [...QUI_LIT_L_ACCES_ICI, ...QUI_TRANSMET_L_ACCES];

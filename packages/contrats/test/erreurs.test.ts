@@ -26,7 +26,10 @@ const CODES_DE_F011: readonly CodeErreur[] = [
   "quota-atteint",
 ];
 
-const CODES_DE_LA_SPEC = [...CODES_DE_F008, ...CODES_DE_F009, ...CODES_DE_F011];
+// F-027-AC19 : les deux codes de F-027, ajoutés après ceux de F-011.
+const CODES_DE_F027: readonly CodeErreur[] = ["mot-de-passe-incorrect", "session-courante"];
+
+const CODES_DE_LA_SPEC = [...CODES_DE_F008, ...CODES_DE_F009, ...CODES_DE_F011, ...CODES_DE_F027];
 
 const CODES_MAL_FORMES = [
   ["un tiret bas", "requete_invalide"],
@@ -64,8 +67,16 @@ describe("liste fermée des codes d'erreur", () => {
     ]);
   });
 
-  it("F-011-AC31 F-011-AC33 la liste n'est modifiée que par l'ajout des sept codes de F-011, à la fin", () => {
-    expect([...CODES_ERREUR]).toEqual([...CODES_DE_F008, ...CODES_DE_F009, ...CODES_DE_F011]);
+  it("F-011-AC31 F-011-AC33 les sept codes de F-011 suivent ceux de F-009, dans leur ordre", () => {
+    expect(CODES_ERREUR.slice(0, CODES_DE_F008.length + CODES_DE_F009.length + 7)).toEqual([
+      ...CODES_DE_F008,
+      ...CODES_DE_F009,
+      ...CODES_DE_F011,
+    ]);
+  });
+
+  it("F-027-AC19 F-027-AC20 la liste n'est modifiée que par l'ajout des deux codes de F-027, à la fin", () => {
+    expect([...CODES_ERREUR]).toEqual([...CODES_DE_LA_SPEC]);
   });
 
   it("F-008-AC22 aucun code publié n'échappe à la convention", () => {

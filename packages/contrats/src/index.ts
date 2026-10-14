@@ -4,6 +4,9 @@ export {
   schemaCompteNatif,
   schemaCorpsConnexion,
   schemaCorpsInscription,
+  schemaMotDePassePresente,
+  schemaNomDuCompte,
+  schemaNouveauMotDePasse,
 } from "./comptes.ts";
 export type { Compte, CorpsConnexion, CorpsInscription } from "./comptes.ts";
 export {
@@ -55,6 +58,25 @@ export type {
   RoleInvitable,
   RouteApi,
 } from "./espaces.ts";
+export {
+  CHEMINS_DU_COMPTE,
+  PLAFONDS_DU_COMPTE,
+  ROUTES_DU_COMPTE,
+  schemaCorpsChangementDeMotDePasse,
+  schemaCorpsChangementDeNom,
+  schemaCorpsRevocation,
+  schemaListeSessions,
+  schemaRevocationDesAutres,
+  schemaSessionDuCompte,
+} from "./gestion-du-compte.ts";
+export type {
+  CorpsChangementDeMotDePasse,
+  CorpsChangementDeNom,
+  CorpsRevocation,
+  ListeSessions,
+  RevocationDesAutres,
+  SessionDuCompte,
+} from "./gestion-du-compte.ts";
 export { CODES_ERREUR, schemaEnveloppeErreur } from "./erreurs.ts";
 export type { CodeErreur, EnveloppeErreur } from "./erreurs.ts";
 export { CHEMINS, schemaReponsePret, schemaReponseSante } from "./sante.ts";

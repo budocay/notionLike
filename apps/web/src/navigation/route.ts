@@ -43,6 +43,15 @@ export function fragmentDe(route: Route): string {
   }
 }
 
+// Écran du compte (F-027-AC21) : une adresse exacte, sans aucun paramètre. Il n'est jamais pris pour
+// une page : `lireRoute` le rend comme l'accueil, et l'écran se lit ici, à part, comme ceux des
+// espaces (F-027-AC27). Toute variante (`#/compte/`, `#/compte?x`, `#/Compte`) n'est pas cet écran.
+export const FRAGMENT_DU_COMPTE = "#/compte";
+
+export function estLEcranDuCompte(fragment: string): boolean {
+  return fragment === FRAGMENT_DU_COMPTE;
+}
+
 // Écrans des espaces (F-014) : la liste, un espace, l'invitation. Ils ne sont jamais pris pour une
 // page : `lireRoute` les rend comme l'accueil, sans sélection, et l'écran se lit ici, à part
 // (F-014-AC38). Le jeton d'un lien d'invitation est rendu brut, sans décodage ; sa forme est

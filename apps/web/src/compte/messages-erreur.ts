@@ -21,6 +21,9 @@ export const MESSAGES_DES_CODES: Readonly<Record<CodeErreur, string>> = {
   "deja-membre": "Vous êtes déjà membre de cet espace.",
   "invitation-invalide": "Ce lien d'invitation n'est pas valide, a déjà servi ou a expiré.",
   "quota-atteint": "Une limite est atteinte : l'opération n'a pas été faite.",
+  // F-027-AC25, à la lettre.
+  "mot-de-passe-incorrect": "Mot de passe actuel incorrect.",
+  "session-courante": "Pour fermer la session de cet appareil, déconnectez-vous.",
 };
 
 export function messageDuCode(code: CodeErreur): string {

@@ -3,7 +3,7 @@
 import { type ReactElement, useRef, useState, useSyncExternalStore } from "react";
 
 import type { Compte, EtatDuCompte } from "../compte/index.ts";
-import { fragmentDe } from "../navigation/route.ts";
+import { FRAGMENT_DU_COMPTE, fragmentDe } from "../navigation/route.ts";
 import { ActionDeCompte, CadreDeCompte } from "./composants/Compte.tsx";
 import {
   COMPTE_INDISPONIBLE,
@@ -13,6 +13,7 @@ import {
   DECONNEXION_DEMANDE_LE_SERVEUR,
   DECONNEXION_EN_COURS,
   DECONNEXION_NON_CONFIRMEE,
+  MON_COMPTE,
   NOM_DE_LA_ZONE_DE_COMPTE,
   NON_CONNECTE,
   REESSAYER,
@@ -116,15 +117,19 @@ function actions(
       );
     case "connecte":
       return (
-        <ActionDeCompte
-          libelle={
-            deconnexion === "non-confirmee" || deconnexion === "hors-ligne"
-              ? REESSAYER_LA_DECONNEXION
-              : SE_DECONNECTER
-          }
-          desactivee={deconnexion === "en-cours"}
-          surActivation={seDeconnecter}
-        />
+        <>
+          {/* F-027-AC21 : l'écran du compte, offert à un compte connecté seulement. */}
+          <ActionDeCompte libelle={MON_COMPTE} adresse={FRAGMENT_DU_COMPTE} />
+          <ActionDeCompte
+            libelle={
+              deconnexion === "non-confirmee" || deconnexion === "hors-ligne"
+                ? REESSAYER_LA_DECONNEXION
+                : SE_DECONNECTER
+            }
+            desactivee={deconnexion === "en-cours"}
+            surActivation={seDeconnecter}
+          />
+        </>
       );
   }
 }

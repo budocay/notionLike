@@ -22,10 +22,17 @@ function porteAutreChoseQueDesBlancs(texte: string): boolean {
   return texte.trim() !== "";
 }
 
+// Les bornes de F-009-AC4, que la gestion du compte de F-027 reprend telles quelles : un nom de 1 à
+// 100 caractères qui ne se réduit pas à des blancs, un mot de passe de 12 à 128 caractères.
+export const schemaNomDuCompte = z.string().max(NOM_MAX).refine(porteAutreChoseQueDesBlancs);
+export const schemaNouveauMotDePasse = z.string().min(MOT_DE_PASSE_MIN).max(MOT_DE_PASSE_MAX);
+// Un mot de passe présenté pour être vérifié n'a que la borne haute : trop court, il est faux.
+export const schemaMotDePassePresente = z.string().max(MOT_DE_PASSE_MAX);
+
 export const schemaCorpsInscription = z.object({
-  name: z.string().max(NOM_MAX).refine(porteAutreChoseQueDesBlancs),
+  name: schemaNomDuCompte,
   email: courriel,
-  password: z.string().min(MOT_DE_PASSE_MIN).max(MOT_DE_PASSE_MAX),
+  password: schemaNouveauMotDePasse,
 });
 
 export type CorpsInscription = z.infer<typeof schemaCorpsInscription>;
@@ -34,7 +41,7 @@ export type CorpsInscription = z.infer<typeof schemaCorpsInscription>;
 // faux, refusé comme tel (F-009-AC8).
 export const schemaCorpsConnexion = z.object({
   email: courriel,
-  password: z.string().max(MOT_DE_PASSE_MAX),
+  password: schemaMotDePassePresente,
 });
 
 export type CorpsConnexion = z.infer<typeof schemaCorpsConnexion>;

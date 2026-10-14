@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { correspond, empreinteDe } from "../src/empreinte.ts";
+import { correspond, empreinteDe, verifierLeMotDePasse } from "../src/empreinte.ts";
 
 const MOT_DE_PASSE = "un mot de passe d'essai";
 const FORME_PHC = /^\$argon2id\$v=19\$m=19456,t=2,p=1\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/;
@@ -179,6 +179,49 @@ describe("vérification d'un mot de passe", () => {
 
       await expect(correspond(MOT_DE_PASSE, stockee)).resolves.toBe(false);
       expect(calcul).not.toHaveBeenCalled();
+    },
+  );
+});
+
+// F-027-AC6 : la vérification d'une action sensible calcule toujours une empreinte aux paramètres
+// de F-009-AC5, même sans empreinte lisible à comparer.
+describe("vérification du mot de passe actuel d'une action sensible", () => {
+  const PARAMETRES_DE_F009 = { memory: 19_456, passes: 2, parallelism: 1, tagLength: 32 };
+
+  function calculsDe(calcul: { mock: { calls: unknown[][] } }) {
+    return calcul.mock.calls.map(([algorithme, lus]) => {
+      const { memory, passes, parallelism, tagLength, message } = lus as Record<string, unknown>;
+      return { algorithme, memory, passes, parallelism, tagLength, message };
+    });
+  }
+
+  it("F-027-AC6 F-027-AC4 le bon mot de passe est accepté, un autre refusé, chacun après un calcul", async () => {
+    const empreinte = await empreinteDe(MOT_DE_PASSE);
+    const calcul = vi.spyOn(crypto, "argon2");
+
+    expect(await verifierLeMotDePasse(MOT_DE_PASSE, empreinte)).toBe(true);
+    expect(await verifierLeMotDePasse("un autre mot de passe", empreinte)).toBe(false);
+    expect(calcul).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["absente", undefined],
+    ["vide", ""],
+    ["mal formée", "pas-une-empreinte"],
+    ["au format scrypt", `${"ab".repeat(16)}:${"cd".repeat(64)}`],
+    [
+      "sous les paramètres minimaux",
+      `$argon2id$v=19$m=19452,t=2,p=1$${"A".repeat(22)}$${"A".repeat(43)}`,
+    ],
+  ])(
+    "F-027-AC6 une empreinte stockée %s est refusée sans erreur, après un calcul aux paramètres de F-009-AC5",
+    async (_cas, stockee) => {
+      const calcul = vi.spyOn(crypto, "argon2");
+
+      await expect(verifierLeMotDePasse(MOT_DE_PASSE, stockee)).resolves.toBe(false);
+      expect(calculsDe(calcul)).toEqual([
+        { algorithme: "argon2id", ...PARAMETRES_DE_F009, message: MOT_DE_PASSE },
+      ]);
     },
   );
 });

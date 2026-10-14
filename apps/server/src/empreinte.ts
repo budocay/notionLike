@@ -105,3 +105,17 @@ export async function correspond(motDePasse: string, empreinte: string): Promise
   const cle = await calculer(motDePasse, lue.sel, lue.cle.length, lue);
   return crypto.timingSafeEqual(cle, lue.cle);
 }
+
+// F-027-AC6 : la vérification d'une action sensible calcule toujours une empreinte aux paramètres
+// de F-009-AC5, même quand l'empreinte stockée manque, est mal formée ou hors des bornes : la durée
+// de la réponse ne dit pas laquelle des deux causes a fait échouer la vérification.
+export async function verifierLeMotDePasse(
+  motDePasse: string,
+  empreinte: string | undefined,
+): Promise<boolean> {
+  if (empreinte !== undefined && lire(empreinte) !== undefined) {
+    return correspond(motDePasse, empreinte);
+  }
+  await calculer(motDePasse, crypto.randomBytes(OCTETS_DU_SEL), OCTETS_DE_LA_CLE, PARAMETRES);
+  return false;
+}

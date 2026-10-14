@@ -40,7 +40,7 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC23 F-009-AC23 F-011-AC31 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC31 F-027-AC19 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
       "adhesions.ts": ["Role"],
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
@@ -53,6 +53,18 @@ describe("appelants des deux paquets", () => {
         "schemaCorpsInscription",
       ],
       "enveloppe.ts": ["CodeErreur", "EnveloppeErreur"],
+      // F-027-AC19 : le module de la gestion du compte.
+      "gestion-du-compte.ts": [
+        "CHEMINS_DU_COMPTE",
+        "PLAFONDS_DU_COMPTE",
+        "SessionDuCompte",
+        "schemaCompte",
+        "schemaCorpsChangementDeMotDePasse",
+        "schemaCorpsChangementDeNom",
+        "schemaCorpsRevocation",
+        "schemaListeSessions",
+        "schemaRevocationDesAutres",
+      ],
       "espaces.ts": [
         "Action",
         "CHEMINS_ESPACES",
@@ -75,7 +87,7 @@ describe("appelants des deux paquets", () => {
     });
   });
 
-  it("F-008-AC23 F-009-AC23 F-011-AC32 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC32 F-027-AC20 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       // F-011-AC32 : le seul module qui écrit une adhésion.
       "adhesions.ts": [
@@ -108,6 +120,16 @@ describe("appelants des deux paquets", () => {
         "listerMembres",
         "renommerEspace",
         "revoquerInvitation",
+      ],
+      // F-027 H1 : le seul module qui écrit le nom et l'empreinte d'un compte et lit ses sessions.
+      "gestion-du-compte.ts": [
+        "Base",
+        "SessionDuCompteLue",
+        "ecrireEmpreinte",
+        "lireEmpreinte",
+        "listerSessions",
+        "renommerCompte",
+        "verrouillerSessionDuCompte",
       ],
       "journal.ts": ["CodeErreurBase"],
       "main.ts": ["ouvrirBase"],

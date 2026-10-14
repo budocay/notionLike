@@ -19,6 +19,7 @@ import {
   repondreIntrouvable,
 } from "./enveloppe.ts";
 import { monterLesEspaces } from "./espaces.ts";
+import { monterLaGestionDuCompte } from "./gestion-du-compte.ts";
 import type { Journal } from "./journal.ts";
 import type { SuppressionDeSessions } from "./sessions.ts";
 
@@ -29,7 +30,8 @@ interface Dependances {
   // Créée par l'appelant, qui peut s'y abonner (F-009-AC33).
   readonly suppression: SuppressionDeSessions;
   // Facultatives (F-011) : le module des écritures d'adhésion, auquel l'appelant peut s'abonner
-  // (F-011-AC32), et l'horloge des invitations et du plafond d'acceptation (H10). À défaut, un
+  // (F-011-AC32), et l'horloge des invitations et du plafond d'acceptation (H10), que la gestion du
+  // compte reprend pour ses plafonds et l'expiration des sessions (F-027-AC15). À défaut, un
   // module propre à l'application et l'horloge du système.
   readonly adhesions?: Adhesions;
   readonly horloge?: () => Date;
@@ -127,6 +129,29 @@ function monterLesEspacesDe(
   });
 }
 
+// F-027 : les routes de la gestion du compte lisent la session par la même authentification et
+// suppriment par la fonction de suppression ; leurs plafonds ont leurs propres compteurs, sur
+// l'horloge injectée (F-027-AC15).
+function monterLaGestionDuCompteDe(
+  application: Express,
+  dependances: Dependances,
+  authentification: Authentification,
+): void {
+  const { configuration, base, journal, suppression } = dependances;
+  const horloge = dependances.horloge ?? (() => new Date());
+  monterLaGestionDuCompte(application, {
+    authentification,
+    journal,
+    proxysDeConfiance: configuration.proxysDeConfiance,
+    base,
+    suppression,
+    consommer: creerCompteurs(() => horloge().getTime()),
+    horloge,
+    urlPublique: configuration.urlPublique,
+    originesAutorisees: configuration.originesAutorisees,
+  });
+}
+
 // F-009-AC32 : aucune réponse ne porte d'en-tête `Access-Control-Allow-*`, et aucune requête de
 // pré-vérification n'est traitée. `ORIGINES_AUTORISEES` ne sert qu'au contrôle d'`Origin`.
 export function creerApplication(dependances: Dependances): Express {
@@ -141,6 +166,7 @@ export function creerApplication(dependances: Dependances): Express {
   application.use(poserLesEnTetesDeSecurite());
   const authentification = monterLAuthentification(application, dependances);
   monterLesEspacesDe(application, dependances, authentification);
+  monterLaGestionDuCompteDe(application, dependances, authentification);
   // F-008-AC6 : un corps compressé est décompressé, et la limite vaut pour le corps décompressé ;
   // un jeu de caractères autre qu'UTF ou un encodage inconnu est refusé par le lecteur (415), que
   // le gestionnaire d'erreurs rend en 400 `requete-invalide`.

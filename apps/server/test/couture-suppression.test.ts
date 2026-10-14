@@ -26,10 +26,12 @@ import {
   fixerLExpiration,
   inscrire,
   lire,
+  MOT_DE_PASSE_D_ADA,
   ouvrirUneBase,
   sessionDuJeton,
   DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
 } from "./aides-comptes.ts";
+import { ouvrirUneSession, revoquer } from "./aides-gestion-du-compte.ts";
 import { sourcesDuDepot } from "./aides-sources.ts";
 
 const DIST_BETTER_AUTH = dirname(fileURLToPath(import.meta.resolve("better-auth")));
@@ -189,10 +191,22 @@ const SCENARIOS: Readonly<Record<string, () => Promise<Constat>>> = {
   },
   "apps/server/src/sessions.ts : appel de supprimerSessions (1)": () => scenario(deconnexion),
   "packages/db/src/sessions.ts : requête de suppression (1)": () => scenario(deconnexion),
+  // F-027-AC20 : le changement de mot de passe et les deux révocations ; la révocation d'une session
+  // l'exerce ici, les deux autres appels ont leur signal constaté par `gestion-du-compte.test.ts`
+  // (F-027-AC4, AC12).
+  "apps/server/src/gestion-du-compte.ts : appel de la fonction de suppression (3)": () =>
+    scenario(async ({ serveur, jeton, laBase }) => {
+      const ligne = await sessionDuJeton(laBase, jeton);
+      const autre = await ouvrirUneSession(laBase, ligne?.userId ?? "");
+      const reponse = await revoquer(serveur, autre.cookie, ligne?.id ?? "", {
+        motDePasseActuel: MOT_DE_PASSE_D_ADA,
+      });
+      expect(reponse.status).toBe(204);
+    }),
 };
 
 describe("points de suppression de session", () => {
-  it("F-009-AC33 F-009-AC23 chaque point du dépôt et de better-auth qui supprime une session est énuméré et a son scénario", () => {
+  it("F-009-AC33 F-009-AC23 F-027-AC20 chaque point du dépôt et de better-auth qui supprime une session est énuméré et a son scénario", () => {
     expect(pointsDeSuppression(sourcesDuDepot(), routesNatives(), methodesInternes())).toEqual(
       Object.keys(SCENARIOS).sort(),
     );

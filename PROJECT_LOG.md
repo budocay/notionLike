@@ -179,3 +179,15 @@
 - Tests: 2591 tests sur 118 fichiers — état: verts — preuve: checks.txt (empreinte `1f7d6e54ceca`)
 - Gates: sur `2b090d71be28` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (7 points, corrigés dans `b1b8d9d`) ; sur `1f7d6e54ceca` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-020
 - Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 7 · faux positifs 0 · coût non mesuré
+
+## [2026-10-14] F-027 Gestion du compte : mot de passe, nom, sessions
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/contrats`, `packages/db`, `apps/server`, `apps/web` (écran `#/compte`) — agents: agent-backend, agent-bdd, agent-frontend, orchestrateur — commits: b5ec009..1b9717a
+- Détail: cinq routes (nom, mot de passe, liste des sessions, révocation d'une session, révocation des autres), mot de passe actuel exigé, session courante protégée (409), débit plafonné, contrôle d'origine, écritures hors de better-auth et suppression des sessions par la fonction du serveur ; écran du compte dans le client. Mode économe : un passage des gates, un correctif ciblé sans nouvelle revue. Écarts soumis au dev : test de F-010-AC16 passé de 14 à 16 codes, mot de passe vérifié avant la cible d'une révocation, action « Fermer toutes les autres sessions », composants de F-014 réutilisés.
+- Dette: introduite D-021 (revues non rejouées après le correctif, gate d'architecture non lancé : acceptés par dérogation du dev) ; laissées D-002, D-003, D-007, D-017
+- ADR: aucun
+- Tests: 2752 tests sur 127 fichiers — état: verts — preuve: checks.txt (empreinte `8984bebd617e`)
+- Gates: sur `ac76be34805f` : SECURITY PASS · CRAFT PASS · revues reviewer-backend et reviewer-frontend APPROVED, reviewer-api CHANGES_REQUESTED (1 point, corrigé dans `1b9717a`) ; sur `8984bebd617e` : CRAFT PASS · revues, sécurité et architecture par DEROGATION D-021
+- Mesures: boucles 1 passage et 1 correctif · constats confirmés 1 (non exploitable) · faux positifs 0 · coût non mesuré

@@ -47,6 +47,7 @@ import {
 import type { Consommer } from "./debit.ts";
 import { envoyerErreur, idRequeteDe, LIMITE_CORPS_OCTETS } from "./enveloppe.ts";
 import type { TypeDEvenementDEspace } from "./journal.ts";
+import { origineAdmise, type OriginesAdmises } from "./origine.ts";
 
 // F-011-AC19, H13 : 32 octets du générateur cryptographique, en base64url sans remplissage.
 const OCTETS_DU_JETON = 32;
@@ -54,7 +55,6 @@ const JOUR_MS = 86_400_000;
 const JOURS_DE_VALIDITE = 7;
 // F-011-AC25 : par compte, réussies ou non.
 const PLAFOND_DES_ACCEPTATIONS = { fenetreS: 60, max: 10 };
-const METHODES_QUI_ECRIVENT: readonly string[] = ["POST", "PATCH", "DELETE"];
 const UUID_CANONIQUE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const STATUT_OK = 200;
@@ -63,14 +63,12 @@ const STATUT_SANS_CONTENU = 204;
 
 const MONTEURS = { GET: "get", POST: "post", PATCH: "patch", DELETE: "delete" } as const;
 
-export interface DependancesDesEspaces extends DependancesDeSession {
+export interface DependancesDesEspaces extends DependancesDeSession, OriginesAdmises {
   readonly base: Base;
   readonly adhesions: Adhesions;
   // Les compteurs du plafond d'acceptation (F-011 H11).
   readonly consommer: Consommer;
   readonly horloge: () => Date;
-  readonly urlPublique: string;
-  readonly originesAutorisees: readonly string[];
 }
 
 interface Contexte {
@@ -109,18 +107,6 @@ function parametre(requete: Request, nom: string): string {
 // Un identifiant venu du chemin n'est journalisé que s'il a la forme d'un identifiant.
 function siIdentifiant(valeur: string): string | undefined {
   return UUID_CANONIQUE.test(valeur) ? valeur : undefined;
-}
-
-// F-011-AC26 : une écriture dont l'origine n'est ni l'URL publique ni une origine autorisée est
-// refusée ; une requête sans `Origin` (client hors navigateur) n'en annonce aucune.
-function origineAdmise(dependances: DependancesDesEspaces, requete: Request): boolean {
-  const origine = requete.get("Origin");
-  return (
-    !METHODES_QUI_ECRIVENT.includes(requete.method) ||
-    origine === undefined ||
-    origine === dependances.urlPublique ||
-    dependances.originesAutorisees.includes(origine)
-  );
 }
 
 // Session (F-011-AC8) puis origine (AC26) ; `undefined` : la réponse est déjà écrite.

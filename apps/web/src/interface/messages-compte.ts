@@ -8,6 +8,7 @@ export const NOM_DE_LA_ZONE_DE_COMPTE = "Compte";
 export const SE_CONNECTER = "Se connecter";
 export const CREER_UN_COMPTE = "Créer un compte";
 export const SE_DECONNECTER = "Se déconnecter";
+export const MON_COMPTE = "Mon compte";
 export const REESSAYER = "Réessayer";
 export const REESSAYER_LA_DECONNEXION = "Réessayer la déconnexion";
 export const RETOUR_A_L_APPLICATION = "Retour à l'application";

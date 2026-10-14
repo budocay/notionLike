@@ -168,7 +168,8 @@ function textesDeF011(): Record<string, string> {
 
 describe("table de messages des codes de l'enveloppe", () => {
   it("F-010-AC16 chaque code de la liste fermée publiée par contrats a son message, et la table n'en a pas d'autre", () => {
-    expect(CODES_ERREUR).toHaveLength(14);
+    // F-027 : deux codes ajoutés à la fin de la liste fermée (F-027-AC19).
+    expect(CODES_ERREUR).toHaveLength(16);
     expect(Object.keys(MESSAGES_DES_CODES).sort()).toEqual([...CODES_ERREUR].sort());
     for (const code of CODES_ERREUR) {
       const message = MESSAGES_DES_CODES[code];
@@ -188,6 +189,25 @@ describe("table de messages des codes de l'enveloppe", () => {
       "invitation-invalide",
       "quota-atteint",
     ]);
+    for (const [code, texte] of Object.entries(attendus)) {
+      expect(MESSAGES_DES_CODES[code as keyof typeof MESSAGES_DES_CODES]).toBe(texte);
+    }
+  });
+
+  it("F-027-AC25 F-010-AC16 les deux messages de F-027 sont ceux de F-027-AC25, à la lettre", () => {
+    const critere = lire("../../specs/F-027.md")
+      .split("\n")
+      .find((ligne) => ligne.includes("F-027-AC25 (erreurs)"));
+    const attendus = Object.fromEntries(
+      [...(critere ?? "").matchAll(/`([a-z-]+)` : « ([^»]+?) »/g)].map(([, code, texte]) => [
+        code,
+        texte,
+      ]),
+    );
+    expect(attendus).toEqual({
+      "mot-de-passe-incorrect": "Mot de passe actuel incorrect.",
+      "session-courante": "Pour fermer la session de cet appareil, déconnectez-vous.",
+    });
     for (const [code, texte] of Object.entries(attendus)) {
       expect(MESSAGES_DES_CODES[code as keyof typeof MESSAGES_DES_CODES]).toBe(texte);
     }

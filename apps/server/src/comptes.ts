@@ -302,14 +302,20 @@ export interface CompteConnecte {
   readonly courriel: string;
 }
 
+export interface SessionConnectee {
+  readonly compte: CompteConnecte;
+  // L'identifiant de la session courante, jamais son jeton (F-027-AC9, AC11).
+  readonly idSession: string;
+}
+
 // F-009-AC10, AC11, AC20, F-011-AC8 : la session est lue en base à chaque requête d'une route
 // protégée. Sans session valide (401), ou si la lecture échoue (500), la réponse est écrite ici et
 // `undefined` rendu : le traitement de la route n'a pas lieu.
-export async function compteDeLaSession(
+export async function sessionDeLaRequete(
   { authentification, journal, proxysDeConfiance }: DependancesDeSession,
   requete: Request,
   reponse: Response,
-): Promise<CompteConnecte | undefined> {
+): Promise<SessionConnectee | undefined> {
   const enTetes = enTetesPourBetterAuth(requete, adresseDe(requete, proxysDeConfiance));
   const lue = await authentification
     .lireLaSession(enTetes)
@@ -325,7 +331,15 @@ export async function compteDeLaSession(
   }
   poserLesCookies(reponse, lue.enTetes);
   const { id, name, email } = lue.compte;
-  return { id, nom: name, courriel: email };
+  return { compte: { id, nom: name, courriel: email }, idSession: lue.idSession };
+}
+
+export async function compteDeLaSession(
+  dependances: DependancesDeSession,
+  requete: Request,
+  reponse: Response,
+): Promise<CompteConnecte | undefined> {
+  return (await sessionDeLaRequete(dependances, requete, reponse))?.compte;
 }
 
 function repondreMoi(dependances: Dependances): RequestHandler {
