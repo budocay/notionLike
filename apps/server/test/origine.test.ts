@@ -54,6 +54,9 @@ describe("contrôle de l'origine partagé (F-011-AC26, F-027-AC16)", () => {
   );
 
   it("F-027-AC16 F-027-AC20 le contrôle a un seul module, et ses appelants sont énumérés", () => {
-    expect(appelants()).toEqual({ appellent: ["espaces.ts"], lisentOrigin: ["origine.ts"] });
+    expect(appelants()).toEqual({
+      appellent: ["espaces.ts", "gestion-du-compte.ts"],
+      lisentOrigin: ["origine.ts"],
+    });
   });
 });
