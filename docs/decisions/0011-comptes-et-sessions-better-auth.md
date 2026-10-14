@@ -1,7 +1,7 @@
 # ADR-0011 — Comptes et sessions : better-auth monté derrière le code du serveur, session en base, schéma natif dans `packages/db`
 
-Statut : accepté
-Date : 2026-10-13
+Statut : accepté ; section « Amendement du 2026-10-14 » comprise, acceptée par le dev le 2026-10-14
+Date : 2026-10-13 ; amendement du 2026-10-14 (F-010, F-011, F-027)
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé pour F-009).
 
 ## Contexte et problème
@@ -47,8 +47,15 @@ Compteurs de débit :
 - Schéma : les quatre tables natives (`user`, `session`, `account`, `verification`) écrites à la main dans `packages/db/src/schema.ts`, sans renommage, identifiants `uuid`, cascade des sessions et identifiants de connexion d'un compte, contrainte de courriel en minuscules en base, index sur `session.expiresAt`. Migration `0000_comptes` générée par `drizzle-kit` et appliquée par le migrateur de F-008 ; descente manuelle dans `packages/db/descentes/0000_comptes.sql`, hors du migrateur. `Base["db"]` est typé par ce schéma ; l'adaptateur Drizzle de better-auth le reçoit tel quel.
 - Empreintes : Argon2id de `node:crypto` (m = 19 456 Kio, t = 2, p = 1, sel de 16 octets, clé de 32), au format PHC, vérifiées en temps constant avec les paramètres lus dans la chaîne, bornés pour qu'une ligne altérée n'épuise pas la mémoire.
 - Suppression de session : `supprimerSessions` (`packages/db/src/sessions.ts`) est la seule requête qui efface une ligne de `session` ; son seul appelant est `creerSuppressionDeSessions` (`apps/server/src/sessions.ts`), qui l'exécute dans une transaction et ne signale ses abonnés, par identifiant de session et de compte, qu'après la validation. better-auth y est branché par son crochet de suppression.
-- Origines : aucun en-tête `Access-Control-Allow-*`, aucune pré-vérification ; `ORIGINES_AUTORISEES` et l'origine de `URL_PUBLIQUE` ne servent qu'au contrôle d'`Origin` de better-auth.
-- Dépendances : better-auth et `@better-auth/*` réservés à `apps/server`, par sous-chemin (trois règles de `.dependency-cruiser.cjs`, commit `8ad53a3`).
+- Origines : aucun en-tête `Access-Control-Allow-*`, aucune pré-vérification ; `ORIGINES_AUTORISEES` et l'origine de `URL_PUBLIQUE` ne servent qu'au contrôle d'`Origin` de better-auth. Amendé le 2026-10-14 : ils servent aussi au contrôle d'origine des routes de F-011 et de F-027 (plus bas).
+- Dépendances : better-auth et `@better-auth/*` réservés à `apps/server`, par sous-chemin (trois règles de `.dependency-cruiser.cjs`, commit `8ad53a3`). Amendé le 2026-10-14 : `better-auth/client` est importé par un module d'`apps/web` (plus bas).
+
+### Amendement du 2026-10-14 : client dans `apps/web`, origines des routes à nous
+
+Deux phrases de la décision ci-dessus sont devenues inexactes avec F-010, F-011 et F-027 ; cet amendement dit ce que fait le code de `main` à `5bc0d40`.
+
+- **`better-auth/client` dans `apps/web`** (F-010, commit du dev `f134cb2`). Le serveur reste le seul à importer `better-auth` et ses autres sous-chemins. Le sous-chemin `better-auth/client`, que la règle `better-auth-reserve-au-serveur` exceptait déjà, est importé par un seul module, `apps/web/src/compte/client-auth.ts` : la règle `better-auth-client-un-seul-module` l'admet depuis ce fichier seul (`from: { pathNot }`), et `better-auth/react` comme `better-auth/client/plugins` restent interdits partout. `apps/web/package.json` déclare `better-auth` 1.7.7, la version exacte du serveur. Le confinement côté client est l'objet de l'ADR-0012.
+- **`ORIGINES_AUTORISEES` et `URL_PUBLIQUE` hors de better-auth** (F-011, puis F-027). `apps/server/src/origine.ts` (`origineAdmise`) refuse en 403 `origine-refusee` toute écriture (`POST`, `PATCH`, `DELETE`) des routes des espaces et de la gestion du compte dont l'en-tête `Origin` n'est ni `URL_PUBLIQUE` ni une entrée d'`ORIGINES_AUTORISEES` ; une requête sans `Origin` passe. Ces deux réglages servent donc à deux contrôles : celui de better-auth sur `/api/auth`, et celui du serveur sur ses propres routes protégées. Le reste de la décision « Origines » tient : aucun en-tête `Access-Control-Allow-*`, aucune pré-vérification.
 
 ## Conséquences
 

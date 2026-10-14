@@ -1,6 +1,6 @@
 # ADR-0003 — Paquet `@notionlike/document` : interface publique et outillage
 
-Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`) ; section « Amendements F-029 et F-007 » : proposé (elle consigne après coup ce que le code de F-029 et de F-007 a ajouté à l'interface, d'après leurs specs validées ; à relire par le dev)
+Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`) ; section « Amendements F-029 et F-007 » : écrite après coup, d'après le code de F-029 et de F-007 et leurs specs validées, acceptée par le dev le 2026-10-14
 Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception ; conséquence « Une seule instance de `yjs` » amendée le 2026-10-09, après le bloc 3 de F-002 ; amendements F-029 et F-007 du 2026-10-14
 
 ## Contexte et problème
