@@ -40,7 +40,7 @@ const sources = new Map(
 );
 
 describe("appelants des deux paquets", () => {
-  it("F-008-AC23 F-009-AC23 F-011-AC31 F-027-AC19 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC31 F-027-AC19 F-012-AC27 les fichiers d'apps/server/src qui consomment @notionlike/contrats sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/contrats")).toEqual({
       "adhesions.ts": ["Role"],
       "application.ts": ["CHEMINS", "ReponsePret", "ReponseSante"],
@@ -84,10 +84,19 @@ describe("appelants des deux paquets", () => {
         "schemaListeMembresVueParUnProprietaire",
         "schemaMembreVuParUnProprietaire",
       ],
+      // F-012-AC27 : la synchronisation, par ses quatre modules.
+      "synchro-acces.ts": ["DocumentNomme", "Role", "nomDeDocument", "schemaNomDeDocument"],
+      "synchro-reglages.ts": ["LIMITES_SYNCHRO", "LimitesSynchro"],
+      "synchro-stockage.ts": [
+        "DocumentNomme",
+        "VERSION_DU_DOCUMENT_D_ESPACE",
+        "schemaNomDeDocument",
+      ],
+      "synchronisation.ts": ["CHEMIN_SYNCHRO", "CODE_DE_FERMETURE_A_L_ARRET"],
     });
   });
 
-  it("F-008-AC23 F-009-AC23 F-011-AC32 F-027-AC20 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
+  it("F-008-AC23 F-009-AC23 F-011-AC32 F-027-AC20 F-012-AC31 les fichiers d'apps/server/src qui consomment @notionlike/db sont énumérés", () => {
     expect(entreesDe(sources, "@notionlike/db")).toEqual({
       // F-011-AC32 : le seul module qui écrit une adhésion.
       "adhesions.ts": [
@@ -107,6 +116,7 @@ describe("appelants des deux paquets", () => {
         "supprimerEspace",
       ],
       "application.ts": ["Base", "ErreurBase"],
+      "assemblage.ts": ["Base"],
       "authentification.ts": ["Base", "SessionSupprimee", "schemaComptes"],
       // F-011-AC32 : le seul module qui lit une adhésion pour autoriser.
       "autorisation.ts": ["Base", "EspaceDuMembre", "lireAdhesion"],
@@ -135,6 +145,10 @@ describe("appelants des deux paquets", () => {
       "main.ts": ["ouvrirBase"],
       "service.ts": ["Base"],
       "sessions.ts": ["Base", "SessionSupprimee", "SessionsVisees", "supprimerSessions"],
+      "synchro-acces.ts": ["Base"],
+      // F-012-AC18 à AC21, AC24 : le seul module qui lit, écrit ou compte des instantanés.
+      "synchro-stockage.ts": ["Base", "compterDocuments", "enregistrerDocument", "lireDocument"],
+      "synchronisation.ts": ["Base"],
     });
   });
 
@@ -175,6 +189,8 @@ describe("appelants de l'écoute et du service", () => {
       "src/service.ts",
       "test/aides.ts",
       "test/comptes-echec.test.ts",
+      // F-012-AC36 : la fabrique d'essai, avec le passage en WebSocket.
+      "test/fabrique.ts",
       "test/service.test.ts",
     ]);
   });

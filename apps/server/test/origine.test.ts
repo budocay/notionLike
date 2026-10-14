@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import type { Request } from "express";
 import { describe, expect, it } from "vitest";
 
-import { origineAdmise } from "../src/origine.ts";
+import { origineAdmise, origineDuPassageAdmise } from "../src/origine.ts";
 
 const SRC = new URL("../src/", import.meta.url);
 const ORIGINES = {
@@ -27,7 +27,7 @@ function appelants(): { appellent: string[]; lisentOrigin: string[] } {
   const fichiers = readdirSync(SRC).map((nom) => [nom, readFileSync(new URL(nom, SRC), "utf8")]);
   return {
     appellent: fichiers
-      .filter(([, texte]) => /(?<!function )\borigineAdmise\(/.test(texte ?? ""))
+      .filter(([, texte]) => /(?<!function )\borigine(?:DuPassage)?Admise\(/.test(texte ?? ""))
       .map(([nom]) => nom ?? "")
       .sort(),
     lisentOrigin: fichiers
@@ -53,9 +53,23 @@ describe("contrôle de l'origine partagé (F-011-AC26, F-027-AC16)", () => {
     },
   );
 
-  it("F-027-AC16 F-027-AC20 le contrôle a un seul module, et ses appelants sont énumérés", () => {
+  it.each([
+    ["http://app.exemple.test", true],
+    ["http://autorisee.exemple.test", true],
+    ["http://ailleurs.exemple.test", false],
+    ["null", false],
+    [undefined, false],
+  ])(
+    "F-012-AC3 une demande de passage en WebSocket d'origine %s : admise = %s",
+    (origine, admise) => {
+      expect(origineDuPassageAdmise(ORIGINES, requete("GET", origine))).toBe(admise);
+    },
+  );
+
+  it("F-027-AC16 F-027-AC20 F-012-AC3 le contrôle a un seul module, et ses appelants sont énumérés", () => {
     expect(appelants()).toEqual({
-      appellent: ["espaces.ts", "gestion-du-compte.ts"],
+      // F-012-AC3 : la demande de passage en WebSocket, par `origineDuPassageAdmise`.
+      appellent: ["espaces.ts", "gestion-du-compte.ts", "synchronisation.ts"],
       lisentOrigin: ["origine.ts"],
     });
   });

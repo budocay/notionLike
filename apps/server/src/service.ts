@@ -3,10 +3,9 @@
 import type { Base } from "@notionlike/db";
 import type { DestinationStream } from "pino";
 
-import { creerApplication } from "./application.ts";
+import { assembler, type Assemblage } from "./assemblage.ts";
 import type { Configuration } from "./configuration.ts";
 import { creerJournal, type Journal } from "./journal.ts";
-import { creerSuppressionDeSessions } from "./sessions.ts";
 import { demarrerServeur, type Ecoute } from "./serveur.ts";
 
 // Deux secondes de marge sous les 10 secondes de F-008-AC7.
@@ -81,20 +80,23 @@ function arreter({ base, processus }: Lancement, hote: string, { journal, ecoute
 // d'ici, ni ne parvient à la sortie d'erreur.
 async function demarrer({ configuration, base, processus }: Lancement): Promise<Servi | string> {
   let journal: Journal;
-  let application: ReturnType<typeof creerApplication>;
+  let assemblage: Assemblage;
   try {
     journal = creerJournal(processus.stdout);
-    application = creerApplication({
-      configuration,
-      base,
-      journal,
-      suppression: creerSuppressionDeSessions(base, journal),
-    });
+    // F-012-AC36 : la production n'assemble qu'avec les limites publiées, sans paramètre d'essai.
+    assemblage = assembler({ configuration, base, journal });
   } catch {
     return INITIALISATION_IMPOSSIBLE;
   }
   const { hote, port } = configuration;
-  return demarrerServeur({ application, hote, port, delaiArretMs: DELAI_ARRET_MS }).then(
+  const { application, synchronisation } = assemblage;
+  return demarrerServeur({
+    application,
+    passage: synchronisation,
+    hote,
+    port,
+    delaiArretMs: DELAI_ARRET_MS,
+  }).then(
     (ecoute) => ({ journal, ecoute }),
     () => ECOUTE_IMPOSSIBLE,
   );

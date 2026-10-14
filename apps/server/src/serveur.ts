@@ -1,11 +1,20 @@
 // Écoute et arrêt (ADR-0004). Ce fichier n'importe aucun autre fichier du serveur.
-import { createServer, type RequestListener, type Server } from "node:http";
+import { createServer, type IncomingMessage, type RequestListener, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { Duplex } from "node:stream";
 
 const PERIODE_DE_FERMETURE_DES_INACTIVES_MS = 20;
 
+// Le passage en WebSocket (F-012, H1) : servi sur le même serveur HTTP et le même port que l'API, il
+// traite chaque demande de passage et s'arrête avec le serveur.
+export interface Passage {
+  traiterPassage(requete: IncomingMessage, socket: Duplex, tete: Buffer): void;
+  arreter(): Promise<void>;
+}
+
 interface OptionsDEcoute {
   readonly application: RequestListener;
+  readonly passage?: Passage | undefined;
   readonly hote: string;
   readonly port: number;
   readonly delaiArretMs: number;
@@ -38,6 +47,12 @@ function cesserDeServir(serveur: Server, delaiArretMs: number): Promise<void> {
 
 export function demarrerServeur(options: OptionsDEcoute): Promise<Ecoute> {
   const serveur = createServer(options.application);
+  const { passage } = options;
+  if (passage !== undefined) {
+    serveur.on("upgrade", (requete: IncomingMessage, socket: Duplex, tete: Buffer) => {
+      passage.traiterPassage(requete, socket, tete);
+    });
+  }
   // Une connexion qui n'envoie pas une requête lisible est fermée sans réponse : le serveur ne
   // répond qu'à ce que l'application a vu, donc toujours avec ses en-têtes et son enveloppe.
   serveur.on("clientError", (_erreur, connexion) => {
@@ -51,7 +66,12 @@ export function demarrerServeur(options: OptionsDEcoute): Promise<Ecoute> {
       serveur.off("error", reject);
       resolve({
         port: (serveur.address() as AddressInfo).port,
-        arreter: () => cesserDeServir(serveur, options.delaiArretMs),
+        // Le serveur cesse d'accepter d'abord ; ses WebSocket, qu'il ne ferme pas lui-même, sont
+        // fermées par le passage, dont il attend la fin.
+        arreter: () =>
+          Promise.all([cesserDeServir(serveur, options.delaiArretMs), passage?.arreter()]).then(
+            () => undefined,
+          ),
       });
     });
   });

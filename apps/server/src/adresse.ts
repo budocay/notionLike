@@ -2,7 +2,12 @@
 // confiance désignent dans `X-Forwarded-For`. Aucune autre valeur du client n'est retenue.
 import { isIP, isIPv4, isIPv6 } from "node:net";
 
-import type { Request } from "express";
+// Ce que l'adresse lit d'une requête : la connexion et un en-tête. Une requête d'Express le fournit,
+// et la demande de passage en WebSocket aussi, par un adaptateur (F-012-AC26).
+export interface RequeteLue {
+  readonly socket: { readonly remoteAddress?: string | undefined };
+  get(nom: string): string | undefined;
+}
 
 const PREFIXE_IPV4_EN_IPV6 = "::ffff:";
 const GROUPES_IPV6 = 8;
@@ -20,7 +25,7 @@ function sansPrefixeIPv4(adresse: string): string {
 // La chaîne des adresses, du client annoncé à la connexion : chaque proxy de confiance y a ajouté
 // celle qu'il a vue. Avec `proxys` à 0, l'adresse retenue est la dernière : celle de la connexion.
 // Une entrée qui n'est pas une adresse (chaîne plus courte que prévu, valeur forgée) est ignorée.
-export function adresseDe(requete: Request, proxys: number): string {
+export function adresseDe(requete: RequeteLue, proxys: number): string {
   const connexion = sansPrefixeIPv4(requete.socket.remoteAddress ?? "");
   const annoncees = (requete.get("X-Forwarded-For") ?? "").split(",").map((texte) => texte.trim());
   const chaine = [...annoncees, connexion];
