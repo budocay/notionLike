@@ -191,3 +191,15 @@
 - Tests: 2752 tests sur 127 fichiers — état: verts — preuve: checks.txt (empreinte `8984bebd617e`)
 - Gates: sur `ac76be34805f` : SECURITY PASS · CRAFT PASS · revues reviewer-backend et reviewer-frontend APPROVED, reviewer-api CHANGES_REQUESTED (1 point, corrigé dans `1b9717a`) ; sur `8984bebd617e` : CRAFT PASS · revues, sécurité et architecture par DEROGATION D-021
 - Mesures: boucles 1 passage et 1 correctif · constats confirmés 1 (non exploitable) · faux positifs 0 · coût non mesuré
+
+## [2026-10-14] F-007 Corbeille : écran, restauration, suppression définitive
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/document` (restauration, suppression définitive, ramasse-miettes), `apps/web` (effacement local, écran `#/corbeille`) — agents: agent-frontend, orchestrateur — commits: b664766..57dfaeb
+- Détail: corbeille listée au pied de la barre latérale, restauration d'une racine de corbeille, suppression définitive de la page et de sa descendance en une transaction, sessions fermées et bases IndexedDB effacées, avertissement si l'effacement échoue. Décision prise au code (mode économe) : ramasse-miettes actif sur le document d'espace, entrées retirées de `pages`, pas de compactage ; à reporter dans l'ADR-0002 et l'ADR-0001. Écarts soumis au dev : entrée « Corbeille » en bouton, assertions de F-004-AC25, AC30 et AC42 réécrites, listes fermées de tests étendues.
+- Dette: introduite D-022 (reviewer-frontend non rejoué après le tour de correctifs, sécurité jugée sur l'empreinte précédente, gate d'architecture non lancé, ADR-0002 et ADR-0001 à amender : acceptés par dérogation du dev) ; laissées D-003 (`demonstration.spec.ts` rouge à 360 px, venu de F-014), D-007, D-017, D-018
+- ADR: ADR-0001 et ADR-0002 à amender (avec D-018, avant F-012)
+- Tests: 2841 tests sur 133 fichiers — état: verts — preuve: checks.txt (empreinte `80038b4432aa`)
+- Gates: sur `6bf420991187` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (4 points, corrigés dans `57dfaeb`) ; sur `80038b4432aa` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-022
+- Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 3, 1 écarté (360 px préexistant) · coût non mesuré
