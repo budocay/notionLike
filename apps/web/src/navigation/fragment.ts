@@ -1,5 +1,11 @@
 // Fragment de l'adresse : écrit par `location.hash`, relu sur `hashchange` (spec H4).
-import { type EcranDEspaces, fragmentDe, fragmentDEcran, type Route } from "./route.ts";
+import {
+  type EcranDEspaces,
+  FRAGMENT_DE_LA_CORBEILLE,
+  fragmentDe,
+  fragmentDEcran,
+  type Route,
+} from "./route.ts";
 
 const CHANGEMENT_DE_FRAGMENT = "hashchange";
 
@@ -22,6 +28,11 @@ export function allerA(route: Route): void {
  */
 export function allerAuRetour(fragment: string): void {
   window.location.hash = fragment;
+}
+
+/** Affiche l'écran de la corbeille (F-007-AC1) : une entrée de l'historique, comme une page. */
+export function allerALaCorbeille(): void {
+  window.location.hash = FRAGMENT_DE_LA_CORBEILLE;
 }
 
 export function allerALEcran(ecran: EcranDEspaces): void {

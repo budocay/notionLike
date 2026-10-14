@@ -178,6 +178,9 @@ describe("titre affiché : lectures du titre dans le code", () => {
     expect(lectures()).toEqual({
       affichees: [
         '../src/interface/Application.tsx : const titre = selection.type === "page" ? titreAffiche(selection.page.titre) : undefined;',
+        // F-007 : chaque ligne de l'écran de la corbeille, et sa confirmation.
+        "../src/interface/EcranDeLaCorbeille.tsx : const titre = titreAffiche(page.titre);",
+        "../src/interface/EcranDeLaCorbeille.tsx : const titre = titreAffiche(props.page.titre);",
         "../src/interface/FilDAriane.tsx : courante={titreAffiche(page.titre)}",
         "../src/interface/RangeePage.tsx : const titre = titreAffiche(page.titre);",
         "../src/interface/ZonePrincipale.tsx : titre={titreAffiche(selection.page.titre)}",

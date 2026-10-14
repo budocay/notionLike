@@ -17,6 +17,7 @@ import {
 
 import type { Compte } from "../compte/index.ts";
 import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
+import type { PagesOuvertes } from "../page/pages-ouvertes.ts";
 import { allerA } from "../navigation/fragment.ts";
 import { fragmentDEcran, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
@@ -26,6 +27,11 @@ import { ActionDeCompte } from "./composants/Compte.tsx";
 import { Coquille, EcranPlein, Principale, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { EcranDeCompte } from "./EcranDeCompte.tsx";
+import {
+  EcranDeLaCorbeille,
+  type IssueDeSuppression,
+  type OperationsDeLaCorbeille,
+} from "./EcranDeLaCorbeille.tsx";
 import { EcranDuCompte } from "./EcranDuCompte.tsx";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
@@ -125,7 +131,7 @@ function EspacePret(props: {
     <Coquille
       fenetre
       tiroir={attributsDuTiroir(tiroir, idBarre)}
-      barre={barreLateraleDe(barre, tiroir, compte)}
+      barre={barreLateraleDe(barre, tiroir, compte, navigation.corbeille)}
     >
       <AvertissementDEnregistrement etat={enregistrement} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
@@ -139,25 +145,99 @@ function EspacePret(props: {
         }
         etat={<ZoneDEnregistrement etat={enregistrement} />}
       />
-      {compte !== undefined && navigation.ecran !== undefined ? (
-        <Principale ref={tiroir.zonePrincipale}>
-          <EcranAffiche compte={compte} navigation={navigation} />
-        </Principale>
-      ) : (
-        <ZonePrincipale
-          ref={tiroir.zonePrincipale}
-          selection={selection}
-          espaceVide={racines.length === 0}
-          page={etatDeLaPage}
-        />
-      )}
+      <ZoneAffichee
+        zone={tiroir.zonePrincipale}
+        etat={etat}
+        compte={compte}
+        navigation={navigation}
+        pages={pages}
+        selection={selection}
+        page={etatDeLaPage}
+      />
     </Coquille>
   );
 }
 
-function barreLateraleDe(barre: Barre, tiroir: Tiroir, compte: Compte | undefined): ReactElement {
+/**
+ * À la place de la page : un écran de compte (F-010), du compte (F-027) ou des espaces (F-014), ou
+ * l'écran de la corbeille (F-007) ; sinon la zone principale de la page sélectionnée.
+ */
+function ZoneAffichee(props: {
+  readonly zone: Tiroir["zonePrincipale"];
+  readonly etat: EtatPret;
+  readonly compte: Compte | undefined;
+  readonly navigation: NavigationDeLEspace;
+  readonly pages: PagesOuvertes;
+  readonly selection: Selection;
+  readonly page: ReturnType<typeof usePageOuverte>;
+}): ReactElement {
+  const { zone, etat, compte, navigation } = props;
+  if (compte !== undefined && navigation.ecran !== undefined) {
+    return (
+      <Principale ref={zone}>
+        <EcranAffiche compte={compte} navigation={navigation} />
+      </Principale>
+    );
+  }
+  if (navigation.corbeille) {
+    return (
+      <Principale ref={zone}>
+        <EcranDeLaCorbeille
+          corbeille={etat.arborescence.corbeille}
+          operations={operationsDeLaCorbeille(etat, props.pages)}
+        />
+      </Principale>
+    );
+  }
+  return (
+    <ZonePrincipale
+      ref={zone}
+      selection={props.selection}
+      espaceVide={etat.arborescence.racines.length === 0}
+      page={props.page}
+    />
+  );
+}
+
+/** Opérations de l'écran de la corbeille (F-007) : refus traduits, puis effacement des bases. */
+function operationsDeLaCorbeille(etat: EtatPret, pages: PagesOuvertes): OperationsDeLaCorbeille {
+  return {
+    restaurer: (page) => {
+      const { refus } = essayer(() => etat.operations.restaurerPage(page.id));
+      return refus === undefined ? undefined : messageErreur(refus);
+    },
+    supprimer: (page) => supprimerDefinitivement(etat, pages, page.id),
+  };
+}
+
+// La suppression reste faite quoi qu'il advienne de l'effacement (F-007 H8). Pendant une coupure
+// de la persistance de l'espace, ou tant que l'espace est inconnu, l'effacement n'est pas tenté :
+// son issue est un échec, que l'écran signale (F-007-AC21).
+function supprimerDefinitivement(
+  etat: EtatPret,
+  pages: PagesOuvertes,
+  id: IdPage,
+): IssueDeSuppression {
+  const essai = essayer(() => etat.operations.supprimerDefinitivement(id));
+  if (essai.refus !== undefined) {
+    return { refus: messageErreur(essai.refus) };
+  }
+  const effacement: Promise<"effacee" | "echec"> =
+    etat.enregistre && etat.idEspace !== undefined
+      ? pages.effacer(etat.idEspace, essai.valeur)
+      : Promise.resolve("echec");
+  return { refus: undefined, effacement };
+}
+
+function barreLateraleDe(
+  barre: Barre,
+  tiroir: Tiroir,
+  compte: Compte | undefined,
+  corbeilleCourante: boolean,
+): ReactElement {
   return (
     <BarreLaterale
+      corbeilleCourante={corbeilleCourante}
       racines={barre.racines}
       ecran={barre.ecran}
       actions={barre.actions}

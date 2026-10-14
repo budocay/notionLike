@@ -8,6 +8,7 @@ export const COMPTE = {
   etat: "flex flex-col gap-infime px-petit text-petit text-texte-secondaire wrap-anywhere",
   actions: "flex flex-col gap-infime",
   action: `${CIBLE} text-left text-texte-principal hover:bg-surface-active`,
+  actionCourante: `${CIBLE} bg-surface-active text-left font-moyen text-texte-principal`,
   enveloppe: "flex w-full justify-center px-normal pt-vaste pb-grand",
   formulaire:
     "flex w-full max-w-ecran flex-col gap-moyen rounded-grand bg-surface-relief p-ample shadow-relief filet",
@@ -53,4 +54,19 @@ export const ESPACES = {
     "relative flex max-h-full w-full max-w-ecran flex-col gap-moyen overflow-y-auto rounded-grand bg-surface-relief p-ample shadow-menu filet",
   lienLu:
     "contour-interieur min-h-cible w-full rounded-petit bg-surface-retrait px-petit text-interface text-texte-principal contour-champ",
+} as const;
+
+// Classes de l'écran de la corbeille (F-007) : mêmes jetons et mêmes surfaces que les écrans des
+// espaces ; la descendance d'une racine est retirée selon son niveau, comme dans la barre latérale.
+export const CORBEILLE = {
+  zone: "contour-interieur flex flex-col gap-moyen rounded-moyen",
+  vide: "text-courant text-texte-secondaire",
+  racines: "flex flex-col gap-moyen",
+  racine: "flex flex-col gap-mince rounded-grand bg-surface-relief p-normal shadow-relief filet",
+  descendance: "flex flex-col gap-infime",
+  descendante: "retrait-niveau list-none",
+  ligne: "flex flex-wrap items-center gap-petit",
+  titre: "extensible wrap-anywhere text-interface font-moyen text-texte-principal",
+  detail: "text-petit text-texte-secondaire",
+  actions: "flex flex-wrap items-center gap-petit",
 } as const;

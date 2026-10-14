@@ -174,6 +174,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "FormulaireDeCompte",
       "Lien",
       "LienEnLecture",
+      // F-007 : liste de l'écran de la corbeille.
+      "ListeDeCorbeille",
       "MenuActions",
       "NoteDePage",
       "Partie",

@@ -837,6 +837,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/espace/session-espace.ts": "apps/web/test/session-fermeture.test.tsx",
   "apps/web/src/interface/Application.tsx": "apps/web/test/barre-laterale-erreurs.test.tsx",
   "apps/web/src/interface/BarreLaterale.tsx": "apps/web/test/barre-laterale.test.tsx",
+  // F-007 : écran de la corbeille.
+  "apps/web/src/interface/EcranDeLaCorbeille.tsx": "apps/web/test/corbeille-ecran.test.tsx",
   "apps/web/src/interface/FilDAriane.tsx": "apps/web/test/barre-du-haut.test.tsx",
   "apps/web/src/interface/RangeePage.tsx": "apps/web/test/barre-laterale.test.tsx",
   "apps/web/src/interface/ZonePrincipale.tsx": "apps/web/test/navigation.test.tsx",

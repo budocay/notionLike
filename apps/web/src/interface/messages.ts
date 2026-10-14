@@ -137,6 +137,20 @@ export function descriptionDeSousPage(niveau: number, titreDeLaMere: string): st
   return `Niveau ${niveau}, sous-page de « ${titreCite(titreDeLaMere)} »`;
 }
 
+// Écran de la corbeille (F-007) : les noms composés autour d'un titre ; les autres textes sont dans
+// messages-corbeille.ts.
+export function nomRestaurer(titre: string): string {
+  return `Restaurer « ${titreCite(titre)} »`;
+}
+
+export function nomSupprimer(titre: string): string {
+  return `Supprimer définitivement « ${titreCite(titre)} »`;
+}
+
+export function titreDeLaConfirmation(titre: string): string {
+  return `Supprimer définitivement « ${titreCite(titre)} » ?`;
+}
+
 /** Acceptation réussie d'une invitation (F-014-AC23) : le nom de l'espace est cité comme un titre. */
 export function espaceRejoint(nom: string, libelleDuRole: string): string {
   return `Vous avez rejoint « ${titreCite(nom)} » en tant que ${libelleDuRole}.`;

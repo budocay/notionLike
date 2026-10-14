@@ -324,10 +324,11 @@ for (const pixels of [360, 768]) {
     await expect(page.getByRole("menu")).toHaveCount(0);
     await expect(tiroir(page)).toBeVisible();
 
-    // Une zone vide du tiroir : sous la seule rangée de l'arborescence, rien ne prend le focus.
+    // Une zone vide du tiroir : sous la seule rangée de l'arborescence, rien ne prend le focus. Depuis
+    // F-007, le pied porte l'entrée « Corbeille » en bas du tiroir : le point est pris à mi-hauteur.
     await attendreLaFinDesMouvements(tiroir(page));
     const panneau = await tiroir(page).boundingBox();
-    const point = { x: (panneau?.width ?? 0) / 2, y: HAUTEUR - CIBLE };
+    const point = { x: (panneau?.width ?? 0) / 2, y: HAUTEUR / 2 };
     const vise = await page.evaluate(({ x, y }) => {
       const element = document.elementFromPoint(x, y);
       return {

@@ -6,6 +6,7 @@ import { type ReactElement, type ReactNode, useRef } from "react";
 import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
+import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
 import {
   ActionDeCompte,
@@ -87,6 +88,7 @@ import {
   ARBORESCENCE,
   ENTREE_DE_PIED_FICTIVE,
   COMPTE_FICTIF,
+  CORBEILLE_FICTIVE,
   NOM_DE_L_ESPACE_FICTIF,
   PAGE_COURANTE,
   type PageFictive,
@@ -681,6 +683,55 @@ function SpecimenDeBoite(): ReactElement {
   );
 }
 
+const NIVEAU_DE_LA_FILLE = 2;
+
+// Écran de la corbeille (F-007) : une racine avec sa descendance, une racine seule, et la liste vide.
+function SectionCorbeille(): ReactElement {
+  const F = CORBEILLE_FICTIVE;
+  const commandes = (racine: boolean): ReactNode => (
+    <>
+      {racine && <Bouton libelle={F.restaurer} surActivation={sansEffet} />}
+      <Bouton libelle={F.supprimer} surActivation={sansEffet} />
+    </>
+  );
+  const ligne = (cle: string, titre: string, detail: string, niveau: number) => ({
+    cle,
+    titre,
+    detail,
+    niveau,
+    commandes: commandes(niveau === 1),
+  });
+  return (
+    <Section titre="Écran de la corbeille">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="Racines et descendance">
+          <div className={PAGE.fondZone}>
+            <ListeDeCorbeille
+              nom={F.nom}
+              vide={F.vide}
+              racines={[
+                {
+                  ...ligne("racine", F.racine, F.sousPages, 1),
+                  descendance: [
+                    ligne("fille", F.fille, F.uneSousPage, NIVEAU_DE_LA_FILLE),
+                    ligne("petite-fille", F.petiteFille, F.aucune, NIVEAU_DE_LA_FILLE + 1),
+                  ],
+                },
+                { ...ligne("seule", F.seule, F.aucune, 1), descendance: [] },
+              ]}
+            />
+          </div>
+        </Specimen>
+        <Specimen etiquette="Corbeille vide">
+          <div className={PAGE.fondZone}>
+            <ListeDeCorbeille nom={F.nom} vide={F.vide} racines={[]} />
+          </div>
+        </Specimen>
+      </div>
+    </Section>
+  );
+}
+
 function SpecimenDeFormulaire(): ReactElement {
   return (
     <Specimen etiquette="Formulaire de connexion, envoi refusé">
@@ -737,6 +788,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionCommandes />
       <SectionCompte />
       <SectionEspaces />
+      <SectionCorbeille />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>
           {contenu}

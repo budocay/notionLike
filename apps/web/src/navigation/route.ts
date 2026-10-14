@@ -52,6 +52,15 @@ export function estLEcranDuCompte(fragment: string): boolean {
   return fragment === FRAGMENT_DU_COMPTE;
 }
 
+// Écran de la corbeille (F-007-AC1, AC27) : une adresse exacte, sans aucun paramètre. Comme l'écran du
+// compte, il n'est jamais pris pour une page : `lireRoute` le rend comme l'accueil, sans sélection,
+// et l'écran se lit ici, à part. Toute variante (`#/corbeille/`, `#/Corbeille`) n'est pas cet écran.
+export const FRAGMENT_DE_LA_CORBEILLE = "#/corbeille";
+
+export function estLaCorbeille(fragment: string): boolean {
+  return fragment === FRAGMENT_DE_LA_CORBEILLE;
+}
+
 // Écrans des espaces (F-014) : la liste, un espace, l'invitation. Ils ne sont jamais pris pour une
 // page : `lireRoute` les rend comme l'accueil, sans sélection, et l'écran se lit ici, à part
 // (F-014-AC38). Le jeton d'un lien d'invitation est rendu brut, sans décodage ; sa forme est

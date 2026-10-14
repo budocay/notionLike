@@ -9,6 +9,7 @@ import { abonnerAuFragment, lireFragment, remplacerParLEcran } from "../navigati
 import {
   type Destination,
   type EcranDEspaces,
+  estLaCorbeille,
   estLEcranDuCompte,
   fragmentDe,
   fragmentDeRetour,
@@ -38,6 +39,8 @@ export interface NavigationDeLEspace {
   /** Route des pages : sur un écran de compte, la page sélectionnée avant le détour. */
   readonly route: Route;
   readonly ecran: EcranAffiche;
+  /** Vrai à l'adresse de l'écran de la corbeille (F-007-AC1), avec ou sans compte. */
+  readonly corbeille: boolean;
   /** Fragment où revenir après un succès sur un écran de compte (F-014-AC41). */
   readonly retour: string;
   /** Fragment de la page sélectionnée, pour revenir à l'application. */
@@ -92,6 +95,7 @@ export function useNavigationDeLEspace(compte: Compte | undefined): NavigationDe
       avecCompte && estLEcranDuCompte(fragment)
         ? { sorte: "gestion" }
         : ecranAffiche(route, lu, surCompte, avecCompte),
+    corbeille: estLaCorbeille(fragment),
     retour: fragmentDeRetour(courante.destination, courante.page),
     application: fragmentDe(courante.page),
     invitation: courante.invitation,
