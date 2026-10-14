@@ -11,3 +11,4 @@
 - F-029 Rang borné dans le document d'espace — 2026-10-13 — features/F-029.md
 - F-010 Écrans d'inscription, de connexion et de déconnexion — 2026-10-13 — features/F-010.md
 - F-014 Écrans des espaces, des membres et des invitations — 2026-10-13 — features/F-014.md
+- F-027 Gestion du compte : mot de passe, nom, sessions — 2026-10-14 — features/F-027.md

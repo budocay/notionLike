@@ -131,3 +131,9 @@
 2026-10-14T06:10:37Z | reviewer-frontend | F-014 | DEROGATION D-020 | 1f7d6e54ceca
 2026-10-14T06:10:37Z | agent-securite | F-014 | DEROGATION D-020 | 1f7d6e54ceca
 2026-10-14T06:10:37Z | agent-architecte | F-014 | DEROGATION D-020 | 1f7d6e54ceca
+2026-10-14T07:31:48Z | reviewer-api | F-027 | CHANGES_REQUESTED | ac76be34805f
+2026-10-14T07:31:54Z | reviewer-frontend | F-027 | APPROVED | ac76be34805f
+2026-10-14T07:32:00Z | reviewer-backend | F-027 | APPROVED | ac76be34805f
+2026-10-14T07:32:12Z | agent-securite | F-027 | SECURITY GATE: PASS | ac76be34805f
+2026-10-14T07:32:12Z | agent-craft | F-027 | CRAFT GATE: PASS | ac76be34805f
+2026-10-14T07:42:25Z | agent-craft | F-027 | CRAFT GATE: PASS | 8984bebd617e
