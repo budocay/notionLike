@@ -40,6 +40,8 @@ describe("une seule instance de yjs", () => {
 
     expect(Object.keys(declarees).sort()).toEqual([
       "../../../packages/document/package.json",
+      // F-012 : le serveur de synchronisation déclare yjs à la même version (F-012-AC30).
+      "../../server/package.json",
       "../package.json",
     ]);
     expect(new Set(Object.values(declarees)).size).toBe(1);
