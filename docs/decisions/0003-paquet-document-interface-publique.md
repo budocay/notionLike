@@ -1,7 +1,7 @@
 # ADR-0003 — Paquet `@notionlike/document` : interface publique et outillage
 
-Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`)
-Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception ; conséquence « Une seule instance de `yjs` » amendée le 2026-10-09, après le bloc 3 de F-002
+Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`) ; section « Amendements F-029 et F-007 » : proposé (elle consigne après coup ce que le code de F-029 et de F-007 a ajouté à l'interface, d'après leurs specs validées ; à relire par le dev)
+Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception ; conséquence « Une seule instance de `yjs` » amendée le 2026-10-09, après le bloc 3 de F-002 ; amendements F-029 et F-007 du 2026-10-14
 
 ## Contexte et problème
 
@@ -141,10 +141,35 @@ export interface DocumentEspace {
 
 Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`, « Bloc 1 »), toutes dans `packages/document/test/fermeture.test.ts` : ordre et nombre des appels quand un ou deux rappels lèvent, pour une opération locale et pour `Y.applyUpdate`, et `console.error` espionnée appelée une fois par rappel fautif ; règles de diffusion de F-001 sous garde ; fermeture, seconde fermeture, `abonner` et `lire()` après fermeture ; écritures refusées par `facade-fermee` sans mise à jour ; `fermer()` depuis un rappel, pour chacune des deux origines, avec une seconde façade sur le même `Y.Doc` ; N ouvertures et fermetures sur un même `Y.Doc` qui laissent le nombre d'écouteurs `afterTransaction` de départ. Les 224 tests de F-001 restent verts sans retouche : aucun ne fixait la remontée de l'exception ni la liste des codes. Mécanisme essayé sur un gabarit le 2026-10-08 (essai D du plan : 233 tests verts, dont les 224 de F-001).
 
+### Amendements F-029 et F-007 (2026-10-14) : rang borné, corbeille
+
+Ces deux features ont élargi l'interface sans amendement préalable (mode économe, dettes D-018 et, pour F-007, `MEMORY/features/F-007.md`). Le format qu'elles touchent est décrit par l'ADR-0002 (amendements F-029 et F-007). La liste des exports de `src/index.ts` ne change pas : quinze noms, les neuf de F-001 et de F-002 et les six du document de page (ADR-0009). Ce qui change, et rien d'autre :
+
+```ts
+export type CodeErreurDocument =
+  // … les sept codes de F-001 et F-002, et `version-invalide` (F-003, document de page)
+  | "rang-indisponible" // F-029
+  | "page-hors-corbeille"; // F-007
+
+export interface DocumentEspace {
+  // … les huit membres de F-001 et F-002, inchangés
+  restaurerPage(id: IdPage): void;
+  supprimerDefinitivement(id: IdPage): readonly IdPage[];
+}
+```
+
+- **`rang-indisponible`** (F-029 H5) : aucun jeu de rangs admis ne permet la création ou le déplacement demandés, réattribution élargie comprise. Ce contrôle vient après tous les autres : il suit le rang 6 (position) de la liste ci-dessus. Il n'ouvre aucune transaction. Avec la borne de 1024, il n'est pas atteignable par l'interface publique ; `src/document-espace.ts` exporte pour les tests un point d'entrée interne, `ouvrirDocumentEspaceBorne(doc, borne)`, que `src/index.ts` ne réexporte pas (F-029-AC10). Ses importeurs sont trois tests de `packages/document/test/` ; `apps/web/test/coutures-rang.test.ts` ne fait que nommer la fonction pour l'énumérer.
+- **`restaurerPage(id)`** (F-007) : baisse le drapeau de corbeille d'une racine de la corbeille, et n'écrit rien d'autre. Ordre des refus : `facade-fermee`, `version-non-prise-en-charge`, `page-introuvable`, `page-hors-corbeille`, puis `page-a-la-corbeille` si la page est sous une page à la corbeille (seule celle-ci se restaure).
+- **`supprimerDefinitivement(id)`** (F-007) : retire en une transaction l'entrée de la page, lue dans la corbeille, et celles de sa descendance lue, et rend leurs identifiants, la page visée d'abord : l'appelant s'en sert pour fermer les documents de ces pages et effacer leurs bases (ADR-0001, amendement F-007). Ordre des refus : `facade-fermee`, `version-non-prise-en-charge`, `page-introuvable`, `page-hors-corbeille`.
+- `mettreALaCorbeille` est inchangée : une page déjà à la corbeille est refusée par `page-a-la-corbeille`, pas par `page-hors-corbeille`.
+- `creerDocumentEspace()` construit son `Y.Doc` avec le ramasse-miettes explicitement actif (`{ gc: true }`, ADR-0001, amendement F-007). `ouvrirDocumentEspace(doc)` reste sans réglage : l'appelant construit le `Y.Doc`.
+- Rien d'autre n'est exporté : ni la borne des rangs (`LONGUEUR_MAX_RANG`), ni `AUCUN_RANG_ADMIS`, ni `admettrePlace`.
+- Appelants touchés : le module qui traduit chaque code en message (`apps/web/src/interface/messages.ts`) traite les dix codes ; les deux opérations de corbeille sont portées par l'état `pret` de la session d'espace (`espace/session-espace.ts`) et appelées dans `apps/web/src/` par `interface/Application.tsx` seul, pour l'écran de la corbeille.
+
 ### Organisation interne
 
 - `src/rang.ts`, `src/arbre.ts` et `src/erreurs.ts` forment le cœur pur : calcul des rangs ; passage des entrées valides à l'arborescence (parent effectif, cycles, corbeille, ordre) ; classe d'erreur. Ils n'importent qu'eux-mêmes : ni `yjs` ni aucun autre paquet, ni `format.ts`, ni `document-espace.ts`. Le contrat `document-coeur-pur` le vérifie.
-- `src/format.ts` est le seul fichier qui connaît les noms de clés et valide une entrée brute ; `src/document-espace.ts` porte les opérations et l'abonnement ; `src/index.ts` ne fait que réexporter. Sens des dépendances : `index → document-espace → format, arbre, rang, erreurs`.
+- `src/format.ts` est le seul fichier qui connaît les noms de clés et valide une entrée brute ; `src/document-espace.ts` porte les opérations et l'abonnement ; `src/index.ts` ne fait que réexporter. Sens des dépendances : `index → document-espace → format, arbre, rang, erreurs`. Depuis F-029, `format.ts` importe aussi `erreurs.ts` (`admettrePlace` lève `rang-indisponible`) ; `rang.ts` reste dans le cœur pur.
 - Les imports relatifs portent l'extension `.ts`, et la syntaxe reste effaçable (`erasableSyntaxOnly`) : le paquet source est ainsi chargeable par Vitest sans compilation, ce que les tests de F-001 exercent. Le chargement par Node 26 sans compilation est l'intention de ces deux choix. Il n'est vérifié qu'en partie : sur un gabarit jetable, Node 26.11.0 a chargé un `src/index.ts` de quelques lignes avec le vrai `yjs` par son chemin de fichier (essai I du plan). Le chargement par le nom du paquet (`@notionlike/document`, champ `exports`) depuis un autre paquet du workspace est **non vérifié** : F-001 n'a aucun consommateur. À prouver par la première feature serveur, qui pourra remettre en cause le paquet source si la preuve échoue. Le chargement par Vite est de même à prouver par F-002.
 
 ### Outillage
@@ -171,3 +196,4 @@ Preuves demandées au bloc 1 de F-002 (`docs/decisions/F-002-conception.md`, « 
 - Une graine fixe explore moins de cas qu'une graine aléatoire. Un contre-exemple trouvé à la main ou en changeant la graine s'ajoute comme test par l'exemple.
 - `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant. Avec l'amendement F-002, l'appelant la ferme quand il cesse de s'en servir, et l'écouteur est retiré.
 - Amendement F-002 : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant et n'est visible que sur la console d'erreur. Un appelant qui veut la traiter autrement la rattrape dans son propre rappel. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant. Un consommateur qui énumère les codes d'erreur a un code de plus à traiter.
+- Amendements F-029 et F-007 : la façade compte dix membres et le type des erreurs dix codes ; un consommateur qui énumère les codes en a deux de plus à traiter. Le refus `rang-indisponible` et la réattribution élargie ne sont prouvés que par le point d'entrée interne à borne abaissée : un consommateur ne peut pas les provoquer à la borne réelle.
