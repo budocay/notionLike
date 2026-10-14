@@ -23,3 +23,34 @@ export const COMPTE = {
   attente: "text-petit text-texte-secondaire",
   alerte: "flex flex-col gap-mince text-interface text-texte-erreur wrap-anywhere",
 } as const;
+
+// Classes des écrans des espaces, des membres et des invitations (F-014) : mêmes jetons, mêmes
+// cibles que le compte, rien d'ajouté à leur source unique. Un rôle, un état ou une erreur sont
+// toujours dits par un texte, jamais par la seule couleur (F-014-AC36).
+export const ESPACES = {
+  enveloppe: "flex w-full justify-center px-normal pt-vaste pb-grand",
+  ecran: "flex w-full max-w-lecture flex-col gap-ample",
+  titre: "wrap-anywhere text-intertitre font-fort tracking-serre text-texte-principal",
+  partie: "flex flex-col gap-moyen rounded-grand bg-surface-relief p-ample shadow-relief filet",
+  intertitre: "text-interface font-fort text-texte-principal",
+  texte: "wrap-anywhere text-courant text-texte-secondaire",
+  annonce: "wrap-anywhere text-interface text-texte-secondaire",
+  alerte: "flex flex-col gap-mince wrap-anywhere text-interface text-texte-erreur",
+  actions: "flex flex-wrap items-center gap-petit",
+  bouton: `${CIBLE} w-auto bg-surface-active font-moyen text-texte-principal hover:bg-surface-survol`,
+  lien: `${CIBLE} w-auto text-texte-principal underline hover:bg-surface-active`,
+  raison: "text-petit text-texte-secondaire",
+  tableau: "contour-interieur w-full text-left text-interface",
+  legende: "sr-only",
+  entete: "filet-bas px-petit py-mince text-petit font-moyen text-texte-secondaire",
+  cellule: "filet-bas wrap-anywhere px-petit py-mince text-texte-principal",
+  choix:
+    "contour-interieur min-h-cible rounded-petit bg-surface-retrait px-petit text-interface text-texte-principal contour-champ",
+  formulaire: "flex flex-col gap-moyen",
+  plan: "plan-tiroir fixed inset-nul flex items-center justify-center p-normal",
+  voile: "voile absolute inset-nul shadow-voile",
+  boite:
+    "relative flex max-h-full w-full max-w-ecran flex-col gap-moyen overflow-y-auto rounded-grand bg-surface-relief p-ample shadow-menu filet",
+  lienLu:
+    "contour-interieur min-h-cible w-full rounded-petit bg-surface-retrait px-petit text-interface text-texte-principal contour-champ",
+} as const;

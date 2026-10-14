@@ -167,3 +167,15 @@
 - Tests: 2497 tests sur 113 fichiers — état: verts — preuve: checks.txt (empreinte `9d33a31a271c`)
 - Gates: SECURITY PASS · CRAFT PASS · revue reviewer-frontend APPROVED (deux remarques de lisibilité dans `EcranDeCompte.tsx`) · ARCHITECTURE non lancé, DEROGATION D-019
 - Mesures: boucles 1 passage, aucun rejet · faux positifs 0 · coût non mesuré
+
+## [2026-10-13] F-014 Écrans des espaces, des membres et des invitations
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web` (client des espaces sur l'API de F-011, écrans liste, espace, membres, invitations, acceptation d'une invitation, formes d'adresse) — agents: agent-frontend, orchestrateur — commits: c18675b..b1b8d9d
+- Détail: une personne connectée voit ses espaces du serveur, en crée, les renomme, les supprime ou les quitte, invite par lien, règle les rôles et retire des membres ; chaque action indisponible reste visible, désactivée avec sa raison. Mode économe : un passage des gates, un tour de correctifs sans nouvelle revue. Écarts soumis au dev : annonce « Vous avez quitté l'espace » (AC12), retour après connexion de F-010 retouché, deux listes fermées de tests étendues.
+- Dette: introduite D-020 (reviewer-frontend non rejoué après le tour de correctifs, sécurité jugée sur l'empreinte précédente, gate d'architecture non lancé : acceptés par dérogation du dev) ; laissées D-003 (AC40 et historique d'AC21, AC25 non joués), D-007, D-017
+- ADR: aucun
+- Tests: 2591 tests sur 118 fichiers — état: verts — preuve: checks.txt (empreinte `1f7d6e54ceca`)
+- Gates: sur `2b090d71be28` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (7 points, corrigés dans `b1b8d9d`) ; sur `1f7d6e54ceca` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-020
+- Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 7 · faux positifs 0 · coût non mesuré
