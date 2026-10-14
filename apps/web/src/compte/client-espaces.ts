@@ -79,11 +79,11 @@ const SANS_CORPS = 204;
 const HORS_LIGNE: ErreurDEspaces = { type: "hors-ligne" };
 const GENERIQUE: ErreurDEspaces = { type: "generique" };
 
-interface Schema<T> {
+export interface Schema<T> {
   readonly safeParse: (valeur: unknown) => { success: true; data: T } | { success: false };
 }
 
-interface Appel<T> {
+export interface Appel<T> {
   readonly methode: "GET" | "POST" | "PATCH" | "DELETE";
   readonly chemin: string;
   readonly corps?: { readonly valeur: unknown; readonly schema: Schema<unknown> } | undefined;
@@ -102,7 +102,7 @@ export function cheminDe(
   );
 }
 
-function lecteur<T>(schema: Schema<T>): (corps: unknown) => T | undefined {
+export function lecteur<T>(schema: Schema<T>): (corps: unknown) => T | undefined {
   return (corps) => {
     const lu = schema.safeParse(corps);
     return lu.success ? lu.data : undefined;
@@ -126,7 +126,7 @@ export function creerClientDesEspaces(
   requeter: Requeter,
   delaiMs: number = DELAI_DE_REPONSE_MS,
 ): ClientDesEspaces {
-  const envoyer: Envoyer = (appel) => executer(requeter, delaiMs, appel);
+  const envoyer = creerEnvoi(requeter, delaiMs);
   return {
     ...appelsDesEspaces(envoyer),
     ...appelsDesMembres(envoyer),
@@ -134,7 +134,16 @@ export function creerClientDesEspaces(
   };
 }
 
-type Envoyer = <T>(appel: Appel<T>) => Promise<Resultat<T>>;
+export type Envoyer = <T>(appel: Appel<T>) => Promise<Resultat<T>>;
+
+/**
+ * Envoi d'un appel : corps contrôlé, délai, réponse lue et classée. Partagé par le client des
+ * espaces et celui de la gestion du compte (F-027-AC27), qui ont la même enveloppe et les mêmes
+ * règles de lecture.
+ */
+export function creerEnvoi(requeter: Requeter, delaiMs: number = DELAI_DE_REPONSE_MS): Envoyer {
+  return (appel) => executer(requeter, delaiMs, appel);
+}
 
 const lireEspace = lecteur(schemaEspace);
 const vide = (): null => null;
