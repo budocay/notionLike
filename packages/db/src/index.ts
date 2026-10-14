@@ -14,6 +14,17 @@ export {
   type Role,
 } from "./espaces.ts";
 export {
+  ecrireEmpreinte,
+  lireEmpreinte,
+  listerSessions,
+  renommerCompte,
+  verrouillerSessionDuCompte,
+  type CompteRenomme,
+  type SessionCiblee,
+  type SessionDuCompteLue,
+  type SessionsListees,
+} from "./gestion-du-compte.ts";
+export {
   accepterInvitation,
   creerInvitation,
   listerInvitationsEnAttente,

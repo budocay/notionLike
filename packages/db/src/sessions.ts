@@ -1,14 +1,25 @@
 // Suppression de sessions (F-009-AC33) : la seule requête du dépôt qui efface une ligne de
 // `session`. Son seul appelant est la fonction de suppression de session d'`apps/server`, qui
 // prévient ses abonnés ; rien d'autre ne doit l'appeler.
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import type { Base } from "./acces.ts";
 import { ErreurBase } from "./erreurs.ts";
 import { session } from "./schema.ts";
 
-// Une session, ou toutes celles d'un compte.
-export type SessionsVisees = { readonly idSession: string } | { readonly idCompte: string };
+// Une session, ou toutes celles d'un compte, expirées comprises, sauf au besoin l'une d'elles : la
+// session courante, que le changement de mot de passe et la révocation des autres sessions gardent
+// (F-027-AC4, AC12). Sans `sauf`, toutes les sessions du compte, comme avant F-027.
+export type SessionsVisees =
+  { readonly idSession: string } | { readonly idCompte: string; readonly sauf?: string };
+
+function conditionDe(visees: SessionsVisees) {
+  if ("idSession" in visees) {
+    return eq(session.id, visees.idSession);
+  }
+  const duCompte = eq(session.userId, visees.idCompte);
+  return visees.sauf === undefined ? duCompte : and(duCompte, ne(session.id, visees.sauf));
+}
 
 // Ce que le signal porte : jamais le jeton.
 export interface SessionSupprimee {
@@ -25,12 +36,10 @@ export async function supprimerSessions(
   db: Base["db"],
   visees: SessionsVisees,
 ): Promise<SessionSupprimee[]> {
-  const condition =
-    "idSession" in visees ? eq(session.id, visees.idSession) : eq(session.userId, visees.idCompte);
   try {
     return await db
       .delete(session)
-      .where(condition)
+      .where(conditionDe(visees))
       .returning({ idSession: session.id, idCompte: session.userId });
   } catch {
     throw new ErreurBase("requete-echouee");
