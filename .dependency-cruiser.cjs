@@ -26,8 +26,9 @@ module.exports = {
     {
       name: "apps-isolees",
       severity: "error",
-      comment: "Le client et le serveur ne s'importent pas : ils passent par packages/.",
-      from: { path: "^apps/([^/]+)/" },
+      comment:
+        "Le client et le serveur ne s'importent pas : ils passent par packages/. Seule exception, les tests d'apps/web, qui n'atteignent apps/server que par la fabrique d'essai (F-012-AC32, AC36 : web-tests-serveur-par-la-fabrique).",
+      from: { path: "^apps/([^/]+)/", pathNot: "^apps/web/test/" },
       to: { path: "^apps/([^/]+)/", pathNot: "^apps/$1/" },
     },
     {
@@ -53,13 +54,14 @@ module.exports = {
       name: "serveur-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0004, F-009 : depuis apps/server/src, seuls apps/server/src, l'entrée publique de db et de contrats, express, helmet, pino, zod, better-auth, les paquets @better-auth/* et les modules intégrés de Node sont importables.",
+        "ADR-0004, F-009, F-012 : depuis apps/server/src, seuls apps/server/src, l'entrée publique de db et de contrats, express, helmet, pino, zod, better-auth, les paquets @better-auth/*, @hocuspocus/server, ws (et ses types), y-protocols, yjs, lib0 et les modules intégrés de Node sont importables ; ni @notionlike/document (F-012-AC29), ni @hocuspocus/provider, ni la fabrique d'essai (F-012-AC36).",
       from: { path: "^apps/server/src/" },
       to: {
         pathNot: [
           "^apps/server/src/",
           "^packages/(db|contrats)/src/index\\.ts$",
           "(^|/)node_modules/(express|helmet|pino|zod|better-auth|@better-auth/[^/]+)/",
+          "(^|/)node_modules/(@hocuspocus/server|ws|@types/ws|y-protocols|yjs|lib0)/",
         ],
         dependencyTypesNot: ["core"],
       },
@@ -132,6 +134,61 @@ module.exports = {
         "F-008 : les tests d'apps/server n'atteignent packages/db que par ses deux entrées, @notionlike/db et @notionlike/db/essai.",
       from: { path: "^apps/server/test/" },
       to: { path: "^packages/db/", pathNot: "^packages/db/(src/index|test/essai)\\.ts$" },
+    },
+    // F-012-AC32, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "hocuspocus-serveur-et-ws-reserves-au-serveur",
+      severity: "error",
+      comment:
+        "F-012-AC32 : hors d'apps/server, aucun fichier (tests compris) n'importe directement @hocuspocus/server ni ws.",
+      from: { pathNot: "^apps/server/" },
+      to: {
+        path: [
+          "(^|/)node_modules/(@hocuspocus/server|ws|@types/ws)/",
+          "^(@hocuspocus/server|ws)(/|$)",
+        ],
+      },
+    },
+    {
+      name: "serveur-tests-document-par-son-entree",
+      severity: "error",
+      comment:
+        "F-012-AC29 : apps/server n'atteint packages/document que par son point d'entrée, et seulement depuis ses tests (son code d'exécution ne l'importe pas : serveur-liste-blanche).",
+      from: { path: "^apps/server/" },
+      to: {
+        path: "^(packages/document/|@notionlike/document(/|$))",
+        pathNot: "^packages/document/src/index\\.ts$",
+      },
+    },
+    // F-012-AC36 : la fabrique d'essai, seule entrée du manifeste d'apps/server
+    // (`@notionlike/server/essai` -> apps/server/test/fabrique.ts).
+    {
+      name: "fabrique-d-essai-reservee-aux-tests",
+      severity: "error",
+      comment:
+        "F-012-AC36 : la fabrique d'essai du serveur n'est importée que par des fichiers de test d'apps/server et d'apps/web.",
+      from: { pathNot: "^apps/(server|web)/test/" },
+      to: { path: "^apps/server/test/fabrique\\.ts$" },
+    },
+    {
+      name: "web-tests-serveur-par-la-fabrique",
+      severity: "error",
+      comment:
+        "F-012-AC32, AC36 : les tests d'apps/web n'atteignent apps/server que par la fabrique d'essai (exception unique à apps-isolees).",
+      from: { path: "^apps/web/test/" },
+      to: {
+        path: ["^apps/(?!web/)", "^@notionlike/server(/|$)"],
+        pathNot: "^apps/server/test/fabrique\\.ts$",
+      },
+    },
+    {
+      name: "web-execution-sans-serveur",
+      severity: "error",
+      comment:
+        "F-012-AC32 : aucun module d'apps/web hors de test/ n'importe @notionlike/server, par quelque sous-chemin que ce soit.",
+      from: { path: "^apps/web/", pathNot: "^apps/web/test/" },
+      to: { path: ["^apps/server/", "^@notionlike/server(/|$)"] },
     },
     {
       name: "document-sans-reseau-ni-base",
