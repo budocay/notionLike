@@ -57,6 +57,8 @@ export interface CompteInscrit {
   readonly idCompte: string;
   // La paire `nom=valeur` du cookie de session posé par l'inscription.
   readonly cookie: string;
+  readonly courriel: string;
+  readonly motDePasse: string;
 }
 
 export type LigneDeJournal = Readonly<Record<string, unknown>>;
@@ -72,6 +74,8 @@ export interface ServeurDEssai {
   readonly base: Base;
   readonly reglages: ReglagesSynchro;
   inscrire(etiquette?: string): Promise<CompteInscrit>;
+  // Une autre session du même compte, par la route de connexion : son cookie.
+  connecter(compte: CompteInscrit): Promise<string>;
   appeler(methode: string, chemin: string, appel?: AppelDEssai): Promise<Response>;
   creerEspace(cookie: string): Promise<string>;
   ajouterMembre(proprietaire: string, idEspace: string, invite: string, role: Role): Promise<void>;
@@ -156,6 +160,16 @@ function portLibre(): Promise<number> {
 
 let rang = 0;
 
+function cookieDe(reponse: Response): string {
+  const pose = reponse.headers
+    .getSetCookie()
+    .find((cookie) => cookie.startsWith("better-auth.session_token="));
+  if (pose === undefined) {
+    throw new Error("aucun cookie de session posé");
+  }
+  return pose.split("; ")[0] ?? "";
+}
+
 export async function demarrerServeurDEssai(
   options: OptionsDeLaFabrique = {},
 ): Promise<ServeurDEssai> {
@@ -166,8 +180,6 @@ export async function demarrerServeurDEssai(
   const port = await portLibre();
   const origine = `http://${HOTE}:${String(port)}`;
   const urlPublique = options.urlPublique ?? origine;
-  // Chaque inscription annonce sa propre adresse par le proxy de confiance : les plafonds
-  // d'inscription de F-009 restent ceux de la production, compte par adresse.
   const configuration = lireConfiguration({
     NODE_ENV: "test",
     HOTE,
@@ -239,6 +251,25 @@ export async function demarrerServeurDEssai(
     await enCours?.arreter();
   }
 
+  // Chaque appel annonce sa propre adresse par le proxy de confiance : les plafonds d'inscription et
+  // de connexion de F-009 restent ceux de la production, compte par adresse.
+  async function authentifier(chemin: string, corps: object): Promise<Response> {
+    rang += 1;
+    const reponse = await fetch(`${origine}${chemin}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: urlPublique,
+        "X-Forwarded-For": `10.${String(Math.floor(rang / 65_536) % 256)}.${String(Math.floor(rang / 256) % 256)}.${String(rang % 256)}`,
+      },
+      body: JSON.stringify(corps),
+    });
+    if (reponse.status !== 200) {
+      throw new Error(`authentification refusée : ${String(reponse.status)}`);
+    }
+    return reponse;
+  }
+
   const cheminDe = (modele: string, valeurs: Readonly<Record<string, string>>): string =>
     modele.replace(/:(\w+)/g, (_tout, nom: string) => valeurs[nom] ?? "");
 
@@ -252,30 +283,24 @@ export async function demarrerServeurDEssai(
     reglages,
     async inscrire(etiquette = "membre") {
       rang += 1;
-      const reponse = await fetch(`${origine}${CHEMINS_COMPTES.inscription}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: urlPublique,
-          "X-Forwarded-For": `10.${String(Math.floor(rang / 65_536) % 256)}.${String(Math.floor(rang / 256) % 256)}.${String(rang % 256)}`,
-        },
-        body: JSON.stringify({
-          name: `${etiquette} ${String(rang)}`,
-          email: `${etiquette}-${String(process.pid)}-${String(rang)}-${randomUUID()}@exemple.test`,
-          password: MOT_DE_PASSE,
-        }),
+      const courriel = `${etiquette}-${String(process.pid)}-${String(rang)}-${randomUUID()}@exemple.test`;
+      const reponse = await authentifier(CHEMINS_COMPTES.inscription, {
+        name: `${etiquette} ${String(rang)}`,
+        email: courriel,
+        password: MOT_DE_PASSE,
       });
-      if (reponse.status !== 200) {
-        throw new Error(`inscription refusée : ${String(reponse.status)}`);
-      }
       const corps = (await reponse.json()) as { user: { id: string } };
-      const pose = reponse.headers
-        .getSetCookie()
-        .find((cookie) => cookie.startsWith("better-auth.session_token="));
-      if (pose === undefined) {
-        throw new Error("l'inscription n'a posé aucun cookie de session");
-      }
-      return { idCompte: corps.user.id, cookie: pose.split("; ")[0] ?? "" };
+      return {
+        idCompte: corps.user.id,
+        cookie: cookieDe(reponse),
+        courriel,
+        motDePasse: MOT_DE_PASSE,
+      };
+    },
+    async connecter({ courriel, motDePasse }) {
+      return cookieDe(
+        await authentifier(CHEMINS_COMPTES.connexion, { email: courriel, password: motDePasse }),
+      );
     },
     appeler,
     async creerEspace(cookie) {

@@ -155,7 +155,12 @@ export class ClientBrut {
       });
     });
     prise.on("message", (donnees: Buffer) => {
-      const lu = lireMessage(new Uint8Array(donnees));
+      let lu: MessageServeur;
+      try {
+        lu = lireMessage(new Uint8Array(donnees));
+      } catch {
+        return;
+      }
       this.recus.push(lu);
       this.appliquer(lu);
     });
