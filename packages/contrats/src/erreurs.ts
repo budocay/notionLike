@@ -16,6 +16,9 @@ export const CODES_ERREUR = [
   "deja-membre",
   "invitation-invalide",
   "quota-atteint",
+  // F-027-AC19 : ajoutés à la fin, la liste n'étant modifiée que par ajout.
+  "mot-de-passe-incorrect",
+  "session-courante",
 ] as const;
 
 export type CodeErreur = (typeof CODES_ERREUR)[number];

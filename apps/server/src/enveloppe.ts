@@ -35,6 +35,13 @@ const REPONSES: Readonly<Record<CodeErreur, { statut: number; message: string }>
   "deja-membre": { statut: 409, message: "Le compte est déjà membre de cet espace." },
   "invitation-invalide": { statut: 404, message: "L'invitation est invalide." },
   "quota-atteint": { statut: 409, message: "Un quota est atteint." },
+  // F-027-AC6, AC11, H3 : 403 et non 401, pour qu'un mot de passe actuel faux ne passe pas pour une
+  // session perdue ; 409 pour la session courante, qu'on quitte par la déconnexion.
+  "mot-de-passe-incorrect": { statut: 403, message: "Le mot de passe actuel est incorrect." },
+  "session-courante": {
+    statut: 409,
+    message: "La session courante se ferme par la déconnexion.",
+  },
 };
 
 // F-008-AC4 : l'identifiant est généré ici ; celui que la requête porterait n'est jamais lu.

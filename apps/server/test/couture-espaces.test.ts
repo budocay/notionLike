@@ -178,9 +178,15 @@ describe("couture de F-008 et de F-009 (F-011-AC33)", () => {
     DELAI_MS,
   );
 
-  it("F-011-AC33 F-011-AC31 la liste fermée des codes n'est modifiée que par l'ajout des sept codes", () => {
-    expect(CODES_ERREUR.slice(-CODES_DE_F011.length)).toEqual(CODES_DE_F011);
-    expect(CODES_ERREUR).toHaveLength(14);
+  // Depuis F-027, deux codes suivent ceux de F-011 (F-027-AC19, AC20) : les sept codes restent à
+  // leur place, et la liste ne grandit que par la fin.
+  it("F-011-AC33 F-011-AC31 F-027-AC20 la liste fermée des codes n'est modifiée que par ajout : les sept codes de F-011, puis les deux de F-027", () => {
+    expect(CODES_ERREUR.slice(7, 7 + CODES_DE_F011.length)).toEqual(CODES_DE_F011);
+    expect(CODES_ERREUR.slice(7 + CODES_DE_F011.length)).toEqual([
+      "mot-de-passe-incorrect",
+      "session-courante",
+    ]);
+    expect(CODES_ERREUR).toHaveLength(16);
   });
 });
 
