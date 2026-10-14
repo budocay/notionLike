@@ -1,6 +1,6 @@
 # ADR-0001 — Découpage des documents Yjs : un par espace, un par page, un par table
 
-Statut : accepté ; section « Amendement F-007 » : proposé (elle consigne après coup une décision de la spec F-007, validée par le dev, que le code a prise sans ADR en mode économe ; à relire par le dev)
+Statut : accepté ; section « Amendement F-007 » comprise : écrite après coup (elle consigne une décision de la spec F-007, validée par le dev, que le code a prise sans ADR en mode économe), elle est acceptée par le dev le 2026-10-14
 Date : 2026-10-08 ; amendement F-007 du 2026-10-14
 
 ## Contexte et problème

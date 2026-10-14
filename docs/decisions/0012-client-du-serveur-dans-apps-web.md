@@ -1,0 +1,33 @@
+# ADR-0012 — Client du serveur dans `apps/web` : module `compte/`, une seule origine, formes d'adresse des écrans
+
+Statut : accepté (décision du dev du 2026-10-14, après le code ; consigne les choix de F-010, F-014 et F-027, livrées sans ADR en mode économe)
+Date : 2026-10-14
+
+## Contexte et problème
+
+Jusqu'à F-009, `apps/web` n'appelait aucun serveur (ADR-0007 : `fetch` et consorts interdits dans `apps/web/src`, à lever module par module). F-010 (écrans de compte), F-014 (écrans des espaces) et F-027 (gestion du compte) ont fait parler le client au serveur de F-009 et F-011, sans conception ni ADR (dérogation du mode économe, dettes D-017 et D-019). Plusieurs de leurs choix se défont mal : ils fixent où passe le réseau dans le client, comment le cookie de session lui parvient, et des adresses que des liens partagés portent déjà. Cet ADR les consigne d'après le code de `main` à `5bc0d40` et les specs validées (F-010 H2, H5, H9, H10 ; F-014 H4 ; F-027 H1).
+
+## Options étudiées
+
+- Authentification : `fetch` écrit à la main vers les routes natives, ou **client officiel `better-auth/client`, confiné** (retenu, F-010 H5, H9). `better-auth/react` écarté : ses hooks lisent la session, ce que F-010-AC4 interdit.
+- Origine : appels vers une autre origine, avec en-têtes `Access-Control-Allow-*` et cookies `SameSite=None`, ou **une seule origine, le serveur de développement relayant `/api`** (retenu, F-010 H10). La première rouvrirait ce que F-009-AC32 ferme.
+- Jeton d'invitation : dans un paramètre de requête ou un chemin, ou **dans le fragment** (retenu, F-014 H4) : un fragment n'est envoyé ni au chargement de la page ni dans `Referer`.
+- Retrait du jeton de l'adresse : `history.replaceState`, interdit par ESLint dans `apps/web/src` (F-002 H4), ou **`location.replace` vers un fragment** (retenu).
+
+## Décision
+
+- **Un seul module parle au serveur : `apps/web/src/compte/`.** Il n'importe que lui-même, `@notionlike/contrats` et `better-auth/client` (contrat `web-compte-liste-blanche`) ; ni React, ni l'interface, ni la persistance, ni `@notionlike/document`. Hors de lui, aucun fichier d'`apps/web/src` n'importe `@notionlike/contrats` (`web-src-liste-blanche`). Aucune requête ne porte un document ni une mise à jour Yjs.
+- **Client de better-auth confiné à `compte/client-auth.ts`** (contrat `better-auth-client-un-seul-module`, ADR-0011 amendée). Il sert à trois appels, inscription, connexion, déconnexion, et à rien d'autre : `createAuthClient` avec pour base `window.location.origin`, greffons par défaut coupés, signal de session coupé ; aucun type de better-auth ni `data` (qui porte le jeton de session) ne sort du module. `better-auth/react` et `better-auth/client/plugins` restent interdits. L'état du compte ne vient que de `GET /api/v1/moi` (`compte/moi.ts`, `compte/suivi-du-compte.ts`).
+- **`fetch` confiné à `compte/reseau.ts`** : seul fichier d'`apps/web/src` que le bloc ESLint dédié exempte de l'interdiction de `fetch`, toutes les autres globales y restant interdites. `requeterLeServeur` sert `GET /api/v1/moi`, les douze routes des espaces (`client-espaces.ts`) et les cinq de la gestion du compte (`client-gestion-du-compte.ts`), toujours par des chemins relatifs et `credentials: "same-origin"`. Le client de better-auth fait ses requêtes avec le `fetch` du navigateur, depuis `node_modules`, hors de la vue d'ESLint : le contrat qui le confine en tient lieu.
+- **Une seule origine.** Le navigateur ne parle qu'à l'origine qui sert l'application. En développement, le serveur de Vite relaie `/api` vers le serveur (`apps/web/vite.config.ts` : cible `http://127.0.0.1:3000`, réglable par `NOTIONLIKE_RELAIS_API`, que le client ne reçoit pas ; forme objet, `ws: true`, sans `changeOrigin`, si bien que `Host`, `Origin` et `Cookie` arrivent tels que le navigateur les a émis) ; `URL_PUBLIQUE` du serveur vaut alors l'origine du serveur de Vite.
+- **Formes d'adresse des écrans**, écrites et lues par `apps/web/src/navigation/route.ts` seul, comparées à l'identique (aucune variante de casse, de barre finale ou de paramètre) : `#/connexion` et `#/inscription` (routes, F-010) ; `#/compte` (F-027) ; `#/corbeille` (F-007) ; `#/espaces`, `#/espaces/<idEspace>` (UUID canonique, sinon la liste) et `#/invitation` (F-014). `lireRoute` rend les quatre derniers comme l'accueil, sans page sélectionnée. La destination de retour après un écran de compte n'est jamais lue dans l'adresse ni dans une valeur qu'un tiers peut fournir : c'est une valeur d'une liste fermée, tenue en mémoire (`DESTINATIONS`, F-010 H2).
+- **Jeton d'invitation retiré de l'historique.** Le lien est `<origine>/#/invitation/<jeton>` (`lienDInvitation`). À l'ouverture, `interface/navigation-espaces.ts` lit le jeton brut, sans décodage, ne le garde en mémoire que s'il a la forme publiée (`FORME_DU_JETON`, 43 caractères base64url), puis remplace l'entrée courante de l'historique par `#/invitation` (`remplacerParLEcran`, `location.replace` vers un fragment, `navigation/fragment.ts`) : le précédent n'y ramène pas, et aucune forme écrite par l'application ne porte de jeton. Le jeton n'est envoyé que dans le corps de `POST /api/v1/invitations/acceptation`, sur un geste explicite.
+
+## Conséquences
+
+- Un déploiement hors du poste devra servir l'application et l'API sur la même origine (proxy inverse) : aucun en-tête d'ouverture entre origines n'existe, et le cookie de session est `SameSite=Lax`. Aucun serveur du dépôt ne sert aujourd'hui la construction d'`apps/web`.
+- Ajouter un appel au serveur, c'est l'ajouter dans `compte/` ; toucher un autre fichier pour cela fait échouer `pnpm contrats` ou `pnpm lint`. Les règles et le bloc ESLint sont des fichiers protégés : leur changement passe par le dev.
+- Une montée de version de better-auth change aussi le client : la version exacte est déclarée dans deux manifestes, à tenir égales.
+- Les formes d'adresse sont publiques : des liens d'invitation déjà donnés portent `#/invitation/<jeton>`, et les changer casserait ces liens.
+- Le jeton a été dans l'adresse jusqu'au remplacement : il reste dans l'historique de l'onglet si le remplacement n'a pas lieu, et partout où le lien a été copié. Seul `e2e/espaces.spec.ts`, ignoré sans serveur, prouve le remplacement dans un vrai navigateur.
+- Limite reportée par le dev le 2026-10-14 : aucune règle ne fait de `compte/index.ts` l'interface du module ; des fichiers d'`interface/` importent directement ses fichiers internes (`regles-espaces.ts`, `validation.ts`, `messages-erreur.ts`, types de `client-auth.ts`).

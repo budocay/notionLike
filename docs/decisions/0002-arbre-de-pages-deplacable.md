@@ -1,6 +1,6 @@
 # ADR-0002 — Format du document d'espace et arbre de pages déplaçable
 
-Statut : accepté ; sections « Amendement F-029 » et « Amendement F-007 » : proposé (elles consignent après coup des décisions des specs F-029 et F-007, validées par le dev, que le code a prises sans amendement préalable en mode économe ; à relire par le dev)
+Statut : accepté ; sections « Amendement F-029 » et « Amendement F-007 » comprises : écrites après coup (elles consignent des décisions des specs F-029 et F-007, validées par le dev, que le code a prises sans amendement préalable en mode économe), elles sont acceptées par le dev le 2026-10-14
 Date : 2026-10-08 ; amendements F-029 et F-007 du 2026-10-14
 
 ## Contexte et problème
