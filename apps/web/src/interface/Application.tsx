@@ -26,6 +26,7 @@ import { ActionDeCompte } from "./composants/Compte.tsx";
 import { Coquille, EcranPlein, Principale, type TiroirDeCoquille } from "./composants/Coquille.tsx";
 import { Chargement, EcranBloquant } from "./composants/Etats.tsx";
 import { EcranDeCompte } from "./EcranDeCompte.tsx";
+import { EcranDuCompte } from "./EcranDuCompte.tsx";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -174,7 +175,7 @@ function barreLateraleDe(barre: Barre, tiroir: Tiroir, compte: Compte | undefine
   );
 }
 
-/** Écran de compte (F-010) ou des espaces (F-014), à la place de la zone principale. */
+/** Écran de compte (F-010), du compte (F-027) ou des espaces (F-014), à la place de la page. */
 function EcranAffiche(props: {
   readonly compte: Compte;
   readonly navigation: NavigationDeLEspace;
@@ -184,17 +185,22 @@ function EcranAffiche(props: {
   if (ecran === undefined) {
     return null;
   }
-  return ecran.sorte === "compte" ? (
-    <EcranDeCompte
-      key={ecran.ecran}
-      sorte={ecran.ecran}
-      compte={compte}
-      retour={navigation.retour}
-      application={navigation.application}
-    />
-  ) : (
-    <ZoneDesEspaces compte={compte} ecran={ecran.ecran} navigation={navigation} />
-  );
+  switch (ecran.sorte) {
+    case "compte":
+      return (
+        <EcranDeCompte
+          key={ecran.ecran}
+          sorte={ecran.ecran}
+          compte={compte}
+          retour={navigation.retour}
+          application={navigation.application}
+        />
+      );
+    case "gestion":
+      return <EcranDuCompte compte={compte} />;
+    case "espaces":
+      return <ZoneDesEspaces compte={compte} ecran={ecran.ecran} navigation={navigation} />;
+  }
 }
 
 function attributsDuTiroir(tiroir: Tiroir, id: string): TiroirDeCoquille {

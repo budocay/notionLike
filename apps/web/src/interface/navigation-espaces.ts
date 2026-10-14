@@ -9,6 +9,7 @@ import { abonnerAuFragment, lireFragment, remplacerParLEcran } from "../navigati
 import {
   type Destination,
   type EcranDEspaces,
+  estLEcranDuCompte,
   fragmentDe,
   fragmentDeRetour,
   lireEcranDEspaces,
@@ -25,6 +26,8 @@ export type InvitationEnMemoire =
 
 export type EcranAffiche =
   | { readonly sorte: "compte"; readonly ecran: SorteDEcran }
+  // L'écran du compte, `#/compte` (F-027-AC21).
+  | { readonly sorte: "gestion" }
   | {
       readonly sorte: "espaces";
       readonly ecran: Exclude<EcranDEspaces, { ecran: "lien-d-invitation" }>;
@@ -85,7 +88,10 @@ export function useNavigationDeLEspace(compte: Compte | undefined): NavigationDe
   const surCompte = avecCompte && estUnEcranDeCompte(route);
   return {
     route: surCompte ? courante.page : route,
-    ecran: ecranAffiche(route, lu, surCompte, avecCompte),
+    ecran:
+      avecCompte && estLEcranDuCompte(fragment)
+        ? { sorte: "gestion" }
+        : ecranAffiche(route, lu, surCompte, avecCompte),
     retour: fragmentDeRetour(courante.destination, courante.page),
     application: fragmentDe(courante.page),
     invitation: courante.invitation,
@@ -100,7 +106,11 @@ function suivante(avant: Memoire, fragment: string, avecCompte: boolean): Memoir
   const surCompte = avecCompte && estUnEcranDeCompte(route);
   return {
     fragment,
-    page: lu === undefined && !estUnEcranDeCompte(route) ? route : avant.page,
+    // L'écran du compte garde, comme ceux des espaces, la page d'où l'on vient (F-027-AC27).
+    page:
+      lu === undefined && !estUnEcranDeCompte(route) && !estLEcranDuCompte(fragment)
+        ? route
+        : avant.page,
     // Conservée d'un écran de compte à l'autre, effacée dès qu'on les quitte (F-014-AC41).
     destination: surCompte ? avant.destination : undefined,
     invitation: invitationSuivante(avant.invitation, lu, surCompte),
