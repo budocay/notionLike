@@ -3,6 +3,7 @@
 // échec (AC28) et rattachement de chaque route d'espace à une action (AC32).
 import {
   ACTIONS,
+  CHEMIN_SYNCHRO,
   CHEMINS_ESPACES,
   MATRICE_DES_DROITS,
   ROLES,
@@ -49,6 +50,8 @@ import {
   type CompteDEssai,
   type EspaceDEssai,
 } from "./aides-espaces.ts";
+import { connecter, fermerLesClients } from "./aides-synchro.ts";
+import { demarrerServeurDEssai } from "./fabrique.ts";
 
 const DELAI_MS = 30_000;
 const PREFIXE_API = "/api/v1/";
@@ -140,6 +143,22 @@ describe("session (F-011-AC8)", () => {
       expect(await etatDesEspaces(base)).toBe(avant);
     },
     DELAI_MS,
+  );
+
+  it(
+    "F-011-AC8 F-012-AC31 le point de synchronisation, sous /api/v1/, refuse sans session (401), avec une origine admise",
+    async () => {
+      expect(CHEMIN_SYNCHRO.startsWith(PREFIXE_API)).toBe(true);
+      expect(ROUTES_PUBLIQUES.map(({ chemin }) => chemin)).not.toContain(CHEMIN_SYNCHRO);
+      const avecSynchro = await demarrerServeurDEssai();
+      try {
+        expect(await connecter(avecSynchro)).toEqual({ issue: "refusee", statut: 401 });
+      } finally {
+        await fermerLesClients();
+        await avecSynchro.fermer();
+      }
+    },
+    DELAI_D_UN_CAS_QUI_OUVRE_SA_BASE_MS,
   );
 
   it("F-011-AC8 le constat échoue dans ses trois cas", () => {
