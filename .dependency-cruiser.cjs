@@ -298,10 +298,11 @@ module.exports = {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007, F-003-AC27, F-010 : hors persistance, espace, navigation, identifiants, édition, page et compte, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+        "ADR-0007, F-003-AC27, F-010, F-013 : hors persistance, espace, navigation, identifiants, édition, page, compte et synchronisation, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
       from: {
         path: "^apps/web/src/",
-        pathNot: "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte)/",
+        pathNot:
+          "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte|synchronisation)/",
       },
       to: {
         pathNot: [
@@ -324,6 +325,50 @@ module.exports = {
           "(^|/)node_modules/better-auth/dist/client/index\\.(d\\.mts|mjs)$",
           "^better-auth/client$",
         ],
+      },
+    },
+    // F-013-AC38, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "hocuspocus-provider-confine",
+      severity: "error",
+      comment:
+        "F-013-AC38, F-012 H11 : @hocuspocus/provider (et @hocuspocus/common, qu'il emploie) n'est importé que par le module de synchronisation d'apps/web (src/synchronisation/) et par les tests d'apps/server : ni par un autre fichier d'apps/web (tests compris), ni par un paquet, ni par le code d'exécution du serveur.",
+      from: { pathNot: "^apps/(web/src/synchronisation|server/test)/" },
+      to: {
+        path: [
+          "(^|/)node_modules/@hocuspocus/(provider|common)/",
+          "^@hocuspocus/(provider|common)(/|$)",
+        ],
+      },
+    },
+    {
+      name: "web-synchronisation-liste-blanche",
+      severity: "error",
+      comment:
+        "F-013-AC38, H13 : le module de synchronisation n'importe que lui-même, l'interface de la persistance, le contrôle de forme des identifiants, les exports de @notionlike/document, l'entrée publique de @notionlike/contrats, yjs et @hocuspocus/provider : ni React, ni l'édition, ni l'interface, ni le compte, ni la session d'espace ou de page.",
+      from: { path: "^apps/web/src/synchronisation/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/synchronisation/",
+          "^apps/web/src/persistance/index\\.ts$",
+          "^apps/web/src/identifiants/",
+          "^packages/document/src/index\\.ts$",
+          "^packages/contrats/src/index\\.ts$",
+          "(^|/)node_modules/(yjs|@hocuspocus/provider)/",
+          "^@hocuspocus/provider$",
+        ],
+      },
+    },
+    {
+      name: "web-synchronisation-par-son-interface",
+      severity: "error",
+      comment:
+        "F-013-AC38 : hors du module de synchronisation et de ses tests (test/synchronisation/), seul son index.ts est importable ; c'est l'interface qui n'expose aucun type du fournisseur.",
+      from: { path: "^apps/web/", pathNot: "^apps/web/(src|test)/synchronisation/" },
+      to: {
+        path: "^apps/web/src/synchronisation/",
+        pathNot: "^apps/web/src/synchronisation/index\\.ts$",
       },
     },
     {

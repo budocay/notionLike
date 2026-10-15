@@ -87,6 +87,21 @@ const PROPRIETES_INTERDITES_WEB = [
 ].map(([property, object, message]) =>
   object === undefined ? { property, message } : { object, property, message },
 );
+// F-013-AC38, H13 : le module de synchronisation s'éprouve sous Node ; il reçoit la WebSocket, les
+// signaux de réseau et de visibilité et l'aléa de la reprise (F-013-AC20) de son seul fichier
+// d'environnement, qui est aussi le seul fichier d'apps/web à nommer WebSocket.
+const FICHIER_ENVIRONNEMENT_SYNCHRONISATION = "apps/web/src/synchronisation/reseau.ts";
+const GLOBALES_D_ENVIRONNEMENT_SYNCHRONISATION = [
+  "window",
+  "self",
+  "document",
+  "location",
+  "history",
+  "navigator",
+].map((name) => ({
+  name,
+  message: `F-013 H13 : le module de synchronisation reçoit son environnement de ${FICHIER_ENVIRONNEMENT_SYNCHRONISATION}.`,
+}));
 const PROPRIETE_RANDOMUUID = {
   property: "randomUUID",
   message: "F-002-AC26 : crypto.randomUUID n'est lue que par apps/web/src/espace.",
@@ -194,6 +209,45 @@ export default tseslint.config(
           ],
           checkGlobalObject: true,
         },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/src/synchronisation/**"],
+    ignores: [FICHIER_ENVIRONNEMENT_SYNCHRONISATION],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: [
+            ...GLOBALES_INTERDITES_WEB,
+            GLOBALE_INDEXEDDB,
+            ...GLOBALES_D_ENVIRONNEMENT_SYNCHRONISATION,
+          ],
+          checkGlobalObject: true,
+        },
+      ],
+    },
+  },
+  {
+    // F-013-AC38 : seul ce fichier d'apps/web nomme WebSocket ; F-013-AC20 : l'aléa de la reprise y
+    // est tiré de getRandomValues, qui n'y sert à aucun identifiant ; les autres interdictions restent.
+    files: [FICHIER_ENVIRONNEMENT_SYNCHRONISATION],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: [
+            ...GLOBALES_INTERDITES_WEB.filter(({ name }) => name !== "WebSocket"),
+            GLOBALE_INDEXEDDB,
+          ],
+          checkGlobalObject: true,
+        },
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...PROPRIETES_INTERDITES_WEB.filter(({ property }) => property !== "getRandomValues"),
+        PROPRIETE_RANDOMUUID,
       ],
     },
   },
