@@ -159,3 +159,9 @@
 2026-10-14T14:23:29Z | agent-craft | F-012 | CRAFT GATE: PASS | 238ab634cad3
 2026-10-14T14:38:06Z | agent-securite | F-012 | SECURITY GATE: UNVERIFIED | 6cdcfb8e70d9
 2026-10-14T14:38:06Z | agent-craft | F-012 | CRAFT GATE: PASS | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-bdd | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-backend | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-api | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-frontend | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | agent-securite | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | agent-architecte | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
