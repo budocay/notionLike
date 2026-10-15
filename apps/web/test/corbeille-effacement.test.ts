@@ -336,6 +336,9 @@ const APPELANTS_DE_LA_PERSISTANCE = [
   "src/espace/session-espace.ts",
   "src/page/pages-ouvertes.ts",
   "src/page/session-page.ts",
+  // F-013-AC40 : le module de synchronisation, par son seul fichier de stockage (passe de fond,
+  // réplique d'une page de version refusée, registre, effacement des bases d'un espace).
+  "src/synchronisation/stockage.ts",
 ];
 
 describe("appelants du module de persistance", () => {
@@ -348,6 +351,8 @@ describe("appelants du module de persistance", () => {
     expect(importateurs).toEqual(APPELANTS_DE_LA_PERSISTANCE);
     expect(importateurs.filter((chemin) => /\beffacerBaseDePage\(/.test(lire(chemin)))).toEqual([
       "src/page/pages-ouvertes.ts",
+      // F-013-AC24, AC37 : la copie locale d'un espace, les pages supprimées sur un autre appareil.
+      "src/synchronisation/stockage.ts",
     ]);
     expect(lire("src/persistance/index.ts")).not.toMatch(/y-indexeddb|IndexeddbPersistence/);
     expect(lire("src/persistance/effacement.ts")).not.toMatch(/y-indexeddb/);

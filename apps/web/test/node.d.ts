@@ -18,6 +18,6 @@ interface ImportMeta {
 
 declare module "node:crypto" {
   export function createHash(algorithme: "sha256"): {
-    update(texte: string): { digest(encodage: "hex"): string };
+    update(texte: string, encodage?: "utf8"): { digest(encodage: "hex"): string };
   };
 }

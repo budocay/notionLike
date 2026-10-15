@@ -29,6 +29,8 @@ export interface RepliDeRangee {
 export interface BoutonDeRangee {
   readonly nom: string;
   readonly surActivation: () => void;
+  /** Raison d'une action momentanément impossible : le bouton est désactivé (F-013-AC25). */
+  readonly raison?: string | undefined;
 }
 
 export interface ProprietesRangee {
@@ -79,14 +81,23 @@ function CommandeDeRepli({ repli }: { readonly repli: RepliDeRangee | undefined 
 function ActionsDeRangee(
   props: Pick<ProprietesRangee, "ajout" | "actions" | "menuOuvert" | "refActions">,
 ): ReactElement {
+  const idRaison = useId();
+  const { raison } = props.ajout;
   return (
     <span className={RANGEE.actions}>
       <BoutonIcone
         nom={props.ajout.nom}
         pictogramme="plus"
         lieu="rangee"
+        disabled={raison !== undefined}
+        aria-describedby={raison === undefined ? undefined : idRaison}
         onClick={props.ajout.surActivation}
       />
+      {raison !== undefined && (
+        <span id={idRaison} hidden>
+          {raison}
+        </span>
+      )}
       <BoutonIcone
         ref={props.refActions}
         nom={props.actions.nom}

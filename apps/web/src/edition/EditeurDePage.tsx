@@ -21,15 +21,26 @@ export interface ProprietesEditeurDePage {
   readonly garderVersion: (rappel: () => void) => () => void;
   /** Vrai si la frappe est le raccourci déclaré qui mène à la barre de blocs (F-003-AC42). */
   readonly meneALaBarre: (frappe: KeyboardEvent<HTMLElement>) => boolean;
+  /**
+   * Vrai : l'espace est ouvert en lecture seule (F-013-AC25) ; ni frappe, ni collage, ni commande
+   * de la barre de blocs, ni annulation.
+   */
+  readonly lectureSeule?: boolean | undefined;
 }
 
 export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
   const editeur = useEditeur(props.contenu, props.garderVersion);
+  const lectureSeule = props.lectureSeule === true;
+  useEffect(() => {
+    if (editeur !== null && !editeur.isDestroyed) {
+      editeur.setEditable(!lectureSeule);
+    }
+  }, [editeur, lectureSeule]);
   const zone = useRef<HTMLDivElement>(null);
   const refBarre = useRef<HTMLDivElement>(null);
   const barre = useBarre(editeur, { zone, barre: refBarre });
   const allerALaBarre = (frappe: KeyboardEvent<HTMLElement>): void => {
-    if (barre.affichee && props.meneALaBarre(frappe)) {
+    if (barre.affichee && !lectureSeule && props.meneALaBarre(frappe)) {
       frappe.preventDefault();
       refBarre.current?.querySelector("button")?.focus();
     }
@@ -44,7 +55,7 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       <ZoneDeSaisie>
         <EditorContent editor={editeur} />
       </ZoneDeSaisie>
-      {editeur !== null && barre.affichee && (
+      {editeur !== null && barre.affichee && !lectureSeule && (
         <BarreDeBlocs
           ref={refBarre}
           nom={NOM_DE_LA_BARRE_DE_BLOCS}

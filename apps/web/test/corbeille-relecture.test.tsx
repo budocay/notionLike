@@ -6,10 +6,13 @@
 import { type CodeErreurDocument, ErreurDocument } from "@notionlike/document";
 import { act, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import * as Y from "yjs";
 
 import { estDUneVersionAdmise, lectureAdmise } from "../src/espace/garde-version.ts";
 import { messageErreur } from "../src/interface/messages.ts";
 import { rangeesVisibles, trouverPage } from "../src/interface/pages.ts";
+import { versionAdmise } from "../src/synchronisation/miroir.ts";
+import { idsDesPages } from "../src/synchronisation/pages-de-l-espace.ts";
 import { type CoquilleRendue, docDe, ouvrirCoquille, recharger } from "./aides-coquille.tsx";
 import { lire, lister } from "./aides-disque.ts";
 import { ouvrirFacade } from "./aides-facade.ts";
@@ -157,6 +160,16 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
     expect(bases).toEqual([]);
     return bases;
   },
+  // F-013 : la synchronisation lit les pages dans l'état de la session ; une page retirée n'y est
+  // plus, et n'est ni échangée ni rouverte.
+  "src/synchronisation/pages-de-l-espace.ts": (coquille, { retiree, filleRetiree }) => {
+    const ids = idsDesPages(arborescence(coquille));
+    expect(ids.has(retiree)).toBe(false);
+    expect(ids.has(filleRetiree)).toBe(false);
+    return [...ids].sort();
+  },
+  // La réplique ne lit que le document d'une page : rien de ce que l'espace a retiré n'y entre.
+  "src/synchronisation/miroir.ts": () => versionAdmise(new Y.Doc()),
 };
 
 function importateursDuDocument(): string[] {

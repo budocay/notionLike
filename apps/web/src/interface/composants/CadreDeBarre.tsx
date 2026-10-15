@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode, Ref } from "react";
+import { type ReactElement, type ReactNode, type Ref, useId } from "react";
 
 import { BARRE } from "./barre.classes.ts";
 import { Pictogramme } from "./Pictogramme.tsx";
@@ -18,11 +18,15 @@ interface ProprietesTete {
   readonly libelleNouvellePage: string;
   readonly surNouvellePage: () => void;
   readonly boutonNouvellePage?: Ref<HTMLButtonElement> | undefined;
+  /** Raison d'une création momentanément impossible : le bouton est désactivé (F-013-AC25). */
+  readonly raisonNouvellePage?: string | undefined;
   /** Bouton de fermeture du tiroir, sur écran étroit seulement. */
   readonly fermeture?: ReactNode | undefined;
 }
 
 export function TeteDeBarre(props: ProprietesTete): ReactElement {
+  const idRaison = useId();
+  const raison = props.raisonNouvellePage;
   return (
     <>
       <div className={BARRE.enseigne}>
@@ -34,11 +38,18 @@ export function TeteDeBarre(props: ProprietesTete): ReactElement {
         ref={props.boutonNouvellePage}
         type="button"
         className={BARRE.nouvellePage}
+        disabled={raison !== undefined}
+        aria-describedby={raison === undefined ? undefined : idRaison}
         onClick={props.surNouvellePage}
       >
         <Pictogramme nom="plus" />
         <span className={BARRE.nouvellePageLibelle}>{props.libelleNouvellePage}</span>
       </button>
+      {raison !== undefined && (
+        <span id={idRaison} hidden>
+          {raison}
+        </span>
+      )}
     </>
   );
 }

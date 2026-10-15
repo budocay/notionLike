@@ -3,6 +3,39 @@
 import type { Persistance } from "../persistance/index.ts";
 
 const VISIBILITE = "visibilitychange";
+
+/** Ce que la synchronisation dit de l'acquittement des modifications par le serveur (F-013-AC49). */
+export interface SourceDAcquittement {
+  toutEstAcquitte(): boolean;
+  abonner(rappel: () => void): () => void;
+}
+
+const sources = new Set<SourceDAcquittement>();
+const ajustements = new Set<() => void>();
+
+function ajusterPartout(): void {
+  ajustements.forEach((ajuster) => ajuster());
+}
+
+/**
+ * Branche la synchronisation sur la demande de confirmation avant de quitter (F-013-AC49) : une
+ * modification non enregistrée sur l'appareil mais acquittée par le serveur ne retient plus
+ * l'onglet ; la demande est réarmée à la première modification en attente. Rend le débranchement.
+ */
+export function brancherLAcquittement(source: SourceDAcquittement): () => void {
+  sources.add(source);
+  const cesser = source.abonner(ajusterPartout);
+  ajusterPartout();
+  return () => {
+    cesser();
+    sources.delete(source);
+    ajusterPartout();
+  };
+}
+
+function toutEstAcquitte(): boolean {
+  return [...sources].some((source) => source.toutEstAcquitte());
+}
 const DEPART = "pagehide";
 const AVANT_DE_QUITTER = "beforeunload";
 
@@ -38,17 +71,19 @@ export function suivreLOnglet(persistance: Persistance): () => void {
   // faire : elle ne retient pas l'onglet, qui que ce soit qui l'ait fermée (F-030-AC11).
   const ajusterLaConfirmation = (): void => {
     const ouverte = persistance.lireEtat() !== "fermee";
-    if (ouverte && persistance.aDesModificationsNonEnregistrees()) {
+    if (ouverte && persistance.aDesModificationsNonEnregistrees() && !toutEstAcquitte()) {
       window.addEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     } else {
       window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     }
   };
   const desabonner = persistance.abonner(ajusterLaConfirmation);
+  ajustements.add(ajusterLaConfirmation);
   document.addEventListener(VISIBILITE, surVisibilite);
   window.addEventListener(DEPART, surDepart);
   return () => {
     desabonner();
+    ajustements.delete(ajusterLaConfirmation);
     document.removeEventListener(VISIBILITE, surVisibilite);
     window.removeEventListener(DEPART, surDepart);
     window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);

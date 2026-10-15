@@ -653,6 +653,14 @@ const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/interface/outils-espaces.ts": "rend le code d'une erreur classée",
   "apps/web/src/interface/contexte-espace.ts": "choisit le texte propre au code, sinon la table",
   "apps/web/src/interface/EcranDInvitation.tsx": "choisit le texte propre au code de l'acceptation",
+  // F-013 : codes de l'enveloppe de la déclaration d'un espace, codes de fermeture de la WebSocket.
+  "apps/web/src/interface/AdoptionDeLEspace.tsx": "passe un code d'enveloppe à la table des codes",
+  "apps/web/src/interface/branchement-synchronisation.ts":
+    "recopie le code d'une erreur classée par le client des espaces",
+  "apps/web/src/synchronisation/adoption.ts": "lit le code d'enveloppe de la déclaration",
+  "apps/web/src/synchronisation/connexion.ts": "lit le code de fermeture de la WebSocket",
+  "apps/web/src/synchronisation/synchronisation.ts":
+    "lit le code d'enveloppe d'un refus et celui d'une fermeture de connexion",
 };
 const TRADUCTEUR = "apps/web/src/interface/messages.ts";
 // Exhaustif par le type : un code ajouté au paquet sans entrée ici ne compile plus.
@@ -848,6 +856,9 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/interface/pages.ts": "apps/web/test/navigation.test.tsx",
   "apps/web/src/interface/repli.ts": "apps/web/test/depli.test.tsx",
   "apps/web/src/page/session-page.ts": "apps/web/test/page-affichage.test.tsx",
+  // F-013 : la réplique de la page affichée lit sa version ; la synchronisation, les pages lues.
+  "apps/web/src/synchronisation/miroir.ts": "apps/web/test/corbeille-relecture.test.tsx",
+  "apps/web/src/synchronisation/pages-de-l-espace.ts": "apps/web/test/corbeille-relecture.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {
@@ -903,6 +914,15 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       SESSION,
       "apps/web/src/page/pages-ouvertes.ts",
       "apps/web/src/page/session-page.ts",
+      // F-013 : le module de synchronisation, dont yjs est une dépendance permise (F-013-AC38).
+      "apps/web/src/synchronisation/canal.ts",
+      "apps/web/src/synchronisation/document-suivi.ts",
+      "apps/web/src/synchronisation/miroir.ts",
+      "apps/web/src/synchronisation/ouverture.ts",
+      "apps/web/src/synchronisation/page-affichee.ts",
+      "apps/web/src/synchronisation/passe-de-fond.ts",
+      "apps/web/src/synchronisation/stockage.ts",
+      "apps/web/src/synchronisation/synchronisation.ts",
     ]);
     expect(importeLePaquet(statique("import", "type * as Y", "yjs"), "yjs")).toBe(true);
     for (const [chemin, texte] of sourcesDeLApplication()) {

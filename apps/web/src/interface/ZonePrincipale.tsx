@@ -32,6 +32,8 @@ interface Proprietes {
   readonly page: EtatSessionPage | undefined;
   /** Le focus y est porté quand une page est choisie dans le tiroir (F-004-AC42). */
   readonly ref?: Ref<HTMLElement> | undefined;
+  /** Vrai : l'espace est ouvert en lecture seule, l'éditeur n'est pas modifiable (F-013-AC25). */
+  readonly lectureSeule?: boolean | undefined;
 }
 
 const PAGE_REFUSEE = (
@@ -66,7 +68,11 @@ function meneALaBarreDeBlocs(frappe: Parameters<typeof estLaFrappe>[0]): boolean
 
 // Sous le titre, dans la même colonne : l'éditeur de la page, ou ce qui en tient lieu tant que son
 // document n'est pas relu ou que sa version n'est pas prise en charge (F-003-AC1, AC4, AC19).
-function corps(idPage: string, page: EtatSessionPage): ReactElement | null {
+function corps(
+  idPage: string,
+  page: EtatSessionPage,
+  lectureSeule: boolean | undefined,
+): ReactElement | null {
   switch (page.phase) {
     case "introuvable":
       return null;
@@ -81,6 +87,7 @@ function corps(idPage: string, page: EtatSessionPage): ReactElement | null {
           contenu={page.contenu}
           garderVersion={page.garderVersion}
           meneALaBarre={meneALaBarreDeBlocs}
+          lectureSeule={lectureSeule}
         />
       );
   }
@@ -89,7 +96,9 @@ function corps(idPage: string, page: EtatSessionPage): ReactElement | null {
 export function ZonePrincipale(props: Proprietes): ReactElement {
   const { selection, page } = props;
   const contenu =
-    selection.type === "page" && page !== undefined ? corps(selection.page.id, page) : null;
+    selection.type === "page" && page !== undefined
+      ? corps(selection.page.id, page, props.lectureSeule)
+      : null;
   return (
     <Principale ref={props.ref}>
       {entete(props)}

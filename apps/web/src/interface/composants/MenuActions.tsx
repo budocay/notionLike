@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactElement, Ref } from "react";
+import { type KeyboardEvent, type ReactElement, type Ref, useId } from "react";
 
 import { MENU } from "./menu.classes.ts";
 import { Raccourci } from "./Raccourci.tsx";
@@ -10,6 +10,8 @@ export interface EntreeDeMenu {
   /** La même combinaison pour `aria-keyshortcuts` : elle n'entre pas dans le nom de l'entrée. */
   readonly raccourci?: string | undefined;
   readonly surActivation: () => void;
+  /** Raison d'une action momentanément impossible : l'entrée est désactivée (F-013-AC25). */
+  readonly raison?: string | undefined;
 }
 
 interface Proprietes {
@@ -37,6 +39,7 @@ function surFleche(evenement: KeyboardEvent<HTMLDivElement>): void {
 }
 
 export function MenuActions({ nom, entrees, ref }: Proprietes): ReactElement {
+  const idRaisons = useId();
   return (
     <div
       ref={ref}
@@ -47,17 +50,24 @@ export function MenuActions({ nom, entrees, ref }: Proprietes): ReactElement {
       tabIndex={-1}
       onKeyDown={surFleche}
     >
-      {entrees.map(({ libelle, touches, raccourci, surActivation }) => (
+      {entrees.map(({ libelle, touches, raccourci, surActivation, raison }, rang) => (
         <button
           key={libelle}
           type="button"
           role="menuitem"
           className={MENU.entree}
           aria-keyshortcuts={raccourci}
+          disabled={raison !== undefined}
+          aria-describedby={raison === undefined ? undefined : `${idRaisons}-${String(rang)}`}
           onClick={surActivation}
         >
           {libelle}
           {touches !== undefined && <Raccourci touches={touches} />}
+          {raison !== undefined && (
+            <span id={`${idRaisons}-${String(rang)}`} hidden>
+              {raison}
+            </span>
+          )}
         </button>
       ))}
     </div>

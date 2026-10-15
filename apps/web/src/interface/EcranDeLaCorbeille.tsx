@@ -49,6 +49,8 @@ interface Proprietes {
   /** La corbeille lue : ses racines, chacune avec toute sa descendance. */
   readonly corbeille: readonly PageLue[];
   readonly operations: OperationsDeLaCorbeille;
+  /** Raison qui désactive restaurer et supprimer : lecture seule (F-013-AC25). */
+  readonly lectureSeule?: string | undefined;
 }
 
 interface Retour {
@@ -84,6 +86,7 @@ function descendanceAPlat(racine: PageLue): { page: PageLue; niveau: number }[] 
 interface Commandes {
   readonly restaurer: (page: PageLue) => void;
   readonly demanderLaSuppression: (page: PageLue) => void;
+  readonly raison: string | undefined;
 }
 
 // Restaurer sur les seules racines, supprimer sur toute page de la corbeille (F-007-AC8).
@@ -100,12 +103,14 @@ function ligneDe(page: PageLue, niveau: number, commandes: Commandes): LigneDeCo
           <Bouton
             libelle={RESTAURER}
             nom={nomRestaurer(titre)}
+            raison={commandes.raison}
             surActivation={() => commandes.restaurer(page)}
           />
         )}
         <Bouton
           libelle={SUPPRIMER_DEFINITIVEMENT}
           nom={nomSupprimer(titre)}
+          raison={commandes.raison}
           surActivation={() => commandes.demanderLaSuppression(page)}
         />
       </>
@@ -164,7 +169,11 @@ function useSuivi(
   };
 }
 
-export function EcranDeLaCorbeille({ corbeille, operations }: Proprietes): ReactElement {
+export function EcranDeLaCorbeille({
+  corbeille,
+  operations,
+  lectureSeule,
+}: Proprietes): ReactElement {
   const liste = useRef<HTMLElement>(null);
   const boite = useBoite<PageLue>(liste);
   const suivi = useSuivi(operations, liste, boite.fermer);
@@ -173,6 +182,7 @@ export function EcranDeLaCorbeille({ corbeille, operations }: Proprietes): React
   const commandes: Commandes = {
     restaurer: suivi.restaurer,
     demanderLaSuppression: (page) => boite.ouvrir(page),
+    raison: lectureSeule,
   };
   return (
     <EcranDEspaces titre={ENTREE_CORBEILLE}>

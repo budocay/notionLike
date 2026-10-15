@@ -51,6 +51,12 @@ import {
   titreOnglet,
 } from "./messages.ts";
 import { ESPACES } from "./messages-espaces.ts";
+import {
+  DOCUMENT_D_ESPACE,
+  EFFACEMENT_DANS_UN_AUTRE_ONGLET,
+  EFFACER_LA_COPIE_LOCALE,
+  LECTURE_SEULE,
+} from "./messages-synchronisation.ts";
 import { type NavigationDeLEspace, useNavigationDeLEspace } from "./navigation-espaces.ts";
 import { usePageOuverte, usePagesOuvertes } from "./page-ouverte.ts";
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
@@ -60,6 +66,13 @@ import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { ZoneDeCompte } from "./ZoneDeCompte.tsx";
 import { ZoneDesEspaces } from "./ZoneDesEspaces.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
+import { idsDesPages } from "../synchronisation/index.ts";
+import {
+  type FabriqueDeSynchronisation,
+  type SynchronisationDeLEspace,
+  useSynchronisationDeLEspace,
+} from "./synchronisation-ouverte.ts";
+import { ZoneDeSynchronisation } from "./ZoneDeSynchronisation.tsx";
 
 type Saisie = EcranBarre["saisie"];
 
@@ -69,9 +82,15 @@ interface ProprietesApplication {
   readonly session: SessionEspace;
   /** État du compte et client d'authentification (F-010) ; absent, ni zone ni écrans de compte. */
   readonly compte?: Compte | undefined;
+  /** Synchronisation de l'espace ouvert (F-013) ; absente, rien ne part et aucune zone n'est rendue. */
+  readonly synchronisation?: FabriqueDeSynchronisation | undefined;
 }
 
-export function Application({ session, compte }: ProprietesApplication): ReactElement {
+export function Application({
+  session,
+  compte,
+  synchronisation,
+}: ProprietesApplication): ReactElement {
   const etat = useSyncExternalStore(session.abonner, session.lireEtat);
   switch (etat.phase) {
     case "contexte-non-securise":
@@ -102,36 +121,67 @@ export function Application({ session, compte }: ProprietesApplication): ReactEl
         </EcranPlein>
       );
     case "pret":
-      return <EspacePret etat={etat} compte={compte} />;
+      return (
+        <EspacePret etat={etat} compte={compte} session={session} fabrique={synchronisation} />
+      );
   }
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
 // (avertissement, barre du haut, zone principale). Un écran de compte prend la place de la zone
 // principale ; tout le reste demeure, arborescence et repli compris (F-010-AC3).
-function EspacePret(props: {
+interface ProprietesEspacePret {
   readonly etat: EtatPret;
   readonly compte: Compte | undefined;
-}): ReactElement {
+  readonly session: SessionEspace;
+  readonly fabrique: FabriqueDeSynchronisation | undefined;
+}
+
+// Ce que l'écran de l'espace tient : navigation, sélection, page ouverte, synchronisation.
+function useEspacePret(props: ProprietesEspacePret) {
   const { etat, compte } = props;
-  const { racines } = etat.arborescence;
   const navigation = useNavigationDeLEspace(compte);
-  const { route } = navigation;
-  const selection = selectionDe(route, etat.arborescence);
-  const barre = useBarreLaterale(etat, route, selection);
-  const tiroir = useTiroir();
-  const idBarre = useId();
+  const selection = selectionDe(navigation.route, etat.arborescence);
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
   const pages = usePagesOuvertes();
   const etatDeLaPage = usePageOuverte(pages, etat.idEspace, page?.id);
-  const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
+  const synchronisation = useSynchronisationDeLEspace(
+    {
+      fabrique: props.fabrique,
+      idEspace: etat.idEspace,
+      doc: props.session.doc,
+      idPage: page?.id,
+      page: etatDeLaPage,
+      lirePages: () => pagesDeLaSession(props.session),
+      fermerLesPages: (idPages) => void pages.effacer(undefined, idPages),
+      toutFermer: () => toutFermer(pages, props.session),
+    },
+    LECTURE_SEULE,
+  );
+  const barre = useBarreLaterale(etat, navigation.route, selection, synchronisation.lectureSeule);
+  return { navigation, selection, page, pages, etatDeLaPage, synchronisation, barre };
+}
 
+function EspacePret(props: ProprietesEspacePret): ReactElement {
+  const { etat, compte } = props;
+  const { racines } = etat.arborescence;
+  const { navigation, selection, page, pages, etatDeLaPage, synchronisation, barre } =
+    useEspacePret(props);
+  const tiroir = useTiroir();
+  const idBarre = useId();
+  const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
+  if (synchronisation.effaceeAilleurs) {
+    return <EffaceeAilleurs />;
+  }
+  const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, () =>
+    toutFermer(pages, props.session),
+  );
   return (
     <Coquille
       fenetre
       tiroir={attributsDuTiroir(tiroir, idBarre)}
-      barre={barreLateraleDe(barre, tiroir, compte, navigation.corbeille)}
+      barre={barreLateraleDe(barre, tiroir, compte, navigation.corbeille, zone)}
     >
       <AvertissementDEnregistrement etat={enregistrement} zonePrincipale={tiroir.zonePrincipale} />
       <BarreDuHaut
@@ -153,8 +203,70 @@ function EspacePret(props: {
         pages={pages}
         selection={selection}
         page={etatDeLaPage}
+        lectureSeule={synchronisation.lectureSeule}
       />
     </Coquille>
+  );
+}
+
+// La session est seule abonnée de la façade du document d'espace (ADR-0007) : la synchronisation
+// lit les pages dans son état, déjà relu quand une mise à jour reçue lui parvient.
+function pagesDeLaSession(session: SessionEspace): ReadonlySet<string> | undefined {
+  const lu = session.lireEtat();
+  return lu.phase === "pret" ? idsDesPages(lu.arborescence) : undefined;
+}
+
+// Avant l'effacement de la copie locale, plus rien de l'onglet ne tient une base (AC24).
+function toutFermer(pages: PagesOuvertes, session: SessionEspace): void {
+  pages.fermer();
+  session.fermer();
+}
+
+function EffaceeAilleurs(): ReactElement {
+  return (
+    <EcranPlein fenetre>
+      <EcranBloquant
+        titre={EFFACER_LA_COPIE_LOCALE}
+        explication={EFFACEMENT_DANS_UN_AUTRE_ONGLET}
+      />
+    </EcranPlein>
+  );
+}
+
+/** Toutes les pages de l'espace, arborescence et corbeille, à toute profondeur. */
+function toutesLesPages(etat: EtatPret): PageLue[] {
+  const aVoir = [...etat.arborescence.racines, ...etat.arborescence.corbeille];
+  for (const vue of aVoir) {
+    aVoir.push(...vue.enfants);
+  }
+  return aVoir;
+}
+
+// La zone de synchronisation (F-013), à côté de la zone de compte : absente sans synchronisation.
+function zoneDeSynchronisation(
+  synchronisation: SynchronisationDeLEspace,
+  etat: EtatPret,
+  stockageDisponible: boolean,
+  avantLEffacement: () => void,
+): ReactElement | undefined {
+  const { synchro, etat: etatSynchro } = synchronisation;
+  if (synchro === undefined || etatSynchro === undefined) {
+    return undefined;
+  }
+  const pagesLues = toutesLesPages(etat);
+  return (
+    <ZoneDeSynchronisation
+      synchro={synchro}
+      etat={etatSynchro}
+      titreDe={(idPage) =>
+        idPage === undefined
+          ? DOCUMENT_D_ESPACE
+          : (pagesLues.find((lue) => lue.id === idPage)?.titre ?? "")
+      }
+      nombreDePages={pagesLues.length}
+      stockageDisponible={stockageDisponible}
+      avantLEffacement={avantLEffacement}
+    />
   );
 }
 
@@ -170,6 +282,7 @@ function ZoneAffichee(props: {
   readonly pages: PagesOuvertes;
   readonly selection: Selection;
   readonly page: ReturnType<typeof usePageOuverte>;
+  readonly lectureSeule: string | undefined;
 }): ReactElement {
   const { zone, etat, compte, navigation } = props;
   if (compte !== undefined && navigation.ecran !== undefined) {
@@ -185,6 +298,7 @@ function ZoneAffichee(props: {
         <EcranDeLaCorbeille
           corbeille={etat.arborescence.corbeille}
           operations={operationsDeLaCorbeille(etat, props.pages)}
+          lectureSeule={props.lectureSeule}
         />
       </Principale>
     );
@@ -195,6 +309,7 @@ function ZoneAffichee(props: {
       selection={props.selection}
       espaceVide={etat.arborescence.racines.length === 0}
       page={props.page}
+      lectureSeule={props.lectureSeule !== undefined}
     />
   );
 }
@@ -233,6 +348,7 @@ function barreLateraleDe(
   tiroir: Tiroir,
   compte: Compte | undefined,
   corbeilleCourante: boolean,
+  synchronisation: ReactElement | undefined,
 ): ReactElement {
   return (
     <BarreLaterale
@@ -243,6 +359,7 @@ function barreLateraleDe(
       erreur={barre.erreur}
       boutonNouvellePage={barre.boutonNouvellePage}
       fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
+      synchronisation={synchronisation}
       compte={
         compte === undefined ? undefined : (
           <>
@@ -360,7 +477,12 @@ interface Moyens {
 
 // État d'écran de la barre : pages repliées, saisie ouverte, dernier refus. Le menu ouvert, le
 // tiroir et le repli du fil d'Ariane n'y entrent pas : chacun vit dans son composant (F-004-AC58).
-function useBarreLaterale(etat: EtatPret, route: Route, selection: Selection): Barre {
+function useBarreLaterale(
+  etat: EtatPret,
+  route: Route,
+  selection: Selection,
+  lectureSeule: string | undefined,
+): Barre {
   const idPageCourante = selection.type === "page" ? selection.page.id : undefined;
   const idPageDesignee = route.forme === "page" ? route.idPage : undefined;
   const repli = useRepli(etat.arborescence.racines, idPageDesignee);
@@ -392,7 +514,7 @@ function useBarreLaterale(etat: EtatPret, route: Route, selection: Selection): B
 
   return {
     racines: etat.arborescence.racines,
-    ecran: { idPageCourante, repliees: repli.repliees, saisie },
+    ecran: { idPageCourante, repliees: repli.repliees, saisie, lectureSeule },
     actions,
     erreur,
     boutonNouvellePage,
