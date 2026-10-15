@@ -5,7 +5,7 @@ import type { HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 
 import type { Droit } from "./stockage.ts";
-import { conduiteDOuverture, motifDe } from "./conduites.ts";
+import { causeDuMotif, conduiteDOuverture, motifDe } from "./conduites.ts";
 import type { Horloge } from "./environnement.ts";
 import type { CauseDErreur, DocumentEnErreur } from "./etat.ts";
 import { ouvrir, type Ouverture } from "./ouverture.ts";
@@ -27,12 +27,6 @@ export interface ContexteDuDocument {
   blocage(idPage: string | undefined): CauseDErreur | undefined;
   noterLeBlocage(idPage: string | undefined, cause: CauseDErreur | undefined): void;
 }
-
-const CAUSES_BLOQUANTES: Readonly<Record<string, CauseDErreur>> = {
-  "document-trop-grand": "document-trop-grand",
-  "quota-atteint": "quota-atteint",
-  "version-refusee": "version-refusee",
-};
 
 export class DocumentSuivi {
   readonly nom: string;
@@ -66,6 +60,7 @@ export class DocumentSuivi {
     this.#annulerLaReouverture = undefined;
     const ouverture = ouvrir({
       prise,
+      horloge: this.#contexte.horloge,
       nom: this.nom,
       doc: this.doc,
       surChangement: () => this.#surOuverture(ouverture),
@@ -163,10 +158,10 @@ export class DocumentSuivi {
         this.#verifierLAcces();
         return;
       case "rouvrir-avec-delai":
-        this.#rouvrirAvecDelai("erreur-interne");
+        this.#rouvrirAvecDelai(causeDuMotif(raison));
         return;
       default:
-        this.#retenirLeBlocage(CAUSES_BLOQUANTES[motifDe(raison)] ?? "motif-inconnu");
+        this.#retenirLeBlocage(causeDuMotif(motifDe(raison)));
     }
   }
 

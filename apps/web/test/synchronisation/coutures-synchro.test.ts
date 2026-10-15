@@ -10,13 +10,18 @@ import { CANAUX_DES_MOTIFS, type CanalDUnMotif, MOTIFS_SYNCHRO } from "@notionli
 import { demarrerServeurDEssai, type ServeurDEssai } from "@notionlike/server/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { MESSAGES_DES_MOTIFS } from "../../src/interface/messages-synchronisation.ts";
 import {
+  MESSAGES_DES_MOTIFS,
+  texteDUnMotif,
+} from "../../src/interface/messages-synchronisation.ts";
+import {
+  causeDuMotif,
   conduiteDeConnexion,
   conduiteDOuverture,
   CONDUITES,
 } from "../../src/synchronisation/conduites.ts";
 import { type Constat, etatAffiche } from "../../src/synchronisation/etat.ts";
+import { droitDeLaPortee } from "../../src/synchronisation/ouverture.ts";
 import {
   adopterEtAttendre,
   attendreQue,
@@ -125,8 +130,18 @@ describe("F-013-AC30 liste fermée des motifs et de leurs canaux", () => {
     "F-013-AC30 $cle : une conduite, un message français, un test sur le serveur réel",
     ({ motif, canal, cle }) => {
       expect(CONDUITES[motif][canal.canal]).toBeDefined();
-      const message = MESSAGES_DES_MOTIFS[motif][canal.canal];
-      expect(message?.trim()).toMatch(/[a-zàâçéèêëîïôûù]{3}/i);
+      const effet = MESSAGES_DES_MOTIFS[motif][canal.canal];
+      expect(effet).toBeDefined();
+      if (effet === undefined) {
+        return;
+      }
+      for (const droit of ["lecture", "ecriture"] as const) {
+        expect(texteDUnMotif(effet, "Une page", true, droit)).toMatch(/[a-zàâçéèêëîïôûù]{3}/i);
+      }
+      // La cause que la zone traduit est celle que le module tire du même motif.
+      if ("cause" in effet) {
+        expect(causeDuMotif(motif)).toBe(effet.cause);
+      }
       const [fichier, fragment] = PREUVES[cle] ?? ["", ""];
       const texte = readFileSync(fileURLToPath(new URL(fichier, import.meta.url)), "utf8");
       expect(texte).toMatch(new RegExp(`it\\(\\s*"F-013-AC[^"]*${echapper(fragment)}`));
@@ -257,6 +272,7 @@ describe("F-013-AC40 couture avec F-002, F-007 et F-010", () => {
         "adopter",
         "afficherPage",
         "effacerLaCopieLocale",
+        "estAcquitte",
         "fermer",
         "lireEtat",
         "reessayer",
@@ -351,5 +367,58 @@ describe("F-013-AC31 F-013-AC32 l'état affiché", () => {
         "synchronise",
       );
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Ce que le serveur envoie est une donnée : une raison ou une portée inconnue ne vaut que le défaut
+// sûr.
+
+describe("raisons et portées reçues du serveur", () => {
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty", "motif-de-demain"])(
+    "F-013-AC30 la raison « %s » n'est la cause d'aucune erreur connue : motif inconnu, conduite bloquante",
+    (raison) => {
+      expect(causeDuMotif(raison)).toBe("motif-inconnu");
+      expect(conduiteDOuverture(raison, false)).toBe("bloquer");
+      expect(conduiteDeConnexion(1008, raison)).toBe("reprendre");
+    },
+  );
+
+  it("F-013-AC30 les causes des motifs publiés restent les leurs", () => {
+    expect(causeDuMotif("document-trop-grand")).toBe("document-trop-grand");
+    expect(causeDuMotif("quota-atteint")).toBe("quota-atteint");
+    expect(causeDuMotif("version-refusee")).toBe("version-refusee");
+    expect(causeDuMotif("erreur-interne")).toBe("erreur-interne");
+  });
+
+  it.each([
+    ["read-write", "ecriture"],
+    ["readonly", "lecture"],
+    ["admin", "lecture"],
+    ["", "lecture"],
+    [undefined, "lecture"],
+  ] as const)(
+    "F-013-AC25 la portée annoncée « %s » donne le droit « %s » : une portée inconnue est lue comme lecture seule",
+    (portee, droit) => {
+      expect(droitDeLaPortee(portee)).toBe(droit);
+    },
+  );
+});
+
+describe("F-013-AC45 la table des fournisseurs attachés est dans l'interface typée du fournisseur", () => {
+  it("F-013-AC45 `providerMap` est un membre de la configuration exportée de la WebSocket du fournisseur, accessible par sa propriété publique `configuration`", () => {
+    const depuisWeb = createRequire(join(WEB, "package.json"));
+    const entree = realpathSync(depuisWeb.resolve("@hocuspocus/provider"));
+    const types = readFileSync(join(entree, "..", "index.d.ts"), "utf8");
+    const configuration =
+      /interface CompleteHocuspocusProviderWebsocketConfiguration[\s\S]*?\n}/.exec(types)?.[0] ??
+      "";
+    expect(configuration).toMatch(/providerMap: Map<string, HocuspocusProvider>;/);
+    expect(types).toMatch(
+      /export \{[^}]*\bCompleteHocuspocusProviderWebsocketConfiguration\b[^}]*\bHocuspocusProviderWebsocket\b/,
+    );
+    expect(types).toMatch(
+      /class HocuspocusProviderWebsocket[\s\S]*?\n {2}configuration: CompleteHocuspocusProviderWebsocketConfiguration;/,
+    );
   });
 });

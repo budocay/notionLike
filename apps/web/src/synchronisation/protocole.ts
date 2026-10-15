@@ -82,3 +82,27 @@ export function vecteurDuPremierPas(octets: Uint8Array): Uint8Array | undefined 
     return undefined;
   }
 }
+
+const TYPE_AUTHENTIFICATION = 2;
+const AUTHENTIFICATION_REFUSEE = 1;
+const TYPE_FERMETURE = 7;
+
+/**
+ * Vrai : ce message clôt, côté serveur, l'ouverture de ce document sur la connexion (message de
+ * fermeture, écho compris, ou refus d'authentification).
+ */
+export function clotLOuverture(octets: Uint8Array, nom: string): boolean {
+  try {
+    const lecteur = new Lecteur(octets);
+    if (lecteur.chaine() !== nom) {
+      return false;
+    }
+    const type = lecteur.entier();
+    return (
+      type === TYPE_FERMETURE ||
+      (type === TYPE_AUTHENTIFICATION && lecteur.entier() === AUTHENTIFICATION_REFUSEE)
+    );
+  } catch {
+    return false;
+  }
+}

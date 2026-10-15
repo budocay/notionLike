@@ -177,6 +177,7 @@ class PasseDeFond implements Passe {
       () => {
         enCours.ouverture = ouvrir({
           prise: this.#options.prise,
+          horloge: this.#options.horloge,
           nom,
           doc,
           surChangement: () => this.#surOuverture(idPage, enCours),

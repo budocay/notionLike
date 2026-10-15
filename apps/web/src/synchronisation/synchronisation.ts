@@ -21,7 +21,7 @@ import {
   type ServeurDesEspaces,
 } from "./adoption.ts";
 import { ORIGINE_DU_CANAL, relierAuCanal } from "./canal.ts";
-import { conduiteDeConnexion, conduiteDOuverture } from "./conduites.ts";
+import { causeDuMotif, conduiteDeConnexion, conduiteDOuverture } from "./conduites.ts";
 import { type Connexion, creerConnexion, type Fermeture } from "./connexion.ts";
 import { type ContexteDuDocument, DocumentSuivi } from "./document-suivi.ts";
 import type { CanalEntreOnglets, Environnement, Signal } from "./environnement.ts";
@@ -79,6 +79,11 @@ export interface Synchronisation {
   effacerLaCopieLocale(): Promise<IssueDeLEffacement>;
   /** Vrai : toute modification de l'espace ouvert est acquittée par le serveur (AC49). */
   toutEstAcquitte(): boolean;
+  /**
+   * Vrai : ce que porte ce document, celui de l'espace ou celui de la page affichée, est acquitté
+   * par le serveur (F-013-AC49). Un autre document n'est jamais dit acquitté.
+   */
+  estAcquitte(doc: Y.Doc): boolean;
   fermer(): void;
 }
 
@@ -102,6 +107,7 @@ export function demarrerSynchronisation(options: OptionsDeSynchronisation): Sync
     reessayerLeDocument: orchestre.reessayerLeDocument,
     effacerLaCopieLocale: orchestre.effacerLaCopieLocale,
     toutEstAcquitte: orchestre.toutEstAcquitte,
+    estAcquitte: orchestre.estAcquitte,
     fermer: orchestre.fermer,
   };
 }
@@ -780,6 +786,16 @@ class Orchestre {
     );
   };
 
+  readonly estAcquitte = (doc: Y.Doc): boolean => {
+    if (this.#fermee || this.#connexion.etat() !== "etablie") {
+      return false;
+    }
+    if (doc === this.#options.doc) {
+      return this.#espace.estAcquis() && !this.#espace.aDesModificationsEnAttente();
+    }
+    return this.#page?.lie === doc && this.#page.estAcquittee();
+  };
+
   readonly fermer = (): void => {
     if (this.#fermee) {
       // Fermée sur la demande d'un autre onglet, elle n'écoutait plus que la fin de l'effacement.
@@ -905,19 +921,6 @@ function correspondanceDeLEspace(idEspace: string): string {
 
 function correspondanceDUnePage(idEspace: string, idPage: string): string {
   return correspondance("page", idEspace, idPage).nomDeDocument;
-}
-
-const CAUSES_DES_MOTIFS: Readonly<Record<string, CauseDErreur>> = {
-  "document-trop-grand": "document-trop-grand",
-  "quota-atteint": "quota-atteint",
-  "version-refusee": "version-refusee",
-  "acces-refuse": "acces-refuse",
-  "erreur-interne": "erreur-interne",
-  "droits-modifies": "erreur-interne",
-};
-
-function causeDuMotif(motif: string): CauseDErreur {
-  return CAUSES_DES_MOTIFS[motif] ?? "motif-inconnu";
 }
 
 function postSurCanal(canal: CanalEntreOnglets | undefined, message: MessageDuRegistre): void {

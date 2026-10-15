@@ -137,7 +137,15 @@ class ConnexionDeLOnglet implements Connexion {
           : { sorte: "echec" },
       );
     });
-    void prise.connect();
+    // Une tentative que le fournisseur abandonne (WebSocket impossible à construire, essais
+    // épuisés) ou dont la promesse est rejetée est un échec, jamais un rejet non géré (AC2).
+    const echouer = (): void => {
+      if (this.#courante === tentative) {
+        this.couper();
+      }
+    };
+    prise.on("maxAttemptsFailed", echouer);
+    prise.connect().catch(echouer);
     return tentative;
   }
 

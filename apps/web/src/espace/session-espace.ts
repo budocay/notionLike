@@ -132,7 +132,7 @@ class SessionOuverte {
       this.#etatReluRefuse = !estDUneVersionAdmise(temoin);
       return !this.#etatReluRefuse;
     });
-    this.#arrets = [persistance.abonner(this.#surPersistance), suivreLOnglet(persistance)];
+    this.#arrets = [persistance.abonner(this.#surPersistance), suivreLOnglet(persistance, doc)];
     this.#surPersistance();
   }
 

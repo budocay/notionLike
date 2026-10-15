@@ -9,13 +9,20 @@ import {
 } from "@hocuspocus/provider";
 import * as Y from "yjs";
 
+import type { Horloge } from "./environnement.ts";
+import { apresLaFermeture, noterUneFermeture } from "./fermetures.ts";
 import type { Droit } from "./stockage.ts";
 import { octetsDe, vecteurDuPremierPas } from "./protocole.ts";
 
 /** Jeton joint à chaque ouverture : une constante, jamais une valeur tirée du serveur (AC8). */
 export const JETON_SANS_SECRET = "notionlike";
 
-const PORTEE_LECTURE_SEULE = "readonly";
+const PORTEE_ECRITURE = "read-write";
+
+/** Le droit qu'une portée annoncée donne : écriture pour la seule portée connue, sinon lecture. */
+export function droitDeLaPortee(portee: unknown): Droit {
+  return portee === PORTEE_ECRITURE ? "ecriture" : "lecture";
+}
 /**
  * Raison de l'écho que la bibliothèque du serveur renvoie quand le client referme lui-même une
  * ouverture : ce n'est pas un motif. Il peut arriver après qu'une nouvelle ouverture du même nom a
@@ -45,14 +52,20 @@ export interface Ouverture {
   estSonOrigine(origine: unknown): boolean;
   /**
    * Referme l'ouverture. Si le serveur l'a fermée ou refusée, aucun message de fermeture n'est
-   * émis (F-013-AC45) : le fournisseur est d'abord retiré de la table des fournisseurs attachés,
-   * option documentée de la WebSocket, puis détruit.
+   * émis (F-013-AC45) : le fournisseur est d'abord retiré de `configuration.providerMap`, puis
+   * détruit. Cette table est un membre typé de l'interface publique de la WebSocket du
+   * fournisseur 4.7.0 (`CompleteHocuspocusProviderWebsocketConfiguration`, exporté, propriété
+   * publique `configuration`, commentée « Map of attached providers keyed by documentName »), sans
+   * mention dans son README ; aucune autre méthode publique ne détache sans message de fermeture
+   * (`detach` en émet un dès que le nom y figure). Le test de couture le vérifie sur les types
+   * installés.
    */
   fermer(): void;
 }
 
 export interface OptionsDOuverture {
   readonly prise: HocuspocusProviderWebsocket;
+  readonly horloge: Horloge;
   readonly nom: string;
   readonly doc: Y.Doc;
   readonly surChangement: () => void;
@@ -67,16 +80,19 @@ class OuvertureDeDocument implements Ouverture {
   readonly doc: Y.Doc;
   readonly #prise: HocuspocusProviderWebsocket;
   readonly #fournisseur: HocuspocusProvider;
+  readonly #horloge: Horloge;
   readonly #surChangement: () => void;
+  readonly #renoncer: () => void;
   #issue: IssueDOuverture = { sorte: "attente" };
   #portee: Droit | undefined;
   #vecteurDuServeur: Uint8Array | undefined;
   #fermee = false;
 
-  constructor({ prise, nom, doc, surChangement }: OptionsDOuverture) {
+  constructor({ prise, horloge, nom, doc, surChangement }: OptionsDOuverture) {
     this.nom = nom;
     this.doc = doc;
     this.#prise = prise;
+    this.#horloge = horloge;
     this.#surChangement = surChangement;
     this.#fournisseur = new HocuspocusProvider({
       websocketProvider: prise,
@@ -86,7 +102,13 @@ class OuvertureDeDocument implements Ouverture {
       token: JETON_SANS_SECRET,
     });
     this.#ecouter();
-    this.#fournisseur.attach();
+    // Une fermeture de ce nom que l'onglet vient d'émettre doit être close côté serveur avant que
+    // la nouvelle demande d'ouverture parte (voir `fermetures.ts`).
+    this.#renoncer = apresLaFermeture(prise, nom, () => {
+      if (!this.#fermee) {
+        this.#fournisseur.attach();
+      }
+    });
   }
 
   readonly issue = (): IssueDOuverture => this.#issue;
@@ -113,12 +135,15 @@ class OuvertureDeDocument implements Ouverture {
       return;
     }
     this.#fermee = true;
+    this.#renoncer();
     const table = this.#prise.configuration.providerMap;
-    if (
-      this.#issue.sorte === "fermee-par-le-serveur" &&
-      table.get(this.nom) === this.#fournisseur
-    ) {
-      table.delete(this.nom);
+    if (table.get(this.nom) === this.#fournisseur) {
+      if (this.#issue.sorte === "fermee-par-le-serveur") {
+        table.delete(this.nom);
+      } else if (this.#prise.status === WebSocketStatus.Connected) {
+        // Le fournisseur détruit émettra la fermeture : la prochaine ouverture attend son écho.
+        noterUneFermeture(this.#prise, this.nom, this.#horloge);
+      }
     }
     this.#fournisseur.destroy();
   };
@@ -133,8 +158,9 @@ class OuvertureDeDocument implements Ouverture {
 
   #ecouter(): void {
     const fournisseur = this.#fournisseur;
-    fournisseur.on("authenticated", ({ scope }: { scope: string }) => {
-      this.#portee = scope === PORTEE_LECTURE_SEULE ? "lecture" : "ecriture";
+    // Une portée inconnue est lue comme lecture seule : le défaut sûr (le serveur reste juge).
+    fournisseur.on("authenticated", ({ scope }: { scope: unknown }) => {
+      this.#portee = droitDeLaPortee(scope);
     });
     fournisseur.on("synced", () => {
       if (this.#portee !== undefined && this.#issue.sorte === "attente") {

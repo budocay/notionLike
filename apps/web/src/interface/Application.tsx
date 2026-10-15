@@ -297,7 +297,7 @@ function ZoneAffichee(props: {
       <Principale ref={zone}>
         <EcranDeLaCorbeille
           corbeille={etat.arborescence.corbeille}
-          operations={operationsDeLaCorbeille(etat, props.pages)}
+          operations={operationsDeLaCorbeille(etat, props.pages, props.lectureSeule)}
           lectureSeule={props.lectureSeule}
         />
       </Principale>
@@ -314,8 +314,20 @@ function ZoneAffichee(props: {
   );
 }
 
-/** Opérations de l'écran de la corbeille (F-007) : refus traduits, puis effacement des bases. */
-function operationsDeLaCorbeille(etat: EtatPret, pages: PagesOuvertes): OperationsDeLaCorbeille {
+/**
+ * Opérations de l'écran de la corbeille (F-007) : refus traduits, puis effacement des bases. En
+ * lecture seule (F-013-AC25), chacune est refusée avec sa raison, quel que soit le chemin qui y mène
+ * (une confirmation ouverte avant le changement de droit comprise) : le bouton désactivé n'est pas
+ * la seule garde.
+ */
+function operationsDeLaCorbeille(
+  etat: EtatPret,
+  pages: PagesOuvertes,
+  lectureSeule: string | undefined,
+): OperationsDeLaCorbeille {
+  if (lectureSeule !== undefined) {
+    return { restaurer: () => lectureSeule, supprimer: () => ({ refus: lectureSeule }) };
+  }
   return {
     restaurer: (page) => {
       const { refus } = essayer(() => etat.operations.restaurerPage(page.id));
@@ -496,21 +508,12 @@ function useBarreLaterale(
     deplier: repli.deplier,
   };
 
-  const actions: ActionsBarre = {
-    creerPage: (parent) => creerPage(moyens, parent),
-    ouvrirSaisie: (idPage) => {
-      setErreur(undefined);
-      setSaisie({ idPage, erreur: undefined });
-    },
-    validerTitre: (idPage, titre) => validerTitre(moyens, idPage, titre),
-    annulerSaisie: () => setSaisie(undefined),
-    mettreALaCorbeille: (page) => {
-      if (mettreALaCorbeille(moyens, page, idPageCourante)) {
-        boutonNouvellePage.current?.focus();
-      }
-    },
+  const actions = actionsDeLaBarre(moyens, {
+    lectureSeule,
+    idPageCourante,
+    boutonNouvellePage,
     basculerRepli: repli.basculer,
-  };
+  });
 
   return {
     racines: etat.arborescence.racines,
@@ -518,6 +521,47 @@ function useBarreLaterale(
     actions,
     erreur,
     boutonNouvellePage,
+  };
+}
+
+// F-013-AC25 : en lecture seule, aucune action de la barre n'écrit, par quelque chemin qu'elle
+// arrive (bouton, menu, raccourci, double-clic, saisie ouverte avant le changement de droit).
+function actionsDeLaBarre(
+  moyens: Moyens,
+  contexte: {
+    readonly lectureSeule: string | undefined;
+    readonly idPageCourante: IdPage | undefined;
+    readonly boutonNouvellePage: RefObject<HTMLButtonElement | null>;
+    readonly basculerRepli: ActionsBarre["basculerRepli"];
+  },
+): ActionsBarre {
+  const ecrit = contexte.lectureSeule === undefined;
+  return {
+    creerPage: (parent) => {
+      if (ecrit) {
+        creerPage(moyens, parent);
+      }
+    },
+    ouvrirSaisie: (idPage) => {
+      if (ecrit) {
+        moyens.setErreur(undefined);
+        moyens.setSaisie({ idPage, erreur: undefined });
+      }
+    },
+    validerTitre: (idPage, titre) => {
+      if (ecrit) {
+        return validerTitre(moyens, idPage, titre);
+      }
+      moyens.setSaisie(undefined);
+      return true;
+    },
+    annulerSaisie: () => moyens.setSaisie(undefined),
+    mettreALaCorbeille: (page) => {
+      if (ecrit && mettreALaCorbeille(moyens, page, contexte.idPageCourante)) {
+        contexte.boutonNouvellePage.current?.focus();
+      }
+    },
+    basculerRepli: contexte.basculerRepli,
   };
 }
 

@@ -158,7 +158,7 @@ function tenir(conservees: Map<string, Tenue>, designation: DesignationDePage): 
     tenue.enAttenteDeLEspace = false;
     // La garde d'onglet tient la confirmation avant de quitter tant qu'une modification n'est pas
     // écrite, que la page soit affichée ou conservée (F-030-AC16).
-    tenue.cesserDeSuivreLOnglet = suivreLOnglet(persistance);
+    tenue.cesserDeSuivreLOnglet = suivreLOnglet(persistance, tenue.doc);
   } catch (erreur) {
     liberer(tenue);
     if (erreur instanceof ErreurPersistance) {

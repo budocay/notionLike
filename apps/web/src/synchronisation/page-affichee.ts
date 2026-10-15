@@ -77,6 +77,18 @@ export class PageSynchronisee {
     return tenue.creee;
   }
 
+  /**
+   * Vrai : ce que porte le document lié est acquitté par le serveur (F-013-AC49) ; jamais pour une
+   * version refusée, dont la réplique ne reçoit plus rien du document lié.
+   */
+  estAcquittee(): boolean {
+    return (
+      !this.#miroir.estRefuse() &&
+      this.suivi.estAcquis() &&
+      !this.suivi.aDesModificationsEnAttente()
+    );
+  }
+
   enregistrerTelQuel(designation: ReturnType<typeof correspondance>["designation"]): void {
     this.#persistance ??= ouvrirLaBase(this.#miroir.replique, designation);
   }

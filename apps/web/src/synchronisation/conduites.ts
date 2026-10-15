@@ -3,6 +3,8 @@
 // et un motif absent de la liste publiée est traité comme `nom-de-document-invalide`.
 import { type CanalDUnMotif, MOTIFS_SYNCHRO, type MotifSynchro } from "@notionlike/contrats";
 
+import type { CauseDErreur } from "./etat.ts";
+
 export type Canal = CanalDUnMotif["canal"];
 
 /**
@@ -83,4 +85,26 @@ export function conduiteDeConnexion(code: number, raison: string): Conduite {
     return "reprendre";
   }
   return CONDUITES[raison as MotifSynchro]["fermeture-de-connexion"] ?? "reprendre";
+}
+
+/**
+ * La cause qu'un motif d'ouverture donne au document qu'il touche (AC22, AC28 à AC30, AC47) : une
+ * seule table, que lisent le suivi d'un document et la passe de fond, et que la zone de
+ * synchronisation traduit (F-013-AC30). Une raison absente, ou un membre hérité de l'objet
+ * (`constructor`, `__proto__`…), n'est la cause d'aucune erreur connue.
+ */
+const CAUSES_DES_MOTIFS: Readonly<Partial<Record<MotifSynchro, CauseDErreur>>> = {
+  "acces-refuse": "acces-refuse",
+  "document-trop-grand": "document-trop-grand",
+  "quota-atteint": "quota-atteint",
+  "message-trop-grand": "trop-volumineux",
+  "erreur-interne": "erreur-interne",
+  "droits-modifies": "erreur-interne",
+  "version-refusee": "version-refusee",
+};
+
+export function causeDuMotif(raison: string): CauseDErreur {
+  return Object.hasOwn(CAUSES_DES_MOTIFS, raison)
+    ? (CAUSES_DES_MOTIFS[raison as MotifSynchro] ?? "motif-inconnu")
+    : "motif-inconnu";
 }

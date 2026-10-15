@@ -9,6 +9,15 @@ import * as Y from "yjs";
 
 import { Application } from "../src/interface/Application.tsx";
 import { serveurDesEspaces, sourceDuCompte } from "../src/interface/branchement-synchronisation.ts";
+import {
+  NOM_DE_LA_BARRE_DE_BLOCS,
+  nomActionsDeLaPage,
+  nomAjouterSousPage,
+  nomRestaurer,
+  nomSupprimer,
+  TITRE_DE_LA_PAGE,
+} from "../src/interface/messages.ts";
+import { ENTREE_CORBEILLE } from "../src/interface/messages-corbeille.ts";
 import { SERVEUR_INJOIGNABLE } from "../src/interface/messages-compte.ts";
 import { QUOTA_D_ESPACES, REGLE_DU_NOM } from "../src/interface/messages-espaces.ts";
 import {
@@ -16,7 +25,9 @@ import {
   COPIE_DIVERGENTE,
   DEMANDE_UNE_CONNEXION_AU_SERVEUR,
   DETACHE_CAUSE,
+  DROIT_DEVENU_ECRITURE,
   DROIT_DEVENU_LECTURE,
+  type EffetDUnMotif,
   EFFACEMENT_INCOMPLET,
   EFFACER_LA_COPIE_LOCALE,
   EFFET_DE_L_ADOPTION,
@@ -25,6 +36,7 @@ import {
   HORS_LIGNE_SANS_STOCKAGE,
   IDENTIFIANT_DEJA_PRIS,
   LECTURE_SEULE,
+  MESSAGES_DES_MOTIFS,
   NOM_DE_LA_ZONE_DE_SYNCHRONISATION,
   PAGES_CONCERNEES,
   RECHARGER,
@@ -34,6 +46,7 @@ import {
   SYNCHRONISER_CET_ESPACE,
   texteDeLEffacement,
   texteDUneErreur,
+  texteDUnMotif,
   TITRES_DES_ETATS,
   TRANSMISES,
   TRANSMISES_SANS_STOCKAGE,
@@ -88,7 +101,8 @@ const ETAT_LOCAL: EtatDeSynchronisation = {
 interface Simulee {
   readonly fabrique: FabriqueDeSynchronisation;
   poser(partiel: Partial<EtatDeSynchronisation>): void;
-  acquitte: boolean;
+  /** Les documents que le serveur a acquittés. */
+  readonly acquittes: Set<Y.Doc>;
   reponseDAdoption: () => Promise<IssueDAdoption>;
   reponseDEffacement: () => Promise<IssueDeLEffacement>;
   readonly adoptions: string[];
@@ -103,7 +117,7 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
   const abonnes = new Set<() => void>();
   let dernier: EspaceASynchroniser | undefined;
   const simulee: Simulee = {
-    acquitte: false,
+    acquittes: new Set(),
     reponseDAdoption: () =>
       Promise.resolve({ sorte: "adopte", nom: "Équipe", rejouee: false, droit: "ecriture" }),
     reponseDEffacement: () => Promise.resolve("echec"),
@@ -138,7 +152,8 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
           simulee.compteurs.effacements += 1;
           return simulee.reponseDEffacement();
         },
-        toutEstAcquitte: () => simulee.acquitte,
+        toutEstAcquitte: () => simulee.acquittes.size > 0,
+        estAcquitte: (doc) => simulee.acquittes.has(doc),
         fermer: () => undefined,
       };
     },
@@ -490,6 +505,95 @@ describe("F-013-AC25 à AC29, AC47 droits, copie divergente et documents en erre
     expect(session.lireEtat().phase).toBe("pret");
   });
 
+  it("F-013-AC25 en lecture seule, aucune action de la barre ni de l'éditeur n'écrit, même par un chemin ouvert avant le changement de droit : documents d'espace et de page identiques octet pour octet, aucune mise à jour", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    creerPage(session, "Alpha");
+    await utilisateur.click(await screen.findByRole("link", { name: "Alpha" }));
+    const saisie = await attendreLaZoneDeSaisie();
+    await utilisateur.click(saisie);
+    await utilisateur.keyboard("Avant");
+    await waitFor(() => expect(simulee.pages.at(-1)).toBeDefined());
+    const page = simulee.pages.at(-1) as PageAffichee;
+    // Une saisie de titre ouverte pendant que l'espace était modifiable.
+    screen.getByRole("link", { name: "Alpha" }).focus();
+    await utilisateur.keyboard("{F2}");
+    const champ = screen.getByRole("textbox", { name: TITRE_DE_LA_PAGE });
+    await utilisateur.clear(champ);
+    await utilisateur.type(champ, "Renommée");
+
+    poser(simulee, { affiche: "synchronise", rattachement: "adopte", droit: "lecture" });
+    const docs = [session.doc as Y.Doc, page.doc];
+    const avant = docs.map((doc) => Y.encodeStateAsUpdate(doc));
+    let mises = 0;
+    const compter = (): void => {
+      mises += 1;
+    };
+    docs.forEach((doc) => doc.on("update", compter));
+
+    await utilisateur.keyboard("{Enter}");
+    const lien = screen.getByRole("link", { name: "Alpha" });
+    lien.focus();
+    await utilisateur.keyboard("{F2}");
+    fireEvent.doubleClick(lien);
+    expect(screen.queryByRole("textbox", { name: TITRE_DE_LA_PAGE })).toBeNull();
+    fireEvent.click(await boutonNouvellePage());
+    fireEvent.click(screen.getByRole("button", { name: nomAjouterSousPage("Alpha") }));
+    await utilisateur.click(screen.getByRole("button", { name: nomActionsDeLaPage("Alpha") }));
+    for (const entree of screen.getAllByRole("menuitem")) {
+      fireEvent.click(entree);
+    }
+    await utilisateur.click(saisie);
+    await utilisateur.keyboard("frappe");
+    fireEvent.paste(saisie, {
+      clipboardData: { getData: () => "collé", types: ["text/plain"], files: [] },
+    });
+    await utilisateur.keyboard("{Control>}z{/Control}");
+    await utilisateur.keyboard("{Alt>}{F10}{/Alt}");
+    expect(screen.queryByRole("toolbar", { name: NOM_DE_LA_BARRE_DE_BLOCS })).toBeNull();
+    await act(() => laisserIndexedDbTravailler());
+
+    docs.forEach((doc) => doc.off("update", compter));
+    expect(docs.map((doc) => Y.encodeStateAsUpdate(doc))).toEqual(avant);
+    expect(mises).toBe(0);
+    expect(screen.getByRole("link", { name: "Alpha" })).toBeDefined();
+  });
+
+  it("F-013-AC25 en lecture seule, la corbeille ne restaure ni ne supprime, pas même par une confirmation ouverte avant le changement de droit", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const jetee = creerPage(session, "Jetée");
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    act(() => etat.operations.mettreALaCorbeille(jetee));
+    await utilisateur.click(screen.getByRole("button", { name: ENTREE_CORBEILLE }));
+    await utilisateur.click(await screen.findByRole("button", { name: nomSupprimer("Jetée") }));
+    const confirmation = screen.getByRole("alertdialog");
+
+    poser(simulee, { affiche: "synchronise", rattachement: "adopte", droit: "lecture" });
+    const doc = session.doc as Y.Doc;
+    const avant = Y.encodeStateAsUpdate(doc);
+    let mises = 0;
+    const compter = (): void => {
+      mises += 1;
+    };
+    doc.on("update", compter);
+    await utilisateur.click(
+      within(confirmation).getByRole("button", { name: nomSupprimer("Jetée") }),
+    );
+    expect(screen.getByRole("alert").textContent).toBe(LECTURE_SEULE);
+    fireEvent.click(screen.getByRole("button", { name: nomRestaurer("Jetée") }));
+    fireEvent.click(screen.getByRole("button", { name: nomSupprimer("Jetée") }));
+    doc.off("update", compter);
+
+    expect(Y.encodeStateAsUpdate(doc)).toEqual(avant);
+    expect(mises).toBe(0);
+  });
+
   it("F-013-AC27 copie divergente : le message, les pages concernées et « Effacer la copie locale »", async () => {
     const simulee = synchronisationSimulee();
     const { session } = await ouvrirAvec(simulee);
@@ -585,7 +689,11 @@ function etatComplet(affiche: EtatAffiche): EtatDeSynchronisation {
 }
 
 function texteDeLaZoneSeule(affiche: EtatAffiche, stockageDisponible: boolean): string {
-  const simulee = synchronisationSimulee(etatComplet(affiche));
+  return texteDeLaZonePour(etatComplet(affiche), stockageDisponible);
+}
+
+function texteDeLaZonePour(etat: EtatDeSynchronisation, stockageDisponible: boolean): string {
+  const simulee = synchronisationSimulee(etat);
   const synchro = simulee.fabrique({
     idEspace: "x",
     doc: new Y.Doc(),
@@ -609,6 +717,52 @@ function texteDeLaZoneSeule(affiche: EtatAffiche, stockageDisponible: boolean): 
   rendu.unmount();
   return texte;
 }
+
+/** L'état que le module publie quand ce motif l'atteint, pour la page « Titre p1 ». */
+function etatDUnEffet(effet: EffetDUnMotif, droit: "lecture" | "ecriture"): EtatDeSynchronisation {
+  const adopte = { ...ETAT_LOCAL, rattachement: "adopte" as const, droit };
+  if ("cause" in effet) {
+    return {
+      ...adopte,
+      affiche: "erreur",
+      documentsEnErreur: [{ idPage: "p1", cause: effet.cause, reessayable: false }],
+    };
+  }
+  if ("droit" in effet) {
+    return { ...adopte, affiche: "synchronise", droitChange: droit };
+  }
+  return { ...adopte, affiche: effet.etat, refusDeConnexion: effet.etat === "erreur" };
+}
+
+describe("F-013-AC30 le message de chaque couple est celui que la zone affiche", () => {
+  const couples = Object.entries(MESSAGES_DES_MOTIFS).flatMap(([motif, canaux]) =>
+    Object.entries(canaux).map(([canal, effet]) => ({ motif, canal, effet })),
+  );
+
+  it.each(couples)("F-013-AC30 $motif, $canal", ({ effet }) => {
+    for (const stockage of [true, false]) {
+      for (const droit of ["lecture", "ecriture"] as const) {
+        const attendu = texteDUnMotif(effet, "Titre p1", stockage, droit);
+        expect(texteDeLaZonePour(etatDUnEffet(effet, droit), stockage).split("\n")).toContain(
+          attendu,
+        );
+      }
+    }
+  });
+
+  it("F-013-AC26 F-013-AC30 « droits-modifies » annonce le changement dans son sens : lecture seule après une rétrogradation, écriture après une promotion", () => {
+    const effet = MESSAGES_DES_MOTIFS["droits-modifies"]["fermeture-d-ouverture"];
+    expect(effet).toEqual({ droit: true });
+    if (effet === undefined) {
+      return;
+    }
+    expect(texteDUnMotif(effet, "", true, "ecriture")).toBe(DROIT_DEVENU_ECRITURE);
+    expect(texteDUnMotif(effet, "", true, "lecture")).toBe(DROIT_DEVENU_LECTURE);
+    expect(texteDeLaZonePour(etatDUnEffet(effet, "ecriture"), true)).not.toContain(
+      DROIT_DEVENU_LECTURE,
+    );
+  });
+});
 
 describe("F-013-AC31 F-013-AC32 F-013-AC48 les textes de la zone", () => {
   it("F-013-AC31 chaque état de la liste fermée a son titre, seul de la liste à être affiché, annoncé dans une région d'état sans déplacer le focus", async () => {
@@ -684,13 +838,16 @@ describe("F-013-AC31 F-013-AC32 F-013-AC48 les textes de la zone", () => {
     ]);
 
     // F-013-AC49 : une modification non enregistrée sur l'appareil retient l'onglet tant que le
-    // serveur ne l'a pas acquittée, et plus après.
+    // serveur ne l'a pas acquittée, et plus après ; l'acquittement d'un autre document n'y fait rien.
     creerPage(session, "Pendant la coupure");
     expect(tenterDeQuitter().defaultPrevented).toBe(true);
-    simulee.acquitte = true;
+    simulee.acquittes.add(new Y.Doc());
+    poser(simulee, {});
+    expect(tenterDeQuitter().defaultPrevented).toBe(true);
+    simulee.acquittes.add(session.doc as Y.Doc);
     poser(simulee, {});
     expect(tenterDeQuitter().defaultPrevented).toBe(false);
-    simulee.acquitte = false;
+    simulee.acquittes.clear();
     poser(simulee, { affiche: "en-cours" });
     expect(tenterDeQuitter().defaultPrevented).toBe(true);
     expect(local()).toContain("Non enregistré sur cet appareil");

@@ -1,9 +1,15 @@
 // Connexion de l'onglet, reprise, refus et fermetures par le serveur réel (F-013-AC17 à AC21,
 // AC33, AC42).
+import { LIMITES_SYNCHRO } from "@notionlike/contrats";
 import { demarrerServeurDEssai, type ServeurDEssai } from "@notionlike/server/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { ECHEANCE_D_UNE_TENTATIVE_MS } from "../../src/synchronisation/connexion.ts";
+import {
+  creerConnexion,
+  ECHEANCE_D_UNE_TENTATIVE_MS,
+  type Fermeture,
+} from "../../src/synchronisation/connexion.ts";
+import type { Environnement } from "../../src/synchronisation/environnement.ts";
 import { correspondance } from "../../src/synchronisation/noms.ts";
 import {
   ATTENTE_PLAFOND_MS,
@@ -21,6 +27,7 @@ import {
   ecrireDansLaPage,
   fermerLesOnglets,
   horlogeDEssai,
+  lireMessage,
   messagesDe,
   ouvrirUnOnglet,
   pageDEssai,
@@ -351,5 +358,85 @@ describe("compte inconnu", () => {
     onglet.reseau.retablir();
     compte.poser("connecte");
     await attendreLEtat(onglet, "synchronise");
+  });
+});
+
+describe("fermeture puis réouverture du même document", () => {
+  it("F-013-AC17 F-013-AC45 une page refermée puis aussitôt rouverte : la nouvelle demande d'ouverture attend que le serveur ait clos la précédente (son écho), puis l'ouverture est acquise", async () => {
+    const membre = await serveur.inscrire();
+    const onglet = await ouvrirUnOnglet({
+      serveur,
+      cookie: membre.cookie,
+      idEspace: crypto.randomUUID(),
+    });
+    const idPage = onglet.facade.creerPage("Aller-retour");
+    await adopterEtAttendre(onglet);
+    afficher(onglet, pageDEssai(idPage));
+    await attendreLEtat(onglet, "synchronise");
+    const nom = correspondance("page", onglet.idEspace, idPage).nomDeDocument;
+    const debut = onglet.reseau.journal.length;
+
+    afficher(onglet, undefined);
+    afficher(onglet, pageDEssai(idPage));
+    await attendreLEtat(onglet, "synchronise");
+
+    const suite = onglet.reseau.journal
+      .slice(debut)
+      .map(({ sens, octets }) => ({ sens, ...lireMessage(octets) }))
+      .filter((message) => message.nom === nom);
+    const fermeture = suite.findIndex(
+      ({ sens, type }) => sens === "emis" && type === TYPES_DE_MESSAGE.fermeture,
+    );
+    const echo = suite.findIndex(
+      ({ sens, type }, rang) =>
+        rang > fermeture && sens === "recu" && type === TYPES_DE_MESSAGE.fermeture,
+    );
+    const reouverture = suite.findIndex(
+      ({ sens, type }, rang) =>
+        rang > fermeture && sens === "emis" && type === TYPES_DE_MESSAGE.authentification,
+    );
+    expect(fermeture).toBeGreaterThanOrEqual(0);
+    expect(echo).toBeGreaterThan(fermeture);
+    expect(reouverture).toBeGreaterThan(echo);
+  });
+});
+
+describe("tentative sans issue du fournisseur", () => {
+  it("F-013-AC2 une WebSocket que le navigateur refuse de construire (adresse invalide) est un échec de la tentative, aussitôt, sans rejet de promesse non géré", async () => {
+    const rejets: unknown[] = [];
+    const surRejet = (raison: unknown): void => {
+      rejets.push(raison);
+    };
+    process.on("unhandledRejection", surRejet);
+    const fermetures: Fermeture[] = [];
+    class PriseRefusee {
+      constructor(adresse: string) {
+        throw new SyntaxError(`adresse invalide : ${adresse}`);
+      }
+    }
+    const connexion = creerConnexion({
+      environnement: {
+        WebSocket: PriseRefusee as unknown as Environnement["WebSocket"],
+        adresse: "ws://hôte invalide/",
+        horloge: horlogeDEssai(),
+      },
+      limiteDeMessage: LIMITES_SYNCHRO.octetsParMessage,
+      fenetreDesMessagesMs: LIMITES_SYNCHRO.fenetreDesMessagesMs,
+      surEtablie: () => undefined,
+      surFermee: (fermeture) => fermetures.push(fermeture),
+      surMessageTropGrand: () => undefined,
+    });
+    try {
+      connexion.tenter();
+      await attendreQue(() => fermetures.length > 0, 2000, "échec de la tentative");
+      await pause(50);
+
+      expect(fermetures).toEqual([{ sorte: "echec" }]);
+      expect(connexion.etat()).toBe("absente");
+      expect(rejets).toEqual([]);
+    } finally {
+      connexion.fermer();
+      process.off("unhandledRejection", surRejet);
+    }
   });
 });

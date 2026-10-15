@@ -48,7 +48,7 @@ export function useSynchronisation(
       surEffacement: (etape) => derniers.current.surEffacement(etape),
     });
     const debrancher = brancherLAcquittement({
-      toutEstAcquitte: demarree.toutEstAcquitte,
+      estAcquitte: demarree.estAcquitte,
       abonner: demarree.abonner,
     });
     setSynchro(demarree);

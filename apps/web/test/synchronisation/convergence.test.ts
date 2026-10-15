@@ -395,11 +395,16 @@ describe("durabilité", () => {
     expect(texteDeLaPage(page.doc)).toContain("ni écrite ni acquittée");
     expect(persistance.aDesModificationsNonEnregistrees()).toBe(true);
     expect(onglet.synchro.toutEstAcquitte()).toBe(false);
+    expect(onglet.synchro.estAcquitte(page.doc)).toBe(false);
 
     onglet.reseau.retablir();
     onglet.signaler("reseau");
     await attendreLEtat(onglet, "synchronise", 20_000);
     expect(onglet.synchro.toutEstAcquitte()).toBe(true);
+    // Document par document : la page affichée et l'espace le sont, un document étranger jamais.
+    expect(onglet.synchro.estAcquitte(page.doc)).toBe(true);
+    expect(onglet.synchro.estAcquitte(onglet.facade.doc)).toBe(true);
+    expect(onglet.synchro.estAcquitte(new Y.Doc())).toBe(false);
     expect(persistance.aDesModificationsNonEnregistrees()).toBe(true);
 
     onglet.appareil.sur(() => persistance.reessayer());

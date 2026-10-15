@@ -128,41 +128,68 @@ export function texteDUneErreur(
 type Canal = CanalDUnMotif["canal"];
 
 /**
- * Message français de chaque couple (motif, canal) publié (F-013-AC30) : celui que la zone affiche
- * quand ce motif l'atteint. Un refus de connexion n'est jamais lisible par un navigateur : il se
- * dit par l'état du compte (F-013-AC19).
+ * Ce que la zone de synchronisation affiche quand un motif l'atteint (F-013-AC30) :
+ * - `cause` : le document touché est en erreur, avec le texte de cette cause, que le module de
+ *   synchronisation tire du même motif (`causeDuMotif`) ;
+ * - `etat` : l'état de la liste fermée que le motif fait afficher ; `erreur` est le refus de
+ *   connexion, qu'un navigateur ne lit jamais et qui se dit sans cause (F-013-AC19) ;
+ * - `droit` : le changement de droit, dans le sens où il a eu lieu (F-013-AC26).
+ */
+export type EffetDUnMotif =
+  | { readonly cause: CauseDErreur }
+  | { readonly etat: "pause" | "connexion" | "erreur" }
+  | { readonly droit: true };
+
+type Droit = "lecture" | "ecriture";
+
+/** Le message français d'un couple (motif, canal), tel que la zone l'affiche. */
+export function texteDUnMotif(
+  effet: EffetDUnMotif,
+  titre: string,
+  stockageDisponible: boolean,
+  droit: Droit,
+): string {
+  if ("cause" in effet) {
+    return texteDUneErreur(effet.cause, titre, stockageDisponible);
+  }
+  if ("droit" in effet) {
+    return droit === "lecture" ? DROIT_DEVENU_LECTURE : DROIT_DEVENU_ECRITURE;
+  }
+  return effet.etat === "erreur" ? REFUS_DE_CONNEXION : TITRES_DES_ETATS[effet.etat];
+}
+
+const REFUS: EffetDUnMotif = { etat: "erreur" };
+const PAUSE: EffetDUnMotif = { etat: "pause" };
+const RECONNEXION: EffetDUnMotif = { etat: "connexion" };
+
+/**
+ * L'effet de chaque couple (motif, canal) publié (F-013-AC30), indexé par motif et par canal, à
+ * part de la table des messages des codes d'enveloppe de F-010-AC16.
  */
 export const MESSAGES_DES_MOTIFS: Readonly<
-  Record<MotifSynchro, Readonly<Partial<Record<Canal, string>>>>
+  Record<MotifSynchro, Readonly<Partial<Record<Canal, EffetDUnMotif>>>>
 > = {
-  "non-authentifie": {
-    "refus-de-connexion": TITRES_DES_ETATS.pause,
-    "fermeture-de-connexion": TITRES_DES_ETATS.pause,
-  },
-  "origine-refusee": { "refus-de-connexion": REFUS_DE_CONNEXION },
+  "non-authentifie": { "refus-de-connexion": PAUSE, "fermeture-de-connexion": PAUSE },
+  "origine-refusee": { "refus-de-connexion": REFUS },
   "acces-refuse": {
-    "refus-d-ouverture": DETACHE_CAUSE,
-    "fermeture-d-ouverture": DETACHE_CAUSE,
+    "refus-d-ouverture": { cause: "acces-refuse" },
+    "fermeture-d-ouverture": { cause: "acces-refuse" },
   },
-  "droits-modifies": { "fermeture-d-ouverture": DROIT_DEVENU_LECTURE },
-  "nom-de-document-invalide": { "refus-d-ouverture": texteDUneErreur("motif-inconnu", "", true) },
-  "document-trop-grand": {
-    "fermeture-d-ouverture": texteDUneErreur("document-trop-grand", "", true),
-  },
+  "droits-modifies": { "fermeture-d-ouverture": { droit: true } },
+  "nom-de-document-invalide": { "refus-d-ouverture": { cause: "motif-inconnu" } },
+  "document-trop-grand": { "fermeture-d-ouverture": { cause: "document-trop-grand" } },
   "quota-atteint": {
-    "refus-de-connexion": REFUS_DE_CONNEXION,
-    "refus-d-ouverture": texteDUneErreur("quota-atteint", "", true),
-    "fermeture-d-ouverture": texteDUneErreur("quota-atteint", "", true),
+    "refus-de-connexion": REFUS,
+    "refus-d-ouverture": { cause: "quota-atteint" },
+    "fermeture-d-ouverture": { cause: "quota-atteint" },
   },
-  "trop-de-requetes": { "fermeture-de-connexion": TITRES_DES_ETATS.connexion },
-  "message-trop-grand": {
-    "fermeture-sans-raison": texteDUneErreur("trop-volumineux", "", true),
-  },
+  "trop-de-requetes": { "fermeture-de-connexion": RECONNEXION },
+  "message-trop-grand": { "fermeture-sans-raison": { cause: "trop-volumineux" } },
   "erreur-interne": {
-    "refus-de-connexion": REFUS_DE_CONNEXION,
-    "refus-d-ouverture": texteDUneErreur("erreur-interne", "", true),
-    "fermeture-d-ouverture": texteDUneErreur("erreur-interne", "", true),
-    "fermeture-de-connexion": TITRES_DES_ETATS.connexion,
+    "refus-de-connexion": REFUS,
+    "refus-d-ouverture": { cause: "erreur-interne" },
+    "fermeture-d-ouverture": { cause: "erreur-interne" },
+    "fermeture-de-connexion": RECONNEXION,
   },
-  "version-refusee": { "fermeture-d-ouverture": texteDUneErreur("version-refusee", "", true) },
+  "version-refusee": { "fermeture-d-ouverture": { cause: "version-refusee" } },
 };

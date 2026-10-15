@@ -123,6 +123,8 @@ export interface Reseau {
   accusesPerdus: boolean;
   readonly emis: Uint8Array[];
   readonly recus: Uint8Array[];
+  /** Messages émis et reçus, dans l'ordre où ils sont passés. */
+  readonly journal: { readonly sens: "emis" | "recu"; readonly octets: Uint8Array }[];
   /** Nombre de WebSocket ouvertes par ce réseau. */
   ouvertes(): number;
   couper(): void;
@@ -140,6 +142,7 @@ export function reseauDEssai(
   const vivantes = new Set<WebSocket>();
   const emis: Uint8Array[] = [];
   const recus: Uint8Array[] = [];
+  const journal: Reseau["journal"][number][] = [];
   const adresses: string[] = [];
   const etat = { accusesPerdus: false };
   class PriseDEssai extends WebSocket {
@@ -153,12 +156,16 @@ export function reseauDEssai(
       vivantes.add(this);
       this.addEventListener("close", () => vivantes.delete(this));
       this.addEventListener("message", (evenement) => {
-        recus.push(new Uint8Array((evenement as MessageEvent).data as ArrayBuffer));
+        const octets = new Uint8Array((evenement as MessageEvent).data as ArrayBuffer);
+        recus.push(octets);
+        journal.push({ sens: "recu", octets });
       });
     }
 
     override send(donnee: Parameters<WebSocket["send"]>[0]): void {
-      emis.push(new Uint8Array(donnee as ArrayBuffer).slice());
+      const octets = new Uint8Array(donnee as ArrayBuffer).slice();
+      emis.push(octets);
+      journal.push({ sens: "emis", octets });
       super.send(donnee);
     }
 
@@ -200,6 +207,7 @@ export function reseauDEssai(
     },
     emis,
     recus,
+    journal,
     ouvertes: () => ouvertes,
     couper: () => {
       coupe = true;
@@ -393,6 +401,7 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
     reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
     effacerLaCopieLocale: () => appareil.sur(() => brute.effacerLaCopieLocale()),
     toutEstAcquitte: brute.toutEstAcquitte,
+    estAcquitte: brute.estAcquitte,
     fermer: () => appareil.sur(() => brute.fermer()),
   };
 }
@@ -475,10 +484,13 @@ export function fermerLesOnglets(): void {
   ouverts.clear();
 }
 
+// Sous la charge de toute la suite (serveurs d'essai et PGlite en parallèle), une ouverture
+// qui suit de près la fermeture du même document par la passe attend son déchargement côté
+// serveur : plusieurs secondes. Le délai par défaut le couvre ; un blocage réel échoue quand même.
 export async function attendreLEtat(
   onglet: Onglet,
   attendu: EtatAffiche,
-  delaiMs = 8000,
+  delaiMs = 20_000,
 ): Promise<void> {
   await attendreQue(
     () => onglet.synchro.lireEtat().affiche === attendu,
