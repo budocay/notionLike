@@ -9,7 +9,8 @@ import { faitEntrer, fichiersDuWorkspace } from "./fichiers-du-workspace.ts";
 // Dans le paquet : la définition, la requête sur les sessions, depuis F-011 le type commun des
 // requêtes des espaces (`requetes.ts`, que les trois modules d'espaces et, depuis F-027, celui de
 // la gestion du compte importent), les tests qui interrogent, et ce fichier, qui porte les motifs
-// cherchés.
+// cherchés. Depuis F-012, les deux tests des documents ; le module des documents passe, comme ceux
+// des espaces, par le type commun de `requetes.ts`.
 const QUI_LIT_L_ACCES_ICI = [
   "packages/db/test/couture-comptes.test.ts",
   "packages/db/src/acces.ts",
@@ -17,6 +18,8 @@ const QUI_LIT_L_ACCES_ICI = [
   "packages/db/src/sessions.ts",
   "packages/db/test/acces.test.ts",
   "packages/db/test/comptes.test.ts",
+  "packages/db/test/documents-migration.test.ts",
+  "packages/db/test/documents.test.ts",
   "packages/db/test/espaces.test.ts",
   "packages/db/test/gestion-du-compte.test.ts",
   "packages/db/test/migration.test.ts",

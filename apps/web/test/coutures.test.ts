@@ -51,6 +51,8 @@ const AIDES_SUIVIES = [
   "packages/document/test/fermeture.test.ts",
   // F-007 : aide suivie des tests de la corbeille du paquet.
   "packages/document/test/aides-corbeille.ts",
+  // F-012 : seule aide des tests d'apps/server qui ouvre une façade (F-012-AC29).
+  "apps/server/test/aides-facade.ts",
 ];
 const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [

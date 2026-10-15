@@ -418,7 +418,8 @@ describe("couture des appelants (creerApplication, creerCompteurs)", () => {
       .filter(([, texte]) => /\bcreerApplication\(\{/.test(texte))
       .map(([chemin]) => chemin);
 
-    expect(appelants).toEqual(["apps/server/src/service.ts"]);
+    // F-012-AC36 : l'assemblage, appelé par le service de production et par la fabrique d'essai.
+    expect(appelants).toEqual(["apps/server/src/assemblage.ts"]);
   });
 
   it(

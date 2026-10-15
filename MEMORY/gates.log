@@ -149,3 +149,19 @@
 2026-10-14T09:19:41Z | reviewer-frontend | F-007 | DEROGATION D-022 | 80038b4432aa
 2026-10-14T09:19:41Z | agent-securite | F-007 | DEROGATION D-022 | 80038b4432aa
 2026-10-14T09:19:41Z | agent-architecte | F-007 | DEROGATION D-022 | 80038b4432aa
+2026-10-14T13:59:34Z | reviewer-api | F-012 | CHANGES_REQUESTED | 4bafb3db120d
+2026-10-14T13:59:41Z | reviewer-bdd | F-012 | CHANGES_REQUESTED | 4bafb3db120d
+2026-10-14T13:59:49Z | reviewer-frontend | F-012 | APPROVED | 4bafb3db120d
+2026-10-14T13:59:53Z | reviewer-backend | F-012 | CHANGES_REQUESTED | 4bafb3db120d
+2026-10-14T14:00:42Z | agent-securite | F-012 | SECURITY GATE: FAIL | 4bafb3db120d
+2026-10-14T14:00:42Z | agent-craft | F-012 | CRAFT GATE: PASS | 4bafb3db120d
+2026-10-14T14:23:29Z | agent-securite | F-012 | SECURITY GATE: UNVERIFIED | 238ab634cad3
+2026-10-14T14:23:29Z | agent-craft | F-012 | CRAFT GATE: PASS | 238ab634cad3
+2026-10-14T14:38:06Z | agent-securite | F-012 | SECURITY GATE: UNVERIFIED | 6cdcfb8e70d9
+2026-10-14T14:38:06Z | agent-craft | F-012 | CRAFT GATE: PASS | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-bdd | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-backend | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-api | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | reviewer-frontend | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | agent-securite | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T06:06:00Z | agent-architecte | F-012 | DEROGATION D-023 | 6cdcfb8e70d9

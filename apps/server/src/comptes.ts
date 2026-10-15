@@ -11,7 +11,7 @@ import {
 import express, { type Express, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 
-import { adresseDe, reseauDe } from "./adresse.ts";
+import { adresseDe, reseauDe, type RequeteLue } from "./adresse.ts";
 import type { Authentification, Traitement } from "./authentification.ts";
 import type { Consommer } from "./debit.ts";
 import { envoyerErreur, idRequeteDe, LIMITE_CORPS_OCTETS } from "./enveloppe.ts";
@@ -129,7 +129,9 @@ export function corpsJsonDe(requete: Request): unknown {
 // `X-Forwarded-For` est remplacé par l'adresse retenue (F-009-AC15). better-auth ne contrôle
 // `Origin` que si la requête porte un en-tête `Cookie` : une requête qui annonce une origine
 // reçoit donc toujours cet en-tête, vide à défaut, pour que le contrôle ait lieu (F-009-AC16).
-function enTetesPourBetterAuth(requete: Request, adresse: string): Headers {
+// Les en-têtes d'une lecture de session, pour une route comme pour la demande de passage en
+// WebSocket de la synchronisation, qui vérifie la session par ce même code (F-012-AC1).
+export function enTetesPourBetterAuth(requete: Pick<RequeteLue, "get">, adresse: string): Headers {
   const enTetes = new Headers({ "x-forwarded-for": adresse });
   for (const nom of EN_TETES_TRANSMIS) {
     const valeur = requete.get(nom);

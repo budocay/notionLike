@@ -66,10 +66,38 @@ export type CodeDEchec =
 
 export type NiveauDeBibliotheque = "debug" | "info" | "warn" | "error";
 
+// F-012-AC26 : les événements de la synchronisation. Une ligne porte le type, le compte s'il est
+// connu, l'adresse de la requête, le nom du document s'il y en a un, le motif ; pour un échec, le
+// nom de la classe de l'erreur. Jamais la valeur du cookie, ni un octet d'un document ou d'une
+// présence, ni le message d'une erreur (celui d'une erreur de la base porte la requête SQL).
+export type TypeDEvenementDeSynchro =
+  | "connexion-etablie"
+  | "connexion-refusee"
+  | "connexion-fermee"
+  | "ouverture-refusee"
+  | "acces-retire"
+  | "limite-atteinte"
+  | "mise-a-jour-incomplete"
+  | "chargement-en-echec"
+  | "enregistrement-en-echec"
+  | "enregistrement-abandonne"
+  | "instantane-non-enregistre";
+
+export interface EvenementDeSynchro {
+  readonly type: TypeDEvenementDeSynchro;
+  readonly adresse?: string | undefined;
+  readonly idCompte?: string | undefined;
+  readonly document?: string | undefined;
+  readonly motif?: string | undefined;
+  readonly code?: number | undefined;
+  readonly erreur?: unknown;
+}
+
 export interface Journal {
   requete(ligne: LigneDeRequete): void;
   evenementDeCompte(evenement: EvenementDeCompte): void;
   evenementDEspace(evenement: EvenementDEspace): void;
+  evenementDeSynchro(evenement: EvenementDeSynchro): void;
   echecSansDonnee(code: CodeDEchec, erreur: unknown, idRequete?: string): void;
   // Ligne du journal interne de better-auth : son niveau et les classes des erreurs jointes.
   bibliotheque(niveau: NiveauDeBibliotheque, jointes: readonly unknown[]): void;
@@ -128,6 +156,10 @@ export function creerJournal(sortie: DestinationStream): Journal {
     },
     evenementDEspace({ type, idRequete, idCompte, idEspace, idCompteVise }) {
       lignes.info({ type, idRequete, idCompte, idEspace, idCompteVise }, "espace");
+    },
+    evenementDeSynchro({ type, adresse, idCompte, document, motif, code, erreur }) {
+      const classe = erreur === undefined ? undefined : classeDe(erreur);
+      lignes.info({ type, adresse, idCompte, document, motif, code, classe }, "synchro");
     },
     echecSansDonnee(code, erreur, idRequete) {
       lignes.error({ idRequete, code, classe: classeDe(erreur) }, "echec");

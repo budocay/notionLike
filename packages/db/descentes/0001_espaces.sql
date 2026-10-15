@@ -1,7 +1,8 @@
 -- Descente de migrations/0001_espaces.sql (F-011-AC30) : ramène la base à l'état laissé par F-009.
 -- DESTRUCTIVE : tous les espaces, adhésions et invitations sont perdus ; les comptes et sessions
 -- restent. Sauvegarder d'abord (pg_dump --schema=public --schema=drizzle), puis lancer dans une
--- seule transaction :
+-- seule transaction, après descentes/0002_documents.sql si la base porte la table des documents
+-- (F-012), dont la clé étrangère empêcherait la suppression de la table des espaces :
 --   psql --single-transaction --set ON_ERROR_STOP=1 --file packages/db/descentes/0001_espaces.sql
 -- La dernière instruction retire la ligne de suivi : la commande de migration réapplique ensuite
 -- 0001_espaces. Son horodatage est le champ `when` de l'entrée dans migrations/meta/_journal.json.

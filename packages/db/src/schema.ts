@@ -5,11 +5,13 @@
 // Les migrations sont produites depuis ce fichier, relues puis passées par Prettier (H19) :
 //   pnpm --filter @notionlike/db exec drizzle-kit generate --dialect postgresql \
 //     --schema src/schema.ts --out migrations --name <nom>
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -163,6 +165,51 @@ export const invitation = pgTable(
     check(
       "invitation_un_seul_denouement",
       sql`${table.accepteeLe} is null or ${table.revoqueeLe} is null`,
+    ),
+  ],
+);
+
+// Documents synchronisés par le serveur (F-012-AC28, H3) : un instantané Yjs par document, encodé
+// au format V1, remplacé à chaque enregistrement. Les types sont contraints en base aux valeurs de
+// F-012 H2 ; la liste publiée par `packages/contrats` doit rester la même (couture tenue côté
+// serveur, ce paquet n'important pas les contrats).
+export const TYPES_DE_DOCUMENT = ["espace", "page", "table"] as const;
+
+// Drizzle 0.45.3 n'a pas de colonne binaire (`MEMORY/VEILLE.md`, « PGlite et Drizzle — colonnes
+// binaires ») : le type est déclaré ici, sans conversion. PGlite rend un `Uint8Array`, le pilote
+// `pg` un `Buffer`, qui en est une sous-classe ; les deux acceptent un `Uint8Array` à l'écriture.
+const octets = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+  dataType: () => "bytea",
+});
+
+// La clé primaire (espace, type, identifiant) sert d'index à la clé étrangère vers l'espace, qui en
+// est la première colonne, et au décompte des documents d'un espace (F-012-AC24). Le document d'un
+// espace porte l'identifiant de son espace : un seul par espace. Supprimer l'espace emporte ses
+// documents (F-012-AC31). La taille est calculée par la base, elle ne peut pas diverger de
+// l'instantané ; la date est fournie par l'appelant, dont l'horloge est injectable.
+export const document = pgTable(
+  "document",
+  {
+    idEspace: idDeLEspace(),
+    type: text({ enum: TYPES_DE_DOCUMENT }).notNull(),
+    idDocument: uuid().notNull(),
+    instantane: octets().notNull(),
+    taille: integer()
+      .notNull()
+      .generatedAlwaysAs((): SQL => sql`octet_length(${document.instantane})`),
+    enregistreLe: instant().notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "document_pkey",
+      columns: [table.idEspace, table.type, table.idDocument],
+    }),
+    // Écrites en toutes lettres ; `documents-migration.test.ts` constate qu'elles sont celles de
+    // `TYPES_DE_DOCUMENT`.
+    check("document_type_valide", sql`${table.type} in ('espace', 'page', 'table')`),
+    check(
+      "document_espace_de_son_espace",
+      sql`${table.type} <> 'espace' or ${table.idDocument} = ${table.idEspace}`,
     ),
   ],
 );

@@ -21,6 +21,10 @@ import {
 import { ouvrirBaseEmbarquee, ouvrirBaseEmbarqueeMigree, type BaseEmbarquee } from "./essai.ts";
 
 const ETAT_F_009 = fileURLToPath(new URL("./migrations-essai/etat-f-009", import.meta.url));
+// Le dossier réel tel que F-011 l'a livré : depuis F-012, la table des documents référence
+// l'espace, et la descente des espaces suit la sienne (`descentes/0002_documents.sql`), éprouvée
+// par `documents-migration.test.ts`.
+const ETAT_F_011 = fileURLToPath(new URL("./migrations-essai/etat-f-011", import.meta.url));
 const DESCENTE = fileURLToPath(new URL("../descentes/0001_espaces.sql", import.meta.url));
 const PHRASE_D_ECHEC = "La migration a échoué : aucune migration de ce lancement n'est appliquée.";
 const TABLES_DES_COMPTES = ["account", "session", "user", "verification"];
@@ -55,8 +59,16 @@ async function valeurs(db: Db, requete: ReturnType<typeof sql>): Promise<unknown
   );
 }
 
+// Depuis F-012, la migration des documents suit celle des espaces : les constats de ce fichier ne
+// portent que sur les tables des comptes et des espaces, ceux des documents sont dans
+// `documents-migration.test.ts`.
 const tablesPubliques = (db: Db) =>
-  valeurs(db, sql`select tablename from pg_tables where schemaname = 'public' order by tablename`);
+  valeurs(
+    db,
+    sql`select tablename from pg_tables where schemaname = 'public'
+        and tablename in ('account', 'session', 'user', 'verification', 'adhesion', 'espace', 'invitation')
+        order by tablename`,
+  );
 
 const suivi = (db: Db) =>
   valeurs(db, sql`select created_at::text from drizzle.__drizzle_migrations order by id`);
@@ -251,7 +263,8 @@ describe("migration des espaces", () => {
     async () => {
       const { embarquee, idCompte } = await baseDeF009();
       const { db } = embarquee.base;
-      expect(await lancer(embarquee, DOSSIER_MIGRATIONS)).toEqual({ code: 0, lignes: [] });
+      expect(await lancer(embarquee, ETAT_F_011)).toEqual({ code: 0, lignes: [] });
+      expect(await suivi(db)).toEqual(SUIVI_APRES_MONTEE.slice(0, 2));
       await peupler(db, idCompte);
       const instructions = readFileSync(DESCENTE, "utf8")
         .split("--> statement-breakpoint")

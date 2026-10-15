@@ -81,3 +81,22 @@ export { CODES_ERREUR, schemaEnveloppeErreur } from "./erreurs.ts";
 export type { CodeErreur, EnveloppeErreur } from "./erreurs.ts";
 export { CHEMINS, schemaReponsePret, schemaReponseSante } from "./sante.ts";
 export type { ReponsePret, ReponseSante } from "./sante.ts";
+export {
+  CANAUX_DES_MOTIFS,
+  CHEMIN_SYNCHRO,
+  CODE_DE_FERMETURE_A_L_ARRET,
+  LIMITES_SYNCHRO,
+  LONGUEUR_MAX_DU_NOM_DE_DOCUMENT,
+  MOTIFS_SYNCHRO,
+  nomDeDocument,
+  schemaNomDeDocument,
+  TYPES_DE_DOCUMENT,
+  VERSION_DU_DOCUMENT_D_ESPACE,
+} from "./synchro.ts";
+export type {
+  CanalDUnMotif,
+  DocumentNomme,
+  LimitesSynchro,
+  MotifSynchro,
+  TypeDeDocument,
+} from "./synchro.ts";

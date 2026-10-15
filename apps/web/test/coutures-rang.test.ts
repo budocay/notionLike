@@ -127,6 +127,9 @@ const ECRIVAINS_DE_PLACE: Readonly<Record<string, string>> = {
 };
 const LECTEURS_DES_TYPES_RACINES: Readonly<Record<string, string>> = {
   [FORMAT]: "packages/document/test/borne-lecture.test.ts",
+  // F-012 : lecture de la clé de version et publication des versions admises (F-012-AC29).
+  "apps/server/src/synchro-stockage.ts": "apps/server/test/synchro-document.test.ts",
+  "packages/contrats/src/synchro.ts": "apps/server/test/synchro-document.test.ts",
 };
 const DISTINGUENT_UN_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/espace/garde-version.ts": CE_FICHIER,

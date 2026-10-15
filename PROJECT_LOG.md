@@ -203,3 +203,15 @@
 - Tests: 2841 tests sur 133 fichiers — état: verts — preuve: checks.txt (empreinte `80038b4432aa`)
 - Gates: sur `6bf420991187` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (4 points, corrigés dans `57dfaeb`) ; sur `80038b4432aa` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-022
 - Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 3, 1 écarté (360 px préexistant) · coût non mesuré
+
+## [2026-10-14] F-012 Synchronisation serveur des documents (Hocuspocus, instantanés Yjs, autorisation par espace)
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/contrats` (`synchro.ts`), `packages/db` (table `document`, migration `0002_documents`), `apps/server` (point de synchronisation, relais, autorisation, stockage, arrêt, fabrique d'essai), `apps/web/test` (coutures) — agents: agent-bdd, agent-backend, agent-frontend, orchestrateur ; dépendances et règles par le dev (`022f044`, poussé directement sur `main` avec `6c9e8f3`) — commits: 03dfa36..6f583fa
+- Détail: premier flux WebSocket du projet ; les membres échangent leurs mises à jour par le serveur, qui les stocke en instantanés sans jamais écrire de contenu ; autorisation à chaque ouverture et réévaluée en continu ; limites de taille, de nombre, de délai ; motifs publiés au contrat ; arrêt en 1001. Mode économe. Décisions prises au code (ramasse-miettes côté serveur, document de page supprimée gardé jusqu'à l'espace, réécriture d'un identifiant supprimé non empêchée) à reporter dans l'ADR-0001.
+- Dette: introduite D-023 (revues bdd, backend, api, frontend non rejouées après le tour de correctifs, sécurité UNVERIFIED faute de sorties brutes et de `trivy image`, gate d'architecture non lancé : acceptés par dérogation du dev ; constats moyens de la sécurité : pas de limite de débit sur le passage en WebSocket, copie du document d'espace à chaque mise à jour, présence usurpable jusqu'à F-015, 500 connexions pour tout le serveur) ; D-018 précisée (avis modéré : esbuild de développement par drizzle-kit) ; laissées D-002, D-003, D-007, D-011, D-014, D-017
+- ADR: ADR-0001 à amender (décisions de F-012)
+- Tests: 3016 tests sur 150 fichiers — état: verts — preuve: checks.txt (empreinte `6cdcfb8e70d9`)
+- Gates: sur `4bafb3db120d` : CRAFT PASS · reviewer-frontend APPROVED · SECURITY FAIL (3 élevés) · reviewer-bdd, reviewer-backend, reviewer-api CHANGES_REQUESTED, corrigés dans `777dd00` ; sur `238ab634cad3` : SECURITY UNVERIFIED (test des messages de type 4, ajouté dans `6f583fa`, passé sans correctif) ; sur `6cdcfb8e70d9` : CRAFT PASS · SECURITY UNVERIFIED (aucun constat élevé ; sorties brutes et `trivy image` manquantes) · revues, sécurité et architecture par DEROGATION D-023
+- Mesures: boucles 1 passage, 1 tour de correctifs, 2 passages du seul gate sécurité · constats confirmés 3 élevés et 4 autres · faux positifs 0 · coût non mesuré
