@@ -168,6 +168,11 @@ describe("reprise", () => {
       expect(plusPetit).toBeGreaterThanOrEqual(Math.max(INTERVALLE_MINIMAL_MS, sansAlea * 0.8));
       expect(plusPetit).toBeLessThanOrEqual(sansAlea);
     }
+    // L'aléa retranche jusqu'à 20 % : la moitié de l'aléa, 10 %, sauf sous le plancher d'une seconde.
+    expect([0, 1, 3, 5].map((echecs) => attenteApres(echecs, 0.5))).toEqual([
+      1000, 1800, 7200, 27_000,
+    ]);
+    expect(attenteApres(5, 1)).toBe(24_000);
     expect(PREMIERE_ATTENTE_MS).toBe(1000);
     expect(ATTENTE_PLAFOND_MS).toBe(30_000);
   });

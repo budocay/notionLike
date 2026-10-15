@@ -1,9 +1,14 @@
 // Aides des tests de l'éditeur dans l'application : une page créée et ouverte par l'interface, son
 // document relu depuis l'appareil simulé.
 import { act, screen } from "@testing-library/react";
+import { expect } from "vitest";
 import * as Y from "yjs";
 
-import { ouvrirPersistance } from "../src/persistance/index.ts";
+import {
+  type EntreeDuRegistre,
+  inscrireAuRegistre,
+  ouvrirPersistance,
+} from "../src/persistance/index.ts";
 import {
   boutonNouvellePage,
   type CoquilleRendue,
@@ -62,4 +67,12 @@ export async function contenuEnregistre(idEspace: string, idPage: string): Promi
   const contenu = contenuLu(doc);
   persistance.fermer();
   return contenu;
+}
+
+/** Le registre de l'appareil porte ce rattachement, posé par le test comme F-013 H4 le prévoit. */
+export async function poserLeRattachement(
+  idEspace: string,
+  entree: EntreeDuRegistre,
+): Promise<void> {
+  expect(await inscrireAuRegistre(idEspace, entree)).toBe(true);
 }

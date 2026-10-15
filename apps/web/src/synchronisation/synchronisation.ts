@@ -260,11 +260,17 @@ class Orchestre {
     const sorte = (donnee as Partial<MessageDuRegistre> | null)?.sorte;
     if (sorte === "adoption") {
       this.#lireLeRegistre();
-    } else if (sorte === "effacement" || sorte === "efface") {
-      if (sorte === "effacement") {
-        this.fermer();
-      }
-      this.#options.surEffacement?.(sorte === "effacement" ? "demande" : "faite");
+    } else if (sorte === "effacement") {
+      // Le canal survit à la fermeture : l'onglet doit encore apprendre que l'effacement est fait.
+      const canal = this.#canalDuRegistre;
+      this.#canalDuRegistre = undefined;
+      this.fermer();
+      this.#canalDuRegistre = canal;
+      this.#options.surEffacement?.("demande");
+    } else if (sorte === "efface") {
+      this.#canalDuRegistre?.close();
+      this.#canalDuRegistre = undefined;
+      this.#options.surEffacement?.("faite");
     }
   }
 
@@ -776,6 +782,9 @@ class Orchestre {
 
   readonly fermer = (): void => {
     if (this.#fermee) {
+      // Fermée sur la demande d'un autre onglet, elle n'écoutait plus que la fin de l'effacement.
+      this.#canalDuRegistre?.close();
+      this.#canalDuRegistre = undefined;
       return;
     }
     this.#fermee = true;

@@ -24,6 +24,7 @@ import { serveurDesEspaces } from "../../src/interface/branchement-synchronisati
 import {
   type EntreeDuRegistre,
   inscrireAuRegistre,
+  lireLeRegistre,
   ouvrirEspaceLocal,
   ouvrirPersistance,
   type Persistance,
@@ -353,6 +354,7 @@ export interface OptionsDOnglet {
   readonly horloge?: HorlogeDEssai;
   readonly alea?: () => number;
   readonly surPagesSupprimees?: (idPages: readonly string[]) => void;
+  readonly surEffacement?: (etape: "demande" | "faite") => void;
   /** Vrai : l'espace n'est pas l'espace local de l'appareil, sa base est ouverte par son nom. */
   readonly autreEspace?: boolean;
   /** L'origine que la WebSocket annonce ; par défaut, l'URL publique du serveur. */
@@ -445,6 +447,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
       },
       serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
       surPagesSupprimees: options.surPagesSupprimees,
+      surEffacement: options.surEffacement,
     }),
   );
   const synchro = surLAppareil(appareil, brute);
@@ -690,4 +693,58 @@ export async function lireDansLaBase(
   persistance.fermer();
   doc.destroy();
   return texte;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ce que l'appareil retient : registre, espace local, et tout le contenu de ses bases.
+
+/** L'entrée du registre de cet espace, lue par l'interface de la persistance. */
+export async function entreeDuRegistre(
+  appareil: Appareil,
+  idEspace: string,
+): Promise<EntreeDuRegistre | undefined> {
+  const lu = await appareil.sur(() => lireLeRegistre(idEspace));
+  expect(lu.issue).toBe("lu");
+  return lu.issue === "lu" ? lu.entree : undefined;
+}
+
+/** L'espace que l'appareil ouvre au lancement suivant : celui qu'il retenait, ou un neuf. */
+export async function espaceDuLancementSuivant(appareil: Appareil): Promise<string | undefined> {
+  const persistance = appareil.sur(() => ouvrirEspaceLocal(new Y.Doc(), crypto.randomUUID()));
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "base de l'appareil");
+  const idEspace = persistance.idEspace();
+  persistance.fermer();
+  return idEspace;
+}
+
+function demander<T>(demande: IDBRequest<T>): Promise<T> {
+  return new Promise((resoudre, rejeter) => {
+    demande.onsuccess = () => resoudre(demande.result);
+    demande.onerror = () => rejeter(demande.error ?? new Error("demande en échec"));
+  });
+}
+
+/** Nom, clés et valeurs de chaque magasin de chaque base de l'appareil, octets décodés en texte. */
+export async function contenuDeLAppareil(appareil: Appareil): Promise<string> {
+  const decodeur = new TextDecoder();
+  const enTexte = (valeur: unknown): string =>
+    valeur instanceof Uint8Array
+      ? decodeur.decode(valeur)
+      : JSON.stringify(valeur, (_, interne: unknown) =>
+          interne instanceof Uint8Array ? decodeur.decode(interne) : interne,
+        );
+  const textes: string[] = [];
+  for (const { name = "" } of await appareil.idb.databases()) {
+    const connexion = await demander(appareil.idb.open(name));
+    for (const magasin of connexion.objectStoreNames) {
+      const lecture = connexion.transaction(magasin).objectStore(magasin);
+      const [cles, valeurs] = await Promise.all([
+        demander(lecture.getAllKeys()),
+        demander(lecture.getAll()),
+      ]);
+      textes.push(name, magasin, ...cles.map(enTexte), ...valeurs.map(enTexte));
+    }
+    connexion.close();
+  }
+  return textes.join("\n");
 }
