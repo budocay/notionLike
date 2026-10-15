@@ -14,3 +14,4 @@
 - F-027 Gestion du compte : mot de passe, nom, sessions — 2026-10-14 — features/F-027.md
 - F-007 Corbeille : écran, restauration, suppression définitive — 2026-10-14 — features/F-007.md
 - F-012 Synchronisation serveur des documents (Hocuspocus, instantanés Yjs, autorisation par espace) — 2026-10-14 — features/F-012.md
+- F-013 Synchronisation côté client (connexion, reprise après hors ligne, état visible) — 2026-10-15 — features/F-013.md
