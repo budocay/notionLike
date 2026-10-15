@@ -437,7 +437,12 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
           return undefined;
         }
       },
-      compte,
+      // Ce que le test pose sur le compte parvient à la synchronisation sur son appareil.
+      compte: {
+        lire: compte.lire,
+        abonner: (rappel) => compte.abonner(() => appareil.sur(rappel)),
+        reverifier: compte.reverifier,
+      },
       serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
       surPagesSupprimees: options.surPagesSupprimees,
     }),
@@ -451,7 +456,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
     reseau,
     compte,
     horloge,
-    signaler: (signal) => ecouteurs.forEach((rappel) => rappel(signal)),
+    signaler: (signal) => appareil.sur(() => ecouteurs.forEach((rappel) => rappel(signal))),
     appareil,
   };
   ouverts.add(onglet);
@@ -646,4 +651,43 @@ export async function espacePartage(
   });
   await attendreLEtat(ailleurs, "synchronise", 12_000);
   return { idEspace, proprietaire, membre, chez, ailleurs };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bases de page d'un appareil, écrites et lues sans synchronisation.
+
+/** Écrit un paragraphe dans la base d'une page de l'appareil, comme l'éditeur l'aurait fait. */
+export async function ecrireDansLaBase(
+  appareil: Appareil,
+  idEspace: string,
+  idPage: string,
+  texte: string,
+): Promise<void> {
+  const doc = new Y.Doc();
+  const persistance = appareil.sur(() =>
+    ouvrirPersistance(doc, { type: "page", idEspace, idPage }),
+  );
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "base de page");
+  appareil.sur(() => ecrireDansLaPage(doc, texte));
+  await attendreQue(() => !persistance.aDesModificationsNonEnregistrees(), 12_000);
+  await pause(50);
+  persistance.fermer();
+  doc.destroy();
+}
+
+/** Le texte de la page tel que sa base sur l'appareil le porte, relu dans un document vierge. */
+export async function lireDansLaBase(
+  appareil: Appareil,
+  idEspace: string,
+  idPage: string,
+): Promise<string> {
+  const doc = new Y.Doc();
+  const persistance = appareil.sur(() =>
+    ouvrirPersistance(doc, { type: "page", idEspace, idPage }),
+  );
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "relecture de page");
+  const texte = texteDeLaPage(doc);
+  persistance.fermer();
+  doc.destroy();
+  return texte;
 }

@@ -80,6 +80,11 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/reprise-tentatives.test.ts",
   "test/reprise-version.test.tsx",
   "test/structure.test.ts",
+  // F-013 : registre de l'appareil, bases de page écrites et relues contre le serveur réel.
+  "test/synchronisation/adoption.test.ts",
+  "test/synchronisation/convergence.test.ts",
+  "test/synchronisation/motifs.test.ts",
+  "test/synchronisation/passe.test.ts",
 ];
 
 // Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,

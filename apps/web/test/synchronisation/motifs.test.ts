@@ -183,9 +183,13 @@ describe("droits modifiés", () => {
     const etat = ailleurs.synchro.lireEtat();
     expect(etat).toMatchObject({ affiche: "erreur", droit: "lecture" });
     expect(etat.divergentes).toContain(undefined);
+    // Rien de ce qui a été fait hors ligne n'est plus proposé au serveur.
     const emis = ailleurs.reseau.emis.length;
     await pause(2000);
-    expect(ailleurs.reseau.emis.length).toBe(emis);
+    const proposes = ailleurs.reseau.emis
+      .slice(emis)
+      .filter((octets) => new TextDecoder().decode(octets).includes("Faite hors ligne"));
+    expect(proposes).toEqual([]);
     expect(ailleurs.synchro.lireEtat().affiche).not.toBe("synchronise");
     expect(Date.now() - reconnexion).toBeGreaterThan(0);
   });
