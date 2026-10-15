@@ -361,7 +361,15 @@ class Orchestre {
     this.#evaluer();
   }
 
-  #surSignal(_signal: Signal): void {
+  #surSignal(signal: Signal): void {
+    // Le réseau est perdu : la connexion est tenue pour perdue sans attendre que la WebSocket le
+    // dise, et la reprise suit ses délais (F-013-AC20, AC31).
+    if (signal === "hors-ligne") {
+      if (this.#connexion.etat() !== "absente") {
+        this.#connexion.couper();
+      }
+      return;
+    }
     if (this.#estActif() && this.#connexion.etat() === "absente") {
       this.#reprise.aussitot(() => this.#tenter());
     }

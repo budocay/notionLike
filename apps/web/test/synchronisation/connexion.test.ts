@@ -361,6 +361,27 @@ describe("compte inconnu", () => {
   });
 });
 
+describe("perte du réseau signalée par l'onglet", () => {
+  it("F-013-AC31 F-013-AC20 le réseau perdu, la connexion est tenue pour perdue sans attendre la WebSocket : « Synchronisé » est quitté ; le retour du réseau fait reconnecter", async () => {
+    const membre = await serveur.inscrire();
+    const onglet = await ouvrirUnOnglet({
+      serveur,
+      cookie: membre.cookie,
+      idEspace: crypto.randomUUID(),
+    });
+    await adopterEtAttendre(onglet);
+    const etats = suivreLesEtats(onglet);
+    const ouvertes = onglet.reseau.ouvertes();
+
+    onglet.signaler("hors-ligne");
+    await attendreQue(() => etats.some((etat) => etat !== "synchronise"), 2000);
+    expect(onglet.synchro.lireEtat().affiche).not.toBe("synchronise");
+    onglet.signaler("reseau");
+    await attendreLEtat(onglet, "synchronise");
+    expect(onglet.reseau.ouvertes()).toBeGreaterThan(ouvertes);
+  });
+});
+
 describe("fermeture puis réouverture du même document", () => {
   it("F-013-AC17 F-013-AC45 une page refermée puis aussitôt rouverte : la nouvelle demande d'ouverture attend que le serveur ait clos la précédente (son écho), puis l'ouverture est acquise", async () => {
     const membre = await serveur.inscrire();

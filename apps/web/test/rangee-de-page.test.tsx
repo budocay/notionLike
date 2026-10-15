@@ -111,6 +111,33 @@ describe("rangée : titre et actions", () => {
     expect(barre().querySelector('[data-infobulle="titre"]')).toBeNull();
   });
 
+  it("F-004-AC24 F-013-AC40 l'infobulle montrée au focus reste quand le focus passe à un bouton de la même rangée, et part quand il quitte la rangée : rien ne bouge sous le pointeur entre l'appui et le relâchement", async () => {
+    const { session } = await ouvrirCoquille();
+    recevoir(session, (espace) => {
+      espace.creerPage(TITRE_DE_200);
+      espace.creerPage("Court");
+    });
+    const long = lien(TITRE_DE_200);
+    couper(long, true);
+    const infobulle = (): Element | null =>
+      rangeeDe(TITRE_DE_200).querySelector('[data-infobulle="titre"]');
+
+    act(() => long.focus());
+    expect(infobulle()?.textContent).toBe(TITRE_DE_200);
+    act(() =>
+      within(rangeeDe(TITRE_DE_200))
+        .getByRole("button", { name: nomAjouterSousPage(TITRE_DE_200) })
+        .focus(),
+    );
+    expect(infobulle()?.textContent).toBe(TITRE_DE_200);
+    act(() => lien("Court").focus());
+    expect(infobulle()).toBeNull();
+
+    act(() => long.focus());
+    act(() => long.blur());
+    expect(infobulle()).toBeNull();
+  });
+
   it("F-004-AC25 au repos, une rangée ne porte que le repli, la sélection et deux boutons sans libellé, dans l'ordre de tabulation", async () => {
     const { utilisateur } = await ouvrirTroisNiveaux();
 

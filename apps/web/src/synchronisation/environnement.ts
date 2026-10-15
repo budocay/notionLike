@@ -12,8 +12,11 @@ export interface Horloge {
 /** Un constructeur de WebSocket : celui du navigateur, ou, en test, un client qui joint le cookie. */
 export type ConstructeurDeWebSocket = new (adresse: string) => WebSocket;
 
-/** Ce que l'onglet signale : le retour du réseau, ou son retour au premier plan (F-013-AC20). */
-export type Signal = "reseau" | "visible";
+/**
+ * Ce que l'onglet signale : le retour du réseau, ou son retour au premier plan (F-013-AC20) ; la
+ * perte du réseau (F-013-AC31), qu'une WebSocket encore ouverte ne dit pas toujours aussitôt.
+ */
+export type Signal = "reseau" | "visible" | "hors-ligne";
 
 /** Le canal entre onglets d'un document (H9), tel que `BroadcastChannel` le donne. */
 export interface CanalEntreOnglets {

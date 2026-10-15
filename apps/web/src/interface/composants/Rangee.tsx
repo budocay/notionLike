@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type FocusEvent,
   type KeyboardEvent,
   type ReactElement,
   type ReactNode,
@@ -118,6 +119,31 @@ type ProprietesLien = Pick<
   "titre" | "adresse" | "courante" | "description" | "refLien" | "surDoubleClic"
 >;
 
+const SANS_FOCUS = (avant: typeof AU_REPOS): typeof AU_REPOS => ({ ...avant, focus: false });
+
+/**
+ * L'infobulle montrée au focus reste tant que le focus ne quitte pas la rangée. Placée sous le lien,
+ * elle agrandit la zone défilante de la barre : retirée au moment où le pointeur presse un bouton
+ * de la même rangée, elle ferait remonter la liste entre l'appui et le relâchement, et le clic
+ * tomberait à côté (mesuré dans Chromium au bas d'une liste qui défile).
+ */
+function garderJusquALaSortie(evenement: FocusEvent<HTMLElement>, retirer: () => void): void {
+  const rangee = evenement.currentTarget.closest("li");
+  const vers = evenement.relatedTarget;
+  if (rangee === null || !(vers instanceof Node) || !rangee.contains(vers)) {
+    retirer();
+    return;
+  }
+  const quitter = (sortie: globalThis.FocusEvent): void => {
+    const suivant = sortie.relatedTarget;
+    if (!(suivant instanceof Node) || !rangee.contains(suivant)) {
+      rangee.removeEventListener("focusout", quitter);
+      retirer();
+    }
+  };
+  rangee.addEventListener("focusout", quitter);
+}
+
 // Le titre tient sur une ligne. Coupé, il s'affiche en entier dans une infobulle au survol et au
 // focus ; elle reste hors de l'arbre d'accessibilité, le nom du lien étant déjà le titre complet.
 function LienDeRangee(props: ProprietesLien): ReactElement {
@@ -138,7 +164,7 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
         onMouseEnter={(evenement) => mesurer(evenement.currentTarget, "survol")}
         onMouseLeave={() => setCoupe((avant) => ({ ...avant, survol: false }))}
         onFocus={(evenement) => mesurer(evenement.currentTarget, "focus")}
-        onBlur={() => setCoupe((avant) => ({ ...avant, focus: false }))}
+        onBlur={(evenement) => garderJusquALaSortie(evenement, () => setCoupe(SANS_FOCUS))}
         onDoubleClick={props.surDoubleClic}
       >
         {titre}

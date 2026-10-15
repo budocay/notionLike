@@ -3,7 +3,7 @@
 import { CHEMIN_SYNCHRO, CHEMINS_ESPACES } from "@notionlike/contrats";
 import { expect, type Page, test } from "@playwright/test";
 
-import { creerPageNommee, lienDePage, ouvrir } from "./aides.ts";
+import { creerPageNommee, envoyerSousLePlafond, lienDePage, ouvrir } from "./aides.ts";
 
 const MOI = "/api/v1/moi";
 const MOT_DE_PASSE = "un mot de passe assez long";
@@ -17,19 +17,23 @@ async function serveurPresent(page: Page): Promise<boolean> {
 async function inscrire(page: Page, courriel: string): Promise<void> {
   const compte = page.getByRole("region", { name: "Compte" });
   await compte.getByRole("link", { name: "Créer un compte" }).click();
-  await page.getByLabel("Nom", { exact: false }).fill("Synchro Bout en bout");
-  await page.getByLabel("Courriel", { exact: false }).fill(courriel);
-  await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
-  await page.getByRole("button", { name: "Créer le compte" }).click();
+  await envoyerSousLePlafond(page, "inscription", async () => {
+    await page.getByLabel("Nom", { exact: false }).fill("Synchro Bout en bout");
+    await page.getByLabel("Courriel", { exact: false }).fill(courriel);
+    await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+  });
   await expect(compte.getByRole("status")).toContainText("Connecté");
 }
 
 async function connecter(page: Page, courriel: string): Promise<void> {
   const compte = page.getByRole("region", { name: "Compte" });
   await compte.getByRole("link", { name: "Se connecter" }).click();
-  await page.getByLabel("Courriel", { exact: false }).fill(courriel);
-  await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
-  await page.getByRole("button", { name: "Se connecter" }).click();
+  await envoyerSousLePlafond(page, "connexion", async () => {
+    await page.getByLabel("Courriel", { exact: false }).fill(courriel);
+    await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
+    await page.getByRole("button", { name: "Se connecter" }).click();
+  });
   await expect(compte.getByRole("status")).toContainText("Connecté");
 }
 

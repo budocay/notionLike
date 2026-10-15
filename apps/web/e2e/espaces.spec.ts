@@ -3,7 +3,7 @@
 // de l'entrée d'historique qui retire le jeton de l'adresse (H4). Ignoré quand le serveur est absent.
 import { type Browser, expect, type Page, test } from "@playwright/test";
 
-import { ouvrir, titrePrincipal } from "./aides.ts";
+import { envoyerSousLePlafond, ouvrir, titrePrincipal } from "./aides.ts";
 
 const MOI = "/api/v1/moi";
 const MOT_DE_PASSE = "un mot de passe assez long";
@@ -18,8 +18,10 @@ async function inscrire(page: Page, nom: string, courriel: string): Promise<void
     .getByRole("region", { name: "Compte" })
     .getByRole("link", { name: "Créer un compte" })
     .click();
-  await remplir(page, nom, courriel);
-  await page.getByRole("button", { name: "Créer le compte" }).click();
+  await envoyerSousLePlafond(page, "inscription", async () => {
+    await remplir(page, nom, courriel);
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+  });
   await expect(page.getByRole("region", { name: "Compte" }).getByRole("status")).toHaveText(
     `Connecté : ${nom}`,
   );
@@ -80,8 +82,10 @@ test("F-014-AC40 deux comptes : créer, inviter en lecteur, rejoindre, passer é
 
   // Il crée son compte par le détour, revient à l'invitation et rejoint l'espace.
   await bob.getByRole("button", { name: "Créer un compte" }).click();
-  await remplir(bob, "Bob Bout en bout", courrielDeBob);
-  await bob.getByRole("button", { name: "Créer le compte" }).click();
+  await envoyerSousLePlafond(bob, "inscription", async () => {
+    await remplir(bob, "Bob Bout en bout", courrielDeBob);
+    await bob.getByRole("button", { name: "Créer le compte" }).click();
+  });
   await expect(bob).toHaveURL(/#\/invitation$/);
   await bob.getByRole("button", { name: "Rejoindre l'espace" }).click();
   await expect(

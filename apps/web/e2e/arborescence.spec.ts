@@ -92,8 +92,13 @@ test("F-002-AC4 deux onglets ouverts ensemble au premier lancement : chacun cré
 
   await creerPageNommee(premier, "Du premier onglet");
   await creerPageNommee(second, "Du second onglet");
-  expect(await titres(premier)).toEqual(["Du premier onglet"]);
-  expect(await titres(second)).toEqual(["Du second onglet"]);
+  // Depuis F-013-AC36, chaque onglet reçoit aussi la page de l'autre sans rechargement, espace
+  // local compris ; F-002-AC4 exige les deux pages, dans le même ordre, après rechargement.
+  for (const onglet of [premier, second]) {
+    await expect
+      .poll(async () => (await titres(onglet)).sort())
+      .toEqual(["Du premier onglet", "Du second onglet"]);
+  }
   await ecrituresAbouties(premier);
   await ecrituresAbouties(second);
   await Promise.all([recharger(premier), recharger(second)]);

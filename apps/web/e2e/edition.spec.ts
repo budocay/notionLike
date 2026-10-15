@@ -77,10 +77,10 @@ test("F-003-AC28 par des frappes réelles : titre par « # », paragraphe, liste
   await expect.poll(() => structure(zone)).toEqual(ATTENDU);
 
   // La dernière frappe est annulée, puis rétablie : le contenu revient exactement.
-  await page.keyboard.press("Control+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect.poll(() => structure(zone)).not.toEqual(ATTENDU);
   await expect(zone).not.toContainText("Second élément");
-  await page.keyboard.press("Control+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect.poll(() => structure(zone)).toEqual(ATTENDU);
 
   await relireApresRechargement(page);

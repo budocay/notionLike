@@ -25,15 +25,18 @@ function tirer(): number {
 
 function ecouter(rappel: (signal: Signal) => void): () => void {
   const surReseau = (): void => rappel("reseau");
+  const surPerte = (): void => rappel("hors-ligne");
   const surVisibilite = (): void => {
     if (document.visibilityState === "visible") {
       rappel("visible");
     }
   };
   window.addEventListener("online", surReseau);
+  window.addEventListener("offline", surPerte);
   document.addEventListener("visibilitychange", surVisibilite);
   return () => {
     window.removeEventListener("online", surReseau);
+    window.removeEventListener("offline", surPerte);
     document.removeEventListener("visibilitychange", surVisibilite);
   };
 }

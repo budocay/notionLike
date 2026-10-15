@@ -4,7 +4,7 @@
 // l'espace local reste entier (F-010-AC26).
 import { expect, type Page, test } from "@playwright/test";
 
-import { boutonNouvellePage, ouvrir } from "./aides.ts";
+import { boutonNouvellePage, envoyerSousLePlafond, ouvrir } from "./aides.ts";
 
 const MOI = "/api/v1/moi";
 const MOT_DE_PASSE = "un mot de passe assez long";
@@ -44,10 +44,12 @@ test("F-010-AC7 F-010-AC8 F-010-AC12 F-010-AC14 F-010-AC19 contre le serveur ré
   const zone = zoneDeCompte(page);
 
   await zone.getByRole("link", { name: "Créer un compte" }).click();
-  await page.getByLabel("Nom", { exact: false }).fill("Essai Bout en bout");
-  await page.getByLabel("Courriel", { exact: false }).fill(courriel);
-  await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
-  await page.getByRole("button", { name: "Créer le compte" }).click();
+  await envoyerSousLePlafond(page, "inscription", async () => {
+    await page.getByLabel("Nom", { exact: false }).fill("Essai Bout en bout");
+    await page.getByLabel("Courriel", { exact: false }).fill(courriel);
+    await page.getByLabel("Mot de passe", { exact: false }).fill(MOT_DE_PASSE);
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+  });
   await expect(zone.getByRole("status")).toHaveText("Connecté : Essai Bout en bout");
   const cookies = await context.cookies();
   expect(cookies.length).toBeGreaterThan(0);
