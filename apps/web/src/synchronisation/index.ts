@@ -18,6 +18,7 @@ export {
   type StatutDuCompte,
 } from "./etat.ts";
 export type { IssueDEffacement as IssueDeLEffacement } from "./stockage.ts";
+export { versionAdmise } from "./miroir.ts";
 export { idsDesPages } from "./pages-de-l-espace.ts";
 export { environnementDuNavigateur } from "./reseau.ts";
 export {

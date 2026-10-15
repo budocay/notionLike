@@ -14,6 +14,11 @@ export function ecrireLaVersion(doc: Y.Doc, version: number): void {
   doc.getMap(NOMS_DU_FORMAT.meta).set(NOMS_DU_FORMAT.version, version);
 }
 
+/** La version inscrite dans le document, lue sans la façade (F-013-AC47). */
+export function lireLaVersion(doc: Y.Doc): unknown {
+  return doc.getMap(NOMS_DU_FORMAT.meta).get(NOMS_DU_FORMAT.version);
+}
+
 /** Une entrée de page sans aucun champ, sous une clé qui n'est pas un identifiant de page. */
 export function ecrireUneEntreeDePage(doc: Y.Doc, cle: string): void {
   doc.getMap(NOMS_DU_FORMAT.pages).set(cle, new Y.Map());

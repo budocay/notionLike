@@ -4,7 +4,7 @@
 // celle de l'appareil dans le contexte asynchrone duquel l'appel est fait.
 import "fake-indexeddb/auto";
 
-import { AsyncLocalStorage } from "node:async_hooks";
+import { AsyncLocalStorage, AsyncResource } from "node:async_hooks";
 
 import { CHEMINS_COMPTES } from "@notionlike/contrats";
 import type { DocumentEspace } from "@notionlike/document";
@@ -22,6 +22,8 @@ import { creerClientDesEspaces } from "../../src/compte/client-espaces.ts";
 import type { Requeter } from "../../src/compte/moi.ts";
 import { serveurDesEspaces } from "../../src/interface/branchement-synchronisation.ts";
 import {
+  type EntreeDuRegistre,
+  inscrireAuRegistre,
   ouvrirEspaceLocal,
   ouvrirPersistance,
   type Persistance,
@@ -37,7 +39,7 @@ import {
   type Synchronisation,
 } from "../../src/synchronisation/index.ts";
 import type { CanalEntreOnglets, Signal } from "../../src/synchronisation/environnement.ts";
-import { creerFacade } from "../aides-facade.ts";
+import { creerFacade, ouvrirFacade } from "../aides-facade.ts";
 import { fragmentBrut } from "../aides-facade-page.ts";
 
 // ---------------------------------------------------------------------------------------------
@@ -56,25 +58,44 @@ export function viderLAppareilParDefaut(): void {
 
 export interface Appareil {
   readonly idb: IDBFactory;
+  /** Préfixe des canaux entre onglets : un navigateur ne les partage qu'entre ses onglets. */
+  readonly navigateur: string;
   /** Exécute `action` sur cet appareil : ses appels à IndexedDB, et tout ce qui en découle. */
   sur<T>(action: () => T): T;
 }
 
 export function nouvelAppareil(): Appareil {
   const idb = new IDBFactory();
-  return { idb, sur: (action) => stockage.run(idb, action) };
+  return { idb, navigateur: crypto.randomUUID(), sur: (action) => stockage.run(idb, action) };
+}
+
+/**
+ * L'appareil a déjà ouvert cet espace comme son espace local (base de l'appareil créée), et son
+ * registre porte, s'il est donné, ce rattachement : posé par le test, comme H4 le prévoit.
+ */
+export async function preparerLAppareil(
+  appareil: Appareil,
+  idEspace: string,
+  entree?: EntreeDuRegistre,
+): Promise<void> {
+  const persistance = appareil.sur(() => ouvrirEspaceLocal(new Y.Doc(), idEspace));
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "base de l'appareil");
+  persistance.fermer();
+  if (entree !== undefined) {
+    expect(await appareil.sur(() => inscrireAuRegistre(idEspace, entree))).toBe(true);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
 // Attentes.
 
 export async function attendreQue(
-  condition: () => boolean,
+  condition: () => boolean | Promise<boolean>,
   delaiMs = 8000,
   message = "condition non atteinte",
 ): Promise<void> {
   const debut = Date.now();
-  while (!condition()) {
+  while (!(await condition())) {
     if (Date.now() - debut > delaiMs) {
       throw new Error(message);
     }
@@ -95,6 +116,10 @@ export interface MessageEmis {
 
 export interface Reseau {
   readonly WebSocket: Environnement["WebSocket"];
+  /** Adresses demandées par chaque WebSocket construite. */
+  readonly adresses: string[];
+  /** Vrai : les accusés du serveur (type 8) ne parviennent plus au fournisseur. */
+  accusesPerdus: boolean;
   readonly emis: Uint8Array[];
   readonly recus: Uint8Array[];
   /** Nombre de WebSocket ouvertes par ce réseau. */
@@ -104,23 +129,30 @@ export interface Reseau {
   estCoupe(): boolean;
 }
 
-export function reseauDEssai(serveur: ServeurDEssai, cookie: string): Reseau {
+export function reseauDEssai(
+  serveur: ServeurDEssai,
+  cookie: string,
+  origine: string = serveur.urlPublique,
+): Reseau {
   let coupe = false;
   let ouvertes = 0;
   const vivantes = new Set<WebSocket>();
   const emis: Uint8Array[] = [];
   const recus: Uint8Array[] = [];
+  const adresses: string[] = [];
+  const etat = { accusesPerdus: false };
   class PriseDEssai extends WebSocket {
     constructor(adresse: string) {
       // Réseau coupé : une adresse où rien n'écoute, la tentative échoue comme dans un navigateur.
       super(coupe ? "ws://127.0.0.1:9/" : adresse, {
-        headers: { Cookie: cookie, Origin: serveur.urlPublique },
+        headers: { Cookie: cookie, Origin: origine },
       } as unknown as string[]);
+      adresses.push(adresse);
       ouvertes += 1;
       vivantes.add(this);
       this.addEventListener("close", () => vivantes.delete(this));
       this.addEventListener("message", (evenement) => {
-        recus.push(new Uint8Array(evenement.data as ArrayBuffer));
+        recus.push(new Uint8Array((evenement as MessageEvent).data as ArrayBuffer));
       });
     }
 
@@ -128,9 +160,43 @@ export function reseauDEssai(serveur: ServeurDEssai, cookie: string): Reseau {
       emis.push(new Uint8Array(donnee as ArrayBuffer).slice());
       super.send(donnee);
     }
+
+    // Chaque écouteur est appelé dans le contexte de qui l'a posé : sur son appareil simulé.
+    override addEventListener(
+      type: string,
+      ecouteur: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ): void {
+      if (typeof ecouteur !== "function") {
+        super.addEventListener(type, ecouteur, options);
+        return;
+      }
+      const lie = AsyncResource.bind(ecouteur);
+      if (type !== "message") {
+        super.addEventListener(type, lie, options);
+        return;
+      }
+      super.addEventListener(
+        type,
+        (evenement) => {
+          const octets = new Uint8Array((evenement as MessageEvent).data as ArrayBuffer);
+          if (!(etat.accusesPerdus && lireMessage(octets).type === TYPES_DE_MESSAGE.accuse)) {
+            lie(evenement);
+          }
+        },
+        options,
+      );
+    }
   }
   return {
     WebSocket: PriseDEssai,
+    adresses,
+    get accusesPerdus() {
+      return etat.accusesPerdus;
+    },
+    set accusesPerdus(perdus: boolean) {
+      etat.accusesPerdus = perdus;
+    },
     emis,
     recus,
     ouvertes: () => ouvertes,
@@ -165,12 +231,14 @@ export function horlogeDEssai(): HorlogeDEssai {
     delais,
     programmer(rappel, delaiMs) {
       delais.push(delaiMs);
+      // Le rappel part dans le contexte de qui l'a programmé, donc sur son appareil, même avancé.
+      const lie = AsyncResource.bind(rappel);
       const attente = {
         echeance: maintenant() + delaiMs,
         partir: () => {
           clearTimeout(minuterie);
           if (attentes.delete(attente)) {
-            rappel();
+            lie();
           }
         },
       };
@@ -225,13 +293,33 @@ export function compteDEssai(initial: StatutDuCompte = "connecte"): CompteDEssai
 // ---------------------------------------------------------------------------------------------
 // Serveur des espaces : le client de production de F-014-AC37, sur le serveur réel.
 
+export interface RequeteVue {
+  readonly methode: string;
+  readonly chemin: string;
+  readonly corps: unknown;
+}
+
+/** Les requêtes émises par le client des espaces, tous tests confondus, dans l'ordre. */
+export const requetesVues: RequeteVue[] = [];
+
+/** Tant qu'elle est posée, chaque lecture d'un espace attend cette promesse avant de partir. */
+export const lectures: { retenue: Promise<void> | undefined } = { retenue: undefined };
+
+function corpsDe(init: RequestInit | undefined): unknown {
+  return typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
+}
+
 export function requeteurDEssai(serveur: ServeurDEssai, cookie: string): Requeter {
   return (entree, init) => {
     const chemin = typeof entree === "string" ? entree : entree.toString();
+    requetesVues.push({ methode: init?.method ?? "GET", chemin, corps: corpsDe(init) });
     const entetes = new Headers(init?.headers);
     entetes.set("Cookie", cookie);
     entetes.set("Origin", serveur.urlPublique);
-    return fetch(`${serveur.origine}${chemin}`, { ...init, headers: entetes });
+    const partir = (): Promise<Response> =>
+      fetch(`${serveur.origine}${chemin}`, { ...init, headers: entetes });
+    const retenue = (init?.method ?? "GET") === "GET" ? lectures.retenue : undefined;
+    return retenue === undefined ? partir() : retenue.then(partir);
   };
 }
 
@@ -267,9 +355,45 @@ export interface OptionsDOnglet {
   readonly surPagesSupprimees?: (idPages: readonly string[]) => void;
   /** Vrai : l'espace n'est pas l'espace local de l'appareil, sa base est ouverte par son nom. */
   readonly autreEspace?: boolean;
+  /** L'origine que la WebSocket annonce ; par défaut, l'URL publique du serveur. */
+  readonly origine?: string;
+  /**
+   * Vrai : l'appareil rejoint un espace qu'il n'a pas créé (H4) ; son document part vide, sans la
+   * version que la création d'un espace inscrit.
+   */
+  readonly rejoint?: boolean;
 }
 
 const ouverts = new Set<Onglet>();
+
+// Le canal entre onglets : un message reçu est traité dans le contexte de qui l'écoute.
+function canalLie(canal: BroadcastChannel): CanalEntreOnglets {
+  return {
+    postMessage: (message) => canal.postMessage(message),
+    close: () => canal.close(),
+    get onmessage() {
+      return canal.onmessage as CanalEntreOnglets["onmessage"];
+    },
+    set onmessage(ecouteur) {
+      canal.onmessage = ecouteur === null ? null : AsyncResource.bind(ecouteur);
+    },
+  };
+}
+
+// Chaque geste du test sur la synchronisation est fait sur l'appareil de l'onglet.
+function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisation {
+  return {
+    lireEtat: brute.lireEtat,
+    abonner: brute.abonner,
+    afficherPage: (page) => appareil.sur(() => brute.afficherPage(page)),
+    adopter: (nom) => appareil.sur(() => brute.adopter(nom)),
+    reessayer: () => appareil.sur(() => brute.reessayer()),
+    reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
+    effacerLaCopieLocale: () => appareil.sur(() => brute.effacerLaCopieLocale()),
+    toutEstAcquitte: brute.toutEstAcquitte,
+    fermer: () => appareil.sur(() => brute.fermer()),
+  };
+}
 
 /**
  * Ouvre l'espace comme la session d'espace le fait (base relue d'abord, H14), puis démarre sa
@@ -277,10 +401,12 @@ const ouverts = new Set<Onglet>();
  */
 export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
   const appareil = options.appareil ?? nouvelAppareil();
-  const reseau = reseauDEssai(options.serveur, options.cookie);
+  const reseau = reseauDEssai(options.serveur, options.cookie, options.origine);
   const horloge = options.horloge ?? horlogeDEssai();
   const compte = options.compte ?? compteDEssai();
-  const facade = options.facade ?? creerFacade();
+  const facade =
+    options.facade ??
+    (options.rejoint === true ? ouvrirFacade(new Y.Doc({ gc: true })) : creerFacade());
   const persistance = appareil.sur(() =>
     options.autreEspace === true
       ? ouvrirPersistance(facade.doc, { type: "espace", idEspace: options.idEspace })
@@ -297,9 +423,9 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
       ecouteurs.add(rappel);
       return () => ecouteurs.delete(rappel);
     },
-    ouvrirUnCanal: (nom) => new BroadcastChannel(nom) as unknown as CanalEntreOnglets,
+    ouvrirUnCanal: (nom) => canalLie(new BroadcastChannel(`${appareil.navigateur}|${nom}`)),
   };
-  const synchro = appareil.sur(() =>
+  const brute = appareil.sur(() =>
     demarrerSynchronisation({
       environnement,
       idEspace: options.idEspace,
@@ -316,6 +442,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
       surPagesSupprimees: options.surPagesSupprimees,
     }),
   );
+  const synchro = surLAppareil(appareil, brute);
   const onglet: Onglet = {
     idEspace: options.idEspace,
     persistance,
@@ -375,13 +502,6 @@ export async function serveurEtCompte(
   return { serveur, compte };
 }
 
-/** L'espace adopté par le test lui-même, et son document vide. */
-export async function adopterPourLeTest(onglet: Onglet, nom = "Espace d'essai"): Promise<void> {
-  await attendreQue(() => onglet.synchro.lireEtat().registreLu || true);
-  const issue = await onglet.synchro.adopter(nom);
-  expect(issue.sorte).toBe("adopte");
-}
-
 // ---------------------------------------------------------------------------------------------
 // Contenu des pages.
 
@@ -398,3 +518,132 @@ export function texteDeLaPage(doc: Y.Doc): string {
 }
 
 export const CHEMIN_MOI = CHEMINS_COMPTES.moi;
+
+// ---------------------------------------------------------------------------------------------
+// Messages du protocole de la bibliothèque, lus pour les constats : nom du document, type, suite.
+
+export const TYPES_DE_MESSAGE = {
+  synchronisation: 0,
+  presence: 1,
+  authentification: 2,
+  fermeture: 7,
+  accuse: 8,
+} as const;
+
+export interface MessageLu {
+  readonly nom: string;
+  readonly type: number;
+  /** Pour une authentification émise : le jeton joint. */
+  readonly jeton?: string;
+}
+
+function lireEntier(octets: Uint8Array, position: { n: number }): number {
+  let valeur = 0;
+  let facteur = 1;
+  for (;;) {
+    const octet = octets[position.n] ?? 0;
+    position.n += 1;
+    valeur += (octet & 0x7f) * facteur;
+    if (octet < 0x80) {
+      return valeur;
+    }
+    facteur *= 128;
+  }
+}
+
+function lireChaine(octets: Uint8Array, position: { n: number }): string {
+  const longueur = lireEntier(octets, position);
+  const texte = new TextDecoder().decode(octets.subarray(position.n, position.n + longueur));
+  position.n += longueur;
+  return texte;
+}
+
+export function lireMessage(octets: Uint8Array): MessageLu {
+  if (octets.length === 1) {
+    return { nom: "", type: octets[0] ?? -1 };
+  }
+  const position = { n: 0 };
+  const nom = lireChaine(octets, position);
+  const type = lireEntier(octets, position);
+  if (type === TYPES_DE_MESSAGE.authentification) {
+    lireEntier(octets, position);
+    return { nom, type, jeton: lireChaine(octets, position) };
+  }
+  return { nom, type };
+}
+
+export function messagesDe(liste: readonly Uint8Array[]): MessageLu[] {
+  return liste.map(lireMessage);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Page affichée : un document lié, comme celui que l'éditeur lie.
+
+export interface PageDEssai {
+  readonly idPage: string;
+  readonly doc: Y.Doc;
+  readonly refus: number[];
+}
+
+export function pageDEssai(idPage: string = crypto.randomUUID()): PageDEssai {
+  return { idPage, doc: new Y.Doc(), refus: [] };
+}
+
+export function afficher(onglet: Onglet, page: PageDEssai | undefined): void {
+  onglet.synchro.afficherPage(
+    page === undefined
+      ? undefined
+      : {
+          idPage: page.idPage,
+          doc: page.doc,
+          refuserLaVersion: () => page.refus.push(Date.now()),
+        },
+  );
+}
+
+/** Adopte l'espace de l'onglet et attend « Synchronisé ». */
+export async function adopterEtAttendre(onglet: Onglet, nom = "Espace"): Promise<void> {
+  await attendreQue(() => onglet.synchro.lireEtat().registreLu);
+  const issue = await onglet.synchro.adopter(nom);
+  expect(issue.sorte).toBe("adopte");
+  await attendreLEtat(onglet, "synchronise", 12_000);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Espace partagé : un propriétaire qui l'a adopté, et un membre dont l'appareil le détient (H4).
+
+export interface EspacePartage {
+  readonly idEspace: string;
+  readonly proprietaire: CompteInscrit;
+  readonly membre: CompteInscrit;
+  readonly chez: Onglet;
+  readonly ailleurs: Onglet;
+}
+
+export async function espacePartage(
+  serveur: ServeurDEssai,
+  role: "editeur" | "lecteur",
+  pages: readonly string[] = [],
+): Promise<EspacePartage> {
+  const proprietaire = await serveur.inscrire("proprietaire");
+  const membre = await serveur.inscrire("membre");
+  const idEspace = crypto.randomUUID();
+  const chez = await ouvrirUnOnglet({ serveur, cookie: proprietaire.cookie, idEspace });
+  pages.forEach((titre) => chez.facade.creerPage(titre));
+  await adopterEtAttendre(chez);
+  await serveur.ajouterMembre(proprietaire.cookie, idEspace, membre.cookie, role);
+  const appareil = nouvelAppareil();
+  await preparerLAppareil(appareil, idEspace, {
+    rattachement: "adopte",
+    droit: role === "lecteur" ? "lecture" : "ecriture",
+  });
+  const ailleurs = await ouvrirUnOnglet({
+    serveur,
+    cookie: membre.cookie,
+    idEspace,
+    appareil,
+    rejoint: true,
+  });
+  await attendreLEtat(ailleurs, "synchronise", 12_000);
+  return { idEspace, proprietaire, membre, chez, ailleurs };
+}

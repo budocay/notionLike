@@ -89,6 +89,7 @@ const RELECTURE_PLAFOND_DU_REGISTRE_MS = 60_000;
 const REPRISES_D_UNE_PAGE_PAR_PASSE = 3;
 const DEBIT_ORDINAIRE = 0.5;
 const DEBIT_RALENTI = 0.25;
+const ESPACE = "";
 
 export function demarrerSynchronisation(options: OptionsDeSynchronisation): Synchronisation {
   const orchestre = new Orchestre(options);
@@ -122,7 +123,8 @@ class Orchestre {
   readonly #arrets: (() => void)[] = [];
   readonly #partantes = new Set<PageSynchronisee>();
   readonly #erreursDePasse = new Map<string, CauseDErreur>();
-  readonly #bloqueesAuChargement = new Set<string>();
+  /** Envois bloqués jusqu'à un geste ou au rechargement, par page ; `""` : le document d'espace. */
+  readonly #bloques = new Map<string, CauseDErreur>();
   readonly #divergentesDePasse = new Set<string>();
   readonly #reprisesDePasse = new Map<string, number>();
   #canalDuRegistre: CanalEntreOnglets | undefined;
@@ -156,6 +158,14 @@ class Orchestre {
       verifierLEspace: () => this.#verifierLEspace(),
       surAcquise: (document, droit) => this.#surAcquise(document, droit),
       surChangement: () => this.#publier(),
+      blocage: (idPage) => this.#bloques.get(idPage ?? ESPACE),
+      noterLeBlocage: (idPage, cause) => {
+        if (cause === undefined) {
+          this.#bloques.delete(idPage ?? ESPACE);
+        } else {
+          this.#bloques.set(idPage ?? ESPACE, cause);
+        }
+      },
     };
     this.#compte = options.compte.lire();
     this.#espace = new DocumentSuivi(
@@ -452,8 +462,7 @@ class Orchestre {
     const lu = schemaNomDeDocument.safeParse(nom);
     if (lu.success && lu.data.type === "page") {
       const { idDocument } = lu.data;
-      this.#bloqueesAuChargement.add(idDocument);
-      this.#erreursDePasse.set(idDocument, cause);
+      this.#bloques.set(idDocument, cause);
       this.#passe?.oublier([idDocument]);
     }
   }
@@ -531,15 +540,11 @@ class Orchestre {
       return;
     }
     const exclues = new Set([
-      ...this.#bloqueesAuChargement,
+      ...this.#bloques.keys(),
       ...(this.#page === undefined ? [] : [this.#page.idPage]),
       ...[...this.#partantes].map((partante) => partante.idPage),
     ]);
-    this.#erreursDePasse.forEach((_, idPage) => {
-      if (!this.#bloqueesAuChargement.has(idPage)) {
-        this.#erreursDePasse.delete(idPage);
-      }
-    });
+    this.#erreursDePasse.clear();
     this.#reprisesDePasse.clear();
     this.#passeAchevee = false;
     this.#passe = lancerLaPasse(
@@ -588,9 +593,10 @@ class Orchestre {
       return "abandonner";
     }
     const cause = causeDuMotif(motif);
-    this.#erreursDePasse.set(idPage, cause);
     if (conduite === "bloquer") {
-      this.#bloqueesAuChargement.add(idPage);
+      this.#bloques.set(idPage, cause);
+    } else {
+      this.#erreursDePasse.set(idPage, cause);
     }
     return "abandonner";
   }
@@ -628,6 +634,7 @@ class Orchestre {
     for (const idPage of idPages) {
       this.#erreursDePasse.delete(idPage);
       this.#divergentesDePasse.delete(idPage);
+      this.#bloques.delete(idPage);
     }
     this.#options.surPagesSupprimees?.(idPages);
     void effacerLesPages(this.#options.idEspace, idPages);
@@ -731,7 +738,7 @@ class Orchestre {
     } else if (this.#page?.idPage === idPage) {
       this.#page.suivi.reessayer();
     } else {
-      this.#bloqueesAuChargement.delete(idPage);
+      this.#bloques.delete(idPage);
       this.#erreursDePasse.delete(idPage);
       this.#passe?.ajouter([idPage]);
       this.#passeAchevee = this.#passe === undefined ? this.#passeAchevee : false;
@@ -817,8 +824,14 @@ class Orchestre {
     const erreurs = [this.#espace.erreur(), this.#page?.suivi.erreur()].filter(
       (erreur): erreur is DocumentEnErreur => erreur !== undefined,
     );
+    // Les pages bloquées qui ne sont pas affichées, puis les erreurs de la dernière passe.
+    for (const [idPage, cause] of this.#bloques) {
+      if (idPage !== ESPACE && idPage !== this.#page?.idPage) {
+        erreurs.push({ idPage, cause, reessayable: true });
+      }
+    }
     for (const [idPage, cause] of this.#erreursDePasse) {
-      erreurs.push({ idPage, cause, reessayable: this.#bloqueesAuChargement.has(idPage) });
+      erreurs.push({ idPage, cause, reessayable: false });
     }
     return erreurs;
   }

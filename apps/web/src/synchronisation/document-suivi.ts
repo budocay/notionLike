@@ -20,6 +20,12 @@ export interface ContexteDuDocument {
   verifierLEspace(): Promise<"membre" | "detache" | "sans-issue">;
   surAcquise(document: DocumentSuivi, droit: Droit): void;
   surChangement(): void;
+  /**
+   * Un envoi bloqué le reste jusqu'à un geste ou au rechargement, même quand la page est quittée
+   * puis reprise (F-013-AC28, AC29, AC47) : l'orchestre le retient par page.
+   */
+  blocage(idPage: string | undefined): CauseDErreur | undefined;
+  noterLeBlocage(idPage: string | undefined, cause: CauseDErreur | undefined): void;
 }
 
 const CAUSES_BLOQUANTES: Readonly<Record<string, CauseDErreur>> = {
@@ -47,6 +53,7 @@ export class DocumentSuivi {
     this.idPage = idPage;
     this.doc = doc;
     this.#contexte = contexte;
+    this.#bloque = contexte.blocage(idPage);
   }
 
   /** Ouvre le document sur la connexion établie, sauf s'il est bloqué ou déjà ouvert. */
@@ -81,7 +88,7 @@ export class DocumentSuivi {
 
   /** Envoi bloqué (F-013-AC28, AC29, AC47) : l'ouverture est refermée, rien n'est effacé. */
   bloquer(cause: CauseDErreur): void {
-    this.#bloque = cause;
+    this.#retenirLeBlocage(cause);
     this.#erreur = undefined;
     this.defaire();
     this.#contexte.surChangement();
@@ -89,7 +96,7 @@ export class DocumentSuivi {
 
   /** Geste de l'utilisateur : le document est rouvert, même bloqué. */
   reessayer(): void {
-    this.#bloque = undefined;
+    this.#retenirLeBlocage(undefined);
     this.#accesVerifie = false;
     this.#droitsRouverts = false;
     this.defaire();
@@ -159,8 +166,13 @@ export class DocumentSuivi {
         this.#rouvrirAvecDelai("erreur-interne");
         return;
       default:
-        this.#bloque = CAUSES_BLOQUANTES[motifDe(raison)] ?? "motif-inconnu";
+        this.#retenirLeBlocage(CAUSES_BLOQUANTES[motifDe(raison)] ?? "motif-inconnu");
     }
+  }
+
+  #retenirLeBlocage(cause: CauseDErreur | undefined): void {
+    this.#bloque = cause;
+    this.#contexte.noterLeBlocage(this.idPage, cause);
   }
 
   // Une seule réouverture par fermeture (F-013-AC26) ; une seconde avant l'acquisition est reprise
@@ -176,7 +188,7 @@ export class DocumentSuivi {
 
   #verifierLAcces(): void {
     if (this.#accesVerifie) {
-      this.#bloque = "acces-refuse";
+      this.#retenirLeBlocage("acces-refuse");
       return;
     }
     this.#erreur = "acces-refuse";

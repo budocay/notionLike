@@ -74,9 +74,15 @@ class PasseDeFond implements Passe {
   #achevee = false;
   #attente: (() => void) | undefined;
 
+  // La passe commence après l'appel qui la lance : sa fin, même immédiate, n'est jamais annoncée
+  // pendant que l'orchestre la construit encore.
   constructor(options: OptionsDeLaPasse, idPages: readonly string[]) {
     this.#options = options;
-    this.ajouter(idPages);
+    queueMicrotask(() => {
+      if (!this.#arretee) {
+        this.ajouter(idPages);
+      }
+    });
   }
 
   readonly estAchevee = (): boolean => this.#achevee;

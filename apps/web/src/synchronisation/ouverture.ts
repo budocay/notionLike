@@ -16,6 +16,13 @@ import { octetsDe, vecteurDuPremierPas } from "./protocole.ts";
 export const JETON_SANS_SECRET = "notionlike";
 
 const PORTEE_LECTURE_SEULE = "readonly";
+/**
+ * Raison de l'écho que la bibliothèque du serveur renvoie quand le client referme lui-même une
+ * ouverture : ce n'est pas un motif. Il peut arriver après qu'une nouvelle ouverture du même nom a
+ * été demandée sur la connexion (page refermée par la passe de fond, puis affichée) ; il n'est
+ * jamais lu comme une fermeture de celle-ci.
+ */
+export const ECHO_D_UNE_FERMETURE_DEMANDEE = "provider_initiated";
 
 export type IssueDOuverture =
   | { readonly sorte: "attente" }
@@ -142,7 +149,8 @@ class OuvertureDeDocument implements Ouverture {
     fournisseur.on("close", ({ event }: { event: { reason: string } }) => {
       if (
         this.#prise.status === WebSocketStatus.Connected &&
-        this.#issue.sorte !== "fermee-par-le-serveur"
+        this.#issue.sorte !== "fermee-par-le-serveur" &&
+        event.reason !== ECHO_D_UNE_FERMETURE_DEMANDEE
       ) {
         this.#changer({ sorte: "fermee-par-le-serveur", motif: event.reason, refus: false });
       }
