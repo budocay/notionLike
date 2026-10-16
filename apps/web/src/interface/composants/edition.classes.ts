@@ -28,6 +28,8 @@ export const EDITION = {
     "poignee-de-bloc contour-interieur hidden size-bouton-icone items-center justify-center rounded-petit text-texte-discret hover:bg-surface-survol hover:text-texte-principal etroit:pointer-fine:inline-flex",
   poigneeDuCurseur:
     "poignee-du-curseur contour-interieur absolute hidden size-bouton-icone items-center justify-center rounded-petit text-texte-discret etroit:pointer-fine:inline-flex",
+  // Région d'état de l'éditeur : lue par les technologies d'assistance, hors de la vue.
+  annonce: "sr-only",
   // Curseur de dépôt de l'éditeur (F-006-AC37) : sa couleur est celle de cette classe.
   curseurDeDepot: "curseur-de-depot",
   action:

@@ -26,6 +26,8 @@ export interface OptionsDuDepot {
   readonly deplacementDuBloc: (frappe: KeyboardEvent) => SensDuDeplacement | undefined;
   /** Vrai entre le début et la fin d'un geste de la poignée de bloc. */
   readonly gesteDeLaPoignee: () => boolean;
+  /** Le raccourci de ce sens n'avait pas de destination : rien n'a bougé (F-006-AC18, AC28). */
+  readonly surIndisponible: (sens: SensDuDeplacement) => void;
 }
 
 /** Indice de l'intervalle entre deux blocs de premier niveau le plus proche de la position. */
@@ -110,7 +112,9 @@ export function depotDeLEditeur(options: OptionsDuDepot): Extension {
               if (sens === undefined) {
                 return false;
               }
-              deplacerLeBlocCourant(editor, sens);
+              if (!deplacerLeBlocCourant(editor, sens)) {
+                options.surIndisponible(sens);
+              }
               return true;
             },
           },

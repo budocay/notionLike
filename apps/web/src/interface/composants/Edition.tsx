@@ -40,6 +40,11 @@ interface ProprietesZoneDEdition {
   readonly surTouche: (evenement: KeyboardEvent<HTMLDivElement>) => void;
   /** La zone de saisie, puis la barre de blocs quand elle est affichée. */
   readonly children: ReactNode;
+  /**
+   * Région d'état de l'éditeur, hors de la vue : ce que le clavier n'a pas pu faire (F-006-AC18,
+   * AC28). Absente : aucune région.
+   */
+  readonly annonce?: string | undefined;
 }
 
 /** Repère de position de la barre de blocs : ni cadre, ni surface propre (F-003-AC37). */
@@ -53,6 +58,11 @@ export function ZoneDEdition(props: ProprietesZoneDEdition): ReactElement {
       onKeyDown={props.surTouche}
     >
       {props.children}
+      {props.annonce !== undefined && (
+        <p role="status" className={EDITION.annonce}>
+          {props.annonce}
+        </p>
+      )}
     </div>
   );
 }
@@ -189,10 +199,15 @@ export function PoigneeDeBloc({ nom, raccourcis }: ProprietesPoignee): ReactElem
 
 /**
  * La même poignée, au bloc où se trouve le curseur, quand le pointeur n'en montre aucune
- * (F-006-AC14) : elle ne se glisse pas, et un clic sur elle laisse le focus dans la zone de saisie.
+ * (F-006-AC14) : elle ne se glisse pas ; activée, elle mène aux commandes de déplacement du bloc,
+ * sans que la pression du pointeur ôte le focus à la zone de saisie.
  */
 export function PoigneeDuCurseur(
-  props: ProprietesPoignee & { readonly haut: number },
+  props: ProprietesPoignee & {
+    readonly haut: number;
+    /** Ce que l'activation fait : sans elle, la poignée n'est que montrée (démonstration). */
+    readonly surActivation?: (() => void) | undefined;
+  },
 ): ReactElement {
   return (
     <button
@@ -206,6 +221,7 @@ export function PoigneeDuCurseur(
       tabIndex={-1}
       data-poignee-du-curseur=""
       onMouseDown={garderLeFocus}
+      onClick={props.surActivation}
     >
       <span aria-hidden="true">{SIGNE_DE_LA_POIGNEE}</span>
     </button>

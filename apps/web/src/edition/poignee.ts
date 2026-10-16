@@ -4,6 +4,7 @@
 // sélection et mesurer n'écrivent rien dans le document. Ce module tient aussi le drapeau du geste
 // de la poignée, que le gestionnaire de dépôt lit (F-006-AC15).
 import type { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { type RefObject, useEffect, useLayoutEffect, useState } from "react";
 
 import { blocDeLaSelection, debutDuBloc } from "./deplacement-de-bloc.ts";
@@ -47,6 +48,7 @@ function mesurer(editeur: Editor, zone: HTMLElement): number | undefined {
 export function usePoigneeAuCurseur(
   editeur: Editor | null,
   zone: RefObject<HTMLElement | null>,
+  /** Focus dans la zone d'édition et poignées rendues : faux, aucune mesure n'est faite. */
   focusDedans: boolean,
   geste: RefObject<boolean>,
 ): PoigneeAuCurseur {
@@ -73,4 +75,22 @@ export function usePoigneeAuCurseur(
       geste.current = false;
     },
   };
+}
+
+/**
+ * Sélectionne tout le bloc de premier niveau du curseur, comme l'activation de sa poignée le fait :
+ * la barre de blocs paraît, avec « Monter le bloc » et « Descendre le bloc ». Ne change que la
+ * sélection, rien du document ; rend faux si la sélection couvre plusieurs blocs.
+ */
+export function selectionnerLeBlocDuCurseur(editeur: Editor): boolean {
+  const { state } = editeur;
+  const indice = blocDeLaSelection(state);
+  if (indice === undefined) {
+    return false;
+  }
+  const debut = debutDuBloc(state.doc, indice);
+  const fin = debut + state.doc.child(indice).nodeSize;
+  const bloc = TextSelection.between(state.doc.resolve(debut + 1), state.doc.resolve(fin - 1));
+  editeur.view.dispatch(state.tr.setSelection(bloc));
+  return true;
 }

@@ -20,6 +20,7 @@ import {
   recevoir,
   titresParFratrie,
 } from "./aides-coquille.tsx";
+import { lireDossier } from "./aides-disque.ts";
 
 type SessionEspace = CoquilleRendue["session"];
 
@@ -532,14 +533,14 @@ describe("déplacement d'une page au clavier", () => {
         ],
         "« C » déplacée sous « A », position 3 sur 3.",
       ],
-      // Dernière sous-page de A : rien plus bas, l'annonce précédente demeure.
+      // Dernière sous-page de A : rien plus bas, la commande est annoncée indisponible.
       [
         "ArrowDown",
         [
           ["A", "B"],
           ["A1", "A2", "C"],
         ],
-        "« C » déplacée sous « A », position 3 sur 3.",
+        "Descendre : indisponible. La page est déjà la dernière de son niveau.",
       ],
       [
         "ArrowLeft",
@@ -585,6 +586,49 @@ describe("déplacement d'une page au clavier", () => {
     ]);
     expect(appel).not.toHaveBeenCalled();
     expect(etatEncode(coquille.session)).toEqual(avant);
+  });
+
+  it("F-006-AC11 F-006-AC28 un raccourci sans destination est annoncé indisponible, avec sa raison, dans la région d'état de la barre", async () => {
+    const coquille = await ouvrirLArbre();
+    const etat = (): string | null => within(barre()).getByRole("status").textContent;
+    const annonces: (string | null)[] = [];
+
+    for (const [titre, touche] of [
+      ["A", "ArrowUp"],
+      ["C", "ArrowDown"],
+      ["A", "ArrowLeft"],
+      ["A1", "ArrowRight"],
+    ] as const) {
+      act(() => lien(titre).focus());
+      await coquille.utilisateur.keyboard(`{Alt>}{Shift>}{${touche}}{/Shift}{/Alt}`);
+      annonces.push(etat());
+    }
+
+    expect(annonces).toEqual([
+      "Monter : indisponible. La page est déjà la première de son niveau.",
+      "Descendre : indisponible. La page est déjà la dernière de son niveau.",
+      "Sortir d'un niveau : indisponible. La page est déjà à la racine.",
+      "Mettre sous la page précédente : indisponible. Aucune page ne la précède à son niveau.",
+    ]);
+  });
+
+  // Couture : `annoncer` (actions de la barre) et `surIndisponible` (options du dépôt de l'éditeur)
+  // sont exigés par leur contrat ; chaque fichier qui construit l'un ou l'autre les fournit.
+  it("F-006-AC11 F-006-AC18 chaque fichier qui construit les actions de la barre ou les options du dépôt fournit l'annonce d'une commande indisponible", () => {
+    const sources = lireDossier("src");
+    // Une propriété d'objet écrite en début de ligne, pas un membre `readonly` d'interface.
+    const propriete = (nom: string): RegExp => new RegExp(String.raw`^\s*${nom}: `, "m");
+    const constructeurs = (marque: string, exige: string): [string, boolean][] =>
+      [...sources]
+        .filter(([, texte]) => propriete(marque).test(texte))
+        .map(([chemin, texte]) => [chemin, propriete(exige).test(texte)]);
+
+    expect(constructeurs("basculerRepli", "annoncer")).toEqual([
+      ["src/interface/Application.tsx", true],
+    ]);
+    expect(constructeurs("gesteDeLaPoignee", "surIndisponible")).toEqual([
+      ["src/edition/EditeurDePage.tsx", true],
+    ]);
   });
 
   it("F-006-AC11 la dernière sœur ne descend pas : « Descendre » est indisponible avec sa raison", async () => {

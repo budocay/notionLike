@@ -16,6 +16,7 @@ import { useFlottant } from "./flottant.ts";
 import {
   AJOUTER_UNE_SOUS_PAGE,
   AUCUNE_PAGE_PRECEDENTE,
+  commandeIndisponible,
   DEJA_A_LA_RACINE,
   DEJA_DERNIERE,
   DEJA_PREMIERE,
@@ -66,6 +67,8 @@ export interface ActionsBarre {
    */
   readonly deplacer: (id: IdPage, ou: Emplacement, auClavier: boolean) => boolean;
   readonly basculerRepli: (id: IdPage) => void;
+  /** Dit ce texte dans la région d'état de la barre : commande sans destination (F-006-AC11). */
+  readonly annoncer: (texte: string) => void;
 }
 
 interface Proprietes {
@@ -217,6 +220,10 @@ interface DeplacementAuClavier {
 
 // Après un déplacement au clavier, le focus est rendu à l'élément de la rangée qui l'avait : la
 // liste a déplacé le nœud de la rangée, et un nœud retiré puis réinséré perd le focus (F-006-AC12).
+// Aucun test n'échoue sans cette reprise : React déplace la rangée par `insertBefore`, et jsdom
+// comme Chromium gardent alors le focus du nœud déplacé. Elle est gardée parce que ce maintien
+// n'est pas garanti par la spécification du DOM (un nœud retiré perd le focus) ni par tous les
+// navigateurs : sans elle, le focus retomberait sur le corps du document, hors de la barre.
 function useFocusRendu(): RefObject<HTMLElement | null> {
   const aRefocaliser = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -244,6 +251,11 @@ function useDeplacementAuClavier(props: Proprietes): DeplacementAuClavier {
       if (actions.deplacer(page.id, destination.ou, true)) {
         aRefocaliser.current = focus;
       }
+      return;
+    }
+    const visee = COMMANDES_DE_LA_RANGEE.find((une) => une.commande === commande);
+    if (visee !== undefined) {
+      actions.annoncer(commandeIndisponible(visee.libelle, raisonDe(visee)));
     }
   };
   return {

@@ -580,6 +580,7 @@ function actionsDeLaBarre(
     },
     deplacer: (idPage, ou, auClavier) => ecrit && deplacerLaPage(moyens, idPage, ou, auClavier),
     basculerRepli: contexte.basculerRepli,
+    annoncer: moyens.setAnnonce,
   };
 }
 

@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { type ReactElement, type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { ContexteDuSurvol, type Survol } from "./survol.ts";
 import { type ZoneDeDepot, zoneDuPoint } from "./zone.ts";
@@ -144,8 +144,12 @@ interface SuiviDuGeste {
 function useSuiviDuGeste(props: ProprietesListeGlissable): SuiviDuGeste {
   const [survol, setSurvol] = useState<Survol | undefined>(undefined);
   const dernier = useRef<Survol | undefined>(undefined);
+  // Les dernières propriétés reçues, lues par les rappels du geste ; écrites après le rendu, jamais
+  // pendant (comme `useOptionsRecues` de l'éditeur).
   const recues = useRef(props);
-  recues.current = props;
+  useEffect(() => {
+    recues.current = props;
+  });
   const suivre = (evenement: DragMoveEvent): void => {
     const suivant = survolDe(evenement, recues.current.zoneAdmise);
     dernier.current = suivant;
@@ -174,7 +178,11 @@ function useSuiviDuGeste(props: ProprietesListeGlissable): SuiviDuGeste {
       setSurvol(undefined);
       const fin = dernier.current;
       const { identifiants, surLacher } = recues.current;
-      // Le geste est abandonné si l'un des deux a quitté l'arborescence lue (F-006-AC8).
+      // Le geste est abandonné si l'un des deux a quitté l'arborescence lue (F-006-AC8). Aucun test
+      // n'échoue sans cette garde : `surLacher` recalcule la destination sur l'arborescence lue et
+      // refuse déjà une page ou une cible disparue. Elle est gardée pour que la liste, réutilisable
+      // (F-020), ne transmette jamais un identifiant qu'elle n'affiche plus, quel que soit
+      // l'appelant.
       if (fin !== undefined && [fin.actif, fin.cible].every((id) => identifiants.includes(id))) {
         surLacher(fin.actif, fin.cible, fin.zone);
       }

@@ -2,7 +2,7 @@
 // de la poignée se joue par un lâcher construit par le test, l'état de glissement de la vue posé à
 // la main comme la poignée le fait (H11) : ce qui est prouvé est le chemin du lâcher jusqu'à
 // l'opération unique ; la poignée au survol et le repère à l'écran, seul le bout en bout les prouve.
-import { act, screen } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
@@ -89,6 +89,23 @@ describe("poignée de bloc", () => {
     const auSurvol = document.querySelector("[data-poignee-de-bloc]")?.parentElement;
     expect(auSurvol?.style.visibility).toBe("hidden");
     expect(zoneDeSaisie().contains(auSurvol ?? null)).toBe(false);
+  });
+
+  it("F-006-AC14 F-006-AC28 activée, la poignée du curseur sélectionne le bloc et mène aux commandes de déplacement : le focus va à « Monter le bloc » de la barre de blocs, rien n'est écrit avant que la commande soit activée", () => {
+    const { doc, emises } = unDeuxTrois();
+    placerLeCurseurDans("two");
+    const avant = [contenuLu(doc), emises.length];
+
+    act(() => screen.getByRole("button", { name: "Déplacer le bloc" }).click());
+
+    const barre = barreDeBlocs();
+    expect(barre).not.toBeNull();
+    expect(document.activeElement).toBe(
+      within(barre as HTMLElement).getByRole("button", { name: "Monter le bloc" }),
+    );
+    expect([contenuLu(doc), emises.length]).toEqual(avant);
+    act(() => (document.activeElement as HTMLElement).click());
+    expect(textesDesBlocs()).toEqual(["two", "one", "three"]);
   });
 
   it("F-006-AC14 sans focus dans l'éditeur, aucune poignée du curseur", () => {
@@ -342,6 +359,24 @@ describe("déplacement d'un bloc au clavier", () => {
 
     expect(textesDesBlocs()).toEqual(["one", "two", "three"]);
   });
+  it("F-006-AC18 F-006-AC28 Alt+Maj+Flèche sans destination est annoncé indisponible dans la région d'état de l'éditeur, sans rien écrire", () => {
+    const { emises } = unDeuxTrois();
+    const etat = (): string | null => screen.getByRole("status").textContent;
+    const avant = emises.length;
+
+    placerLeCurseurDans("one", 1);
+    presser("ArrowUp", ALT_MAJ);
+    const enHaut = etat();
+    placerLeCurseurDans("three", 1);
+    presser("ArrowDown", ALT_MAJ);
+
+    expect([enHaut, etat()]).toEqual([
+      "Monter le bloc : indisponible.",
+      "Descendre le bloc : indisponible.",
+    ]);
+    expect(textesDesBlocs()).toEqual(["one", "two", "three"]);
+    expect(emises.length).toBe(avant);
+  });
 });
 
 describe("dépôts venus d'ailleurs", () => {
@@ -481,6 +516,27 @@ describe("poignée selon la largeur", () => {
 
       expect(screen.queryAllByRole("button", { name: "Déplacer le bloc" })).toHaveLength(attendues);
       expect(document.querySelectorAll("[data-poignee-de-bloc]")).toHaveLength(attendues);
+    },
+  );
+
+  it.each([
+    ["large", 1280, true],
+    ["étroit", 360, false],
+  ])(
+    "F-006-AC14 sur écran %s (%s pixels), le bloc du curseur est mesuré pour sa poignée : %s ; sans poignée, aucune mesure à chaque frappe",
+    async (_cas, largeur, mesure) => {
+      simulerLaLargeur(largeur);
+      await ouvrirUnePage("Mesures");
+      entrerDansLEditeur();
+      taper("un bloc");
+      const rectangle = vi.spyOn(Element.prototype, "getBoundingClientRect");
+
+      taper(" de plus");
+
+      const blocsMesures = rectangle.mock.contexts.filter(
+        (element) => element instanceof HTMLParagraphElement && zoneDeSaisie().contains(element),
+      );
+      expect(blocsMesures.length > 0).toBe(mesure);
     },
   );
 });

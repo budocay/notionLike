@@ -196,6 +196,16 @@ export function pageDeplacee(
   return `« ${titreCite(titre)} » déplacée ${ou}, position ${rang} sur ${total}.`;
 }
 
+/**
+ * Annonce d'une commande de déplacement sans destination, appelée par son raccourci : son nom, et
+ * la raison quand elle est connue (F-006-AC11, AC18, AC28).
+ */
+export function commandeIndisponible(commande: string, raison?: string): string {
+  return raison === undefined
+    ? `${commande} : indisponible.`
+    : `${commande} : indisponible. ${raison}`;
+}
+
 export const INSTRUCTIONS_DU_GLISSER =
   "Pour déplacer la page en la faisant glisser au clavier, appuyez sur Espace, déplacez-la avec les flèches, puis appuyez de nouveau sur Espace pour la déposer, ou sur Échap pour annuler. Le menu « Actions de la page » offre aussi Monter, Descendre, Mettre sous la page précédente et Sortir d'un niveau.";
 
