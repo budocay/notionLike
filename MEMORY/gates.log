@@ -199,3 +199,7 @@
 2026-10-16T12:01:48Z | agent-securite | F-031 | DEROGATION D-029 | a749484987a4
 2026-10-16T12:01:48Z | agent-architecte | F-031 | DEROGATION D-029 | a749484987a4
 2026-10-16T12:15:19Z | agent-craft | F-031 | CRAFT GATE: PASS | 96dc1a9afe2b
+2026-10-16T12:16:53Z | reviewer-devops | F-031 | DEROGATION D-029 | 96dc1a9afe2b
+2026-10-16T12:16:53Z | reviewer-backend | F-031 | DEROGATION D-029 | 96dc1a9afe2b
+2026-10-16T12:16:53Z | agent-securite | F-031 | DEROGATION D-029 | 96dc1a9afe2b
+2026-10-16T12:16:53Z | agent-architecte | F-031 | DEROGATION D-029 | 96dc1a9afe2b
