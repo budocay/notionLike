@@ -2,11 +2,16 @@
 
 Dernière mise à jour : 2026-10-16
 
-Source du besoin : `.agents/fiche.yaml`. Trente et une features ont une spec (`specs/F-001.md` à `specs/F-031.md`) ; toutes portent `Statut : validée` au 2026-10-16 (relu à leur ligne `Statut :` ; F-031 validée par le dev, `eed4af0`). Dix-sept sont terminées et fusionnées dans `main` (section « Terminé »), dont F-028 (`07b2163`) et F-017 (`3a12b72`) ; deux sont en cours, F-031 et F-006 (section « En cours ») ; douze restent à faire. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
+Source du besoin : `.agents/fiche.yaml`. Trente-deux features ont une spec (`specs/F-001.md` à `specs/F-032.md`) ; trente et une portent `Statut : validée` au 2026-10-16 (relu à leur ligne `Statut :` ; F-031 validée par le dev, `eed4af0`), F-032 porte `Statut : brouillon` (écrite le 2026-10-16, à valider par le dev). Dix-neuf sont terminées (section « Terminé ») : dix-huit fusionnées dans `main`, dont F-028 (`07b2163`), F-017 (`3a12b72`) et F-031 (`f6871c3`), et F-006, acceptée, en cours de fusion ; deux sont en cours, F-005 et F-018 (section « En cours ») ; onze restent à faire, dont F-032. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
 
 Ce que cette ROADMAP ne dit pas, et où le lire : l'état d'une feature en cours ou terminée fait foi dans `MEMORY/STATE.md` et `MEMORY/features/<F-id>.md`, le verdict de chaque gate dans `MEMORY/gates.log`, le déroulé d'une feature terminée dans `PROJECT_LOG.md`, le statut d'une spec à sa ligne `Statut :`, et la structure livrée dans `ARCHITECTURE.md`. Cette ROADMAP ne tient que l'ordre, les dépendances, les décisions d'ordonnancement et les reports.
 
 ## Décisions du dev en vigueur
+
+Décision du dev du 2026-10-16 (plusieurs espaces sur un appareil avant la présence) :
+
+- F-015 H12 tranchée : la spec de la part retirée de F-014 le 2026-10-13 (ouvrir sur un appareil un espace du serveur, changer d'espace, plusieurs espaces sur un appareil et leur registre) est écrite d'abord et livrée avant F-015. Elle prend le numéro F-032 (`specs/F-032.md`, brouillon du 2026-10-16, à valider par le dev) et se place juste avant F-015 dans « À faire ». Elle reprend aussi D-009 (F-032-AC23, F-032 H7).
+- Motif : sans elle, F-013 (H4) et F-015 (H12) ne sont utilisables à deux appareils que dans les tests ; F-015 ne dépend pas de son code, mais sa présence n'a d'usage réel qu'avec elle.
 
 Décision du dev du 2026-10-16 (accélérer) :
 
@@ -17,7 +22,7 @@ Décision du dev du 2026-10-16 (accélérer) :
 
 Décision du dev du 2026-10-16 (pile Docker d'abord) :
 
-- « Faut qu'on répare toute la partie docker car si c'est elle qu'on doit utiliser en priorité c'est mieux quand même pour qu'elle soit fonctionnelle. » F-031 (pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande) passe en tête des « À faire », avant F-005. Spec écrite le 2026-10-16 (`specs/F-031.md`), validée par le dev le même jour (`eed4af0`) ; ses décisions ouvertes sont dans ses hypothèses (H1, H4, H5, H8, H14, H15).
+- « Faut qu'on répare toute la partie docker car si c'est elle qu'on doit utiliser en priorité c'est mieux quand même pour qu'elle soit fonctionnelle. » F-031 (pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande) passe en tête des « À faire », avant F-005. Spec écrite le 2026-10-16 (`specs/F-031.md`), validée par le dev le même jour (`eed4af0`) ; ses décisions ouvertes sont dans ses hypothèses (H1, H4, H5, H8, H14, H15). Exécutée : F-031 est fusionnée (PR #6, `f6871c3`, section « Terminé »).
 - Motif d'ordonnancement : le bout en bout de toute feature qui touche le serveur ou la synchronisation se joue sur la pile Docker (pratique ci-dessous) ; six incidents de mise en route l'ont bloquée le 2026-10-16 (`specs/F-031.md`, objectif et critères).
 
 Décision du dev du 2026-10-16 (CI avant toute nouvelle feature), exécutée :
@@ -38,27 +43,26 @@ Décisions antérieures toujours en vigueur (texte complet dans les versions pr�
 
 La chaîne de la collaboration en temps réel, F-001 → F-002 → F-004 → F-030 → F-003 côté client et F-008 → F-009 → F-011 → F-012 côté serveur, jointes en F-013, est livrée en entier (F-029 avant F-012, F-010, F-014, F-027 et F-007 avant F-013).
 
-Chemin critique restant, la plus longue chaîne de dépendances parmi les features à faire, après F-031 (décision du 2026-10-16, hors de toute chaîne de dépendances : aucune feature n'en dépend, elle ne dépend que de features livrées) : F-017 → F-018 → F-020, F-020 attendant aussi F-006 ; F-025 se place après F-018 (et après F-016, F-022 et F-026), qui lui sont des dépendances conditionnelles (F-025 H16, H17). F-019 et F-021 n'attendent que F-018. F-017 est donc la feature dont le retard repousse le plus de features, et c'est aussi celle qui se mène le mieux en parallèle (plus bas).
+Chemin critique restant, la plus longue chaîne de dépendances parmi les features à faire : F-018 → F-020. F-017 (`3a12b72`), F-006 et F-031 sont terminées : F-020 n'attend plus que F-018, comme F-019 et F-021 ; F-025 se place après F-018 (et après F-016, F-022 et F-026), qui lui sont des dépendances conditionnelles (F-025 H16, H17). F-018, en cours, est donc la feature dont le retard repousse le plus de features (F-019, F-020, F-021, et F-025 si sa condition est retenue).
 
-Collaboration à deux appareils, hors chaîne de dépendances mais à signaler : F-013 (H4) et F-015 (H12) ne sont utilisables à deux appareils, hors des tests, qu'avec la feature qui reprendra la part retirée de F-014 le 2026-10-13 (ouvrir un espace du serveur, changer d'espace, plusieurs espaces sur un appareil). F-015 H12 demande de la placer avant F-015 ; elle n'a ni numéro ni spec (« À prévoir », plus bas).
+Collaboration à deux appareils, hors chaîne de dépendances mais à signaler : F-013 (H4) et F-015 (H12) ne sont utilisables à deux appareils, hors des tests, qu'avec F-032 (ouvrir un espace du serveur, changer d'espace, plusieurs espaces sur un appareil). Décision du dev du 2026-10-16 : F-032 avant F-015. F-015 ne dépend pas de son code (F-015 H12, F-032 H11) : l'ordre est une décision d'usage, pas une dépendance, et la ligne de F-015 ne la porte donc pas dans « dépend de ».
 
 ## En cours
 
-Deux features en cours (2026-10-16), chacune dans sa branche et son worktree, dossiers disjoints :
+Deux features en cours (2026-10-16), chacune dans sa branche et son worktree, menées en parallèle si leurs notes de conception montrent des fichiers disjoints (`MEMORY/STATE.md`) :
 
-- [ ] F-031 Pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande — tier: structurel — dépend de: F-008, F-009, F-010 (livrées) — agents: agent-veille, agent-architecte-conception, agent-backend, agent-devops — spec: specs/F-031.md (validée, `eed4af0`) — branche `F-031`, worktree `notionLike-F-031` — revue : reviewer-devops, reviewer-backend ; fumée et bout en bout par le dev avant le DONE (F-031-AC27, AC28)
-- [ ] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003, F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-006.md (validée) — branche `F-006`, worktree `notionLike-F-006`
+- [ ] F-005 Bloc code et commandes slash — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-005.md (validée) — branche `F-005`, worktree `notionLike-F-005` (veille et conception faites, ADR-0018 ; code par-dessus F-006)
+- [ ] F-018 Vue tableau d'une base de données — tier: structurel — dépend de: F-002, F-007, F-017, F-030 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-018.md (validée sur `main` ; retouchée d'après la conception sur sa branche, `f44d774`, à revalider par le dev) — branche `F-018`, worktree `notionLike-F-018`
 
 ## À faire (ordonné)
 
 Préalable de la CI (décision du 2026-10-16) : levé, CI en place.
 
-Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste ; F-031 placée en tête par sa décision du même jour (« pile Docker d'abord »).
+Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste ; F-031 placée en tête par sa décision du même jour (« pile Docker d'abord ») ; F-032 placée juste avant F-015 par sa décision du même jour (F-015 H12). F-028, F-006, F-017 et F-031 sont terminées ; F-005 et F-018 sont en cours.
 
-- [ ] F-005 Bloc code et commandes slash — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-005.md (validée)
+- [ ] F-032 Plusieurs espaces sur un appareil : ouvrir un espace du serveur, changer d'espace, retirer un espace de l'appareil — tier: structurel — dépend de: F-013, F-014, F-030 (livrées) — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-032.md (brouillon du 2026-10-16, à valider par le dev ; revue : reviewer-frontend) — reprend D-009 (F-032-AC23) ; amende F-014-AC1, AC2, F-013-AC24 et F-030-AC23 (F-032 H10, à valider avec elle) ; bout en bout par le dev sur la pile Docker avant la fusion (F-032-AC34)
 - [ ] F-015 Présence et curseurs des autres membres — tier: structurel — dépend de: F-013, F-004 — agents: agent-veille, agent-architecte-conception, agent-backend, agent-frontend — spec: specs/F-015.md (validée) — doit livrer le contrôle d'identité de présence côté serveur (F-015-AC16 à AC18, AC34) : tant qu'elle ne l'a pas fait, la présence est usurpable (constat accepté par D-023 à la livraison de F-012) ; bout en bout par le dev avant la fusion (serveur et synchronisation)
 - [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-016.md (validée)
-- [ ] F-018 Vue tableau d'une base de données — tier: structurel — dépend de: F-002, F-007, F-017, F-030 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-018.md (validée)
 - [ ] F-019 Filtres et tris d'une vue — tier: standard — dépend de: F-018 — agents: agent-frontend (agent-veille sur déclencheur) — spec: specs/F-019.md (validée)
 - [ ] F-020 Vue kanban — tier: standard — dépend de: F-006, F-018 — agents: agent-veille, agent-frontend — spec: specs/F-020.md (validée ; veille de F-020 H6 avant le code)
 - [ ] F-021 Vue calendrier — tier: standard — dépend de: F-018 — agents: agent-frontend (agent-veille sur déclencheur) — spec: specs/F-021.md (validée)
@@ -68,7 +72,17 @@ Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-
 - [ ] F-025 RGPD : export des données d'un compte, suppression d'un compte, effacement et hygiène — tier: structurel — dépend de: F-011, F-012, F-013 (F-016, F-018, F-022, F-026 et F-027 conditionnelles : F-025 H16, H17) — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-devops, agent-frontend — spec: specs/F-025.md (validée ; sa spec recommande en tête une scission, F-025 H0)
 - [ ] F-026 Courriels : vérification d'adresse et réinitialisation du mot de passe — tier: structurel — dépend de: F-009 (F-010 et F-011 conditionnelles : F-026 H10, F-026-AC20) — agents: agent-veille, agent-architecte-conception, agent-devops, agent-bdd, agent-backend, agent-frontend (F-010 étant fusionnée, ses écrans F-026-AC35 à AC39 sont dans le périmètre : F-026 H10) — spec: specs/F-026.md (validée)
 
-F-031 et F-005 sont parallélisables, à proposer au dev (l'ordre ne change pas sans sa décision) : F-031 touche `infra/`, `apps/server/src/configuration.ts` et une entrée de vérification d'`apps/server/src`, `apps/server/.env.example`, `README.md` et les scripts du `package.json` racine, sans dépendance nouvelle ni changement de `pnpm-lock.yaml` ; F-005 touche `apps/web`, `packages/document`, `apps/web/package.json` et `pnpm-lock.yaml`. Seul `README.md` pourrait se croiser, à la seconde fusion. F-031 ne se mène pas en parallèle de F-015, qui touche le relais d'`apps/server` et dont le bout en bout attend une pile Docker réparée.
+F-031 est fusionnée (`f6871c3`) : la proposition de la mener en parallèle de F-005 est sans objet. F-005 et F-018 sont menées en parallèle (`MEMORY/STATE.md`).
+
+F-032 et les features voisines, relevé dans les specs et les notes de conception du 2026-10-16 (à confirmer par la note de conception de F-032, l'ordre ne changeant pas sans décision du dev) :
+
+| Paire         | Parallèle   | Raison                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F-032 · F-018 | non         | dossiers : la conception de F-018 touche `apps/web/src/persistance/espace-local.ts`, `nom-de-base.ts`, `espace/garde-onglet.ts`, `navigation/route.ts` et `interface/` ; F-032 touche la persistance de l'appareil, la session d'espace, la synchronisation et l'interface ; de plus F-032-AC20 retire les bases de table et réglages de vue de F-018 si elle est fusionnée avant |
+| F-032 · F-015 | non         | dossiers : module de synchronisation d'`apps/web` ; et décision du dev, F-032 avant F-015                                                                                                                                                                                                                                                                                         |
+| F-032 · F-005 | à confirmer | F-005 touche `apps/web/src/edition/`, `interface/composants/Edition` et les messages de l'interface (note de conception de F-005) ; F-032 ne touche pas l'éditeur ; seuls des fichiers de l'interface pourraient se croiser                                                                                                                                                       |
+
+Conséquence : F-032 démarre au plus tôt quand F-018 est fusionnée, ou F-018 attend F-032 ; la seconde fusionnée intègre `main` et repasse ses contrôles (règle de fusion ci-dessus). Au dev de choisir ; sans choix, F-032 suit F-018, qui est sur le chemin critique.
 
 Tableau ci-dessous relevé avant la livraison de F-028 (fusionnée le 2026-10-16, `07b2163`) ; ses lignes F-028 sont historiques. Toutes les dépendances des quatre premières sont livrées (F-002, F-003, F-004, F-013) et aucune ne dépend d'une autre : ce qui les empêche d'avancer ensemble, ce sont leurs dossiers. Relevé dans leurs specs (définitions, critères, prérequis, « Pourquoi ce tier ») et dans le code de `main` :
 
@@ -89,14 +103,14 @@ Paires parmi les quatre premières, aucune n'est parallélisable :
 
 Elles se mènent donc l'une après l'autre, dans l'ordre du dev. Les quatre ajoutent aussi des dépendances à `apps/web/package.json` et `pnpm-lock.yaml` (fichiers partagés) ; ce point seul se réglerait à la seconde fusion, il n'interdit pas le parallélisme.
 
-Parallélisme possible, à proposer au dev (l'ordre ci-dessus ne change pas sans sa décision) :
+Parallélisme, état au 2026-10-16 :
 
-- F-017 ne modifie que `packages/document` (modèle de table sans DOM, F-017-AC24 ; son test de couture énumère les paquets qui dépendent de `@notionlike/document`, F-017-AC25) et ne dépend que de F-001, livrée. Elle peut se mener en parallèle de F-006 ou de F-015, qui ne touchent pas `packages/document`. Elle ne le peut pas avec F-028 ni F-005 (`packages/document/src/`, table des versions et listes attendues des exports et des codes d'erreur), ni avec F-016, qui ajoute ses opérations de commentaires à la façade du document de page (F-016-AC29) et incrémente la version (règle de F-028 H1). Avancer F-017 aux côtés de F-006 ou de F-015 fait gagner une feature sur le chemin critique restant.
-- F-018 attend F-017 ; F-016, F-022 et F-025 touchent `apps/web` comme toutes les features de la liste sauf F-017 : les paires à vérifier au fil de la liste se lisent dans leurs en-têtes, sur la même règle.
+- F-017 et F-006 sont terminées : la proposition de mener F-017 en parallèle de F-006 ou de F-015 est sans objet. F-018, qui l'attendait, est en cours, en parallèle de F-005.
+- F-016, F-022 et F-025 touchent `apps/web` comme toutes les features restantes : les paires à vérifier au fil de la liste se lisent dans leurs en-têtes et leurs notes de conception, sur la même règle (tableau de F-032 ci-dessus).
 
 À prévoir, sans ligne dans la liste :
 
-- Spec de la part retirée de F-014 le 2026-10-13 : ouvrir dans la coquille un espace du serveur, changer d'espace, plusieurs espaces et leur registre sur un appareil (ex-F-014-AC3 à AC6 et H2). Sans numéro ni spec. F-015 H12 demande de la placer avant F-015, que l'ordre du dev met en quatrième position : au dev de choisir entre l'écrire et la livrer avant F-015, ou livrer F-015 utilisable à deux appareils dans les tests seulement, jusqu'à elle. Sa spec réalignera aussi la réparation de l'identifiant d'espace, qui ne vaut que pour un appareil à un seul espace (F-030-AC23, H10 ; D-009), sur le registre livré par F-013 (`registre:<idEspace>`, `MEMORY/features/F-013.md`).
+- Part retirée de F-014 le 2026-10-13 : planifiée le 2026-10-16 sous le numéro F-032 (« À faire », avant F-015), avec la réparation de l'identifiant d'espace sur le registre de F-013 (F-032-AC23, D-009).
 - Question au dev : veut-il une spec de panneau d'administration ? Aucune spec ni ligne ne le porte.
 
 Notes d'ordonnancement :
@@ -162,13 +176,15 @@ Dettes que la planification touche (liste complète et à jour : `MEMORY/STATE.m
 
 - D-001 (pas de CI ni de branche protégée) : levée le 2026-10-16 (CI GitHub Actions, PR #3, ruleset de `main`). Les hooks restent, sauf accord du dev pour les retirer.
 - D-002 (tests d'intégration du serveur sur PGlite, pas sur un PostgreSQL réel ; origine F-008 H5, étendue par F-011 H10 et F-012 H11) : une CI peut lancer PostgreSQL ; à trancher dans la spec de la CI.
-- D-003 (bout en bout, captures et `preuve:construction` hors des hooks) : s'étend aux scénarios de bout en bout de F-005, F-006, F-015, F-016 et F-028 (F-005-AC34 ; geste au pointeur de F-006, F-006-AC1 à AC3, AC7, AC14, AC15, AC34 ; F-015-AC33 et F-015 H13 ; F-016-AC35 ; F-028-AC30) ; à lever quand Playwright est branché dans `.agents/outils.env` ou dans la CI.
+- D-003 (bout en bout, captures et `preuve:construction` hors des hooks) : s'étend aux scénarios de bout en bout de F-005, F-006, F-015, F-016 et F-028 (F-005-AC34 ; geste au pointeur de F-006, F-006-AC1 à AC3, AC7, AC14, AC15, AC34 ; F-015-AC33 et F-015 H13 ; F-016-AC35 ; F-028-AC30 ; F-032-AC34 et F-032 H12) ; à lever quand Playwright est branché dans `.agents/outils.env` ou dans la CI.
 - D-005 : levée par F-029 (fusionnée, `2243ff7`).
-- D-009 (réparation de l'identifiant d'espace par énumération des bases) : à reprendre avec la spec de la part retirée de F-014 (« À prévoir »).
+- D-009 (réparation de l'identifiant d'espace par énumération des bases) : reprise par F-032 (F-032-AC23, H7) : l'énumération est restreinte aux bases des espaces qui n'ont pas d'entrée au registre ; la limite restante (registre illisible, plusieurs bases non inscrites, énumération indisponible) est celle que F-030 H10 accepte déjà. À clore par le dev à la livraison de F-032.
 - D-023 : la présence usurpable est levée par F-015 (contrôle d'identité de présence) ; les autres constats moyens de D-023 (pas de limite de débit sur le passage en WebSocket, copie du document d'espace à chaque mise à jour, 500 connexions pour tout le serveur) n'ont pas de feature d'accueil.
 
 ## Terminé (lien PROJECT_LOG)
 
+- [x] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003, F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-006.md (validée) — acceptée par dérogation le 2026-10-16 (D-034), fusion dans `main` en cours le 2026-10-16 (PR de la branche `F-006`, tête `f259afe` ; hash de fusion à reporter) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-006 Glisser-déposer des blocs et des pages » (portée par la branche `F-006`)
+- [x] F-031 Pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande — tier: structurel — dépend de: F-008, F-009, F-010 — agents: agent-veille, agent-architecte-conception, agent-backend, agent-devops — spec: specs/F-031.md (validée, `eed4af0`) — acceptée par dérogation le 2026-10-16 (D-029), fusionnée dans `main` le 2026-10-16 (PR #6, `f6871c3`) ; fumée officielle et inscription par la pile à verser par le dev (F-031-AC27, AC28) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-031 Pile Docker de travail utilisable en une commande »
 - [x] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-017.md (validée) — acceptée par dérogation le 2026-10-16 (D-026), fusionnée dans `main` le 2026-10-16 (PR #5, `3a12b72`) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules »
 - [x] F-028 Mise en forme dans le texte : gras, italique, liens — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-028.md (validée) — acceptée par dérogation le 2026-10-16 (D-025), fusionnée dans `main` le 2026-10-16 (`07b2163`) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-028 Mise en forme dans le texte : gras, italique, liens »
 - [x] F-013 Synchronisation côté client : connexion au serveur, reprise après hors ligne, état de synchronisation visible — tier: structurel — dépend de: F-003, F-007, F-010, F-012, F-014, F-030 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-013.md (validée) — acceptée par dérogation le 2026-10-16 (D-024), fusionnée dans `main` le 2026-10-16 (`0d04c60`) — `PROJECT_LOG.md`, entrée « [2026-10-15] F-013 Synchronisation côté client (connexion, reprise après hors ligne, état visible) »
