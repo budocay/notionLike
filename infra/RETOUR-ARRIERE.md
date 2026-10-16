@@ -94,7 +94,7 @@ Attendu : `migration` sorti en code 1, `serveur` à `created`, le journal qui co
 
 Puis, selon la cause donnée par le journal :
 
-- **Échec d'authentification** : le mot de passe d'`infra/.env` a changé après le premier démarrage, alors que l'image ne lit `POSTGRES_PASSWORD` que sur un volume vide (ADR-0006). Remettre l'ancien mot de passe dans `infra/.env` et relancer `docker compose up -d --wait`. Pour changer vraiment de mot de passe : `docker compose exec base psql -U notionlike -d notionlike`, puis `\password notionlike`, puis la nouvelle valeur dans `infra/.env`.
+- **Échec d'authentification** : le mot de passe d'`infra/.env` a changé après le premier démarrage, alors que l'image ne lit `POSTGRES_PASSWORD` que sur un volume vide (ADR-0006). `pnpm -w pile demarrer` le dit avant de lancer la migration (F-031-AC20). Deux issues, depuis n'importe quel dossier du dépôt : remettre l'ancien mot de passe dans `infra/.env` et relancer `pnpm -w pile demarrer` ; ou garder le nouveau et le donner au volume par `pnpm -w pile accorder`, puis `pnpm -w pile demarrer`. `accorder` passe par la connexion locale du conteneur de la base et `\password` de `psql` (empreinte calculée côté client : le mot de passe n'apparaît ni en argument ni dans le journal de la base), sans demander l'ancien et sans toucher aux données (F-031-AC21, AC22).
 - **Erreur dans une migration** : la corriger par un nouveau commit (une migration jamais appliquée nulle part peut être corrigée ; une migration déjà appliquée ne se modifie pas), puis `docker compose up -d --wait --build`.
 - **Retour au code précédent** : section 2 ; rien n'ayant été appliqué, le code précédent démarre sur le schéma inchangé.
 

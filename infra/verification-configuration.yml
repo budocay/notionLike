@@ -1,0 +1,14 @@
+# NE JAMAIS EMPLOYER AVEC `up` : seul usage, la ligne `run --rm --no-deps -T serveur` d'infra/pile.sh.
+# Elle retire le volume des données de `base` : avec `up`, la base de travail tournerait sur la couche
+# éphémère du conteneur et perdrait ses données au `down` (garde : infra/tests/surcharge-de-verification.test.ts).
+#
+# Surcharge de `infra/pile.sh demarrer` (F-031-AC8, ADR-0017) : la configuration du service serveur est
+# vérifiée par `docker compose run --rm --no-deps -T serveur node apps/server/src/verifier-configuration.ts`,
+# dans l'image, avec l'environnement exact du service. Sans cette surcharge, `run` crée le volume des
+# données du projet (essai E1) : elle retire les volumes déclarés et coupe le réseau du service lancé.
+services:
+  base:
+    volumes: !reset []
+  serveur:
+    network_mode: none
+volumes: !reset {}

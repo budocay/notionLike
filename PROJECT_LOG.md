@@ -287,3 +287,15 @@
 - Tests: 3711 tests sur 174 fichiers, dont 651 dans `packages/document` — état: verts — preuve: checks.txt (empreinte `3515753d84af`)
 - Gates: sur `24eb1f6dfe62` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (4 points, corrigés) ; sur `3515753d84af` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-026
 - Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 4 (divergence évitable, refus hors spec, AC25, oracle circulaire) · coût non mesuré
+
+## [2026-10-16] F-031 Pile Docker de travail utilisable en une commande
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `infra/` (`pile.sh` et ses six sous-commandes, `verification-configuration.yml`, `fumee.sh` à 17 constats, tests sans Docker), `apps/server` (`configuration.ts` : raisons des refus ; `verifier-configuration.ts` ; `.env.example`), `package.json` racine (scripts `pile`, `fumee`), `README.md`, `infra/RETOUR-ARRIERE.md` — agents: agent-planif, agent-veille, agent-architecte-conception, agent-backend, agent-devops, orchestrateur ; règle de contrats par le dev (45c66b2) — commits: ab47006..e470999
+- Détail: demandée par le dev après six incidents de mise en route du 2026-10-16 (secret et mot de passe factices, raison des refus absente, volume initialisé avec un ancien mot de passe, serveur lancé sur l'hôte sans base, fumée lancée par un chemin relatif, origine non vérifiée). `preparer` crée les `.env` (mode 600, secrets aléatoires, jamais d'écrasement) ; `demarrer` vérifie la configuration par le code du serveur dans son image, sans volume ni réseau (ADR-0017), éprouve le mot de passe contre le volume, détecte les ports pris, va jusqu'à `/pret` 200 ; `accorder` remet le mot de passe d'accord sans perte de données et sans trace dans le journal de la base. Hypothèse H6 de la spec fausse (`run --no-deps` crée le volume), parée par une surcharge et un garde.
+- Dette: introduite D-029 (dérogation), D-030 (Compose 2.24.0 à 2.24.3 sans preuve), D-031 (`PGPASSWORD` dans l'environnement du client le temps de l'épreuve), D-032 (origine 5174 admise sous Compose), D-033 (aucun contrôle bash au socle) ; D-018 précisée (GHSA-67mh-4wv8-2f99) ; laissées D-003, D-007
+- ADR: ADR-0017 (proposée) ; amendement d'ADR-0006 prévu
+- Tests: 3656 tests sur 176 fichiers — état: verts — preuve: checks.txt ; fumée d'agent `FUMEE: OK (constats 1 à 17)` sur `ec898f0` ; `test-blocage.sh` : tous les blocages effectifs ; shellcheck 0.11.0 sans constat ; fumée officielle et inscription réelle à verser par le dev
+- Gates: sur `ebda9c44b1db` : CRAFT PASS · reviewer-devops, reviewer-backend CHANGES_REQUESTED (12 points, corrigés) · SECURITY UNVERIFIED (shellcheck, fumée du dev ; aucun constat élevé) ; sur l'empreinte finale : CRAFT PASS · relecteurs, sécurité et architecture par DEROGATION D-029
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 12, dont 2 simulacres qui se testaient eux-mêmes et 1 défaut de création exclusive trouvé par les tests · coût non mesuré
