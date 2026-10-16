@@ -135,10 +135,13 @@ export const CANAUX_DES_MOTIFS: Readonly<Record<MotifSynchro, readonly CanalDUnM
 // À l'arrêt du serveur, chaque WebSocket est fermée par ce code, sans motif (F-012-AC31).
 export const CODE_DE_FERMETURE_A_L_ARRET = 1001;
 
-// F-012-AC38, AC39 : le serveur ne laisse écrire dans un document d'espace qu'une version de cette
-// liste, jamais inférieure à celle du document ; une clé absente vaut 1 (ADR-0002).
+// F-012-AC38, AC39, F-018-AC57, AC58 : le serveur ne laisse écrire dans un document d'espace qu'une
+// version de cette liste, jamais inférieure à celle du document (ADR-0002, amendement F-018). La
+// version lue est le plus grand de la clé `version` du type racine `meta` et des entrées du type
+// racine `versions` (un tableau d'entiers auquel on ne fait qu'ajouter) ; 1 en leur absence.
 export const VERSION_DU_DOCUMENT_D_ESPACE = {
   typeRacine: "meta",
   cle: "version",
-  admises: [1],
+  typeRacineDesVersions: "versions",
+  admises: [1, 2],
 } as const;

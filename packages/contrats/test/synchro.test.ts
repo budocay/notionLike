@@ -87,11 +87,12 @@ describe("liste fermée et limites (F-012-AC27)", () => {
     ]);
   });
 
-  it("F-012-AC39 le type racine, la clé et les versions admises d'un document d'espace sont publiés", () => {
+  it("F-012-AC39 F-018-AC57 le type racine, la clé, le type racine des versions et les versions admises d'un document d'espace sont publiés", () => {
     expect(VERSION_DU_DOCUMENT_D_ESPACE).toEqual({
       typeRacine: "meta",
       cle: "version",
-      admises: [1],
+      typeRacineDesVersions: "versions",
+      admises: [1, 2],
     });
   });
 });
