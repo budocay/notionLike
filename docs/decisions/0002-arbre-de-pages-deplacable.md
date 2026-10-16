@@ -1,7 +1,7 @@
 # ADR-0002 — Format du document d'espace et arbre de pages déplaçable
 
-Statut : accepté ; sections « Amendement F-029 » et « Amendement F-007 » comprises : écrites après coup (elles consignent des décisions des specs F-029 et F-007, validées par le dev, que le code a prises sans amendement préalable en mode économe), elles sont acceptées par le dev le 2026-10-14
-Date : 2026-10-08 ; amendements F-029 et F-007 du 2026-10-14
+Statut : accepté ; sections « Amendement F-029 » et « Amendement F-007 » comprises : écrites après coup (elles consignent des décisions des specs F-029 et F-007, validées par le dev, que le code a prises sans amendement préalable en mode économe), elles sont acceptées par le dev le 2026-10-14 ; section « Amendement F-012 » : écrite après coup le 2026-10-16, proposée, à accepter par le dev
+Date : 2026-10-08 ; amendements F-029 et F-007 du 2026-10-14 ; amendement F-012 du 2026-10-16
 
 ## Contexte et problème
 
@@ -138,6 +138,15 @@ Contexte : la spec F-001 (H2) et cet ADR renvoyaient l'effacement réel à F-007
 - **Concurrence** (F-007 H3). La suppression l'emporte sur une restauration ou un renommage simultanés de la page ou de sa descendance. Une page créée ou déplacée sous elle par une réplique qui ne voyait pas la suppression survit, à la racine, par la règle du parent absent.
 - **Entrée réécrite** (F-007 H15). Rien dans le format ne retient qu'un identifiant a été supprimé : un pair qui écrit dans le `Y.Doc` sans passer par le module peut recréer une entrée sous le même identifiant, lue comme une page neuve, sans l'ancien contenu. Le module ne le fait jamais (`creerPage` tire un UUID neuf) et refuse toute opération sur un identifiant retiré (`page-introuvable`). L'empêcher demanderait un registre des identifiants supprimés (version 2) ou un contrôle du serveur (F-012).
 
+### Amendement F-012 (2026-10-16) : version du document d'espace gardée par le serveur
+
+Contexte : les « Conséquences » renvoyaient au serveur (F-012) la mise à jour bien formée mais hostile qui force `version` (F-012 H20, report du gate sécurité de F-001). F-012 l'a livré (`797d708`) sans amender cet ADR (mode économe, D-023). Cet amendement consigne ce que le code fait.
+
+- **Versions admises, publiées** : `VERSION_DU_DOCUMENT_D_ESPACE` (`packages/contrats/src/synchro.ts`) nomme le type racine (`meta`), la clé (`version`) et la liste des versions qu'un serveur laisse écrire, aujourd'hui `[1]` ; une clé absente vaut 1 (règle « version absente = 1 », plus haut).
+- **Contrôle** : avant d'appliquer une mise à jour d'une ouverture en écriture sur un document d'espace, le serveur l'applique à une copie de l'état courant et lit la version avant et après (`versionAdmiseApres`, `apps/server/src/synchro-stockage.ts`). Il la refuse si la version d'après n'est pas dans la liste, si elle est inférieure à celle d'avant, ou si la copie ne s'applique pas ; l'ouverture est fermée par le motif `version-refusee`, ligne `limite-atteinte` au journal, rien n'est appliqué ni stocké. C'est la seule lecture du contenu que fait le serveur (F-012 H5, H20). Le refus d'un type racine `meta` d'une autre nature est affirmé par le commentaire du code ; aucun test ne l'essaie.
+- **Ce que le serveur ne contrôle pas** : le type racine `pages`, les entrées, les rangs (la défense des rangs reste dans le paquet, amendement F-029), la réécriture d'une entrée sous un identifiant supprimé (amendement F-007, « Entrée réécrite »), et tout ce qui passe entre deux onglets d'un même appareil par la diffusion de F-013, qui ne touche pas le serveur (ADR-0014).
+- **Condition de l'amendement F-029 tenue** : F-029 a été fusionnée (`2243ff7`) avant F-012 (`797d708`).
+
 ## Conséquences
 
 - La convergence (F-001-AC7) découle de celle de Yjs : la lecture étant une fonction pure de l'état, deux répliques de même état lisent la même chose. C'est vérifiable par des tests de propriétés.
@@ -151,3 +160,4 @@ Contexte : la spec F-001 (H2) et cet ADR renvoyaient l'effacement réel à F-007
 - Amendement F-029 : la réattribution élargie écrit la place de sœurs que l'utilisateur n'a pas déplacées, comme la réattribution d'égalité, et peut de même l'emporter sur un déplacement simultané. Après deux réattributions élargies simultanées de la même fratrie, les deux répliques lisent le même ordre, qui peut n'être celui d'aucune des deux (F-029 H4, limite acceptée). Une seconde réattribution élargie de la même fratrie n'est éprouvée qu'avec une borne abaissée à 4 (à 1024, environ six mille insertions la précèdent).
 - Amendement F-029 : un document qui portait, avant F-029, une entrée au rang de plus de 1024 caractères perd cette entrée à la lecture, sans migration ; la spec juge le cas improbable (H3).
 - Amendement F-007 : la suppression définitive est irréversible et l'emporte sur les gestes simultanés ; un client antérieur à F-007 lit correctement un document où des entrées ont été retirées.
+- Amendement F-012 : une version 2 du format ne pourra être écrite par aucun client tant que le serveur n'admet pas 2 : la liste de `packages/contrats` est à étendre, et le serveur à déployer, avant tout client qui élève la version. Un document que le serveur porte en version 2 ne redescend jamais (version inférieure refusée).

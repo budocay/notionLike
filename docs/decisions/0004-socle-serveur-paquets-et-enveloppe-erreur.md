@@ -1,7 +1,7 @@
 # ADR-0004 — Socle serveur : frontière des trois paquets, enveloppe d'erreur, composition de l'application
 
-Statut : accepté
-Date : 2026-10-08
+Statut : accepté ; section « Amendement F-012 » : écrite après coup le 2026-10-16, proposée, à accepter par le dev
+Date : 2026-10-08 ; amendement F-012 du 2026-10-16
 
 ## Contexte et problème
 
@@ -127,6 +127,16 @@ F-009 montera l'authentification entre les étapes 5 et 6 (better-auth veut pass
 
 Dans les trois échecs, l'objet d'erreur n'est écrit nulle part, ni sur la sortie d'erreur ni dans le journal : il peut porter l'URL de connexion, donc le mot de passe. La suite du processus est décrite par l'ADR-0006.
 
+### Amendement F-012 (2026-10-16) : passage en WebSocket, assemblage, liste blanche du serveur
+
+Contexte : F-012 (`797d708`) ajoute la synchronisation des documents au serveur (ADR-0013) sans amender cet ADR (mode économe, D-023). Trois points de la décision ci-dessus ne décrivent plus le code.
+
+- **Le serveur répond aussi à des demandes que l'application n'a pas vues.** La phrase « le serveur ne répond qu'à des requêtes que l'application a vues, donc toujours avec ses en-têtes et son enveloppe » ne vaut plus pour la demande de passage en WebSocket : `demarrerServeur` remet l'événement `upgrade` au `Passage` qu'il reçoit (`apps/server/src/serveur.ts`), et la synchronisation refuse une demande par une ligne d'état HTTP sans corps (401, 403, 404, 429, 500, 503), écrite sur la socket avant de la détruire (`refuserLePassage`, `apps/server/src/synchronisation.ts`) : ni enveloppe, ni `X-Request-Id`, ni en-têtes de `helmet`. Le motif n'est écrit que dans le journal (ligne `synchro`). Une requête HTTP ordinaire suit toujours le chemin de l'application et de son enveloppe.
+- **Composition.** `service.ts` n'appelle plus `creerApplication` ni `creerSuppressionDeSessions` : il appelle `assembler` (`apps/server/src/assemblage.ts`), seule fonction qui réunit l'application HTTP, la fonction de suppression de session, le module des adhésions et la synchronisation, et que la fabrique d'essai (`apps/server/test/fabrique.ts`) appelle aussi. Sens des dépendances : `service → assemblage, configuration (type), journal, serveur` ; `assemblage → adhesions, application, authentification, debit, sessions, synchronisation`, et `configuration`, `journal`, `synchro-reglages` pour des types. `arreter()` de l'écoute attend aussi l'arrêt de la synchronisation. `serveur.ts` n'importe toujours aucun autre fichier du serveur.
+- **Liste blanche du serveur élargie** (`serveur-liste-blanche`, commit du dev `022f044`) : `@hocuspocus/server`, `ws` et ses types, `y-protocols`, `yjs` et `lib0` sont admis depuis `apps/server/src/` ; `@notionlike/document`, `@hocuspocus/provider` et la fabrique d'essai y restent refusés. La règle `apps-isolees` admet une exception, les tests d'`apps/web`, qui n'atteignent `apps/server` que par la fabrique (`web-tests-serveur-par-la-fabrique`).
+- **Manifeste** : `apps/server/package.json` a désormais un champ `exports`, une seule entrée, `./essai` vers `test/fabrique.ts` (F-012 H16).
+- **Contrat partagé** : la première fonction pure que le client et le serveur appliquent à l'identique, annoncée ci-dessus pour F-012, est `nomDeDocument` et son schéma `schemaNomDeDocument` (`packages/contrats/src/synchro.ts`).
+
 ### Contrats de dépendances
 
 Six règles de F-008 dans `.dependency-cruiser.cjs`. Les quatre premières viennent de la conception (texte et preuve dans `docs/decisions/F-008-conception.md`) :
@@ -156,3 +166,4 @@ S'y ajoute une règle ESLint `no-restricted-globals` sur `packages/contrats/src`
 - Une erreur hors requête (promesse rejetée sans traitement, exception non interceptée) garde le comportement de Node : le processus s'arrête. Aucun critère de F-008 ne le couvre.
 - Une initialisation impossible, une écoute impossible et un arrêt en échec ne laissent qu'une phrase fixe : la cause n'est écrite nulle part. C'est le prix de ne jamais écrire un objet d'erreur qui peut porter l'URL de connexion ; le diagnostic se fait hors du serveur (port occupé, état de la base).
 - Que l'écouteur d'erreur de l'écoute soit bien retiré une fois l'écoute établie n'est tenu par aucune assertion : le serveur HTTP n'est pas exposé hors de `serveur.ts`.
+- Amendement F-012 : le serveur tient un état en mémoire qui ne se reconstruit pas d'une requête à l'autre (connexions, ouvertures, documents chargés, époques des droits) ; une seconde instance n'est pas possible sans diffusion partagée (ADR-0013). Un refus de passage en WebSocket est lisible par un client hors navigateur seulement, sans enveloppe.
