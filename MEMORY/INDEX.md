@@ -16,3 +16,4 @@
 - F-012 Synchronisation serveur des documents (Hocuspocus, instantanés Yjs, autorisation par espace) — 2026-10-14 — features/F-012.md
 - F-013 Synchronisation côté client (connexion, reprise après hors ligne, état visible) — 2026-10-15 — features/F-013.md
 - F-028 Mise en forme dans le texte : gras, italique, liens — 2026-10-16 — features/F-028.md
+- F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — 2026-10-16 — features/F-017.md
