@@ -153,6 +153,32 @@ describe("vérification de la configuration avant tout lancement", () => {
     expect(existsSync(join(arbre.etat, "volume"))).toBe(false);
   });
 
+  // Écart à la spec consigné dans MEMORY/features/F-031.md : NODE_ENV, HOTE et PORT sont imposées par
+  // l'`environment` du service serveur, qui l'emporte sur apps/server/.env ; les y corriger n'y ferait rien.
+  it.each(["NODE_ENV", "HOTE", "PORT"])(
+    "F-031-AC8 un refus de %s renvoie à infra/docker-compose.yml, pas à apps/server/.env",
+    (variable) => {
+      poserLesFichiers(arbre);
+      poserEtat(arbre, "verification", "refusee");
+      poserEtat(
+        arbre,
+        "refus",
+        `Configuration invalide : ${variable}, BETTER_AUTH_SECRET\n- ${variable} : valeur refusée\n`,
+      );
+
+      const resultat = lancer(arbre, ["demarrer"]);
+
+      expect(resultat.code).not.toBe(0);
+      expect(resultat.erreur).toContain(`  - ${variable} : imposée par infra/docker-compose.yml.`);
+      expect(resultat.erreur).not.toContain(`  - ${variable} : apps/server/.env.`);
+      expect(resultat.erreur).toContain("  - BETTER_AUTH_SECRET : apps/server/.env.");
+      expect(
+        lireCompose(readFileSync(join(DEPOT, "infra/docker-compose.yml"), "utf8")).services.serveur
+          ?.environment,
+      ).toHaveProperty(variable);
+    },
+  );
+
   it("F-031-AC8 une Compose qui n'appliquerait pas !reset : le volume apparu pendant la vérification est dit, rien n'est lancé ni supprimé", () => {
     poserLesFichiers(arbre);
     poserEtat(arbre, "run-cree-le-volume");
