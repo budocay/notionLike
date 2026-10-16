@@ -15,6 +15,9 @@ const CE_FICHIER = `${ICI}/coutures-rang.test.ts`;
 const RANG = "packages/document/src/rang.ts";
 const FORMAT = "packages/document/src/format.ts";
 const FACADE = "packages/document/src/document-espace.ts";
+const FACADE_TABLE = "packages/document/src/document-table.ts";
+const FORMAT_TABLE = "packages/document/src/format-table.ts";
+const TEST_DU_RANG_DE_TABLE = "packages/document/test/table-rang.test.ts";
 const NOMS_D_ECRITURE = ["ecrireNouvellePage", "ecrirePlace", "admettrePlace"];
 const ENTREE_A_BORNE = "ouvrirDocumentEspaceBorne";
 // Les essais sont assemblés : ce fichier, lu lui aussi, ne définit ni ne nomme ce qu'il énumère.
@@ -119,6 +122,10 @@ const APPELANTS_DU_RANG: Readonly<Record<string, string>> = {
   [FORMAT]: "packages/document/test/borne-ecriture.test.ts",
   "packages/document/test/borne-calcul.test.ts": "packages/document/test/borne-calcul.test.ts",
   "packages/document/test/rang.test.ts": "packages/document/test/borne-contrat.test.ts",
+  // F-017 : la façade de table place par `insertionParmi`, le format de table lit et admet les rangs.
+  [FACADE_TABLE]: TEST_DU_RANG_DE_TABLE,
+  [FORMAT_TABLE]: TEST_DU_RANG_DE_TABLE,
+  [TEST_DU_RANG_DE_TABLE]: TEST_DU_RANG_DE_TABLE,
 };
 const ECRIVAINS_DE_PLACE: Readonly<Record<string, string>> = {
   [FACADE]: "packages/document/test/borne-ecriture.test.ts",
@@ -264,8 +271,13 @@ describe("coutures du rang borné dans le workspace", () => {
     const facade = texteDe(FACADE);
     const format = texteDe(FORMAT);
 
-    expect(facade).toMatch(/function insertionALaPosition\([^]*?\brangEntre\(/);
-    expect(facade).toMatch(/function insertionElargie\([^]*?\brangsRepartis\(/);
+    // F-017 : le calcul d'insertion est extrait dans rang.ts (`insertionParmi`), commun aux façades.
+    expect(facade).toMatch(/function insertionALaPosition\([^]*?\binsertionParmi\(/);
+    expect(texteDe(RANG)).toMatch(/function insertionParmi\([^]*?\brangEntre\(/);
+    expect(texteDe(RANG)).toMatch(/function insertionElargie\([^]*?\brangsRepartis\(/);
+    expect(texteDe(FACADE_TABLE)).toMatch(/function placement\([^]*?\binsertionParmi\(/);
+    expect(texteDe(FORMAT_TABLE)).toMatch(/function estUnRangAdmis\([^]*?\bestUnRang\(/);
+    expect(texteDe(FORMAT_TABLE)).toMatch(/function admettreRang\([^]*?\bestUnRang\(/);
     expect(format).toMatch(/function lirePlace\([^]*?\bestUnRang\(rang, longueurMaxRang\)/);
     expect(format).toMatch(
       new RegExp(

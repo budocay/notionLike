@@ -30,6 +30,16 @@ const CODES = Object.keys({
   "version-invalide": true,
   "rang-indisponible": true,
   "page-hors-corbeille": true,
+  // F-017 : refus du document de table.
+  "pas-un-document-de-table": true,
+  "type-de-colonne-inconnu": true,
+  "nom-non-admis": true,
+  "libelle-non-admis": true,
+  "ligne-introuvable": true,
+  "colonne-introuvable": true,
+  "colonne-sans-options": true,
+  "option-introuvable": true,
+  "valeur-non-conforme": true,
 } satisfies Record<CodeErreurDocument, true>) as CodeErreurDocument[];
 
 // Modules de src/ qui importent le paquet du document, à la date de F-007.
@@ -89,7 +99,8 @@ describe("modules qui importent le document", () => {
   });
 
   it("F-007-AC24 le traducteur donne un message français distinct, sans code, pour chacun des dix codes, page-hors-corbeille compris", () => {
-    expect(CODES).toHaveLength(10);
+    // F-017 : dix-neuf, avec les neuf de la table.
+    expect(CODES).toHaveLength(19);
     const messages = CODES.map((code) => {
       const message = messageErreur(code);
       expect(message, code).toMatch(/^[A-ZÀ-Ý][^]*\.$/);

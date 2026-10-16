@@ -69,6 +69,19 @@ const EXPORTS_DU_PAQUET = [
   "lireVersionPage",
   "ouvrirDocumentEspace",
   "ouvrirDocumentPage",
+  // F-017 : document de table.
+  "ColonneLue",
+  "DocumentTable",
+  "IdColonne",
+  "IdLigne",
+  "IdOption",
+  "LigneLue",
+  "OptionLue",
+  "TableLue",
+  "TypeDeColonne",
+  "ValeurDeCellule",
+  "creerDocumentTable",
+  "ouvrirDocumentTable",
 ];
 
 /** Noms rendus par les `export { … } from` d'un module ; `*` signale un réexport entier. */
@@ -109,7 +122,7 @@ describe("contrat public", () => {
     expect(nomsExportes(texte)).toEqual(attendus);
   });
 
-  it("F-029-AC15 src/index.ts rend exactement les quinze noms de F-001 et F-003, ni borne, ni fonction de rang, ni entrée interne", () => {
+  it("F-029-AC15 F-017-AC25 src/index.ts rend exactement les quinze noms de F-001 et F-003, plus les douze du document de table de F-017, ni borne, ni fonction de rang, ni entrée interne", () => {
     const noms = nomsExportes(texteDe("../src/index.ts"));
 
     expect(noms).toEqual([...EXPORTS_DU_PAQUET].sort());
@@ -138,6 +151,16 @@ describe("contrat public", () => {
       "rang-indisponible",
       // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
       "page-hors-corbeille",
+      // F-017 : refus du document de table.
+      "pas-un-document-de-table",
+      "type-de-colonne-inconnu",
+      "nom-non-admis",
+      "libelle-non-admis",
+      "ligne-introuvable",
+      "colonne-introuvable",
+      "colonne-sans-options",
+      "option-introuvable",
+      "valeur-non-conforme",
     ]);
   });
 });

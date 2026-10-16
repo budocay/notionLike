@@ -316,6 +316,16 @@ const CODES_ATTENDUS = Object.keys({
   "rang-indisponible": true,
   // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
   "page-hors-corbeille": true,
+  // F-017 : refus du document de table.
+  "pas-un-document-de-table": true,
+  "type-de-colonne-inconnu": true,
+  "nom-non-admis": true,
+  "libelle-non-admis": true,
+  "ligne-introuvable": true,
+  "colonne-introuvable": true,
+  "colonne-sans-options": true,
+  "option-introuvable": true,
+  "valeur-non-conforme": true,
 } satisfies Record<CodeErreurDocument, true>);
 
 describe("codes d'erreur du paquet", () => {
@@ -331,6 +341,16 @@ describe("codes d'erreur du paquet", () => {
       "version-invalide",
       "rang-indisponible",
       "page-hors-corbeille",
+      // F-017 : refus du document de table.
+      "pas-un-document-de-table",
+      "type-de-colonne-inconnu",
+      "nom-non-admis",
+      "libelle-non-admis",
+      "ligne-introuvable",
+      "colonne-introuvable",
+      "colonne-sans-options",
+      "option-introuvable",
+      "valeur-non-conforme",
     ]);
   });
 });
