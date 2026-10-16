@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 const SRC = new URL("../src/", import.meta.url);
 const SERVEUR = new URL("../", import.meta.url);
+const RACINE = new URL("../../../", import.meta.url);
 const PAQUETS = ["@notionlike/contrats", "@notionlike/db"] as const;
 
 type Entrees = Readonly<Record<string, readonly string[]>>;
@@ -257,5 +258,163 @@ describe("appelants des fonctions élargies par F-012", () => {
       "test/suppression.test.ts",
       "test/synchro-coutures.test.ts",
     ]);
+  });
+});
+
+// Couture de F-031-AC14 : le texte du refus de configuration change de format (raisons, une ligne
+// par variable), et ErreurConfiguration change de constructeur. Les fichiers d'apps/, packages/ et
+// infra/ qui citent la lecture de la configuration, son erreur, ses constantes factices ou la
+// fonction du texte sont énumérés, avec ce qu'ils citent : chacun est exercé par ses tests.
+const NOMS_DE_LA_CONFIGURATION = [
+  "lireConfiguration",
+  "ErreurConfiguration",
+  "MOT_DE_PASSE_FACTICE",
+  "SECRET_FACTICE",
+  "texteDuRefusDeConfiguration",
+] as const;
+const DOSSIERS_IGNORES = new Set([
+  "node_modules",
+  "dist",
+  "coverage",
+  "test-results",
+  "playwright-report",
+]);
+const CODE = /\.(?:[cm]?[jt]s|tsx|sh)$/;
+
+// Les fichiers de code d'un dossier, de proche en proche, par leur chemin depuis la racine.
+function fichiersDeCode(dossier: string): Map<string, string> {
+  const fichiers = new Map<string, string>();
+  for (const entree of readdirSync(new URL(`${dossier}/`, RACINE), { withFileTypes: true })) {
+    const chemin = `${dossier}/${entree.name}`;
+    if (entree.isDirectory() && !DOSSIERS_IGNORES.has(entree.name)) {
+      for (const [sous, texte] of fichiersDeCode(chemin)) {
+        fichiers.set(sous, texte);
+      }
+    } else if (entree.isFile() && CODE.test(entree.name)) {
+      fichiers.set(chemin, readFileSync(new URL(chemin, RACINE), "utf8"));
+    }
+  }
+  return fichiers;
+}
+
+function citationsDeLaConfiguration(fichiers: ReadonlyMap<string, string>): Entrees {
+  const citations = [...fichiers].map(
+    ([chemin, texte]) =>
+      [
+        chemin,
+        NOMS_DE_LA_CONFIGURATION.filter((nom) => new RegExp(`\\b${nom}\\b`).test(texte)).sort(),
+      ] as const,
+  );
+  return Object.fromEntries(citations.filter(([, noms]) => noms.length > 0).sort());
+}
+
+describe("appelants de la configuration (F-031-AC14)", () => {
+  it("F-031-AC14 les fichiers d'apps/, packages/ et infra/ qui citent la configuration, son erreur, ses constantes factices ou le texte du refus sont énumérés", () => {
+    const fichiers = new Map(
+      ["apps", "packages", "infra"].flatMap((dossier) => [...fichiersDeCode(dossier)]),
+    );
+
+    expect(citationsDeLaConfiguration(fichiers)).toEqual({
+      "apps/server/src/configuration.ts": [
+        "ErreurConfiguration",
+        "MOT_DE_PASSE_FACTICE",
+        "SECRET_FACTICE",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      // Les deux entrées qui écrivent le texte du refus (F-008-AC12, ADR-0017).
+      "apps/server/src/main.ts": [
+        "ErreurConfiguration",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      "apps/server/src/verifier-configuration.ts": [
+        "ErreurConfiguration",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      // Les aides et les entrées d'essai lisent une configuration acceptée.
+      "apps/server/test/aides.ts": ["lireConfiguration"],
+      "apps/server/test/configuration.test.ts": [
+        "ErreurConfiguration",
+        "MOT_DE_PASSE_FACTICE",
+        "SECRET_FACTICE",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      "apps/server/test/coutures.test.ts": [
+        "ErreurConfiguration",
+        "MOT_DE_PASSE_FACTICE",
+        "SECRET_FACTICE",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      "apps/server/test/essai/main-base-embarquee.ts": ["lireConfiguration"],
+      "apps/server/test/essai/main-fermeture-en-echec.ts": ["lireConfiguration"],
+      "apps/server/test/fabrique.ts": ["lireConfiguration"],
+      "apps/server/test/processus.test.ts": [
+        "MOT_DE_PASSE_FACTICE",
+        "SECRET_FACTICE",
+        "lireConfiguration",
+      ],
+      "apps/server/test/service.test.ts": ["lireConfiguration"],
+      "apps/server/test/synchro-coutures.test.ts": ["lireConfiguration"],
+      "apps/server/test/verifier-configuration.test.ts": [
+        "ErreurConfiguration",
+        "lireConfiguration",
+        "texteDuRefusDeConfiguration",
+      ],
+      // F-031-AC9 : sa propre valeur factice, en shell, pour POSTGRES_PASSWORD ; la vérification de
+      // la configuration du serveur passe par l'entrée de vérification (ADR-0017).
+      "infra/pile.sh": ["MOT_DE_PASSE_FACTICE"],
+    });
+  });
+
+  it("F-031-AC14 un appelant de plus, un nom de plus, ou un fichier hors de src/ et test/ est vu ; un nom qui en contient un autre ne l'est pas", () => {
+    const fautifs = new Map([
+      [
+        "infra/tests/nouveau.test.ts",
+        "import { lireConfiguration } from '../../apps/server/src/configuration.ts';",
+      ],
+      ["infra/script.sh", 'echo "$SECRET_FACTICE"'],
+      ["apps/web/src/ailleurs.ts", "if (erreur instanceof ErreurConfiguration) {}"],
+      ["apps/web/src/homonyme.ts", "const lireConfigurationDuClient = 1;"],
+    ]);
+
+    expect(citationsDeLaConfiguration(fautifs)).toEqual({
+      "apps/web/src/ailleurs.ts": ["ErreurConfiguration"],
+      "infra/script.sh": ["SECRET_FACTICE"],
+      "infra/tests/nouveau.test.ts": ["lireConfiguration"],
+    });
+  });
+});
+
+// ADR-0006 amendé par ADR-0017 : deux fichiers d'apps/server/src touchent au `process` global, les
+// deux points d'entrée lancés par `node` ; tout autre module reçoit le processus en dépendance.
+function fichiersQuiTouchentAuProcessus(fichiers: ReadonlyMap<string, string>): string[] {
+  const sansCommentaires = (texte: string): string => texte.replace(/^\s*\/\/.*$/gm, "");
+  return [...fichiers]
+    .filter(([, texte]) => /(?<![\w.$])process(?![\w$])/.test(sansCommentaires(texte)))
+    .map(([nom]) => nom)
+    .sort();
+}
+
+describe("le processus global (ADR-0006, ADR-0017)", () => {
+  it("F-031-AC14 seuls main.ts et verifier-configuration.ts touchent au process global", () => {
+    expect(fichiersQuiTouchentAuProcessus(sources)).toEqual([
+      "main.ts",
+      "verifier-configuration.ts",
+    ]);
+  });
+
+  it("F-031-AC14 un usage du process hors d'un commentaire est vu, un commentaire ou un nom voisin ne l'est pas", () => {
+    const fautifs = new Map([
+      ["lit.ts", "const port = process.env.PORT;"],
+      ["recoit.ts", "lancer({ processus: process });"],
+      ["commente.ts", "// ne touche pas au `process` global\nconst processus = 1;"],
+      ["voisin.ts", "const x = options.process;"],
+    ]);
+
+    expect(fichiersQuiTouchentAuProcessus(fautifs)).toEqual(["lit.ts", "recoit.ts"]);
   });
 });

@@ -2,7 +2,6 @@
 // verrou et les manifestes, et constatées sur l'assemblage réel.
 import { readdirSync, readFileSync } from "node:fs";
 import { Writable } from "node:stream";
-import { fileURLToPath } from "node:url";
 
 import { Document } from "@hocuspocus/server";
 import {
@@ -24,6 +23,7 @@ import { lireConfiguration } from "../src/configuration.ts";
 import { creerJournal } from "../src/journal.ts";
 import { creerSuppressionDeSessions } from "../src/sessions.ts";
 import { REGLAGES_SYNCHRO } from "../src/synchro-reglages.ts";
+import { importationsAtteignables } from "./aides-sources.ts";
 import { DELAI_SYNCHRO_MS } from "./aides-synchro.ts";
 import { ENV_D_ESSAI } from "./aides.ts";
 import { demarrerServeurDEssai } from "./fabrique.ts";
@@ -235,31 +235,6 @@ describe("une seule instance de yjs (F-012-AC30)", () => {
 
 // ---------------------------------------------------------------------------------------------
 // F-012-AC36 : la fabrique d'essai, et ce que la production n'en voit pas.
-
-// Les importations atteignables depuis un module, de proche en proche par les chemins relatifs.
-function importationsAtteignables(depart: URL): { fichiers: string[]; paquets: string[] } {
-  const fichiers = new Set<string>();
-  const paquets = new Set<string>();
-  const aVoir = [depart];
-  while (aVoir.length > 0) {
-    const courant = aVoir.pop();
-    if (courant === undefined || fichiers.has(courant.href)) {
-      continue;
-    }
-    fichiers.add(courant.href);
-    for (const [, cible = ""] of lire(courant).matchAll(/(?:from|import)\s+"([^"]+)"/g)) {
-      if (cible.startsWith(".")) {
-        aVoir.push(new URL(cible, courant));
-      } else {
-        paquets.add(cible);
-      }
-    }
-  }
-  return {
-    fichiers: [...fichiers].map((href) => fileURLToPath(href).replace(fileURLToPath(SERVEUR), "")),
-    paquets: [...paquets],
-  };
-}
 
 describe("fabrique d'essai (F-012-AC36)", () => {
   it("F-012-AC36 depuis le point d'entrée de production, aucune importation n'atteint la fabrique ni la base embarquée", () => {

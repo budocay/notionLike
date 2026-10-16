@@ -7,7 +7,7 @@ import {
   RAISONS,
   RAISONS_DE_REFUS,
   SECRET_FACTICE,
-  texteDuRefus,
+  texteDuRefusDeConfiguration,
   type Environnement,
   type RaisonDeRefus,
 } from "../src/configuration.ts";
@@ -179,7 +179,7 @@ describe("configuration refusée", () => {
       expect(erreur.raisons).toEqual(
         variables.map((variable, rang) => ({ variable, raison: raisons[rang] })),
       );
-      expect(texteDuRefus(erreur)).not.toContain("valeur-fautive");
+      expect(texteDuRefusDeConfiguration(erreur)).not.toContain("valeur-fautive");
     },
   );
 
@@ -209,7 +209,7 @@ describe("valeur factice en production", () => {
 
     expect(erreur.variables).toEqual(["URL_BASE_DONNEES"]);
     expect(erreur.message).toBe("Configuration invalide : URL_BASE_DONNEES");
-    expect(texteDuRefus(erreur)).toBe(
+    expect(texteDuRefusDeConfiguration(erreur)).toBe(
       `Configuration invalide : URL_BASE_DONNEES\n- URL_BASE_DONNEES : ${RAISONS.factice}\n`,
     );
   });
@@ -421,7 +421,7 @@ describe("raisons du refus (F-031-AC12)", () => {
     const erreur = refus(env);
 
     expect(erreur.raisons).toEqual([{ variable, raison }]);
-    expect(texteDuRefus(erreur)).toBe(
+    expect(texteDuRefusDeConfiguration(erreur)).toBe(
       `Configuration invalide : ${variable}\n- ${variable} : ${raison}\n`,
     );
   });
@@ -465,7 +465,7 @@ describe("raisons du refus (F-031-AC12)", () => {
     expect(erreur.message).toBe(
       "Configuration invalide : PORT, URL_BASE_DONNEES, ORIGINES_AUTORISEES, BETTER_AUTH_SECRET, URL_PUBLIQUE",
     );
-    expect(texteDuRefus(erreur)).toBe(
+    expect(texteDuRefusDeConfiguration(erreur)).toBe(
       [
         erreur.message,
         `- PORT : ${RAISONS.horsBornes}`,
@@ -550,7 +550,7 @@ describe("le texte du refus ne dit rien d'une valeur (F-031-AC13)", () => {
       const erreur = refus({ ...ENV_D_ESSAI, [variable]: valeur });
 
       expect(erreur.raisons).toEqual([{ variable, raison }]);
-      attendreSansFuite(texteDuRefus(erreur), valeur);
+      attendreSansFuite(texteDuRefusDeConfiguration(erreur), valeur);
     },
   );
 
@@ -565,7 +565,7 @@ describe("le texte du refus ne dit rien d'une valeur (F-031-AC13)", () => {
       URL_PUBLIQUE: "https://kq7zp.zz9/Wq7Zk",
       PROXYS_DE_CONFIANCE: "Jx9Qw",
     };
-    const texte = texteDuRefus(refus(env));
+    const texte = texteDuRefusDeConfiguration(refus(env));
 
     expect(texte.split("\n")).toHaveLength(Object.keys(env).length + 2);
     for (const valeur of Object.values(env).filter((v) => v !== "")) {
@@ -582,7 +582,7 @@ describe("le texte du refus ne dit rien d'une valeur (F-031-AC13)", () => {
       URL_BASE_DONNEES: "postgres://Wq7Zk:factice-a-remplacer@kq7zp.zz9:5999/zq",
       BETTER_AUTH_SECRET: SECRET_FACTICE,
     };
-    const texte = texteDuRefus(refus(env));
+    const texte = texteDuRefusDeConfiguration(refus(env));
 
     expect(texte).toBe(
       [

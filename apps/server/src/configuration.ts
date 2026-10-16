@@ -81,7 +81,7 @@ export class ErreurConfiguration extends Error {
 // F-031-AC12, ADR-0017 : le texte entier du refus, écrit par main.ts et par l'entrée de
 // vérification. La première ligne est le message, inchangé depuis F-008-AC12 ; suit une ligne
 // par variable ; le texte finit par un saut de ligne.
-export function texteDuRefus(erreur: ErreurConfiguration): string {
+export function texteDuRefusDeConfiguration(erreur: ErreurConfiguration): string {
   const lignes = erreur.raisons.map(({ variable, raison }) => `- ${variable} : ${raison}`);
   return `${[erreur.message, ...lignes].join("\n")}\n`;
 }

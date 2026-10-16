@@ -153,9 +153,9 @@ describe("fichier d'exemple du serveur", () => {
       hote: "127.0.0.1",
       port: 3000,
       urlBaseDonnees: variables.URL_BASE_DONNEES,
-      originesAutorisees: [],
+      originesAutorisees: ["http://127.0.0.1:5173", "http://127.0.0.1:5174"],
       secretDesSessions: SECRET_FACTICE,
-      urlPublique: "http://127.0.0.1:3000",
+      urlPublique: "http://127.0.0.1:5173",
       cookiesSecurises: false,
       proxysDeConfiance: 0,
     });
