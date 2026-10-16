@@ -222,6 +222,46 @@ export function lancer(
   };
 }
 
+// Secrets marqués : leurs segments de quatre caractères n'apparaissent dans aucun texte du script.
+const PAIRES_DU_MOT_DE_PASSE = 24;
+const PAIRES_DU_SECRET = 32;
+export const MOT_DE_PASSE = "Qz".repeat(PAIRES_DU_MOT_DE_PASSE);
+export const SECRET = "Wk".repeat(PAIRES_DU_SECRET);
+export const ANCIEN_MOT_DE_PASSE = "Jx".repeat(PAIRES_DU_MOT_DE_PASSE);
+export const CONTENEURS_EN_MARCHE = [
+  "base|running|Up 2 minutes (healthy)|127.0.0.1:5432->5432/tcp",
+  "migration|exited|Exited (0) 2 minutes ago|",
+  "serveur|running|Up 2 minutes (healthy)|127.0.0.1:3000->3000/tcp",
+].join("\n");
+
+/** Les variables d'apps/server/.env que preparer écrirait, avec les secrets marqués. */
+export function configurationDuServeur(
+  remplacements: Readonly<Record<string, string>> = {},
+): string {
+  const configuration: Record<string, string> = {
+    HOTE: "127.0.0.1",
+    PORT: "3000",
+    URL_BASE_DONNEES: `postgres://notionlike:${MOT_DE_PASSE}@127.0.0.1:5432/notionlike`,
+    ORIGINES_AUTORISEES: "http://127.0.0.1:5173,http://127.0.0.1:5174",
+    BETTER_AUTH_SECRET: SECRET,
+    URL_PUBLIQUE: "http://127.0.0.1:5173",
+    ...remplacements,
+  };
+  return Object.entries(configuration)
+    .map(([cle, valeur]) => `${cle}=${valeur}\n`)
+    .join("");
+}
+
+/** Pose les deux fichiers de configuration, secrets marqués, sans lancer preparer. */
+export function poserLesFichiers(
+  arbre: Arbre,
+  remplacements: Readonly<Record<string, string>> = {},
+  infra = `POSTGRES_PASSWORD=${MOT_DE_PASSE}\n`,
+): void {
+  ecrire(arbre, ENV_INFRA, infra);
+  ecrire(arbre, ENV_SERVEUR, configurationDuServeur(remplacements));
+}
+
 /** Les affectations CLE=valeur non commentées d'un fichier d'environnement. */
 export function variables(texte: string): Map<string, string> {
   const affectation = /^([A-Z][A-Z0-9_]*)=(.*)$/;

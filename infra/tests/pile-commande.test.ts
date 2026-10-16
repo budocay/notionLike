@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  ANCIEN_MOT_DE_PASSE,
   type Arbre,
+  CONTENEURS_EN_MARCHE,
   creerArbre,
   DELAI_DES_TESTS_DE_LA_PILE_MS,
   DEPOT,
@@ -15,10 +17,13 @@ import {
   ENV_SERVEUR,
   lancer,
   lire,
+  MOT_DE_PASSE,
   poserCommande,
   poserEtat,
+  poserLesFichiers,
   type Resultat,
   retirerCommande,
+  SECRET,
   SOUS_COMMANDES,
   supprimerArbre,
   variables,
@@ -31,16 +36,6 @@ const texteDuScript = readFileSync(join(DEPOT, "infra/pile.sh"), "utf8");
 const LIGNE_DE_L_AIDE = /^ {2}([a-z]+) {2,}/;
 const SUPPRESSION_DE_VOLUME = /(?:^|\s)(?:-v|--volumes)(?:\s|$)|volume (?:rm|remove)|prune/;
 
-// Secrets marqués : leurs segments de quatre caractères n'apparaissent dans aucun texte du script.
-const MOT_DE_PASSE = "Qz".repeat(24);
-const SECRET = "Wk".repeat(32);
-const ANCIEN_MOT_DE_PASSE = "Jx".repeat(24);
-const CONTENEURS_EN_MARCHE = [
-  "base|running|Up 2 minutes (healthy)|127.0.0.1:5432->5432/tcp",
-  "migration|exited|Exited (0) 2 minutes ago|",
-  "serveur|running|Up 2 minutes (healthy)|127.0.0.1:3000->3000/tcp",
-].join("\n");
-
 let arbre: Arbre;
 
 beforeEach(() => {
@@ -50,23 +45,6 @@ beforeEach(() => {
 afterEach(() => {
   supprimerArbre(arbre);
 });
-
-function poserLesFichiers(): void {
-  ecrire(arbre, ENV_INFRA, `POSTGRES_PASSWORD=${MOT_DE_PASSE}\n`);
-  ecrire(
-    arbre,
-    ENV_SERVEUR,
-    [
-      "HOTE=127.0.0.1",
-      "PORT=3000",
-      `URL_BASE_DONNEES=postgres://notionlike:${MOT_DE_PASSE}@127.0.0.1:5432/notionlike`,
-      "ORIGINES_AUTORISEES=http://127.0.0.1:5173,http://127.0.0.1:5174",
-      `BETTER_AUTH_SECRET=${SECRET}`,
-      "URL_PUBLIQUE=http://127.0.0.1:5173",
-      "",
-    ].join("\n"),
-  );
-}
 
 function sousCommandesDeLAide(texte: string): string[] {
   return texte.split("\n").flatMap((ligne) => LIGNE_DE_L_AIDE.exec(ligne)?.[1] ?? []);
@@ -134,7 +112,7 @@ describe("arreter", () => {
   });
 
   it("F-031-AC24 fichiers présents et pile en marche : même arrêt, sans fichier Compose ni secret à lire", () => {
-    poserLesFichiers();
+    poserLesFichiers(arbre);
     poserEtat(arbre, "conteneurs", CONTENEURS_EN_MARCHE);
     poserEtat(arbre, "volume");
 
@@ -185,7 +163,7 @@ describe("etat", () => {
   });
 
   it("F-031-AC25 pile en marche sur un port publié réglé : états des services, code de /pret, volume présent", () => {
-    poserLesFichiers();
+    poserLesFichiers(arbre);
     ecrire(arbre, ENV_INFRA, `POSTGRES_PASSWORD=${MOT_DE_PASSE}\nPORT_PUBLIE_SERVEUR=3100\n`);
     poserEtat(arbre, "conteneurs", CONTENEURS_EN_MARCHE);
     poserEtat(arbre, "volume");
@@ -294,7 +272,7 @@ describe("secrets", () => {
   ])(
     "F-031-AC6 F-031-AC22 %s (état %j) : aucun secret sur les sorties, dans les arguments ni hors des deux fichiers",
     (sousCommande, etat) => {
-      poserLesFichiers();
+      poserLesFichiers(arbre);
       if (etat.includes("conteneurs")) poserEtat(arbre, "conteneurs", CONTENEURS_EN_MARCHE);
       if (etat.includes("volume")) poserEtat(arbre, "volume");
       poserEtat(
