@@ -10,7 +10,11 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { RACCOURCIS } from "../src/interface/raccourcis.ts";
+import { creerPagesOuvertes } from "../src/page/pages-ouvertes.ts";
+import type { SessionPage } from "../src/page/session-page.ts";
+import type { CanalEntreOnglets } from "../src/synchronisation/environnement.ts";
 import { versionAdmise } from "../src/synchronisation/index.ts";
+import { PageSynchronisee } from "../src/synchronisation/page-affichee.ts";
 import { lireLesFichiersDuWorkspace } from "./aides-coutures.ts";
 import { lire, lireDossier } from "./aides-disque.ts";
 import { contenuLu, fragmentBrut, ouvrirFacadeDePage } from "./aides-facade-page.ts";
@@ -18,11 +22,13 @@ import { type Aretes, graphe } from "./aides-graphe.ts";
 import {
   documentDeLaLigne,
   documentDeVersionInconnue,
+  enregistrerParLaPersistance,
   relireParLaPersistance,
   textesDeLaLigne,
   VERSION_INCONNUE,
   VERSIONS_DE_LA_TABLE,
 } from "./aides-lignes.ts";
+import { ESPACE_A } from "./aides-persistance.ts";
 import { attendrePhase, demarrerUneSession, rendreLaSession } from "./aides-session-page.tsx";
 import {
   chercherLaZoneDeSaisie,
@@ -248,6 +254,195 @@ const APPELANTS_NOMMES: Readonly<Record<string, (doc: Y.Doc, version: number) =>
     },
   };
 
+/**
+ * Les fonctions qui lisent, vérifient ou élèvent la version pour leurs appelants, par fichier
+ * appelant du paquet qui les exporte. Tout autre export de ces fichiers est déclaré sans version.
+ */
+const ENVELOPPES_DE_LA_VERSION: Readonly<Record<string, readonly string[]>> = {
+  "apps/web/src/page/session-page.ts": [
+    "demarrerSessionPage",
+    "eleverPour",
+    "estUnePageDeVersionAdmise",
+    "versionExigee",
+  ],
+  "apps/web/src/synchronisation/miroir.ts": ["creerMiroir", "versionAdmise"],
+};
+const EXPORTS_SANS_VERSION: Readonly<Record<string, readonly string[]>> = {
+  "apps/web/src/page/session-page.ts": [
+    "DocumentDePage",
+    "ElementsDuFormat",
+    "EtatSessionPage",
+    "SessionPage",
+    "sessionDePageIntrouvable",
+  ],
+  "apps/web/src/synchronisation/miroir.ts": ["Miroir", "ORIGINE_DU_MIROIR"],
+};
+/** Ce que l'état prêt de la session donne à l'éditeur : la garde de version et l'élévation. */
+const PROPRIETE_DE_LA_VERSION = /\b(?:preparerLaVersion|garderVersion)\b/;
+const IMPORT_NOMME = /import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*["'][^"']+["']/g;
+/** Le module d'édition et le paquet lui-même, qui ont leurs scénarios nommés. */
+const COUVERTS_PAR_LEUR_SCENARIO = ["apps/web/src/edition/", "packages/document/src/"];
+
+/** Noms exportés par un fichier : déclarations et listes d'exports. */
+function exportsDe(texte: string): string[] {
+  const declares = [
+    ...texte.matchAll(
+      /^export\s+(?:async\s+)?(?:function|const|let|class|interface|type|enum)\s+(\w+)/gm,
+    ),
+  ].map(([, nom = ""]) => nom);
+  const listes = [...texte.matchAll(/^export\s*(?:type\s*)?\{([^}]*)\}/gm)].flatMap(
+    ([, liste = ""]) =>
+      liste.split(",").map((nom) =>
+        nom
+          .replace(/\btype\b/, "")
+          .split(/\s+as\s+/)
+          .at(-1)
+          ?.trim(),
+      ),
+  );
+  return [...declares, ...listes].filter((nom): nom is string => nom !== undefined && nom !== "");
+}
+
+/** Exports des fichiers appelants du paquet qui ne sont ni des enveloppes ni déclarés sans version. */
+function exportsNonClasses(fichiers: ReadonlyMap<string, string>, appelants: string[]): string[] {
+  return appelants.flatMap((chemin) => {
+    const classes = [
+      ...(ENVELOPPES_DE_LA_VERSION[chemin] ?? []),
+      ...(EXPORTS_SANS_VERSION[chemin] ?? []),
+    ];
+    return exportsDe(fichiers.get(chemin) ?? "")
+      .filter((nom) => !classes.includes(nom))
+      .map((nom) => `${chemin} : ${nom}`);
+  });
+}
+
+/**
+ * Fichiers de code du workspace qui appellent une enveloppe de la version (import nommé) ou se
+ * servent de la garde ou de l'élévation de l'état prêt ; hors des fichiers qui les définissent, du
+ * module d'édition et du paquet.
+ */
+function appelantsDesEnveloppes(fichiers: ReadonlyMap<string, string>): string[] {
+  const enveloppes = Object.values(ENVELOPPES_DE_LA_VERSION).flat();
+  const importeUneEnveloppe = (texte: string): boolean =>
+    [...texte.matchAll(IMPORT_NOMME)].some(([, noms = ""]) =>
+      noms.split(",").some((nom) => enveloppes.includes(nom.replace(/\btype\b/, "").trim())),
+    );
+  return [...fichiers]
+    .filter(([chemin]) => /^(apps|packages)\/[^/]+\/src\//.test(chemin))
+    .filter(([chemin]) => !(chemin in ENVELOPPES_DE_LA_VERSION))
+    .filter(([chemin]) => !COUVERTS_PAR_LEUR_SCENARIO.some((dossier) => chemin.startsWith(dossier)))
+    .filter(([, texte]) => importeUneEnveloppe(texte) || PROPRIETE_DE_LA_VERSION.test(texte))
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+function finDuChargement(session: SessionPage): Promise<void> {
+  return Promise.race([
+    attendrePhase(session, "pret"),
+    attendrePhase(session, "version-non-prise-en-charge"),
+  ]);
+}
+
+function canalDEssai(): CanalEntreOnglets {
+  return { postMessage: () => undefined, close: () => undefined, onmessage: null };
+}
+
+/** La page affichée de la synchronisation, sur un document lié vierge, et son canal entre onglets. */
+function pageSynchroniseeDEssai(): {
+  page: PageSynchronisee;
+  lie: Y.Doc;
+  canal: CanalEntreOnglets;
+  refus: number[];
+} {
+  const lie = new Y.Doc();
+  const canal = canalDEssai();
+  const refus: number[] = [];
+  const horloge = { maintenant: () => Date.now(), programmer: () => () => undefined };
+  const page = PageSynchronisee.creer({
+    page: { idPage: crypto.randomUUID(), doc: lie, refuserLaVersion: () => void refus.push(1) },
+    idEspace: ESPACE_A,
+    environnement: {
+      WebSocket: WebSocket,
+      adresse: "ws://localhost/synchro",
+      horloge,
+      alea: () => 0,
+      ecouter: () => () => undefined,
+      ouvrirUnCanal: () => canal,
+    },
+    contexte: {
+      prise: () => undefined,
+      horloge,
+      alea: () => 0,
+      verifierLEspace: () => Promise.resolve("membre"),
+      surAcquise: () => undefined,
+      surChangement: () => undefined,
+      blocage: () => undefined,
+      noterLeBlocage: () => undefined,
+    },
+  });
+  if (page === undefined) {
+    throw new Error("La page synchronisée d'essai n'a pas été créée.");
+  }
+  return { page, lie, canal, refus };
+}
+
+/**
+ * Ce que chaque appelant d'une enveloppe fait d'un document de chaque ligne et de la version
+ * suivante, joué par son propre code. Un appelant absent de cette liste fait échouer l'énumération.
+ */
+const SCENARIOS_DES_ENVELOPPES: Readonly<
+  Record<string, (doc: Y.Doc, version: number) => Promise<Issue>>
+> = {
+  // La zone principale passe la garde et l'élévation à l'éditeur : Mod+B y élève la version.
+  "apps/web/src/interface/ZonePrincipale.tsx": async (doc, version) => {
+    const { session } = demarrerUneSession(undefined, doc);
+    rendreLaSession(session);
+    await act(() => finDuChargement(session));
+    if (chercherLaZoneDeSaisie() === null) {
+      return "refuse";
+    }
+    entrerDansLEditeur();
+    selectionnerLeTexte(textesDeLaLigne(version)[0] ?? "");
+    presserAvecMod("b");
+    expect(lireVersionPage(doc)).toBe(Math.max(version, 2));
+    return "lu";
+  },
+  // Les pages ouvertes de l'onglet démarrent la session sur ce que la base de la page porte.
+  "apps/web/src/page/pages-ouvertes.ts": async (doc) => {
+    const idPage = crypto.randomUUID();
+    await enregistrerParLaPersistance(doc, idPage);
+    const pages = creerPagesOuvertes();
+    try {
+      const session = pages.ouvrir({ idEspace: ESPACE_A, idPage });
+      await finDuChargement(session);
+      const etat = session.lireEtat();
+      if (etat.phase !== "pret") {
+        return "refuse";
+      }
+      expect(etat.contenu.toString()).toBe(fragmentBrut(doc).toString());
+      return "lu";
+    } finally {
+      pages.fermer();
+    }
+  },
+  // La page affichée de la synchronisation reçoit le document d'un autre onglet par son miroir.
+  "apps/web/src/synchronisation/page-affichee.ts": (doc) => {
+    const { page, lie, canal, refus } = pageSynchroniseeDEssai();
+    try {
+      const maj = Y.encodeStateAsUpdate(doc);
+      canal.onmessage?.(new MessageEvent("message", { data: { sorte: "maj", maj } }));
+      if (refus.length > 0) {
+        expect(fragmentBrut(lie).length).toBe(0);
+        return Promise.resolve("refuse");
+      }
+      expect(fragmentBrut(lie).toString()).toBe(fragmentBrut(doc).toString());
+      return Promise.resolve("lu");
+    } finally {
+      page.fermer();
+    }
+  },
+};
+
 const fichiersDuWorkspace = lireLesFichiersDuWorkspace();
 
 const CAS_DE_VERSION: readonly (readonly [string, number, Issue])[] = [
@@ -288,11 +483,51 @@ describe("appelants du format et de la version du document de page", () => {
     expect("apps/web/src/nouveau.ts" in SCENARIOS).toBe(false);
   });
 
+  it("F-028-AC28 les fonctions qui enveloppent la lecture, la vérification ou l'élévation de la version sont suivies : chaque export des appelants du paquet est classé, et chaque fichier qui appelle une enveloppe ou se sert de la garde ou de l'élévation de l'état prêt a son scénario", () => {
+    const appelants = appelantsDuFormat(fichiersDuWorkspace);
+    const desEnveloppes = appelantsDesEnveloppes(fichiersDuWorkspace);
+
+    expect(Object.keys(ENVELOPPES_DE_LA_VERSION).sort()).toEqual(appelants);
+    expect(exportsNonClasses(fichiersDuWorkspace, appelants)).toEqual([]);
+    expect(desEnveloppes).toEqual([
+      "apps/web/src/interface/ZonePrincipale.tsx",
+      "apps/web/src/page/pages-ouvertes.ts",
+      "apps/web/src/synchronisation/page-affichee.ts",
+    ]);
+    expect(Object.keys(SCENARIOS_DES_ENVELOPPES).sort()).toEqual(desEnveloppes);
+    expect(desEnveloppes.filter((chemin) => chemin.startsWith("apps/server/"))).toEqual([]);
+  });
+
+  it("F-028-AC28 cas fautifs : un module qui appelle une enveloppe ou se sert de la garde de l'état prêt est énuméré ; un nouvel export d'un appelant du paquet, non classé, est nommé", () => {
+    const fichiers = new Map([
+      ["apps/web/src/nouveau.ts", 'import { eleverPour } from "../page/session-page.ts";'],
+      ["apps/web/src/autre.ts", "const garde = etat.garderVersion;"],
+      ["apps/web/src/edition/interne.ts", "options.preparerLaVersion(elements);"],
+      [
+        "apps/web/test/essai.ts",
+        'import { versionAdmise } from "../src/synchronisation/index.ts";',
+      ],
+      [
+        "apps/web/src/page/session-page.ts",
+        "export function eleverPour() {}\nexport function lireLaVersionDeLaPage() {}",
+      ],
+    ]);
+
+    expect(appelantsDesEnveloppes(fichiers)).toEqual([
+      "apps/web/src/autre.ts",
+      "apps/web/src/nouveau.ts",
+    ]);
+    expect(exportsNonClasses(fichiers, ["apps/web/src/page/session-page.ts"])).toEqual([
+      "apps/web/src/page/session-page.ts : lireLaVersionDeLaPage",
+    ]);
+  });
+
   it.each(
-    Object.entries({ ...SCENARIOS, ...APPELANTS_NOMMES }).flatMap(([chemin, scenario]) =>
-      CAS_DE_VERSION.map(
-        ([cas, version, attendue]) => [chemin, cas, version, attendue, scenario] as const,
-      ),
+    Object.entries({ ...SCENARIOS, ...APPELANTS_NOMMES, ...SCENARIOS_DES_ENVELOPPES }).flatMap(
+      ([chemin, scenario]) =>
+        CAS_DE_VERSION.map(
+          ([cas, version, attendue]) => [chemin, cas, version, attendue, scenario] as const,
+        ),
     ),
   )(
     "F-028-AC28 F-028-AC24 %s, sur un document de %s : %s",
@@ -308,6 +543,77 @@ describe("appelants du format et de la version du document de page", () => {
 
     expect(contenuLu(relu)).toBe(contenuLu(doc));
     expect(contenuLu(relu)).toMatch(/<bold>.*<italic>.*<link href="https:\/\/exemple.fr\/">/s);
+  });
+});
+
+// ——— Couture de l'interface du module d'édition : chaque montage de l'éditeur ———
+
+const COMPOSANT_D_EDITION = "EditeurDePage";
+// Un montage par JSX, attributs jusqu'à la fermeture, ou par une fonction de création d'élément.
+const MONTAGE = new RegExp(
+  String.raw`<${COMPOSANT_D_EDITION}\b([^]*?)\/>|\b(?:createElement|jsxs?)\(\s*${COMPOSANT_D_EDITION}\b`,
+  "g",
+);
+const MONTEURS_ATTENDUS = [
+  "apps/web/src/interface/ZonePrincipale.tsx",
+  "apps/web/test/edition/aides-edition.tsx",
+];
+const PROPRIETES_DE_F028 = ["preparerLaVersion", "ouvreLePanneauDeLien", "ouvreLAdresse"];
+
+/** Les propriétés obligatoires de l'interface du composant, lues dans sa source. */
+function proprietesObligatoires(source: string): string[] {
+  const corps = /export interface ProprietesEditeurDePage \{([^]*?)\n\}/.exec(source)?.[1] ?? "";
+  return [...corps.matchAll(/^\s+readonly (\w+):/gm)].map(([, nom = ""]) => nom);
+}
+
+/** Pour chaque fichier d'`apps/web` qui monte l'éditeur, les propriétés obligatoires non passées. */
+function montagesDeLEditeur(
+  fichiers: ReadonlyMap<string, string>,
+  obligatoires: readonly string[],
+): Map<string, string[]> {
+  const montages = new Map<string, string[]>();
+  for (const [chemin, texte] of fichiers) {
+    if (!chemin.startsWith("apps/web/")) {
+      continue;
+    }
+    for (const [, attributs] of texte.matchAll(MONTAGE)) {
+      const passees = [...(attributs ?? "").matchAll(/(?:^|\s)(\w+)=/g)].map(([, nom]) => nom);
+      const manquantes = obligatoires.filter((nom) => !passees.includes(nom));
+      montages.set(chemin, [...(montages.get(chemin) ?? []), ...manquantes]);
+    }
+  }
+  return montages;
+}
+
+describe("montages de l'éditeur de page", () => {
+  it("F-028-AC21 F-028-AC6 F-028-AC10 les seuls fichiers qui montent l'éditeur sont la zone principale et l'aide des tests, et chacun passe toutes ses propriétés obligatoires, dont preparerLaVersion, ouvreLePanneauDeLien et ouvreLAdresse", () => {
+    const obligatoires = proprietesObligatoires(lire("src/edition/EditeurDePage.tsx"));
+
+    const montages = montagesDeLEditeur(fichiersDuWorkspace, obligatoires);
+
+    expect(obligatoires).toEqual(expect.arrayContaining(PROPRIETES_DE_F028));
+    expect([...montages.keys()].sort()).toEqual(MONTEURS_ATTENDUS);
+    expect(Object.fromEntries(montages)).toEqual(
+      Object.fromEntries(MONTEURS_ATTENDUS.map((chemin) => [chemin, []])),
+    );
+  });
+
+  it("F-028-AC21 cas fautifs : un autre fichier qui monte l'éditeur, un montage qui oublie une propriété et un montage par une fonction de création sont nommés", () => {
+    const fichiers = new Map([
+      [
+        "apps/web/src/interface/ZonePrincipale.tsx",
+        `<${COMPOSANT_D_EDITION} contenu={c} preparerLaVersion={(e) => p(e)} ouvreLAdresse={o} />`,
+      ],
+      ["apps/web/src/autre.tsx", `createElement(${COMPOSANT_D_EDITION}, proprietes)`],
+      ["packages/document/src/x.ts", `<${COMPOSANT_D_EDITION} />`],
+    ]);
+
+    const montages = montagesDeLEditeur(fichiers, ["contenu", ...PROPRIETES_DE_F028]);
+
+    expect(Object.fromEntries(montages)).toEqual({
+      "apps/web/src/interface/ZonePrincipale.tsx": ["ouvreLePanneauDeLien"],
+      "apps/web/src/autre.tsx": ["contenu", ...PROPRIETES_DE_F028],
+    });
   });
 });
 

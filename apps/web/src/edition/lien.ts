@@ -45,6 +45,11 @@ export const Lien = Link.extend({
       : ["a", { href: adresse, ...ATTRIBUTS_IMPOSES }, 0];
   },
 
+  // Les commandes `toggleLink` et `setMark` de la bibliothèque rendent `true` même quand la garde
+  // des liens (`marques.ts`, `filterTransaction`) écarte leur transaction : leur rendu ne dit pas
+  // qu'un lien a été posé, et aucun appelant ne doit s'y fier. `setLink` valide l'adresse par la
+  // règle et rend `false` sur un refus (F-028-AC32).
+
   // Aucun lien automatique : ni à la saisie, ni au collage d'un texte (F-028-AC31, H11).
   addInputRules() {
     return [];

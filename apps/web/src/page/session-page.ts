@@ -82,6 +82,11 @@ function versionDe(contient: (ligne: LigneDeVersionPage) => boolean): number {
  * Version qu'exige l'inscription d'éléments du format (F-028-AC21, H1, H2) : celle de la ligne de la
  * table des versions qui introduit l'élément le plus récent, et non la plus haute que l'application
  * connaît. Un document sans élément nouveau reste à sa version.
+ *
+ * Seuls les noms des nœuds et des marques sont regardés, jamais leurs attributs : la ligne 2 n'en
+ * introduit aucun. Une ligne qui ajoutera un attribut à un nœud déjà connu (F-005, F-022) devra
+ * étendre `ElementsDuFormat` et cette fonction, sans quoi l'attribut serait inscrit sans élever la
+ * version.
  */
 export function versionExigee({ noeuds, marques }: ElementsDuFormat): number {
   return Math.max(

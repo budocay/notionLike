@@ -100,16 +100,21 @@ export function documentDeVersionInconnue(): Y.Doc {
   return doc;
 }
 
-/** Enregistre ce document par le module de persistance, puis le relit dans un document vierge. */
-export async function relireParLaPersistance(source: Y.Doc): Promise<Y.Doc> {
-  const designation = { type: "page", idEspace: ESPACE_A, idPage: crypto.randomUUID() } as const;
+/** Enregistre une copie de ce document dans la base de cette page de l'espace A. */
+export async function enregistrerParLaPersistance(source: Y.Doc, idPage: string): Promise<void> {
   const ecrit = new Y.Doc();
   Y.applyUpdate(ecrit, Y.encodeStateAsUpdate(source));
-  const ecriture = ouvrirPersistance(ecrit, designation);
+  const ecriture = ouvrirPersistance(ecrit, { type: "page", idEspace: ESPACE_A, idPage });
   await attendreEtat(ecriture, "active");
   await laisserIndexedDbTravailler();
   ecriture.fermer();
   await laisserIndexedDbTravailler();
+}
+
+/** Enregistre ce document par le module de persistance, puis le relit dans un document vierge. */
+export async function relireParLaPersistance(source: Y.Doc): Promise<Y.Doc> {
+  const designation = { type: "page", idEspace: ESPACE_A, idPage: crypto.randomUUID() } as const;
+  await enregistrerParLaPersistance(source, designation.idPage);
   const relu = new Y.Doc();
   const lecture = ouvrirPersistance(relu, designation);
   await attendreEtat(lecture, "active");

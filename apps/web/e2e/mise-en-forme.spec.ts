@@ -79,7 +79,8 @@ test("F-028-AC30 par des frappes réelles : gras par Mod+B, italique par *mot*, 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alert")).toContainText("mailto");
   await expect(zone.locator("a")).toHaveCount(0);
-  await champ.fill("exemple.fr");
+  await champ.selectText();
+  await page.keyboard.type("exemple.fr");
   await page.keyboard.press("Enter");
   await expect(zone).toBeFocused();
   await verifierLesMarques(zone);
@@ -87,12 +88,12 @@ test("F-028-AC30 par des frappes réelles : gras par Mod+B, italique par *mot*, 
   await page.keyboard.press("End");
   await collerDuHtml(zone, CONTENU_PIEGE);
   await expect(zone).toContainText("collé piège");
-  await page.waitForTimeout(300);
-  expect(dialogues).toEqual([]);
   await expect(page.locator('a[href^="javascript"], [href^="javascript"]')).toHaveCount(0);
-  await expect(zone.locator("img")).toHaveCount(0);
-
+  await expect(page.locator("img")).toHaveCount(0);
+  // Le collage est écrit dans la base : tout ce qu'il pouvait déclencher a eu lieu avant.
   await ecrituresAbouties(page, PREFIXE_DES_BASES_DE_PAGE);
+  expect(dialogues).toEqual([]);
+
   await recharger(page);
   await expect(titrePrincipal(page).first()).toHaveText(TITRE_DE_LA_PAGE);
   await verifierLesMarques(zoneDeSaisie(page));
