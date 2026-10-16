@@ -22,6 +22,8 @@ interface Lecture {
 
 export interface Barre {
   readonly affichee: boolean;
+  /** Vrai tant que le focus est dans la zone d'édition. */
+  readonly focusDedans: boolean;
   readonly courant: TypeDeBloc | undefined;
   readonly marques: EtatDesMarques | undefined;
   readonly placement: Placement;
@@ -122,6 +124,7 @@ export function useBarre(editeur: Editor | null, reperes: Reperes): Barre {
 
   return {
     affichee,
+    focusDedans,
     courant: lecture.courant,
     marques: lecture.marques,
     placement,

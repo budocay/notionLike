@@ -60,16 +60,27 @@ interface ProprietesCadre {
   readonly tete: ReactNode;
   /** Message de la dernière opération refusée. */
   readonly erreur?: string | undefined;
+  /**
+   * Annonce polie, lue par les technologies d'assistance seules : la région existe toujours, dans
+   * la tête, hors de la mise en page.
+   */
+  readonly annonce?: string | undefined;
   /** Entrées qui ne sont pas des pages ; sans entrée, le pied n'est pas rendu. */
   readonly pied?: ReactNode | undefined;
   /** Rangées de l'arborescence. */
   readonly children?: ReactNode | undefined;
 }
 
-export function CadreDeBarre({ nom, tete, erreur, pied, children }: ProprietesCadre): ReactElement {
+export function CadreDeBarre(props: ProprietesCadre): ReactElement {
+  const { nom, tete, erreur, pied, children } = props;
   return (
     <nav className={BARRE.cadre} aria-label={nom}>
-      <div className={BARRE.tete}>{tete}</div>
+      <div className={BARRE.tete}>
+        {tete}
+        <p role="status" className={BARRE.annonce}>
+          {props.annonce}
+        </p>
+      </div>
       {erreur !== undefined && (
         <p role="alert" className={BARRE.message}>
           {erreur}

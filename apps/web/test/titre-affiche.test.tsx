@@ -24,6 +24,11 @@ const MENU_DE_SANS_TITRE = [
   "Renommer",
   "Ajouter une sous-page",
   "Mettre à la corbeille",
+  // F-006 : les quatre commandes de déplacement d'une page.
+  "Monter",
+  "Descendre",
+  "Mettre sous la page précédente",
+  "Sortir d'un niveau",
 ];
 const BLANCS_DE_BORD = /^\p{White_Space}+|\p{White_Space}+$/gu;
 
@@ -178,6 +183,8 @@ describe("titre affiché : lectures du titre dans le code", () => {
     expect(lectures()).toEqual({
       affichees: [
         '../src/interface/Application.tsx : const titre = selection.type === "page" ? titreAffiche(selection.page.titre) : undefined;',
+        // F-006 : l'annonce d'une page déplacée au clavier (F-006-AC12).
+        "../src/interface/Application.tsx : moyens.setAnnonce(pageDeplacee(titreAffiche(page.titre), mere, place.rang, place.total));",
         // F-007 : chaque ligne de l'écran de la corbeille, et sa confirmation.
         "../src/interface/EcranDeLaCorbeille.tsx : const titre = titreAffiche(page.titre);",
         "../src/interface/EcranDeLaCorbeille.tsx : const titre = titreAffiche(props.page.titre);",

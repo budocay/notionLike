@@ -40,6 +40,11 @@ interface ProprietesZoneDEdition {
   readonly surTouche: (evenement: KeyboardEvent<HTMLDivElement>) => void;
   /** La zone de saisie, puis la barre de blocs quand elle est affichée. */
   readonly children: ReactNode;
+  /**
+   * Région d'état de l'éditeur, hors de la vue : ce que le clavier n'a pas pu faire (F-006-AC18,
+   * AC28). Absente : aucune région.
+   */
+  readonly annonce?: string | undefined;
 }
 
 /** Repère de position de la barre de blocs : ni cadre, ni surface propre (F-003-AC37). */
@@ -53,6 +58,11 @@ export function ZoneDEdition(props: ProprietesZoneDEdition): ReactElement {
       onKeyDown={props.surTouche}
     >
       {props.children}
+      {props.annonce !== undefined && (
+        <p role="status" className={EDITION.annonce}>
+          {props.annonce}
+        </p>
+      )}
     </div>
   );
 }
@@ -151,6 +161,70 @@ export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
         </button>
       ))}
     </div>
+  );
+}
+
+/** Classe du curseur de dépôt de l'éditeur : sa couleur vient des jetons (F-006-AC37). */
+export const CLASSE_DU_CURSEUR_DE_DEPOT = EDITION.curseurDeDepot;
+
+interface ProprietesPoignee {
+  /** Nom accessible, « Déplacer le bloc ». */
+  readonly nom: string;
+  /** Les raccourcis qui déplacent le bloc, pour `aria-keyshortcuts`. */
+  readonly raccourcis?: string | undefined;
+}
+
+const SIGNE_DE_LA_POIGNEE = "⋮⋮";
+
+/**
+ * Poignée d'un bloc (F-006-AC14, AC28), que la poignée de l'éditeur place au survol : on la saisit
+ * pour faire glisser le bloc. Hors de l'ordre de tabulation : au clavier, les raccourcis et la barre
+ * de blocs déplacent le bloc.
+ */
+export function PoigneeDeBloc({ nom, raccourcis }: ProprietesPoignee): ReactElement {
+  return (
+    <button
+      type="button"
+      className={EDITION.poignee}
+      aria-label={nom}
+      aria-keyshortcuts={raccourcis}
+      title={nom}
+      tabIndex={-1}
+      data-poignee-de-bloc=""
+    >
+      <span aria-hidden="true">{SIGNE_DE_LA_POIGNEE}</span>
+    </button>
+  );
+}
+
+/**
+ * La même poignée, au bloc où se trouve le curseur, quand le pointeur n'en montre aucune
+ * (F-006-AC14) : elle ne se glisse pas ; activée, elle mène aux commandes de déplacement du bloc,
+ * sans que la pression du pointeur ôte le focus à la zone de saisie.
+ */
+export function PoigneeDuCurseur(
+  props: ProprietesPoignee & {
+    readonly haut: number;
+    /** Ce que l'activation fait : sans elle, la poignée n'est que montrée (démonstration). */
+    readonly surActivation?: (() => void) | undefined;
+  },
+): ReactElement {
+  return (
+    <button
+      type="button"
+      className={EDITION.poigneeDuCurseur}
+      // Géométrie seule, mesurée par le module d'édition (F-006-AC37).
+      style={{ top: props.haut }}
+      aria-label={props.nom}
+      aria-keyshortcuts={props.raccourcis}
+      title={props.nom}
+      tabIndex={-1}
+      data-poignee-du-curseur=""
+      onMouseDown={garderLeFocus}
+      onClick={props.surActivation}
+    >
+      <span aria-hidden="true">{SIGNE_DE_LA_POIGNEE}</span>
+    </button>
   );
 }
 

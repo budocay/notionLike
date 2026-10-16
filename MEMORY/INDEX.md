@@ -18,3 +18,4 @@
 - F-028 Mise en forme dans le texte : gras, italique, liens — 2026-10-16 — features/F-028.md
 - F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — 2026-10-16 — features/F-017.md
 - F-031 Pile Docker de travail utilisable en une commande — 2026-10-16 — features/F-031.md
+- F-006 Glisser-déposer des blocs et des pages — 2026-10-16 — features/F-006.md

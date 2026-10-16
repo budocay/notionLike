@@ -10,9 +10,12 @@ import { Italic, underscoreInputRegex as SOULIGNE_DE_L_ITALIQUE } from "@tiptap/
 import { BulletList, ListItem, OrderedList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
+import { Dropcursor } from "@tiptap/extensions";
 import type * as Y from "yjs";
 
+import { CLASSE_DU_CURSEUR_DE_DEPOT } from "../interface/composants/Edition.tsx";
 import { INVITE_DU_BLOC_VIDE } from "../interface/messages.ts";
+import { depotDeLEditeur, type OptionsDuDepot } from "./depot.ts";
 import { inviteDuBlocVide } from "./invite.ts";
 import { Lien } from "./lien.ts";
 import { marquesDeLEditeur, type OptionsDesMarques } from "./marques.ts";
@@ -49,9 +52,14 @@ const Italique = Italic.extend({
   },
 });
 
+// Curseur de dépôt (F-006-AC15, AC37) : un trait de deux pixels, sans couleur propre ; sa couleur
+// vient de la classe de l'application, donc des jetons. Ni nœud, ni attribut, ni marque.
+const EPAISSEUR_DU_CURSEUR_DE_DEPOT = 2;
+
 export function extensionsDeLEditeur(
   contenu: Y.XmlFragment,
   marques: OptionsDesMarques,
+  depot: OptionsDuDepot,
 ): Extensions {
   return [
     Document,
@@ -68,5 +76,11 @@ export function extensionsDeLEditeur(
     Collaboration.configure({ fragment: contenu }),
     inviteDuBlocVide(INVITE_DU_BLOC_VIDE),
     selectionDuNavigateur,
+    Dropcursor.configure({
+      color: false,
+      width: EPAISSEUR_DU_CURSEUR_DE_DEPOT,
+      class: CLASSE_DU_CURSEUR_DE_DEPOT,
+    }),
+    depotDeLEditeur(depot),
   ];
 }
