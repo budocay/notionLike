@@ -259,6 +259,10 @@ export function debordement(page: Page): Promise<Debordement> {
       ]
         .filter((partie) => partie !== "")
         .join(" ");
+    // Un élément masqué à l'écran mais lu par les technologies d'assistance (`sr-only` : 1 pixel,
+    // découpé à rien) rogne son texte par construction ; il n'affiche rien et ne fait rien défiler.
+    const masqueALEcran = (calcule: CSSStyleDeclaration): boolean =>
+      calcule.clipPath === "inset(50%)" || calcule.clip === "rect(0px, 0px, 0px, 0px)";
     const rogne = (element: Element): boolean => {
       const calcule = getComputedStyle(element);
       const champ = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement;
@@ -266,6 +270,7 @@ export function debordement(page: Page): Promise<Debordement> {
         calcule.overflowX !== "visible" &&
         calcule.textOverflow !== "ellipsis" &&
         !champ &&
+        !masqueALEcran(calcule) &&
         element.getClientRects().length > 0
       );
     };

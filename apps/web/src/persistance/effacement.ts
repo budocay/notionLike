@@ -2,7 +2,7 @@
 // `indexedDB.deleteDatabase` et écoute `success`, `error` et `blocked`, sous une échéance. Ni
 // `clearData()` ni `clearDocument()` de la bibliothèque : la première se résout avant la fin de la
 // suppression, et aucune des deux n'écoute `blocked`.
-import { nomDeBase } from "./nom-de-base.ts";
+import { type DesignationDocument, nomDeBase } from "./nom-de-base.ts";
 
 /** `effacee` : la base est absente de l'appareil ; `echec` : elle peut y être encore. */
 export type IssueDEffacement = "effacee" | "echec";
@@ -31,6 +31,24 @@ export function effacerBaseDePage(designation: DesignationDeBaseDePage): Promise
   } catch {
     return Promise.resolve("effacee");
   }
+  return supprimer(nom);
+}
+
+/**
+ * Efface la base du document désigné, et aucune autre (F-013-AC24 : base du document d'espace),
+ * dans les mêmes conditions que `effacerBaseDePage`.
+ */
+export function effacerBaseDeDocument(designation: DesignationDocument): Promise<IssueDEffacement> {
+  let nom: string;
+  try {
+    nom = nomDeBase(designation);
+  } catch {
+    return Promise.resolve("effacee");
+  }
+  return supprimer(nom);
+}
+
+function supprimer(nom: string): Promise<IssueDEffacement> {
   return new Promise((resoudre) => {
     let conclu = false;
     const conclure = (issue: IssueDEffacement): void => {

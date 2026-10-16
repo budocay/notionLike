@@ -1,7 +1,7 @@
 // Zone des écrans des espaces (F-014) : la liste, un espace, l'invitation. Elle garde l'annonce qui
 // survit au passage d'un écran à l'autre (« Espace supprimé », « Cet espace n'est plus accessible
 // avec ce compte. »), en mémoire seulement. La coquille et l'espace de l'appareil n'en dépendent pas.
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useCallback, useState } from "react";
 
 import type { Compte } from "../compte/index.ts";
 import { allerALEcran } from "../navigation/fragment.ts";
@@ -30,10 +30,13 @@ export function ZoneDesEspaces({ compte, ecran, navigation }: Proprietes): React
       setSortie(SANS_SORTIE);
     }
   }
-  const revenirALaListe = (suivante: Sortie): void => {
+  // Stable d'un rendu à l'autre : l'écran d'un espace relit l'espace quand ses rappels changent ;
+  // un nouveau rendu de l'application (la synchronisation en publie) ne doit pas le relire, et
+  // surtout pas après une suppression, dont le 404 remplacerait « Espace supprimé ».
+  const revenirALaListe = useCallback((suivante: Sortie): void => {
     setSortie(suivante);
     allerALEcran({ ecran: "espaces" });
-  };
+  }, []);
   switch (ecran.ecran) {
     case "espaces":
       return <EcranDesEspaces compte={compte} sortie={sortie} />;

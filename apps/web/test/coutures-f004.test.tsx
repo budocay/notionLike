@@ -449,6 +449,8 @@ describe("couture : enveloppes à la hauteur de la fenêtre", () => {
         "EcranPlein fenetre",
         "EcranPlein fenetre",
         "Coquille fenetre",
+        // F-013-AC24 : la copie locale est effacée dans un autre onglet.
+        "EcranPlein fenetre",
       ],
     });
     expect(fautesDEnveloppes(sources)).toEqual([]);

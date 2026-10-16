@@ -20,6 +20,8 @@ interface Proprietes {
   readonly fermeture?: ReactNode | undefined;
   /** Zone de compte (F-010), dans la tête, après « Nouvelle page ». */
   readonly compte?: ReactNode | undefined;
+  /** Zone de synchronisation (F-013), à côté de la zone de compte. */
+  readonly synchronisation?: ReactNode | undefined;
   /** Vrai quand l'écran de la corbeille est affiché : son entrée est marquée courante (F-007-AC1). */
   readonly corbeilleCourante?: boolean | undefined;
 }
@@ -35,9 +37,11 @@ export function BarreLaterale(props: Proprietes): ReactElement {
         libelleNouvellePage={NOUVELLE_PAGE}
         surNouvellePage={() => actions.creerPage(null)}
         boutonNouvellePage={props.boutonNouvellePage}
+        raisonNouvellePage={ecran.lectureSeule}
         fermeture={props.fermeture}
       />
       {props.compte}
+      {props.synchronisation}
     </>
   );
   return (

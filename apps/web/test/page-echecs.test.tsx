@@ -304,9 +304,13 @@ describe("couture du module de persistance", () => {
       "test/persistance-ouverture.test.ts",
       "test/reprise-echecs.test.ts",
       "test/reprise-reparation.test.ts",
+      // F-013 : un onglet synchronisé ouvre son espace comme la session (H14).
+      "test/synchronisation/aides-synchro.ts",
     ]);
     expect(quiAppellent("ouvrirPersistance").filter((module) => module.startsWith("src/"))).toEqual(
-      ["src/page/pages-ouvertes.ts"],
+      // F-013-AC40 : la passe de fond et la réplique d'une page de version refusée, par le seul
+      // fichier de stockage du module de synchronisation.
+      ["src/page/pages-ouvertes.ts", "src/synchronisation/stockage.ts"],
     );
     expect(quiAppellent("ouvrirPersistance")).toContain("test/aides-session-page.tsx");
     expect(lire("src/espace/session-espace.ts")).toMatch(/\.idEspace\(\)/);

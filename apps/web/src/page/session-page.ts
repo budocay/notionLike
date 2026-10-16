@@ -25,6 +25,11 @@ export type EtatSessionPage =
       /** Faux tant que ce que l'appareil portait de cette page n'a pas pu être lu. */
       readonly baseRelue: boolean;
       readonly reessayer: () => void;
+      /**
+       * Une version non prise en charge est arrivée par la synchronisation sans atteindre ce
+       * document (F-013-AC34, seconde barrière) : même effet que la garde de version.
+       */
+      readonly refuserLaVersion: () => void;
     };
 
 export interface SessionPage {
@@ -148,6 +153,12 @@ class SessionDePage {
     prevenir(this.#abonnes);
   }
 
+  readonly #refuserDepuisLaSynchronisation = (): void => {
+    if (!this.#fermee && this.#etat !== VERSION_NON_PRISE_EN_CHARGE) {
+      this.#refuserLaVersion();
+    }
+  };
+
   // Définitif : ni éditeur, ni liaison, ni écriture sur ce document (F-003-AC19, AC29). Les gardes
   // passent d'abord : l'éditeur est détruit avant que la façade ne soit fermée.
   #refuserLaVersion(): void {
@@ -202,6 +213,7 @@ class SessionDePage {
       enregistre,
       baseRelue,
       reessayer: this.#persistance.reessayer,
+      refuserLaVersion: this.#refuserDepuisLaSynchronisation,
     });
   }
 }

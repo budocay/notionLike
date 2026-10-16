@@ -49,12 +49,17 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
   [PAGES_OUVERTES]:
     "ouvre la persistance d'une page, la tient tant qu'une modification n'est pas écrite, la ferme",
   [SESSION_DE_PAGE]: "lit l'état de la persistance d'une page, s'y abonne, lui soumet l'état relu",
+  // F-013-AC40 : passe de fond, réplique d'une page de version refusée, registre, effacements.
+  "src/synchronisation/stockage.ts":
+    "ouvre la base d'un document hors de l'écran, lit et inscrit le registre, efface des bases",
 };
 const AIDES_DE_TEST = [
   "test/aides-page.tsx",
   "test/aides-persistance.ts",
   "test/aides-reprise.ts",
   "test/aides-session-page.tsx",
+  // F-013 : onglets synchronisés sur le serveur réel.
+  "test/synchronisation/aides-synchro.ts",
 ];
 const TESTS_DE_LA_PERSISTANCE = [
   "test/coquille-echecs.test.tsx",
@@ -75,6 +80,11 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/reprise-tentatives.test.ts",
   "test/reprise-version.test.tsx",
   "test/structure.test.ts",
+  // F-013 : registre de l'appareil, bases de page écrites et relues contre le serveur réel.
+  "test/synchronisation/adoption.test.ts",
+  "test/synchronisation/convergence.test.ts",
+  "test/synchronisation/motifs.test.ts",
+  "test/synchronisation/passe.test.ts",
 ];
 
 // Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,
@@ -241,6 +251,9 @@ describe("appelants de l'interface de persistance", () => {
         "reessayer",
         "soumettreLEtatRelu",
       ],
+      // F-013 : le stockage de la synchronisation ouvre ; la passe de fond et la réplique d'une page
+      // de version refusée lisent, suivent et ferment ce qu'il ouvre (synchronisation/*.test.ts).
+      "src/synchronisation/stockage.ts": [],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
@@ -519,7 +532,12 @@ describe("documents de page", () => {
   it("F-030-AC21 F-003-AC18 F-003 étant livrée après F-030, c'est elle qui porte la reprise des pages : sa session et ses pages ouvertes sont dans l'énumération de F-030-AC19, un seul fichier de production ouvre une base de page, par ouvrirPersistance, et la session d'espace reste la seule à appeler ouvrirEspaceLocal", async () => {
     const quiAppellent = (motif: RegExp): string[] =>
       Object.keys(APPELANTS_DE_PRODUCTION).filter((chemin) => motif.test(lire(chemin)));
-    expect(quiAppellent(/\bouvrirPersistance\(/)).toEqual([PAGES_OUVERTES]);
+    // F-013-AC40 : la passe de fond et la réplique d'une page de version refusée ouvrent aussi la
+    // base d'une page, par le stockage de la synchronisation.
+    expect(quiAppellent(/\bouvrirPersistance\(/)).toEqual([
+      PAGES_OUVERTES,
+      "src/synchronisation/stockage.ts",
+    ]);
     expect(quiAppellent(/\bouvrirEspaceLocal\(/)).toEqual([SESSION]);
     expect([...aretes.keys()].filter((module) => /^src\/page\//.test(module)).sort()).toEqual([
       PAGES_OUVERTES,

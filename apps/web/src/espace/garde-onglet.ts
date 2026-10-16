@@ -3,6 +3,43 @@
 import type { Persistance } from "../persistance/index.ts";
 
 const VISIBILITE = "visibilitychange";
+
+/** Ce que la synchronisation dit de l'acquittement des modifications par le serveur (F-013-AC49). */
+export interface SourceDAcquittement {
+  /** Vrai : ce que porte ce document est acquitté par le serveur. */
+  estAcquitte(doc: object): boolean;
+  abonner(rappel: () => void): () => void;
+}
+
+const sources = new Set<SourceDAcquittement>();
+const ajustements = new Set<() => void>();
+
+function ajusterPartout(): void {
+  ajustements.forEach((ajuster) => ajuster());
+}
+
+/**
+ * Branche la synchronisation sur la demande de confirmation avant de quitter (F-013-AC49) : une
+ * modification non enregistrée sur l'appareil mais acquittée par le serveur ne retient plus
+ * l'onglet, document par document ; la demande est réarmée à la première modification en attente.
+ * Rend le débranchement.
+ */
+export function brancherLAcquittement(source: SourceDAcquittement): () => void {
+  sources.add(source);
+  const cesser = source.abonner(ajusterPartout);
+  ajusterPartout();
+  return () => {
+    cesser();
+    sources.delete(source);
+    ajusterPartout();
+  };
+}
+
+// Seul le document de cette persistance compte : l'acquittement d'un autre document ne lève pas la
+// confirmation qu'elle demande.
+function estAcquitte(doc: object | undefined): boolean {
+  return doc !== undefined && [...sources].some((source) => source.estAcquitte(doc));
+}
 const DEPART = "pagehide";
 const AVANT_DE_QUITTER = "beforeunload";
 
@@ -14,7 +51,7 @@ const AVANT_DE_QUITTER = "beforeunload";
  * enregistrée, et seulement alors, le navigateur demande confirmation avant de quitter
  * (F-030-AC16).
  */
-export function suivreLOnglet(persistance: Persistance): () => void {
+export function suivreLOnglet(persistance: Persistance, doc?: object): () => void {
   const surVisibilite = (): void => {
     if (document.visibilityState === "visible" || persistance.aDesModificationsNonEnregistrees()) {
       persistance.reessayer();
@@ -38,17 +75,19 @@ export function suivreLOnglet(persistance: Persistance): () => void {
   // faire : elle ne retient pas l'onglet, qui que ce soit qui l'ait fermée (F-030-AC11).
   const ajusterLaConfirmation = (): void => {
     const ouverte = persistance.lireEtat() !== "fermee";
-    if (ouverte && persistance.aDesModificationsNonEnregistrees()) {
+    if (ouverte && persistance.aDesModificationsNonEnregistrees() && !estAcquitte(doc)) {
       window.addEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     } else {
       window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     }
   };
   const desabonner = persistance.abonner(ajusterLaConfirmation);
+  ajustements.add(ajusterLaConfirmation);
   document.addEventListener(VISIBILITE, surVisibilite);
   window.addEventListener(DEPART, surDepart);
   return () => {
     desabonner();
+    ajustements.delete(ajusterLaConfirmation);
     document.removeEventListener(VISIBILITE, surVisibilite);
     window.removeEventListener(DEPART, surDepart);
     window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);

@@ -118,6 +118,11 @@ export function titreCite(titre: string): string {
   return titreAffiche(titre).replace(BLANCS_DE_BORD, "");
 }
 
+/** Le titre cité entre guillemets, dans un texte de la zone de synchronisation (F-013). */
+export function titreEntreGuillemets(titre: string): string {
+  return `« ${titreCite(titre)} »`;
+}
+
 export function nomAjouterSousPage(titre: string): string {
   return `Ajouter une sous-page à « ${titreCite(titre)} »`;
 }

@@ -57,18 +57,30 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 persistance/index.ts exporte exactement ouvrirPersistance, ouvrirEspaceLocal et ErreurPersistance, sans rien de y-indexeddb", () => {
     expect(Object.keys(persistance).sort()).toEqual([
       "ErreurPersistance",
+      // F-013 : effacement de la base du document d'espace (AC24).
+      "effacerBaseDeDocument",
       // F-007 : effacement d'une base de page.
       "effacerBaseDePage",
+      // F-013 : registre de l'appareil (H3).
+      "inscrireAuRegistre",
+      "lireLeRegistre",
+      // F-013-AC16 : le nom de base d'un document, pour la correspondance avec son nom au serveur.
+      "nomDeBase",
       "ouvrirEspaceLocal",
       "ouvrirPersistance",
+      "retirerDuRegistre",
     ]);
     expect(sourceDeLInterface).not.toContain("y-indexeddb");
     expect(sourceDeLInterface.match(/type \w+/g)?.sort()).toEqual([
       // F-007 : désignation et issue d'un effacement.
       "type DesignationDeBaseDePage",
       "type DesignationDocument",
+      // F-013 : registre de l'appareil.
+      "type Droit",
+      "type EntreeDuRegistre",
       "type EtatPersistance",
       "type IssueDEffacement",
+      "type LectureDuRegistre",
       "type Persistance",
       "type PersistanceEspaceLocal",
     ]);

@@ -8,6 +8,7 @@ import {
   expect,
   type Locator,
   type Page,
+  test,
 } from "@playwright/test";
 
 /** Base qui reçoit les mises à jour du document d'espace ; celle des réglages de l'appareil non. */
@@ -261,4 +262,69 @@ export function ecouterLaConsole(page: Page): string[] {
     }
   });
   return messages;
+}
+
+const STATUT_TROP_DE_REQUETES = 429;
+const ATTENTE_PAR_DEFAUT_S = 60;
+const MARGE_MS = 1000;
+const ESSAIS_SOUS_LE_PLAFOND = 3;
+
+/**
+ * Envoie un formulaire du compte (inscription, connexion) et, si le serveur répond 429, attend le
+ * délai qu'il annonce puis le renvoie. Le serveur plafonne les inscriptions à 3 par minute et par
+ * adresse (F-009-AC14) ; les scénarios de plusieurs fichiers en font davantage depuis 127.0.0.1.
+ * Ce que chaque scénario constate ensuite reste inchangé. `envoyer` remplit et valide le formulaire.
+ */
+export async function envoyerSousLePlafond(
+  page: Page,
+  route: "inscription" | "connexion",
+  envoyer: () => Promise<void>,
+): Promise<void> {
+  const chemin = CHEMINS_COMPTES[route];
+  for (let essai = 0; essai < ESSAIS_SOUS_LE_PLAFOND; essai += 1) {
+    const reponse = page.waitForResponse(
+      (lue) => new URL(lue.url()).pathname === chemin && lue.request().method() === "POST",
+    );
+    await envoyer();
+    const lue = await reponse;
+    if (lue.status() !== STATUT_TROP_DE_REQUETES) {
+      return;
+    }
+    const entetes = lue.headers();
+    const annonce = Number(entetes["retry-after"] ?? entetes["x-retry-after"]);
+    const attenteMs =
+      (Number.isFinite(annonce) && annonce > 0 ? annonce : ATTENTE_PAR_DEFAUT_S) * 1000 + MARGE_MS;
+    test.info().setTimeout(test.info().timeout + attenteMs);
+    await page.waitForTimeout(attenteMs);
+  }
+  throw new Error(
+    `${chemin} : le serveur refuse encore après ${String(ESSAIS_SOUS_LE_PLAFOND)} essais`,
+  );
+}
+
+/**
+ * Appelle une route de l'API depuis la page, à travers le relais de Vite, avec le cookie de
+ * session du navigateur. Pas `page.request` : son client, côté Node, ne joint pas un cookie
+ * `Secure` (pile en production) à une requête `http://127.0.0.1`, que le navigateur, lui, tient
+ * pour un contexte sûr. Rend le statut.
+ */
+export function appelerDepuisLaPage(
+  page: Page,
+  methode: "POST" | "DELETE",
+  chemin: string,
+  corps?: unknown,
+): Promise<number> {
+  return page.evaluate(
+    async ({ methode, chemin, corps }) => {
+      const reponse = await fetch(chemin, {
+        method: methode,
+        credentials: "same-origin",
+        ...(corps === undefined
+          ? {}
+          : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) }),
+      });
+      return reponse.status;
+    },
+    { methode, chemin, corps },
+  );
 }

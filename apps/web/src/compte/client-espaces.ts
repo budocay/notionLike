@@ -55,6 +55,13 @@ export interface MembreLu {
 export interface ClientDesEspaces {
   readonly listerEspaces: () => Promise<Resultat<readonly EspaceLu[]>>;
   readonly creerEspace: (corps: CorpsCreationEspace) => Promise<Resultat<EspaceLu>>;
+  /**
+   * Déclaration de l'espace local (F-013-AC12) : la création, ou sa réponse rejouée (200,
+   * F-011-AC2), que `rejouee` distingue.
+   */
+  readonly declarerEspace: (
+    corps: CorpsCreationEspace,
+  ) => Promise<Resultat<EspaceLu & { readonly rejouee: boolean }>>;
   readonly lireEspace: (idEspace: string) => Promise<Resultat<EspaceLu>>;
   readonly renommerEspace: (idEspace: string, corps: CorpsRenommage) => Promise<Resultat<EspaceLu>>;
   readonly supprimerEspace: (idEspace: string) => Promise<Resultat<null>>;
@@ -89,7 +96,9 @@ export interface Appel<T> {
   readonly corps?: { readonly valeur: unknown; readonly schema: Schema<unknown> } | undefined;
   /** Statut du succès attendu, et lecture de son corps. */
   readonly attendu: number;
-  readonly lire: (corps: unknown) => T | undefined;
+  /** Un second statut de succès, lu par la même fonction (F-013-AC12 : création rejouée). */
+  readonly aussi?: number | undefined;
+  readonly lire: (corps: unknown, statut: number) => T | undefined;
 }
 
 /** Chemin du contrat, ses paramètres remplacés ; une valeur est toujours encodée. */
@@ -152,11 +161,31 @@ function espace(idEspace: string): string {
   return cheminDe(CHEMINS_ESPACES.espace, { idEspace });
 }
 
+// F-013-AC12 : 201 pour une création, 200 pour une création rejouée (F-011-AC2), même corps.
+function declaration(corps: CorpsCreationEspace): Appel<EspaceLu & { readonly rejouee: boolean }> {
+  return {
+    methode: "POST",
+    chemin: CHEMINS_ESPACES.espaces,
+    corps: { valeur: corps, schema: schemaCorpsCreationEspace },
+    attendu: STATUTS.cree,
+    aussi: STATUTS.lu,
+    lire: (lu, statut) => {
+      const espaceLu = lireEspace(lu);
+      return espaceLu === undefined ? undefined : { ...espaceLu, rejouee: statut === STATUTS.lu };
+    },
+  };
+}
+
 function appelsDesEspaces(
   envoyer: Envoyer,
 ): Pick<
   ClientDesEspaces,
-  "listerEspaces" | "creerEspace" | "lireEspace" | "renommerEspace" | "supprimerEspace"
+  | "listerEspaces"
+  | "creerEspace"
+  | "declarerEspace"
+  | "lireEspace"
+  | "renommerEspace"
+  | "supprimerEspace"
 > {
   return {
     listerEspaces: () =>
@@ -174,6 +203,7 @@ function appelsDesEspaces(
         attendu: STATUTS.cree,
         lire: lireEspace,
       }),
+    declarerEspace: (corps) => envoyer(declaration(corps)),
     lireEspace: (idEspace) =>
       envoyer({ methode: "GET", chemin: espace(idEspace), attendu: STATUTS.lu, lire: lireEspace }),
     renommerEspace: (idEspace, corps) =>
@@ -303,10 +333,10 @@ async function lireReponse<T>(reponse: Response, appel: Appel<T>): Promise<Resul
     return { ok: false, erreur: { type: "trop-de-requetes", delaiSecondes } };
   }
   const corps = await lireCorps(reponse);
-  if (reponse.status !== appel.attendu) {
+  if (reponse.status !== appel.attendu && reponse.status !== appel.aussi) {
     return { ok: false, erreur: classer(corps) };
   }
-  const valeur = appel.lire(corps);
+  const valeur = appel.lire(corps, reponse.status);
   return valeur === undefined ? { ok: false, erreur: GENERIQUE } : { ok: true, valeur };
 }
 

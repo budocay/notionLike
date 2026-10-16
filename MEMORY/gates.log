@@ -165,3 +165,11 @@
 2026-10-15T06:06:00Z | reviewer-frontend | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
 2026-10-15T06:06:00Z | agent-securite | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
 2026-10-15T06:06:00Z | agent-architecte | F-012 | DEROGATION D-023 | 6cdcfb8e70d9
+2026-10-15T09:02:35Z | reviewer-frontend | F-013 | CHANGES_REQUESTED | 72d25cbef6ce
+2026-10-15T09:03:19Z | agent-securite | F-013 | SECURITY GATE: PASS | 72d25cbef6ce
+2026-10-15T09:03:19Z | agent-craft | F-013 | CRAFT GATE: PASS | 72d25cbef6ce
+2026-10-15T09:47:16Z | agent-craft | F-013 | CRAFT GATE: PASS | 655e412a4518
+2026-10-16T05:16:58Z | reviewer-frontend | F-013 | DEROGATION D-024 | 41ce5bc56134
+2026-10-16T05:16:58Z | agent-securite | F-013 | DEROGATION D-024 | 41ce5bc56134
+2026-10-16T05:16:58Z | agent-architecte | F-013 | DEROGATION D-024 | 41ce5bc56134
+2026-10-16T04:54:02Z | agent-craft | F-013 | CRAFT GATE: PASS | 41ce5bc56134

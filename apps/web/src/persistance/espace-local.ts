@@ -8,11 +8,11 @@ import { creerLesMagasinsManquants } from "./reparation.ts";
 // Base de l'appareil : ce n'est pas une base de document (ADR-0008). Elle naît à la version 1 avec
 // son magasin ; la version 2 est celle d'une base réparée, à laquelle le magasin manquait
 // (F-030-AC24). Au-delà, l'application ne la connaît pas : elle ne l'abaisse ni ne la supprime.
-const BASE_APPAREIL = "notionlike:appareil";
+export const BASE_APPAREIL = "notionlike:appareil";
 const VERSION_D_UNE_BASE_NEUVE = 1;
 const VERSION_LA_PLUS_HAUTE_CONNUE = 2;
-const MAGASIN_REGLAGES = "reglages";
-const CLE_ESPACE_LOCAL = "espace-local";
+export const MAGASIN_REGLAGES = "reglages";
+export const CLE_ESPACE_LOCAL = "espace-local";
 
 /** Persistance du document de l'espace local, qui sait quel espace l'appareil a retenu. */
 export interface PersistanceEspaceLocal extends Persistance {

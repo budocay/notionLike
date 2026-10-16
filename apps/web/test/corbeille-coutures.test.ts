@@ -46,6 +46,9 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/interface/pages.ts",
   "src/interface/repli.ts",
   "src/page/session-page.ts",
+  // F-013 : la réplique lit la version d'une page, la synchronisation les pages de l'arborescence.
+  "src/synchronisation/miroir.ts",
+  "src/synchronisation/pages-de-l-espace.ts",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin
@@ -54,6 +57,9 @@ const CONSTRUCTEURS_DE_Y_DOC = [
   "src/espace/session-espace.ts",
   "src/page/pages-ouvertes.ts",
   "src/persistance/temoin.ts",
+  // F-013 : la réplique de la page affichée (H8), le document d'une page de la passe de fond.
+  "src/synchronisation/miroir.ts",
+  "src/synchronisation/passe-de-fond.ts",
 ];
 
 function sources(): string[] {

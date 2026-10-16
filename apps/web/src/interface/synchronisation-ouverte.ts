@@ -1,0 +1,141 @@
+// La synchronisation de l'espace ouvert, vue de l'interface (F-013) : née dans un effet quand
+// l'identifiant de l'espace est connu, fermée quand l'écran de l'espace disparaît. Elle ne retarde
+// rien : l'arborescence et l'éditeur s'affichent dès leur relecture locale (F-013-AC1).
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+
+import { brancherLAcquittement } from "../espace/garde-onglet.ts";
+import type { EtatSessionPage } from "../page/session-page.ts";
+import type {
+  EtatDeSynchronisation,
+  OptionsDeSynchronisation,
+  Synchronisation,
+} from "../synchronisation/index.ts";
+
+/** Ce que l'interface donne à la fabrique : l'espace ouvert et deux rappels. */
+export type EspaceASynchroniser = Pick<
+  OptionsDeSynchronisation,
+  "idEspace" | "doc" | "lirePages" | "surPagesSupprimees" | "surEffacement"
+>;
+
+/** Démarre la synchronisation d'un espace ; l'entrée de l'application y joint l'environnement. */
+export type FabriqueDeSynchronisation = (espace: EspaceASynchroniser) => Synchronisation;
+
+export interface Rappels {
+  readonly lirePages: OptionsDeSynchronisation["lirePages"];
+  readonly surPagesSupprimees: (idPages: readonly string[]) => void;
+  readonly surEffacement: (etape: "demande" | "faite") => void;
+}
+
+export function useSynchronisation(
+  fabrique: FabriqueDeSynchronisation | undefined,
+  idEspace: string | undefined,
+  doc: OptionsDeSynchronisation["doc"] | undefined,
+  rappels: Rappels,
+): Synchronisation | undefined {
+  const [synchro, setSynchro] = useState<Synchronisation | undefined>(undefined);
+  // Les rappels changent à chaque rendu : la synchronisation lit toujours les derniers.
+  const derniers = useRef(rappels);
+  derniers.current = rappels;
+  useEffect(() => {
+    if (fabrique === undefined || idEspace === undefined || doc === undefined) {
+      return undefined;
+    }
+    const demarree = fabrique({
+      idEspace,
+      doc,
+      lirePages: () => derniers.current.lirePages(),
+      surPagesSupprimees: (idPages) => derniers.current.surPagesSupprimees(idPages),
+      surEffacement: (etape) => derniers.current.surEffacement(etape),
+    });
+    const debrancher = brancherLAcquittement({
+      estAcquitte: demarree.estAcquitte,
+      abonner: demarree.abonner,
+    });
+    setSynchro(demarree);
+    return () => {
+      debrancher();
+      demarree.fermer();
+      setSynchro(undefined);
+    };
+  }, [fabrique, idEspace, doc]);
+  return synchro;
+}
+
+const SANS_ABONNEMENT = (): (() => void) => () => undefined;
+
+export function useEtatDeSynchronisation(
+  synchro: Synchronisation | undefined,
+): EtatDeSynchronisation | undefined {
+  return useSyncExternalStore(synchro?.abonner ?? SANS_ABONNEMENT, () => synchro?.lireEtat());
+}
+
+/**
+ * La page affichée, une fois entièrement relue (H14), est donnée à la synchronisation ; le document
+ * de son éditeur se lit sur le fragment du contenu que sa façade expose.
+ */
+export function useAffichageDeLaPage(
+  synchro: Synchronisation | undefined,
+  idPage: string | undefined,
+  page: EtatSessionPage | undefined,
+): void {
+  const pret = page?.phase === "pret" ? page : undefined;
+  const doc = pret?.contenu.doc ?? undefined;
+  const refuser = pret?.refuserLaVersion;
+  useEffect(() => {
+    if (synchro === undefined) {
+      return;
+    }
+    synchro.afficherPage(
+      idPage === undefined || doc === undefined || refuser === undefined
+        ? undefined
+        : { idPage, doc, refuserLaVersion: refuser },
+    );
+  }, [synchro, idPage, doc, refuser]);
+}
+
+/** Ce que l'écran de l'espace lit de sa synchronisation. */
+export interface SynchronisationDeLEspace {
+  readonly synchro: Synchronisation | undefined;
+  readonly etat: EtatDeSynchronisation | undefined;
+  /** Raison qui désactive chaque action qui écrit (F-013-AC25) ; `undefined` : modifiable. */
+  readonly lectureSeule: string | undefined;
+  /** Vrai : un autre onglet efface la copie locale ; l'onglet attend de se recharger (AC24). */
+  readonly effaceeAilleurs: boolean;
+}
+
+export interface EspaceOuvert {
+  readonly fabrique: FabriqueDeSynchronisation | undefined;
+  readonly idEspace: string | undefined;
+  readonly doc: OptionsDeSynchronisation["doc"] | undefined;
+  readonly idPage: string | undefined;
+  readonly page: EtatSessionPage | undefined;
+  readonly lirePages: OptionsDeSynchronisation["lirePages"];
+  /** Ferme les documents des pages supprimées ailleurs, sans effacer leurs bases (AC37). */
+  readonly fermerLesPages: (idPages: readonly string[]) => void;
+  /** Ferme la session d'espace et les pages de l'onglet (AC24). */
+  readonly toutFermer: () => void;
+}
+
+export function useSynchronisationDeLEspace(
+  espace: EspaceOuvert,
+  raisonDeLectureSeule: string,
+): SynchronisationDeLEspace {
+  const [effaceeAilleurs, setEffaceeAilleurs] = useState(false);
+  const synchro = useSynchronisation(espace.fabrique, espace.idEspace, espace.doc, {
+    lirePages: espace.lirePages,
+    surPagesSupprimees: espace.fermerLesPages,
+    surEffacement: (etape) => {
+      if (etape === "demande") {
+        espace.toutFermer();
+        setEffaceeAilleurs(true);
+      } else {
+        window.location.reload();
+      }
+    },
+  });
+  const etat = useEtatDeSynchronisation(synchro);
+  useAffichageDeLaPage(synchro, espace.idPage, espace.page);
+  const lectureSeule =
+    etat?.rattachement === "adopte" && etat.droit === "lecture" ? raisonDeLectureSeule : undefined;
+  return { synchro, etat, lectureSeule, effaceeAilleurs };
+}

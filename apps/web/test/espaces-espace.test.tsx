@@ -276,6 +276,39 @@ describe("renommer, supprimer, quitter", () => {
     expect(session.lireEtat()).toBe(etatAvant);
   });
 
+  it("F-014-AC11 F-014-AC28 F-013-AC40 un nouveau rendu de l'application ne relit pas l'espace ; supprimé, l'espace n'est pas relu, et « Espace supprimé » n'est pas remplacé par l'alerte d'un 404", async () => {
+    const serveur = serveurDeLEspace("proprietaire");
+    serveur.poser(R.supprimer(), () => {
+      serveur.poser(R.lire(), () => enveloppe(404, "ressource-introuvable"));
+      serveur.poser(R.espaces, () => liste200([]));
+      return vide204();
+    });
+    const { utilisateur, session } = await ouvrirLEspace(serveur);
+    const lectures = (): number =>
+      serveur.routesAppelees().filter((route) => route === R.lire()).length;
+    const avant = lectures();
+    // Un nouveau rendu de l'application (une page créée, comme le ferait une mise à jour reçue).
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    act(() => void etat.operations.creerPage("Rendue"));
+    await act(() => new Promise((resoudre) => setTimeout(resoudre, 50)));
+    expect(lectures()).toBe(avant);
+
+    await utilisateur.click(bouton("Supprimer cet espace : Projet Atlas"));
+    await utilisateur.type(
+      screen.getByRole("textbox", { name: /Saisissez le nom exact/ }),
+      "Projet Atlas",
+    );
+    await utilisateur.click(bouton(/^Supprimer définitivement/));
+    expect(await screen.findByText("Espace supprimé")).toBeTruthy();
+    await act(() => new Promise((resoudre) => setTimeout(resoudre, 50)));
+    expect(screen.queryByText("Cet espace n'est plus accessible avec ce compte.")).toBeNull();
+    expect(screen.getByText("Espace supprimé")).toBeTruthy();
+    expect(lectures()).toBe(avant);
+  });
+
   it("F-014-AC12 quitter : une alerte qui dit la perte d'accès, puis DELETE de son propre compte ; un 409 dernier-proprietaire est dit sans rien modifier", async () => {
     const serveur = serveurDeLEspace("proprietaire");
     serveur.poser(R.retirer(COMPTE.id), () => enveloppe(409, "dernier-proprietaire"));

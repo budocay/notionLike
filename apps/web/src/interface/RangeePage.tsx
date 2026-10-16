@@ -24,6 +24,11 @@ export interface EcranBarre {
   readonly idPageCourante: IdPage | undefined;
   readonly repliees: ReadonlySet<IdPage>;
   readonly saisie: { readonly idPage: IdPage; readonly erreur: string | undefined } | undefined;
+  /**
+   * Raison qui désactive chaque action qui écrit dans le document d'espace (F-013-AC25) ;
+   * `undefined` : l'espace est modifiable.
+   */
+  readonly lectureSeule?: string | undefined;
 }
 
 export interface ActionsBarre {
@@ -54,29 +59,14 @@ export function RangeePage(props: Proprietes): ReactElement {
   const titre = titreAffiche(page.titre);
   const enSaisie = ecran.saisie?.idPage === page.id;
   const lien = useLienRefocalise(enSaisie);
-  const menu = useFlottant<HTMLDivElement>();
-  const renommer = (): void => {
-    menu.fermer();
-    actions.ouvrirSaisie(page.id);
-  };
+  const raison = ecran.lectureSeule;
+  const { menu, renommer, entrees } = useMenuDeRangee(page, actions, raison);
   const surTouche = (evenement: KeyboardEvent<HTMLElement>): void => {
     if (!enSaisie && estLaFrappe(evenement, RACCOURCIS.renommer)) {
       evenement.preventDefault();
       renommer();
     }
   };
-  // Une entrée ferme le menu avant d'agir, et rend le focus au bouton « ⋯ » : il y reste si
-  // l'opération est refusée, sous son message ; sinon l'action le porte où elle l'entend.
-  const depuisLeMenu = (effet: () => void) => (): void => {
-    menu.fermer();
-    menu.commande.current?.focus();
-    effet();
-  };
-  const entrees = entreesDuMenu({
-    renommer,
-    ajouter: depuisLeMenu(() => actions.creerPage(page.id)),
-    jeter: depuisLeMenu(() => actions.mettreALaCorbeille(page)),
-  });
   return (
     <Rangee
       niveau={niveau}
@@ -85,7 +75,11 @@ export function RangeePage(props: Proprietes): ReactElement {
       courante={ecran.idPageCourante === page.id}
       description={mere === undefined ? undefined : descriptionDeSousPage(niveau, mere.titre)}
       repli={repliDe(page, titre, ecran, actions)}
-      ajout={{ nom: nomAjouterSousPage(titre), surActivation: () => actions.creerPage(page.id) }}
+      ajout={{
+        nom: nomAjouterSousPage(titre),
+        surActivation: () => actions.creerPage(page.id),
+        raison,
+      }}
       actions={{ nom: nomActionsDeLaPage(titre), surActivation: menu.basculer }}
       menuOuvert={menu.ouvert}
       refLien={lien}
@@ -100,6 +94,31 @@ export function RangeePage(props: Proprietes): ReactElement {
       }
     />
   );
+}
+
+// Une entrée ferme le menu avant d'agir, et rend le focus au bouton « ⋯ » : il y reste si
+// l'opération est refusée, sous son message ; sinon l'action le porte où elle l'entend. En lecture
+// seule, chaque entrée qui écrit est désactivée, et le renommage n'ouvre aucune saisie (F-013-AC25).
+function useMenuDeRangee(page: PageLue, actions: ActionsBarre, raison: string | undefined) {
+  const menu = useFlottant<HTMLDivElement>();
+  const renommer = (): void => {
+    menu.fermer();
+    if (raison === undefined) {
+      actions.ouvrirSaisie(page.id);
+    }
+  };
+  const depuisLeMenu = (effet: () => void) => (): void => {
+    menu.fermer();
+    menu.commande.current?.focus();
+    effet();
+  };
+  const entrees = entreesDuMenu({
+    renommer,
+    ajouter: depuisLeMenu(() => actions.creerPage(page.id)),
+    jeter: depuisLeMenu(() => actions.mettreALaCorbeille(page)),
+    raison,
+  });
+  return { menu, renommer, entrees };
 }
 
 // La saisie rouvre sur le titre enregistré, tel quel, et non sur le titre affiché (F-002-AC6).
@@ -134,6 +153,8 @@ interface EffetsDuMenu {
   readonly renommer: () => void;
   readonly ajouter: () => void;
   readonly jeter: () => void;
+  /** Lecture seule : chaque entrée qui écrit est désactivée avec cette raison (F-013-AC25). */
+  readonly raison: string | undefined;
 }
 
 // Chaque entrée appelle la fonction de l'action de F-002 (F-004-AC26). Les features suivantes
@@ -145,9 +166,10 @@ function entreesDuMenu(effets: EffetsDuMenu): readonly EntreeDeMenu[] {
       touches: afficherTouches(RACCOURCIS.renommer),
       raccourci: cleAria(RACCOURCIS.renommer),
       surActivation: effets.renommer,
+      raison: effets.raison,
     },
-    { libelle: AJOUTER_UNE_SOUS_PAGE, surActivation: effets.ajouter },
-    { libelle: METTRE_A_LA_CORBEILLE, surActivation: effets.jeter },
+    { libelle: AJOUTER_UNE_SOUS_PAGE, surActivation: effets.ajouter, raison: effets.raison },
+    { libelle: METTRE_A_LA_CORBEILLE, surActivation: effets.jeter, raison: effets.raison },
   ];
 }
 
