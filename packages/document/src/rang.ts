@@ -111,6 +111,68 @@ export function rangsRepartis(
   return rangs;
 }
 
+/** Rang de l'élément inséré, et nouveaux rangs des éléments réattribués, par indice dans `rangs`. */
+export interface InsertionDeRang {
+  readonly rang: Rang;
+  readonly reattribues: ReadonlyMap<number, Rang>;
+}
+
+/**
+ * Insertion d'un élément à `position` parmi des éléments lus dans l'ordre, de rangs `rangs` (ADR-0002,
+ * « Rangs », F-029). Entre deux éléments de même rang, aucun rang n'existe : ceux de ce rang qui
+ * suivent la position sont réattribués, jusqu'au premier d'un rang supérieur. Si la borne ne laisse
+ * aucun rang admis à la position, la réattribution s'élargit à tous les éléments (F-029-AC7). Rend
+ * `AUCUN_RANG_ADMIS` si même celle-ci ne tient pas dans la borne : à l'appelant d'en faire un refus.
+ */
+export function insertionParmi(
+  rangs: readonly Rang[],
+  position: number,
+  longueurMax: number = LONGUEUR_MAX_RANG,
+): InsertionDeRang | typeof AUCUN_RANG_ADMIS {
+  const fin = finDesRangsEgauxAuPrecedent(rangs, position);
+  const haut = rangs[fin] ?? BORNE_HAUTE;
+  const rang = rangEntre(rangs[position - 1] ?? BORNE_BASSE, haut, longueurMax);
+  if (rang !== AUCUN_RANG_ADMIS) {
+    const indices = Array.from({ length: fin - position }, (_, decalage) => position + decalage);
+    const reattribues = rangsCroissantsEntre(rang, haut, indices, longueurMax);
+    if (reattribues !== AUCUN_RANG_ADMIS) {
+      return { rang, reattribues };
+    }
+  }
+  return insertionElargie(rangs, position, longueurMax);
+}
+
+// Réattribution élargie (F-029-AC7) : tous les éléments, l'inséré compris, reçoivent des rangs courts
+// répartis dans l'ordre demandé. Seuls ceux dont le rang change sont rendus.
+function insertionElargie(
+  rangs: readonly Rang[],
+  position: number,
+  longueurMax: number,
+): InsertionDeRang | typeof AUCUN_RANG_ADMIS {
+  const repartis = rangsRepartis(rangs.length + 1, longueurMax);
+  const rang = repartis === AUCUN_RANG_ADMIS ? undefined : repartis[position];
+  if (repartis === AUCUN_RANG_ADMIS || rang === undefined) {
+    return AUCUN_RANG_ADMIS;
+  }
+  const reattribues = new Map<number, Rang>();
+  rangs.forEach((ancien, indice) => {
+    const nouveau = repartis[indice < position ? indice : indice + 1];
+    if (nouveau !== undefined && nouveau !== ancien) {
+      reattribues.set(indice, nouveau);
+    }
+  });
+  return { rang, reattribues };
+}
+
+function finDesRangsEgauxAuPrecedent(rangs: readonly Rang[], position: number): number {
+  const precedent = rangs[position - 1];
+  let fin = position;
+  while (precedent !== undefined && rangs[fin] === precedent) {
+    fin += 1;
+  }
+  return fin;
+}
+
 // Chiffre final du rang à la position `indice`, si un chiffre y suffit entre les deux bornes.
 function dernierChiffre(
   chiffreBas: number,

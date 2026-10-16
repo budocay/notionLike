@@ -15,6 +15,9 @@ const CE_FICHIER = `${ICI}/coutures-rang.test.ts`;
 const RANG = "packages/document/src/rang.ts";
 const FORMAT = "packages/document/src/format.ts";
 const FACADE = "packages/document/src/document-espace.ts";
+const FACADE_TABLE = "packages/document/src/document-table.ts";
+const FORMAT_TABLE = "packages/document/src/format-table.ts";
+const TEST_DU_RANG_DE_TABLE = "packages/document/test/table-rang.test.ts";
 const NOMS_D_ECRITURE = ["ecrireNouvellePage", "ecrirePlace", "admettrePlace"];
 const ENTREE_A_BORNE = "ouvrirDocumentEspaceBorne";
 // Les essais sont assemblés : ce fichier, lu lui aussi, ne définit ni ne nomme ce qu'il énumère.
@@ -82,13 +85,16 @@ function ecrivainsDePlace(textes: Textes): string[] {
   );
 }
 
-/** (c) Les modules de src/ qui lisent un type racine du `Y.Doc` ou en citent le nom en chaîne. */
+/**
+ * (c) Les modules de src/ qui lisent un type racine du `Y.Doc` ou en citent le nom en chaîne ;
+ * `getMap` est vu avec ou sans argument de type, imbriqué compris (F-017).
+ */
 function lecteursDesTypesRacines(textes: Textes): string[] {
   return filtrer(
     textes,
     (chemin, texte) =>
       /^(apps|packages)\/[^/]+\/src\//.test(chemin) &&
-      (/\bgetMap\s*\(/.test(texte) || /["'`](meta|pages)["'`]/.test(texte)),
+      (/\bgetMap\s*(<[^>]*>+)?\s*\(/.test(texte) || /["'`](meta|pages)["'`]/.test(texte)),
   );
 }
 
@@ -119,6 +125,10 @@ const APPELANTS_DU_RANG: Readonly<Record<string, string>> = {
   [FORMAT]: "packages/document/test/borne-ecriture.test.ts",
   "packages/document/test/borne-calcul.test.ts": "packages/document/test/borne-calcul.test.ts",
   "packages/document/test/rang.test.ts": "packages/document/test/borne-contrat.test.ts",
+  // F-017 : la façade de table place par `insertionParmi`, le format de table lit et admet les rangs.
+  [FACADE_TABLE]: TEST_DU_RANG_DE_TABLE,
+  [FORMAT_TABLE]: TEST_DU_RANG_DE_TABLE,
+  [TEST_DU_RANG_DE_TABLE]: TEST_DU_RANG_DE_TABLE,
 };
 const ECRIVAINS_DE_PLACE: Readonly<Record<string, string>> = {
   [FACADE]: "packages/document/test/borne-ecriture.test.ts",
@@ -127,6 +137,8 @@ const ECRIVAINS_DE_PLACE: Readonly<Record<string, string>> = {
 };
 const LECTEURS_DES_TYPES_RACINES: Readonly<Record<string, string>> = {
   [FORMAT]: "packages/document/test/borne-lecture.test.ts",
+  // F-017 : le format de table lit ses propres types racine (`colonnes`, `lignes`) et y lit les rangs.
+  [FORMAT_TABLE]: TEST_DU_RANG_DE_TABLE,
   // F-012 : lecture de la clé de version et publication des versions admises (F-012-AC29).
   "apps/server/src/synchro-stockage.ts": "apps/server/test/synchro-document.test.ts",
   "packages/contrats/src/synchro.ts": "apps/server/test/synchro-document.test.ts",
@@ -183,6 +195,16 @@ describe("énumérations de F-029 sur des cas fautifs", () => {
       `doc.getMap("${NOMS_DU_FORMAT.pages}");\n`,
     ],
     [
+      "un lecteur de types racines à argument de type",
+      lecteursDesTypesRacines,
+      "doc.getMap<unknown>(TYPE_RACINE);\n",
+    ],
+    [
+      "un lecteur de types racines à argument de type imbriqué",
+      lecteursDesTypesRacines,
+      "doc.getMap <Y.Map<unknown>> (TYPE_RACINE);\n",
+    ],
+    [
       "un nom de type racine cité",
       lecteursDesTypesRacines,
       `const TYPE = '${NOMS_DU_FORMAT.meta}';\n`,
@@ -228,7 +250,7 @@ describe("coutures du rang borné dans le workspace", () => {
     ["(a) appelants du calcul et du contrôle d'un rang", appelantsDuRang, APPELANTS_DU_RANG],
     ["(b) points d'écriture de place et leurs appelants", ecrivainsDePlace, ECRIVAINS_DE_PLACE],
     [
-      "(c) lecteurs des types racines meta et pages",
+      "(c) lecteurs des types racines (meta et pages, colonnes et lignes de la table)",
       lecteursDesTypesRacines,
       LECTEURS_DES_TYPES_RACINES,
     ],
@@ -264,8 +286,13 @@ describe("coutures du rang borné dans le workspace", () => {
     const facade = texteDe(FACADE);
     const format = texteDe(FORMAT);
 
-    expect(facade).toMatch(/function insertionALaPosition\([^]*?\brangEntre\(/);
-    expect(facade).toMatch(/function insertionElargie\([^]*?\brangsRepartis\(/);
+    // F-017 : le calcul d'insertion est extrait dans rang.ts (`insertionParmi`), commun aux façades.
+    expect(facade).toMatch(/function insertionALaPosition\([^]*?\binsertionParmi\(/);
+    expect(texteDe(RANG)).toMatch(/function insertionParmi\([^]*?\brangEntre\(/);
+    expect(texteDe(RANG)).toMatch(/function insertionElargie\([^]*?\brangsRepartis\(/);
+    expect(texteDe(FACADE_TABLE)).toMatch(/function placement\([^]*?\binsertionParmi\(/);
+    expect(texteDe(FORMAT_TABLE)).toMatch(/function estUnRangAdmis\([^]*?\bestUnRang\(/);
+    expect(texteDe(FORMAT_TABLE)).toMatch(/function admettreRang\([^]*?\bestUnRang\(/);
     expect(format).toMatch(/function lirePlace\([^]*?\bestUnRang\(rang, longueurMaxRang\)/);
     expect(format).toMatch(
       new RegExp(

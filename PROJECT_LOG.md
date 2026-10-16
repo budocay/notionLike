@@ -275,3 +275,15 @@
 - Tests: 3465 tests sur 167 fichiers — état: verts — preuve: checks.txt (empreinte `5df7774ce0c4`) ; AC30 en Chromium sous macOS : vert, puis 10 sur 10
 - Gates: sur `9b376ff9bc97` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (6 points, corrigés) ; sur `61c223f307ae` puis `5df7774ce0c4` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-025
 - Mesures: boucles 1 passage, 1 tour de correctifs, 1 correctif du bout en bout · constats confirmés 6, dont 2 règles de saisie fausses (AC3) et l'héritage d'un lien refusé (AC18) · coût non mesuré
+
+## [2026-10-16] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/document/src` (`table.ts`, `format-table.ts`, `document-table.ts` ; `insertionParmi` extraite dans `rang.ts`), `apps/web/src/interface/messages.ts` (neuf codes) — agents: agent-veille, agent-architecte-conception, agent-frontend, orchestrateur ; règle `document-coeur-pur` élargie par le dev (02f2a72) — commits: eb2668f..b230a81
+- Détail: second format de document (table), sans appelant dans `apps/web` avant F-018 ; trois types racine (`colonnes`, `lignes`, `versions`), ordre par rang borné, suppression par drapeau, cellules créées avec leur ligne, comparaison avant notification, reconnaissance par les types racine ; 12 exports et 9 codes d'erreur nouveaux. Après revue : chaînes à unité UTF-16 isolée normalisées comme l'encodage V1 à l'écriture et à la lecture (décision de l'orchestrateur, sans amender la spec), oracle d'AC9 indépendant de la façade.
+- Dette: introduite D-026 (reviewer-frontend non rejoué après correctifs, sécurité jugée sur la première empreinte, architecture non lancée, AC25 qui n'éprouve que la compilation des dépendants), D-027 (clé à unité isolée forgée par un pair non normalisée ; même défaut sur les titres de page de F-001) ; laissées D-003, D-007
+- ADR: ADR-0016 (proposée)
+- Tests: 3711 tests sur 174 fichiers, dont 651 dans `packages/document` — état: verts — preuve: checks.txt (empreinte `3515753d84af`)
+- Gates: sur `24eb1f6dfe62` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (4 points, corrigés) ; sur `3515753d84af` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-026
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 4 (divergence évitable, refus hors spec, AC25, oracle circulaire) · coût non mesuré

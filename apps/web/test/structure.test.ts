@@ -146,9 +146,12 @@ describe("@notionlike/document résolu par son nom", () => {
       "TABLE_DES_VERSIONS_PAGE",
       "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      // F-017 : document de table.
+      "creerDocumentTable",
       "lireVersionPage",
       "ouvrirDocumentEspace",
       "ouvrirDocumentPage",
+      "ouvrirDocumentTable",
     ]);
   });
 
@@ -187,9 +190,12 @@ describe("@notionlike/document résolu par son nom", () => {
       "TABLE_DES_VERSIONS_PAGE",
       "VERSION_PAGE_PRISE_EN_CHARGE",
       "creerDocumentEspace",
+      // F-017 : document de table.
+      "creerDocumentTable",
       "lireVersionPage",
       "ouvrirDocumentEspace",
       "ouvrirDocumentPage",
+      "ouvrirDocumentTable",
     ]);
   });
 });
