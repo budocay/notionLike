@@ -18,6 +18,7 @@ import {
   commande,
   couperLeReseau,
   curseurDansLeBloc,
+  demonterLEditeur,
   deposerDuHtml,
   deposerUnFichier,
   entrerDansLEditeur,
@@ -381,6 +382,34 @@ describe("dépôts venus d'ailleurs", () => {
       expect(empeche).toBe(true);
       expect(contenuLu(doc)).toBe(avant);
       expect(contenuLu(doc)).not.toMatch(/image\.png|contenu du fichier|texte joint/);
+      expect(emises.length).toBe(misesAJour);
+    },
+  );
+
+  // En lecture seule, ProseMirror ne passe plus entrées, survols ni lâchers à ses gestionnaires
+  // d'édition : sans refus explicite, le navigateur ouvrirait le fichier à la place de la page.
+  it.each([
+    ["seul", "dragenter", false],
+    ["seul", "dragover", false],
+    ["seul", "drop", false],
+    ["accompagné de texte", "dragenter", true],
+    ["accompagné de texte", "dragover", true],
+    ["accompagné de texte", "drop", true],
+  ] as const)(
+    "F-006-AC35 F-013-AC25 un fichier, %s, au %s sur un éditeur en lecture seule : action par défaut empêchée, rien d'ouvert ni d'inscrit",
+    (_cas, type, avecDuTexte) => {
+      const doc = new Y.Doc();
+      monterLEditeur(doc);
+      entrerDansLEditeur();
+      ecrire("one", "two", "three");
+      demonterLEditeur();
+      const { emises } = monterLEditeur(doc, { lectureSeule: true });
+      const [avant, misesAJour] = [contenuLu(doc), emises.length];
+
+      const empeche = deposerUnFichier("two", avecDuTexte, type);
+
+      expect(empeche).toBe(true);
+      expect(contenuLu(doc)).toBe(avant);
       expect(emises.length).toBe(misesAJour);
     },
   );

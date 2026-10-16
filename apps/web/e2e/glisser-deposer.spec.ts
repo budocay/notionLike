@@ -1,8 +1,9 @@
 // F-006-AC34 : le glisser-déposer dans un navigateur réel, par des gestes réels de la souris. Trois
 // pages réordonnées et imbriquées dans la barre latérale, un lâcher refusé sous soi-même, puis trois
 // blocs réordonnés par leur poignée et au clavier, une annulation, le tout relu après rechargement ;
-// enfin un contenu riche piégé lâché dans l'éditeur sans que rien ne s'exécute. Hors des hooks tant
-// que D-003 n'est pas levée.
+// enfin un contenu riche piégé lâché dans l'éditeur sans que rien ne s'exécute, et un fichier lâché
+// refusé, éditeur modifiable ou en lecture seule (F-006-AC35). Hors des hooks tant que D-003 n'est
+// pas levée.
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
@@ -211,4 +212,79 @@ test("F-006-AC12 F-006-AC18 au clavier, dans un navigateur réel : une page dép
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
   await page.keyboard.type("!");
   await expect.poll(() => blocs(zone)).toEqual(["bas!", "haut"]);
+});
+
+/**
+ * Lâche un fichier sur un bloc, seul ou avec du texte, par les trois événements du navigateur
+ * porteurs d'un vrai DataTransfer ; rend, pour chacun, si son action par défaut a été empêchée.
+ */
+async function deposerUnFichier(cible: Locator, avecDuTexte: boolean): Promise<boolean[]> {
+  const { x, y } = await point(cible, "milieu");
+  return cible.evaluate(
+    (element, { texte, abscisse, ordonnee }) => {
+      const donnees = new DataTransfer();
+      donnees.items.add(
+        new File(["<p>contenu du fichier</p>"], "image.png", { type: "text/html" }),
+      );
+      if (texte) {
+        donnees.setData("text/plain", "texte joint au fichier");
+      }
+      return ["dragenter", "dragover", "drop"].map((type) => {
+        const geste = new DragEvent(type, {
+          dataTransfer: donnees,
+          clientX: abscisse,
+          clientY: ordonnee,
+          bubbles: true,
+          cancelable: true,
+        });
+        element.dispatchEvent(geste);
+        return geste.defaultPrevented;
+      });
+    },
+    { texte: avecDuTexte, abscisse: x, ordonnee: y },
+  );
+}
+
+/**
+ * Rend l'éditeur non modifiable comme l'application le fait sans droit d'écriture (F-013-AC25) : la
+ * lecture seule réelle vient du serveur, absent de ce scénario.
+ */
+async function passerEnLectureSeule(zone: Locator): Promise<void> {
+  await zone.evaluate((element) => {
+    const editeur = Reflect.get(element, "editor") as { setEditable(modifiable: boolean): void };
+    editeur.setEditable(false);
+  });
+  await expect(zone).toHaveAttribute("contenteditable", "false");
+}
+
+test("F-006-AC35 F-013-AC25 dans un navigateur réel, un fichier lâché, seul puis avec du texte, sur l'éditeur modifiable puis en lecture seule : action par défaut empêchée à chaque geste, rien d'ouvert ni d'inscrit", async ({
+  page,
+}) => {
+  const console_ = ecouterLaConsole(page);
+  await ouvrir(page);
+  await creerPageNommee(page, "Fichiers");
+  const zone = zoneDeSaisie(page);
+  await zone.click();
+  await page.keyboard.type("un");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("deux");
+  await expect.poll(() => blocs(zone)).toEqual(["un", "deux"]);
+  const adresse = page.url();
+
+  for (const lectureSeule of [false, true]) {
+    if (lectureSeule) {
+      await passerEnLectureSeule(zone);
+    }
+    for (const avecDuTexte of [false, true]) {
+      expect(await deposerUnFichier(zone.locator("p").nth(1), avecDuTexte)).toEqual([
+        true,
+        true,
+        true,
+      ]);
+      expect(await blocs(zone)).toEqual(["un", "deux"]);
+      expect(page.url()).toBe(adresse);
+    }
+  }
+  await expect(zone).not.toContainText(/image\.png|contenu du fichier|texte joint/);
+  expect(console_).toEqual([]);
 });

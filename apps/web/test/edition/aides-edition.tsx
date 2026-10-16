@@ -46,8 +46,16 @@ export interface Montage {
   readonly emises: Uint8Array[];
 }
 
+export interface OptionsDuMontage {
+  /** L'éditeur monté en lecture seule, comme l'application le fait sans droit d'écriture. */
+  readonly lectureSeule?: boolean;
+}
+
 /** Monte l'éditeur seul, comme l'application le fait : sous `StrictMode`, sur une façade de page. */
-export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
+export function monterLEditeur(
+  doc: Y.Doc = new Y.Doc(),
+  { lectureSeule = false }: OptionsDuMontage = {},
+): Montage {
   const emises = ecouterLesMisesAJour(doc);
   const page = ouvrirFacadeDePage(doc);
   render(
@@ -59,6 +67,7 @@ export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
         meneALaBarre={(frappe) => estLaFrappe(frappe, RACCOURCIS.barreDeBlocs)}
         ouvreLePanneauDeLien={(frappe) => estLaFrappe(frappe, RACCOURCIS.lien)}
         ouvreLAdresse={estUnClicAvecMod}
+        lectureSeule={lectureSeule}
         // F-006 : Alt+Maj+Flèche haut et bas déplacent le bloc du curseur (F-006-AC18).
         deplacementDuBloc={(frappe) => {
           if (estLaFrappe(frappe, RACCOURCIS.monterLeBloc)) {
@@ -394,17 +403,28 @@ export function deplacerLeTexte(texte: string, surLeTexte: string): void {
   deposer(surLeTexte, { getData: () => "", types: [], files: [], dropEffect: "move" });
 }
 
-function deposer(surLeTexte: string, transfert: Record<string, unknown>): boolean {
-  return deposerA(positionDuTexte(surLeTexte), transfert);
+function deposer(
+  surLeTexte: string,
+  transfert: Record<string, unknown>,
+  type: TypeDuGeste = "drop",
+): boolean {
+  return deposerA(positionDuTexte(surLeTexte), transfert, type);
 }
+
+/** L'entrée (`dragenter`) et le survol (`dragover`), qui font la cible d'un dépôt, ou le lâcher. */
+type TypeDuGeste = "dragenter" | "dragover" | "drop";
 
 /**
  * Lâcher construit par le test (F-006 H11) : jsdom n'a ni `DragEvent`, ni `DataTransfer`, ni mise en
  * page ; la position du pointeur est donnée à la vue. Rend vrai si l'action par défaut est empêchée.
  */
-function deposerA(position: number, transfert: Record<string, unknown>): boolean {
+function deposerA(
+  position: number,
+  transfert: Record<string, unknown>,
+  type: TypeDuGeste = "drop",
+): boolean {
   const { view } = editeurMonte();
-  const depot = new Event("drop", { bubbles: true, cancelable: true });
+  const depot = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(depot, "dataTransfer", { value: transfert });
   Object.assign(depot, { clientX: 0, clientY: 0 });
   const viaLaVue = view as typeof view & { posAtCoords: typeof view.posAtCoords };
@@ -476,18 +496,26 @@ export function glisserLeBlocParSaPoignee(de: number, intervalle: number): boole
 
 /**
  * Lâche des fichiers dans l'éditeur, sur ce texte, seuls ou avec du texte : un fichier HTML nommé
- * `image.png`, qui n'est pas une image conforme (F-006-AC35). Rend vrai si l'action par défaut est
- * empêchée.
+ * `image.png`, qui n'est pas une image conforme (F-006-AC35). Avec `dragenter` ou `dragover`, seul
+ * ce geste qui précède le lâcher est envoyé. Rend vrai si l'action par défaut est empêchée.
  */
-export function deposerUnFichier(surLeTexte: string, avecDuTexte: boolean): boolean {
+export function deposerUnFichier(
+  surLeTexte: string,
+  avecDuTexte: boolean,
+  type: TypeDuGeste = "drop",
+): boolean {
   const fichier = new File(["<p>contenu du fichier</p>"], "image.png", { type: "text/html" });
   const texte = avecDuTexte ? "texte joint au fichier" : "";
-  return deposer(surLeTexte, {
-    getData: (type: string) => (type === "text/plain" ? texte : ""),
-    types: avecDuTexte ? ["Files", "text/plain"] : ["Files"],
-    files: [fichier],
-    dropEffect: "copy",
-  });
+  return deposer(
+    surLeTexte,
+    {
+      getData: (format: string) => (format === "text/plain" ? texte : ""),
+      types: avecDuTexte ? ["Files", "text/plain"] : ["Files"],
+      files: [fichier],
+      dropEffect: "copy",
+    },
+    type,
+  );
 }
 
 /** Les options du curseur de dépôt, telles que le module d'édition a créé l'éditeur. */

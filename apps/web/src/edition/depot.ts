@@ -1,7 +1,9 @@
 // Ce que l'éditeur fait d'un lâcher et des raccourcis de déplacement d'un bloc (F-006-AC15, AC18,
 // AC21, AC35). Le gestionnaire de dépôt est appelé avant le traitement par défaut :
-//   1. un fichier lâché, seul ou avec autre chose, est refusé : rien n'est inscrit, et l'action par
-//      défaut du navigateur, qui ouvrirait le fichier, est empêchée (F-006-AC35) ;
+//   1. un fichier survolé ou lâché, seul ou avec autre chose, est refusé : rien n'est inscrit, et
+//      l'action par défaut du navigateur, qui ouvrirait le fichier, est empêchée (F-006-AC35). Le
+//      refus passe par `handleDOMEvents`, que ProseMirror appelle aussi en lecture seule, où il ne
+//      transmet plus survols ni lâchers à ses gestionnaires d'édition (F-013-AC25) ;
 //   2. le geste de la poignée est ramené à l'opération unique du déplacement d'un bloc (F-006-AC16),
 //      vers la place que le curseur de dépôt montrait ;
 //   3. tout autre lâcher (contenu venu d'ailleurs, texte glissé dans la page) suit le chemin du
@@ -38,8 +40,22 @@ function intervalleDe(document: NoeudProseMirror, position: number): number {
   return position < milieu ? indice : indice + 1;
 }
 
+/** Pendant le survol, le navigateur ne livre que les types : « Files » y dit qu'un fichier vient. */
 function contientUnFichier(evenement: DragEvent): boolean {
-  return (evenement.dataTransfer?.files.length ?? 0) > 0;
+  const transfert = evenement.dataTransfer;
+  if (transfert === null) {
+    return false;
+  }
+  return transfert.files.length > 0 || Array.from(transfert.types).includes("Files");
+}
+
+/** Empêche l'action par défaut d'un geste qui porte un fichier ; rend vrai s'il en porte un. */
+function refuserLeFichier(_vue: EditorView, evenement: DragEvent): boolean {
+  if (!contientUnFichier(evenement)) {
+    return false;
+  }
+  evenement.preventDefault();
+  return true;
 }
 
 /** Le lâcher d'un bloc par sa poignée : de sa place à celle que le curseur de dépôt montrait. */
@@ -75,10 +91,12 @@ export function depotDeLEditeur(options: OptionsDuDepot): Extension {
         new Plugin({
           key: new PluginKey("depotDeLEditeur"),
           props: {
+            handleDOMEvents: {
+              dragenter: refuserLeFichier,
+              dragover: refuserLeFichier,
+              drop: refuserLeFichier,
+            },
             handleDrop: (vue, evenement, tranche) => {
-              if (contientUnFichier(evenement)) {
-                return true;
-              }
               if (!options.gesteDeLaPoignee()) {
                 return false;
               }
