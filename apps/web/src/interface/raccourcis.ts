@@ -14,6 +14,11 @@ export const RACCOURCIS = {
   renommer: { touche: "F2", modificateurs: [] },
   /** Depuis la zone de saisie, mène à la barre de blocs quand elle est affichée (F-003-AC42). */
   barreDeBlocs: { touche: "F10", modificateurs: ["Alt"] },
+  /**
+   * Depuis la zone de saisie, ouvre le panneau de lien sur une sélection ou dans un lien ; laissé à
+   * la palette de commandes de F-024 sur une sélection vide hors d'un lien (F-028-AC6, H12).
+   */
+  lien: { touche: "k", modificateurs: ["Mod"] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
 // Touches d'une boîte de dialogue et d'un formulaire des écrans des espaces (F-014-AC35, AC36) : ce

@@ -1,6 +1,7 @@
 // Version du document de page vue par la session et par l'écran : refus avant toute liaison
 // (F-003-AC19), version reçue pendant l'affichage (F-003-AC29), fermeture de la façade
 // (F-003-AC33), abonné fautif (F-003-AC34), état de chargement (F-003-AC4).
+import { VERSION_PAGE_PRISE_EN_CHARGE } from "@notionlike/document";
 import { act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
@@ -36,14 +37,17 @@ import {
   zoneDeSaisie,
 } from "./edition/aides-edition.tsx";
 
-const VERSION_INCONNUE = 2;
+const VERSION_INCONNUE = VERSION_PAGE_PRISE_EN_CHARGE + 1;
 const MESSAGE_DE_MISE_A_JOUR = /Mettez l'application à jour/;
+
+// Une marque que le schéma ne connaît pas : `bold` jusqu'à F-028, qui l'y fait entrer.
+const MARQUE_INCONNUE = "underline";
 
 /** Un paragraphe dont le texte porte une marque que le schéma ne connaît pas. */
 function paragrapheMarque(): Y.XmlElement {
   const paragraphe = new Y.XmlElement("paragraph");
   const texte = new Y.XmlText();
-  texte.insert(0, "marqué", { bold: true });
+  texte.insert(0, "marqué", { [MARQUE_INCONNUE]: true });
   paragraphe.insert(0, [texte]);
   return paragraphe;
 }
@@ -101,7 +105,7 @@ describe("refus par version, avant toute liaison", () => {
     expect(emises).toEqual([]);
     expect(etatEncodeDuDocument(doc)).toEqual(avant);
     expect(Object.keys(inventaireDuContenu(doc).noeuds)).toEqual(["blocFutur", "paragraph"]);
-    expect(inventaireDuContenu(doc).marques).toEqual(["bold"]);
+    expect(inventaireDuContenu(doc).marques).toEqual([MARQUE_INCONNUE]);
   });
 
   it("F-003-AC19 F-003-AC23 une base de version prise en charge est liée : l'éditeur affiche son contenu", async () => {

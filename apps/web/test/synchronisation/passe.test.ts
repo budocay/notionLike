@@ -1,7 +1,7 @@
 // Passe de fond, suppression définitive reçue, étanchéité entre espaces d'un appareil, version
 // reçue sur une page non affichée (F-013-AC5, AC6, AC35, AC37, AC44, AC42), contre le serveur réel.
 import { LIMITES_SYNCHRO } from "@notionlike/contrats";
-import { lireVersionPage } from "@notionlike/document";
+import { lireVersionPage, VERSION_PAGE_PRISE_EN_CHARGE } from "@notionlike/document";
 import { demarrerServeurDEssai, type ServeurDEssai } from "@notionlike/server/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
@@ -282,7 +282,9 @@ describe("version reçue sur une page non affichée", () => {
     const page = pageDEssai(idPage);
     afficher(chez, page);
     await attendreLEtat(chez, "synchronise");
-    const plusRecente = miseAJourDUneReplique(page.doc, (replique) => replique.eleverVersion(2));
+    const plusRecente = miseAJourDUneReplique(page.doc, (replique) =>
+      replique.eleverVersion(VERSION_PAGE_PRISE_EN_CHARGE + 1),
+    );
     Y.applyUpdate(page.doc, plusRecente);
     ecrireDansLaPage(page.doc, "écrite en version 2");
     await attendreLEtat(chez, "synchronise");
@@ -305,6 +307,6 @@ describe("version reçue sur une page non affichée", () => {
         ).map((octets) => new Uint8Array(octets)),
       ),
     );
-    expect(lireVersionPage(relu)).toBe(2);
+    expect(lireVersionPage(relu)).toBe(VERSION_PAGE_PRISE_EN_CHARGE + 1);
   });
 });

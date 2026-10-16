@@ -1,6 +1,18 @@
 // Données fictives de la page de démonstration : aucun document, aucune persistance. Seul ce qui
 // est propre à la page est ici ; les textes de l'interface viennent de `interface/messages.ts`, les
 // combinaisons de touches de `interface/raccourcis.ts`.
+import {
+  ADRESSE_DU_LIEN_REFUSEE,
+  APPLIQUER_LE_LIEN,
+  CHAMP_ADRESSE_DU_LIEN,
+  COMMANDE_GRAS,
+  COMMANDE_ITALIQUE,
+  COMMANDE_LIEN,
+  NOM_DU_PANNEAU_DE_LIEN,
+  OUVRIR_LE_LIEN,
+  RETIRER_LE_LIEN,
+} from "../interface/messages.ts";
+
 export const ADRESSE_FICTIVE = "#apercu";
 
 export const TITRE_LONG =
@@ -113,7 +125,24 @@ export const COMMANDES_DE_BLOC_FICTIVES = [
   { nom: "Titre 3", repere: "T3", active: false },
   { nom: "Liste à puces", repere: "•", active: false },
   { nom: "Liste numérotée", repere: "1.", active: false },
+  { nom: COMMANDE_GRAS, repere: "B", active: true },
+  { nom: COMMANDE_ITALIQUE, repere: "I", active: false },
+  { nom: COMMANDE_LIEN, repere: "↗", active: false, indisponible: true },
 ] as const;
+
+/** Le panneau de lien d'un lien neutralisé, après une adresse refusée (F-028-AC12, AC17). */
+export const PANNEAU_DE_LIEN_FICTIF = {
+  nom: NOM_DU_PANNEAU_DE_LIEN,
+  etiquette: CHAMP_ADRESSE_DU_LIEN,
+  appliquer: APPLIQUER_LE_LIEN,
+  ouvrir: OUVRIR_LE_LIEN,
+  retirer: RETIRER_LE_LIEN,
+  messageDeRefus: ADRESSE_DU_LIEN_REFUSEE,
+  adresseEnregistree: "javascript:alert(1)",
+  adresseAOuvrir: undefined,
+  retirable: true,
+  refuse: true,
+} as const;
 
 /** La barre de blocs est posée sous le bloc vide de l'aperçu, sans le recouvrir. */
 export const POSITION_DE_BARRE_FICTIVE = { gauche: 0, haut: 44 } as const;

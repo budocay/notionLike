@@ -1,16 +1,21 @@
 // État de la barre de blocs flottante (F-003-AC41) : affichée tant que le focus est dans la zone
 // d'édition et que la sélection n'est pas vide, ou que le curseur est dans un bloc vide (tant que le
-// menu slash de F-005 n'est pas livré). Lire cet état n'écrit rien dans le document.
+// menu slash de F-005 n'est pas livré) ou dans un lien (F-028-AC7). Lire cet état n'écrit rien dans
+// le document.
 import type { Editor } from "@tiptap/core";
 import { type FocusEvent, type RefObject, useEffect, useLayoutEffect, useState } from "react";
 
+import { type EtatDesMarques, etatDesMarques } from "./commandes-de-marque.ts";
+import { lienCourant } from "./marques.ts";
 import { type Placement, placerLaBarre } from "./placement.ts";
 import { type TypeDeBloc, typeDuBlocCourant } from "./types-de-bloc.ts";
 
 interface Lecture {
-  /** Vrai si la sélection appelle la barre : étendue, ou curseur dans un bloc vide. */
+  /** Vrai si la sélection appelle la barre : étendue, ou curseur dans un bloc vide ou un lien. */
   readonly appelee: boolean;
   readonly courant: TypeDeBloc | undefined;
+  /** `undefined` tant qu'aucun éditeur n'est lu. */
+  readonly marques: EtatDesMarques | undefined;
   /** Change à chaque transaction : la position se recalcule. */
   readonly revision: number;
 }
@@ -18,6 +23,7 @@ interface Lecture {
 export interface Barre {
   readonly affichee: boolean;
   readonly courant: TypeDeBloc | undefined;
+  readonly marques: EtatDesMarques | undefined;
   readonly placement: Placement;
   readonly surFocus: () => void;
   readonly surPerteDeFocus: (evenement: FocusEvent<HTMLElement>) => void;
@@ -28,14 +34,25 @@ interface Reperes {
   readonly barre: RefObject<HTMLElement | null>;
 }
 
-const SANS_LECTURE: Lecture = { appelee: false, courant: undefined, revision: 0 };
+const SANS_LECTURE: Lecture = {
+  appelee: false,
+  courant: undefined,
+  marques: undefined,
+  revision: 0,
+};
 const A_L_ORIGINE: Placement = { gauche: 0, haut: 0 };
 const DEFILEMENTS = ["auto", "scroll"];
 
 function lire(editeur: Editor, revision: number): Lecture {
   const { empty, $from } = editeur.state.selection;
   const dansUnBlocVide = $from.parent.isTextblock && $from.parent.content.size === 0;
-  return { appelee: !empty || dansUnBlocVide, courant: typeDuBlocCourant(editeur), revision };
+  const dansUnLien = lienCourant(editeur.state) !== undefined;
+  return {
+    appelee: !empty || dansUnBlocVide || dansUnLien,
+    courant: typeDuBlocCourant(editeur),
+    marques: etatDesMarques(editeur),
+    revision,
+  };
 }
 
 function useLecture(editeur: Editor | null): Lecture {
@@ -106,6 +123,7 @@ export function useBarre(editeur: Editor | null, reperes: Reperes): Barre {
   return {
     affichee,
     courant: lecture.courant,
+    marques: lecture.marques,
     placement,
     surFocus: () => setFocusDedans(true),
     // Le focus qui passe de la zone de saisie à la barre reste dans la zone d'édition.

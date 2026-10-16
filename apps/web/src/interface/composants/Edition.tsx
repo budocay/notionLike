@@ -1,11 +1,16 @@
-import type {
-  CSSProperties,
-  FocusEvent,
-  KeyboardEvent,
-  MouseEvent,
-  ReactElement,
-  ReactNode,
-  Ref,
+import {
+  type CSSProperties,
+  type FocusEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useRef,
+  useState,
 } from "react";
 
 import { EDITION } from "./edition.classes.ts";
@@ -62,8 +67,10 @@ export interface CommandeDeBloc {
   readonly nom: string;
   /** Ce que le bouton montre, en peu de signes ; décoratif. */
   readonly repere: string;
-  /** Vrai si le bloc courant est de ce type. */
+  /** Vrai si le bloc courant est de ce type, ou si le texte du curseur porte cette marque. */
   readonly active: boolean;
+  /** Vrai : la commande est exposée, mais rien ne se passe à son activation (F-028-AC6). */
+  readonly indisponible?: boolean | undefined;
   readonly surActivation: () => void;
 }
 
@@ -134,14 +141,136 @@ export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
           className={commande.active ? EDITION.commandeActive : EDITION.commande}
           aria-label={commande.nom}
           aria-pressed={commande.active}
+          aria-disabled={commande.indisponible === true ? true : undefined}
           title={commande.nom}
           tabIndex={-1}
           onMouseDown={garderLeFocus}
-          onClick={commande.surActivation}
+          onClick={commande.indisponible === true ? undefined : commande.surActivation}
         >
           <span aria-hidden="true">{commande.repere}</span>
         </button>
       ))}
     </div>
+  );
+}
+
+interface ProprietesPanneauDeLien {
+  readonly nom: string;
+  readonly etiquette: string;
+  readonly appliquer: string;
+  readonly ouvrir: string;
+  readonly retirer: string;
+  readonly messageDeRefus: string;
+  /** L'adresse enregistrée du lien visé : du texte, jamais interprété (F-028-AC17). */
+  readonly adresseEnregistree: string;
+  /**
+   * Forme normalisée d'une adresse acceptée : « Ouvrir le lien » est un élément `a` aux attributs
+   * imposés (F-028-AC10, AC16) ; `undefined` : la commande est indisponible.
+   */
+  readonly adresseAOuvrir: string | undefined;
+  readonly retirable: boolean;
+  /** Vrai après une adresse refusée : le message est rattaché au champ et annoncé (F-028-AC12). */
+  readonly refuse: boolean;
+  readonly position: PositionDeBarre;
+  readonly surValidation: (saisie: string) => void;
+  readonly surRetrait: () => void;
+  /** Échap : le panneau se ferme sans rien modifier. */
+  readonly surAbandon: () => void;
+}
+
+const ATTRIBUTS_D_OUVERTURE = { rel: "noopener noreferrer", target: "_blank" } as const;
+
+interface ProprietesActionsDuLien {
+  readonly appliquer: string;
+  readonly ouvrir: string;
+  readonly retirer: string;
+  readonly adresseAOuvrir: string | undefined;
+  readonly retirable: boolean;
+  readonly surRetrait: () => void;
+}
+
+// « Ouvrir le lien » est un élément `a` : son activation, et rien d'autre, ouvre l'adresse.
+function ActionsDuLien(props: ProprietesActionsDuLien): ReactElement {
+  return (
+    <div className={EDITION.actions}>
+      <button type="submit" className={EDITION.action}>
+        {props.appliquer}
+      </button>
+      {props.adresseAOuvrir === undefined ? (
+        <button type="button" className={EDITION.action} aria-disabled="true">
+          {props.ouvrir}
+        </button>
+      ) : (
+        <a className={EDITION.action} href={props.adresseAOuvrir} {...ATTRIBUTS_D_OUVERTURE}>
+          {props.ouvrir}
+        </a>
+      )}
+      <button
+        type="button"
+        className={EDITION.action}
+        aria-disabled={props.retirable ? undefined : "true"}
+        onClick={props.retirable ? props.surRetrait : undefined}
+      >
+        {props.retirer}
+      </button>
+    </div>
+  );
+}
+
+function surToucheDuPanneau(evenement: KeyboardEvent<HTMLFormElement>, surAbandon: () => void) {
+  if (evenement.key === ABANDON) {
+    evenement.preventDefault();
+    surAbandon();
+  }
+}
+
+/**
+ * Panneau de lien (F-028-AC6, AC7, AC27) : affiché avec la barre de blocs, sous elle. Le champ prend
+ * le focus à l'ouverture ; Entrée valide, Échap ferme. Il ne porte aucune logique d'édition.
+ */
+export function PanneauDeLien(props: ProprietesPanneauDeLien): ReactElement {
+  const { position, refuse } = props;
+  const [saisie, setSaisie] = useState(props.adresseEnregistree);
+  const champ = useRef<HTMLInputElement>(null);
+  const identifiant = useId();
+  const [idDuChamp, idDuRefus] = [`${identifiant}-champ`, `${identifiant}-refus`];
+  useEffect(() => champ.current?.focus(), []);
+  const style = { "--barre-gauche": position.gauche, "--barre-haut": position.haut };
+  const valider = (evenement: FormEvent<HTMLFormElement>): void => {
+    evenement.preventDefault();
+    props.surValidation(saisie);
+  };
+  return (
+    <form
+      className={EDITION.panneau}
+      style={style as CSSProperties}
+      aria-label={props.nom}
+      noValidate
+      onSubmit={valider}
+      onKeyDown={(evenement) => surToucheDuPanneau(evenement, props.surAbandon)}
+    >
+      <label className={EDITION.etiquette} htmlFor={idDuChamp}>
+        {props.etiquette}
+      </label>
+      <input
+        ref={champ}
+        id={idDuChamp}
+        className={EDITION.champ}
+        type="text"
+        inputMode="url"
+        autoComplete="off"
+        spellCheck={false}
+        value={saisie}
+        aria-invalid={refuse ? true : undefined}
+        aria-describedby={refuse ? idDuRefus : undefined}
+        onChange={(evenement) => setSaisie(evenement.target.value)}
+      />
+      {refuse && (
+        <p id={idDuRefus} className={EDITION.refus} role="alert">
+          {props.messageDeRefus}
+        </p>
+      )}
+      <ActionsDuLien {...props} />
+    </form>
   );
 }

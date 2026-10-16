@@ -578,8 +578,10 @@ describe("tête, pied et raccourcis", () => {
   });
 
   it("F-004-AC31 F-003-AC42 la déclaration des raccourcis ne porte que F2 et, depuis F-003, Alt+F10 ; F2 agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
-    expect(Object.keys(RACCOURCIS)).toEqual(["renommer", "barreDeBlocs"]);
+    expect(Object.keys(RACCOURCIS)).toEqual(["renommer", "barreDeBlocs", "lien"]);
     expect(RACCOURCIS.barreDeBlocs).toEqual({ touche: "F10", modificateurs: ["Alt"] });
+    // F-028-AC6 : Mod+K, ouvert sur une sélection ou dans un lien.
+    expect(RACCOURCIS.lien).toEqual({ touche: "k", modificateurs: ["Mod"] });
     expect(RACCOURCIS.renommer).toEqual({ touche: "F2", modificateurs: [] });
     const coquille = await ouvrirTroisNiveaux();
 

@@ -54,6 +54,8 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "ouvre la base d'un document hors de l'écran, lit et inscrit le registre, efface des bases",
 };
 const AIDES_DE_TEST = [
+  // F-028 : documents de chaque ligne de la table des versions, enregistrés puis relus (AC24, AC28).
+  "test/aides-lignes.ts",
   "test/aides-page.tsx",
   "test/aides-persistance.ts",
   "test/aides-reprise.ts",

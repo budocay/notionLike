@@ -178,6 +178,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "ListeDeCorbeille",
       "MenuActions",
       "NoteDePage",
+      "PanneauDeLien",
       "Partie",
       "Pictogramme",
       "Principale",

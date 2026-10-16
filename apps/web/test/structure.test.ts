@@ -89,14 +89,18 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 les dépendances d'exécution d'apps/web sont celles du plan, y-indexeddb comprise une seule fois", () => {
     // F-010 : contrats, et better-auth pour son seul sous-chemin `better-auth/client` (H9).
     // F-013 : @hocuspocus/provider, réservé au module de synchronisation (F-013-AC38).
+    // F-028 : gras, italique et lien, réservés au module d'édition (F-028-AC29).
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
       "@hocuspocus/provider",
       "@notionlike/contrats",
       "@notionlike/document",
       "@tiptap/core",
+      "@tiptap/extension-bold",
       "@tiptap/extension-collaboration",
       "@tiptap/extension-document",
       "@tiptap/extension-heading",
+      "@tiptap/extension-italic",
+      "@tiptap/extension-link",
       "@tiptap/extension-list",
       "@tiptap/extension-paragraph",
       "@tiptap/extension-text",

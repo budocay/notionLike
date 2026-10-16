@@ -16,6 +16,9 @@ import {
 declare const console: { error(...donnees: unknown[]): void };
 
 const VERSION_INCONNUE = VERSION_PAGE_PRISE_EN_CHARGE + 1;
+// Un document où rien n'est inscrit : sa version lue est 1 quelle que soit la version prise en
+// charge (F-003-AC23), égale à celle-ci jusqu'à F-028.
+const VERSION_D_UN_DOCUMENT_VIERGE = 1;
 const NOMBRE_D_OUVERTURES = 50;
 
 type Origine = (page: DocumentPage, version: number) => void;
@@ -122,7 +125,7 @@ describe("fermeture d'une façade de page", () => {
     recevoirLaVersion(doc, VERSION_INCONNUE);
 
     expect(garde).not.toHaveBeenCalled();
-    expect(page.lireVersion()).toBe(VERSION_PAGE_PRISE_EN_CHARGE);
+    expect(page.lireVersion()).toBe(VERSION_D_UN_DOCUMENT_VIERGE);
     expect(lireVersionPage(doc)).toBe(VERSION_INCONNUE);
   });
 
@@ -197,7 +200,7 @@ describe("fermeture d'une façade de page", () => {
 
     expect(emises).toEqual([]);
     expect([...Y.encodeStateAsUpdate(doc)]).toEqual(avant);
-    expect(lireVersionPage(doc)).toBe(VERSION_PAGE_PRISE_EN_CHARGE);
+    expect(lireVersionPage(doc)).toBe(VERSION_D_UN_DOCUMENT_VIERGE);
   });
 
   it("F-003-AC33 fermer une façade laisse ouverte une autre façade du même Y.Doc", () => {

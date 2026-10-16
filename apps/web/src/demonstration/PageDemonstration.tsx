@@ -34,6 +34,7 @@ import {
   BarreDeBlocs,
   CorpsDePage,
   NoteDePage,
+  PanneauDeLien,
   ZoneDEdition,
   ZoneDeSaisie,
 } from "../interface/composants/Edition.tsx";
@@ -94,6 +95,7 @@ import {
   type PageFictive,
   TITRE_LONG,
   COMMANDES_DE_BLOC_FICTIVES,
+  PANNEAU_DE_LIEN_FICTIF,
   POSITION_DE_BARRE_FICTIVE,
 } from "./donnees.ts";
 import { echantillonsDe } from "./Echantillons.tsx";
@@ -455,6 +457,7 @@ function SectionEditeur(): ReactElement {
           </CorpsDePage>
         </div>
       </Specimen>
+      <SpecimenDuPanneauDeLien />
       <Specimen etiquette="Page d'une version plus récente">
         <div className={PAGE.fondZone}>
           <CorpsDePage>
@@ -463,6 +466,33 @@ function SectionEditeur(): ReactElement {
         </div>
       </Specimen>
     </Section>
+  );
+}
+
+// Marques dans le texte et panneau de lien d'un lien neutralisé (F-028-AC12, AC15, AC17).
+function SpecimenDuPanneauDeLien(): ReactElement {
+  return (
+    <Specimen etiquette="Panneau de lien : adresse refusée, lien neutralisé">
+      <div className={PAGE.fondZone}>
+        <CorpsDePage>
+          <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+            <ZoneDeSaisie>
+              <p>
+                Du texte <strong>en gras</strong>, <em>en italique</em> et{" "}
+                <span data-lien-neutralise="">un lien neutralisé</span>.
+              </p>
+            </ZoneDeSaisie>
+            <PanneauDeLien
+              {...PANNEAU_DE_LIEN_FICTIF}
+              position={POSITION_DE_BARRE_FICTIVE}
+              surValidation={sansEffet}
+              surRetrait={sansEffet}
+              surAbandon={sansEffet}
+            />
+          </ZoneDEdition>
+        </CorpsDePage>
+      </div>
+    </Specimen>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   monterLEditeur,
   type NomDeCommande,
   NOMS_DES_COMMANDES,
+  NOMS_DES_COMMANDES_DE_MARQUE,
   placerLeCurseurApres,
   presser,
   selectionnerLeBloc,
@@ -77,7 +78,7 @@ describe("barre de blocs flottante", () => {
     expect(emises.length).toBe(emisesParLaSaisie);
   });
 
-  it("F-003-AC41 F-003-AC16 la barre porte six commandes, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
+  it("F-003-AC41 F-003-AC16 F-028-AC27 la barre porte les six commandes de type, puis, depuis F-028, Gras, Italique et Lien, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
     monterLEditeur();
     entrerDansLEditeur();
 
@@ -85,9 +86,13 @@ describe("barre de blocs flottante", () => {
 
     expect(boutons.map((bouton) => bouton.getAttribute("aria-label"))).toEqual([
       ...NOMS_DES_COMMANDES,
+      ...NOMS_DES_COMMANDES_DE_MARQUE,
     ]);
     expect(boutons.map((bouton) => bouton.getAttribute("aria-pressed"))).toEqual([
       "true",
+      "false",
+      "false",
+      "false",
       "false",
       "false",
       "false",
@@ -152,7 +157,7 @@ describe("barre de blocs au clavier", () => {
     expect(traitee).toBe(true);
     expect(premiere).toBe(commande("Paragraphe"));
     expect(suivante).toBe(commande("Titre 1"));
-    expect(enBoucle).toBe(commande("Liste numérotée"));
+    expect(enBoucle).toBe(commande("Lien"));
     expect(document.activeElement).toBe(zoneDeSaisie());
     expect(barreDeBlocs()).not.toBeNull();
     expect(window.getSelection()?.toString()).toBe(selectionAvant);

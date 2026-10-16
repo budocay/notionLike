@@ -37,9 +37,14 @@ describe("aucun HTML brut", () => {
     expect(sources.size).toBeGreaterThan(60);
     expect([...sources.keys()].filter((chemin) => chemin.startsWith("src/edition/"))).toEqual([
       "src/edition/EditeurDePage.tsx",
+      "src/edition/adresses.ts",
       "src/edition/barre.ts",
+      "src/edition/commandes-de-marque.ts",
       "src/edition/index.ts",
       "src/edition/invite.ts",
+      "src/edition/lien.ts",
+      "src/edition/marques.ts",
+      "src/edition/panneau.ts",
       "src/edition/placement.ts",
       "src/edition/schema.ts",
       "src/edition/types-de-bloc.ts",
@@ -106,7 +111,11 @@ describe("confinement de la bibliothèque d'édition", () => {
     expect(importateurs).toEqual([
       "src/edition/EditeurDePage.tsx",
       "src/edition/barre.ts",
+      "src/edition/commandes-de-marque.ts",
       "src/edition/invite.ts",
+      "src/edition/lien.ts",
+      "src/edition/marques.ts",
+      "src/edition/panneau.ts",
       "src/edition/schema.ts",
       "src/edition/types-de-bloc.ts",
       "test/edition/aides-edition.tsx",
@@ -120,6 +129,8 @@ describe("confinement de la bibliothèque d'édition", () => {
     const proprietes = /export interface ProprietesEditeurDePage \{[^]*?\n\}/.exec(composant)?.[0];
 
     expect(interfaceDuModule.match(/export \{[^}]*\}/g)).toEqual([
+      // F-028 : la règle des adresses, fonction pure (F-028-AC11).
+      "export { adresseAcceptee, adresseDUneSaisie }",
       "export { EditeurDePage, type ProprietesEditeurDePage }",
     ]);
     expect(interfaceDuModule).not.toMatch(/@tiptap|prosemirror/);
@@ -293,7 +304,8 @@ describe("coutures avec F-004", () => {
   it("F-003-AC44 les contrôles statiques de F-004 couvrent les fichiers de cette feature et restent verts : jetons seuls, aucune classe en dur, aucun contour supprimé hors de la règle nommée", () => {
     const contexte = contexteDe(lire(FICHIER_DES_JETONS), lire(FEUILLE_D_ENTREE));
 
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(13);
+    // 13 fichiers à F-003, 18 depuis F-028 (cinq fichiers du module d'édition).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(18);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

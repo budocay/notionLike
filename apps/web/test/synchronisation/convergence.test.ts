@@ -1,5 +1,6 @@
 // Local d'abord, convergence, base locale coupée, rencontre de deux versions, onglets du même
 // appareil, durabilité (F-013-AC2 à AC4, AC34, AC36, AC49, AC42), contre le serveur réel.
+import { VERSION_PAGE_PRISE_EN_CHARGE } from "@notionlike/document";
 import { demarrerServeurDEssai, type ServeurDEssai } from "@notionlike/server/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
@@ -236,7 +237,7 @@ describe("rencontre de deux versions", () => {
     const nom = correspondance("page", idEspace, idPage).nomDeDocument;
 
     const forgee = miseAJourDUneReplique(pageChez.doc, (replique) => {
-      replique.eleverVersion(2);
+      replique.eleverVersion(VERSION_PAGE_PRISE_EN_CHARGE + 1);
       const texte = new Y.XmlText();
       texte.insert(0, "texte marqué", { marqueInconnue: true });
       const marque = new Y.XmlElement("paragraph");
@@ -357,7 +358,7 @@ describe("onglets du même appareil", () => {
     Y.applyUpdate(
       pagePremier.doc,
       miseAJourDUneReplique(pagePremier.doc, (replique) => {
-        replique.eleverVersion(2);
+        replique.eleverVersion(VERSION_PAGE_PRISE_EN_CHARGE + 1);
         ajouter(replique, bloc("noeudInconnu", "venu de l'autre onglet"));
       }),
     );
