@@ -416,22 +416,15 @@ describe("dépôts venus d'ailleurs", () => {
 });
 
 describe("aucun changement de format", () => {
-  it.each([
-    [1, () => ecrire("one", "two", "three")],
-    [
-      2,
-      () => {
-        ecrire("one", "two", "three");
-        selectionnerLeTexte("two");
-        presser("b", { ctrlKey: true });
-      },
-    ],
-  ])(
+  // Une version par ligne de la table : une version ajoutée est couverte d'office. Le document
+  // reçoit trois blocs, puis est porté à la version de la ligne par sa façade.
+  it.each(TABLE_DES_VERSIONS_PAGE.map(({ version }) => version))(
     "F-006-AC31 dans un document de version %s, un déplacement laisse la version lue inchangée, sans élévation demandée",
-    (version, remplir) => {
+    (version) => {
       const { doc, page } = monterLEditeur();
       entrerDansLEditeur();
-      remplir();
+      ecrire("one", "two", "three");
+      page.eleverVersion(version);
       expect(lireVersionPage(doc)).toBe(version);
       const elever = vi.spyOn(page, "eleverVersion");
 
