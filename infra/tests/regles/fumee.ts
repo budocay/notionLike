@@ -2,7 +2,11 @@ import { spawnSync } from "node:child_process";
 import { isDeepStrictEqual } from "node:util";
 
 const ANNONCE_DE_CONSTAT = /^\s*constat (\d+) /;
-const NOMBRE_DE_CONSTATS = 11;
+const NOMBRE_DE_CONSTATS = 17;
+const ANNONCE_ET_SENS = /^\s*constat (\d+) "([^"]*)"/;
+const NETTOYAGE = "nettoyage";
+const APPEL_DE_LA_PILE = /PILE_PROJET="\$PROJET".*\bbash "\$RACINE\/infra\/pile\.sh"/;
+const SOUS_COMMANDES_EPROUVEES = ["demarrer", "arreter", "accorder"];
 const LANCEMENT = "up -d --wait";
 const OPTION_INTERDITE = "--abort-on-container-exit";
 const PORTS_DE_TRAVAIL = ["5432", "3000"];
@@ -23,7 +27,10 @@ function variablesDuScript(lignes: readonly string[]): Map<string, string> {
   return new Map(affectations);
 }
 
-/** F-008-AC19 : les constats 1 à 11 de l'ADR-0006 sont annoncés, chacun une fois, dans l'ordre. */
+/**
+ * F-008-AC19, F-031-AC26 : les constats 1 à 17 (1 à 10 de l'ADR-0006, 11 à 16 de la commande de la
+ * pile, 17 le nettoyage) sont annoncés, chacun une fois, dans l'ordre.
+ */
 export function constatsOrdreDesConstats(texte: string): string[] {
   const annonces = lignesDeCommande(texte).flatMap((ligne) => {
     const numero = ANNONCE_DE_CONSTAT.exec(ligne)?.[1];
@@ -69,4 +76,33 @@ export function constatsIsolement(texte: string, projetDeTravail: string): strin
 export function constatsSyntaxe(texte: string): string[] {
   const { status, stderr } = spawnSync("bash", ["-n", "-s"], { input: texte, encoding: "utf8" });
   return status === 0 ? [] : [`bash -n : ${stderr.trim()}`];
+}
+
+/** F-031-AC26 : le nettoyage reste le dernier constat annoncé. */
+export function constatsDernierConstat(texte: string): string[] {
+  const annonces = lignesDeCommande(texte).flatMap((ligne) => {
+    const [, numero, sens] = ANNONCE_ET_SENS.exec(ligne) ?? [];
+    return numero === undefined || sens === undefined ? [] : [{ numero, sens }];
+  });
+  const dernier = annonces.at(-1);
+  return dernier?.sens.startsWith(NETTOYAGE) === true
+    ? []
+    : [`le dernier constat (${dernier?.numero ?? "aucun"}) n'est pas le nettoyage`];
+}
+
+/**
+ * F-031-AC26 : la fumée passe par infra/pile.sh sous son propre projet, et en éprouve demarrer, arreter
+ * et accorder.
+ */
+export function constatsCommandeDeLaPile(texte: string): string[] {
+  const lignes = lignesDeCommande(texte);
+  const constats = APPEL_DE_LA_PILE.test(lignes.join(" "))
+    ? []
+    : ["infra/pile.sh n'est pas lancé sous le projet de fumée (PILE_PROJET)"];
+  for (const sousCommande of SOUS_COMMANDES_EPROUVEES) {
+    if (!lignes.some((ligne) => new RegExp(`\\bpile ${sousCommande}\\b`).test(ligne))) {
+      constats.push(`pile ${sousCommande} n'est pas éprouvé`);
+    }
+  }
+  return constats;
 }

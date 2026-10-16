@@ -15,6 +15,8 @@ import {
   lireCompose,
 } from "./regles/compose.ts";
 import {
+  constatsCommandeDeLaPile,
+  constatsDernierConstat,
   constatsIsolement,
   constatsLancement,
   constatsOrdreDesConstats,
@@ -354,15 +356,42 @@ describe("environnement du serveur", () => {
 });
 
 describe("script de fumée", () => {
-  it("F-008-AC19 infra/fumee.sh annonce les constats 1 à 11 de l'ADR-0006 dans l'ordre", () => {
+  it("F-008-AC19 F-031-AC26 infra/fumee.sh annonce les constats 1 à 17 dans l'ordre, le nettoyage en dernier", () => {
     expect(constatsOrdreDesConstats(texteFumee)).toEqual([]);
+    expect(constatsDernierConstat(texteFumee)).toEqual([]);
+    expect(texteFumee).toContain("printf 'FUMEE: OK (constats 1 à 17)\\n'");
+  });
+
+  it("F-031-AC26 refuse une fumée dont le nettoyage n'est plus le dernier constat", () => {
+    const fautif = 'constat 16 "nettoyage du projet"\nconstat 17 "port pris"\n';
+
+    expect(constatsDernierConstat(fautif)).toEqual([
+      "le dernier constat (17) n'est pas le nettoyage",
+    ]);
+    expect(constatsDernierConstat("echo rien\n")).toEqual([
+      "le dernier constat (aucun) n'est pas le nettoyage",
+    ]);
+  });
+
+  it("F-031-AC26 F-031-AC27 la fumée éprouve demarrer, arreter et accorder par infra/pile.sh sous le projet de fumée", () => {
+    expect(constatsCommandeDeLaPile(texteFumee)).toEqual([]);
+  });
+
+  it("F-031-AC26 refuse une fumée qui lancerait la commande de la pile sous le projet de travail, ou sans accorder", () => {
+    const fautif =
+      'pile() {\n  bash "$RACINE/infra/pile.sh" "$@"\n}\npile demarrer\npile arreter\n';
+
+    expect(constatsCommandeDeLaPile(fautif)).toEqual([
+      "infra/pile.sh n'est pas lancé sous le projet de fumée (PILE_PROJET)",
+      "pile accorder n'est pas éprouvé",
+    ]);
   });
 
   it("F-008-AC19 refuse un script dont un constat manque ou vient avant son tour", () => {
     const fautif = 'constat 1 "pile"\nconstat 3 "version"\nconstat 2 "migration"\n';
 
     expect(constatsOrdreDesConstats(fautif)).toEqual([
-      "constats annoncés : 1, 3, 2 ; attendus : 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11",
+      "constats annoncés : 1, 3, 2 ; attendus : 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17",
     ]);
   });
 
