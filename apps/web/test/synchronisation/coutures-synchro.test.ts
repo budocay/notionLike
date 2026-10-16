@@ -235,9 +235,10 @@ describe("F-013-AC39 une seule instance de yjs", () => {
 // F-013-AC40 : un espace local ne parle pas au serveur ; le registre ne porte rien du compte.
 
 let serveur: ServeurDEssai;
+// Démarrer le serveur d'essai a dépassé les 10 s par défaut sous charge (pre-push de F-013).
 beforeAll(async () => {
   serveur = await demarrerServeurDEssai();
-});
+}, 30_000);
 afterAll(async () => {
   await serveur.fermer();
 });
