@@ -181,3 +181,6 @@
 2026-10-16T08:34:01Z | reviewer-frontend | F-028 | DEROGATION D-025 | 5df7774ce0c4
 2026-10-16T08:34:01Z | agent-securite | F-028 | DEROGATION D-025 | 5df7774ce0c4
 2026-10-16T08:34:01Z | agent-architecte | F-028 | DEROGATION D-025 | 5df7774ce0c4
+2026-10-16T09:30:37Z | agent-craft | F-017 | CRAFT GATE: PASS | 24eb1f6dfe62
+2026-10-16T09:32:17Z | reviewer-frontend | F-017 | CHANGES_REQUESTED | 24eb1f6dfe62
+2026-10-16T09:32:27Z | agent-securite | F-017 | SECURITY GATE: PASS | 24eb1f6dfe62
