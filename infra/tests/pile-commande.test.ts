@@ -1,7 +1,7 @@
 // Commande de la pile (F-031) : points d'entrée, aide, état, arrêt, secrets et compatibilité bash 3.2.
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -333,12 +333,24 @@ describe("compatibilité bash 3.2", () => {
   it("F-031-AC31 les tests lancent le script dans un arbre temporaire, docker de substitution en tête d'un PATH réduit", () => {
     const resultat = lancer(arbre, ["etat"]);
 
-    expect(arbre.racine).not.toBe(DEPOT);
-    expect(resultat.appels[0]).toMatch(/^docker info$/);
-    expect(
-      resultat.appels.every(
-        (appel) => /^(docker|curl|lsof) /.test(appel) || appel === "docker info",
-      ),
-    ).toBe(true);
+    // La copie est hors du dépôt : rien de ce que le script écrit n'atteint ses fichiers.
+    expect(relative(DEPOT, realpathSync(arbre.racine)).startsWith("..")).toBe(true);
+    // Seules les substitutions consignent : un appel journalisé prouve que le `docker` lancé est le leur.
+    expect(resultat.appels[0]).toBe("docker info");
+    expect(resultat.appels.filter((appel) => !/^(docker|curl|lsof) /.test(appel))).toEqual([]);
+    expect(readdirSync(arbre.bin).sort()).toEqual([
+      "cat",
+      "curl",
+      "dirname",
+      "docker",
+      "grep",
+      "link",
+      "lsof",
+      "mktemp",
+      "od",
+      "rm",
+      "sleep",
+      "tr",
+    ]);
   });
 });

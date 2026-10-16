@@ -193,6 +193,9 @@ tirer() {
 }
 
 # Contenu d'infra/.env : l'exemple, commentaires et lignes facultatives gardés, mot de passe tiré.
+# Contrat : lit la variable globale NOUVEAU_MOT_DE_PASSE, que seul preparer renseigne juste avant de
+# l'appeler (par creer_si_absent) et remet à vide juste après ; appelée ailleurs, elle écrirait un mot
+# de passe vide.
 contenu_infra() {
   local ligne ecrit=0
   while IFS= read -r ligne || [ -n "$ligne" ]; do
@@ -208,6 +211,8 @@ contenu_infra() {
 }
 
 # Contenu d'apps/server/.env : l'exemple, avec le secret tiré, l'URL du mode hôte et l'adresse du client.
+# Contrat : lit les variables globales NOUVEAU_SECRET et URL_DU_MODE_HOTE (vide : la ligne de l'exemple
+# est gardée), que seul preparer renseigne juste avant de l'appeler et remet à vide juste après.
 contenu_serveur() {
   local ligne secret=0 url=0 origines=0 publique=0
   while IFS= read -r ligne || [ -n "$ligne" ]; do
@@ -610,10 +615,23 @@ attendre_pret() {
   echouer "GET /pret sur le port $PORT_SERVEUR répond ${code:-rien} après $ESSAIS_DE_PRET essais : voir pnpm -w pile etat."
 }
 
+# F-031-AC5 : un chemin de configuration présent mais qui n'est pas un fichier lisible (dossier, lien
+# cassé, droits) est laissé tel quel par preparer ; il est dit ici, avant la construction de l'image,
+# plutôt que par l'échec de Compose qui le lirait.
+exiger_des_fichiers_lisibles() {
+  local chemin
+  for chemin in "$ENV_INFRA" "$ENV_SERVEUR"; do
+    if [ ! -f "$chemin" ] || [ ! -r "$chemin" ]; then
+      echouer "$(relatif "$chemin") n'est pas un fichier lisible (dossier, lien cassé ou droits) : le mettre de côté, puis relancer : pnpm -w pile preparer. Rien n'est lancé."
+    fi
+  done
+}
+
 demarrer() {
   local volume_existant=0
   verifier_le_poste
   preparer
+  exiger_des_fichiers_lisibles
   exiger_un_mot_de_passe_admis
   lire_les_ports
   verifier_les_ports

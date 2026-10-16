@@ -1,7 +1,7 @@
 // `pnpm -w pile demarrer` (F-031-AC4, AC8 à AC11, AC15 à AC19), sans Docker : `docker`, `curl` et
 // `lsof` de substitution ; seul AC18 met un vrai processus en écoute, vu par le vrai `lsof`.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { createServer, type Server } from "node:net";
 import { join } from "node:path";
 
@@ -338,6 +338,30 @@ describe("vérification de la configuration avant tout lancement", () => {
 });
 
 describe("démarrage", () => {
+  it.each([
+    [ENV_SERVEUR, "un dossier"],
+    [ENV_SERVEUR, "un lien cassé"],
+    [ENV_INFRA, "un dossier"],
+    [ENV_INFRA, "un lien cassé"],
+  ])(
+    "F-031-AC5 %s est %s : demarrer le dit avant la construction de l'image, rien n'est lancé",
+    (chemin, forme) => {
+      poserLesFichiers(arbre);
+      const cible = join(arbre.racine, chemin);
+      rmSync(cible);
+      if (forme === "un dossier") mkdirSync(cible);
+      else symlinkSync(join(arbre.dossier, "absent"), cible);
+
+      const resultat = lancer(arbre, ["demarrer"]);
+
+      expect(resultat.code).not.toBe(0);
+      expect(resultat.erreur).toContain(
+        `${chemin} n'est pas un fichier lisible (dossier, lien cassé ou droits)`,
+      );
+      expect(lancements(resultat.appels)).toEqual([]);
+    },
+  );
+
   it("F-031-AC15 clone neuf : fichiers créés, vérifications, up -d --wait --build, puis /pret à 200 et les adresses", () => {
     const resultat = lancer(arbre, ["demarrer"]);
 
