@@ -2,7 +2,14 @@
 // document de page entièrement relu avant que quoi que ce soit ne le lie, tient sa façade, et la
 // ferme. Ni React, ni bibliothèque d'édition. Le document et sa persistance lui sont prêtés : ils
 // peuvent lui survivre (F-003-AC18).
-import { type DocumentPage, ErreurDocument, ouvrirDocumentPage } from "@notionlike/document";
+import {
+  type DocumentPage,
+  ErreurDocument,
+  type LigneDeVersionPage,
+  ouvrirDocumentPage,
+  TABLE_DES_VERSIONS_PAGE,
+  VERSION_PAGE_PRISE_EN_CHARGE,
+} from "@notionlike/document";
 import type * as Y from "yjs";
 
 import type { Persistance } from "../persistance/index.ts";
@@ -20,6 +27,12 @@ export type EtatSessionPage =
        * avant tout observateur profond du contenu (F-003-AC29). Rend le désabonnement.
        */
       readonly garderVersion: (rappel: () => void) => () => void;
+      /**
+       * Élève la version du document à celle qu'exigent ces éléments, s'il le faut, avant qu'ils
+       * n'y soient inscrits, par l'opération de `@notionlike/document` et dans sa propre
+       * transaction Yjs (F-028-AC21, AC28) ; faux si elle ne peut pas l'être (session fermée).
+       */
+      readonly preparerLaVersion: (elements: ElementsDuFormat) => boolean;
       /** Faux : la page ne vit qu'en mémoire, l'avertissement est affiché (F-003-AC18). */
       readonly enregistre: boolean;
       /** Faux tant que ce que l'appareil portait de cette page n'a pas pu être lu. */
@@ -51,6 +64,61 @@ const VERSION_NON_PRISE_EN_CHARGE: EtatSessionPage = { phase: "version-non-prise
 
 const SIGNALEMENT_D_UN_ABONNE_DE_SESSION_DE_PAGE =
   "@notionlike/web : un abonné de la session de page a levé pendant la diffusion d'un changement.";
+
+/** Noms des nœuds et des marques qu'une modification inscrit. */
+export interface ElementsDuFormat {
+  readonly noeuds: readonly string[];
+  readonly marques: readonly string[];
+}
+
+const PREMIERE_VERSION = 1;
+
+// Un élément qu'aucune ligne ne porte n'est pas du schéma : prudence, la plus haute version connue.
+function versionDe(contient: (ligne: LigneDeVersionPage) => boolean): number {
+  return TABLE_DES_VERSIONS_PAGE.find(contient)?.version ?? VERSION_PAGE_PRISE_EN_CHARGE;
+}
+
+/**
+ * Version qu'exige l'inscription d'éléments du format (F-028-AC21, H1, H2) : celle de la ligne de la
+ * table des versions qui introduit l'élément le plus récent, et non la plus haute que l'application
+ * connaît. Un document sans élément nouveau reste à sa version.
+ *
+ * Seuls les noms des nœuds et des marques sont regardés, jamais leurs attributs : la ligne 2 n'en
+ * introduit aucun. Une ligne qui ajoutera un attribut à un nœud déjà connu (F-005, F-022) devra
+ * étendre `ElementsDuFormat` et cette fonction, sans quoi l'attribut serait inscrit sans élever la
+ * version.
+ */
+export function versionExigee({ noeuds, marques }: ElementsDuFormat): number {
+  return Math.max(
+    PREMIERE_VERSION,
+    ...noeuds.map((nom) => versionDe((ligne) => Object.hasOwn(ligne.noeuds, nom))),
+    ...marques.map((nom) => versionDe((ligne) => ligne.marques.includes(nom))),
+  );
+}
+
+/**
+ * Élève la version du document à celle qu'exigent ces éléments, s'il le faut, par la seule
+ * opération de `@notionlike/document` (F-028-AC28) et dans sa propre transaction Yjs ; faux si la
+ * façade la refuse (fermée).
+ */
+export function eleverPour(
+  facade: Pick<DocumentPage, "lireVersion" | "eleverVersion">,
+  elements: ElementsDuFormat,
+): boolean {
+  const version = versionExigee(elements);
+  if (version <= facade.lireVersion()) {
+    return true;
+  }
+  try {
+    facade.eleverVersion(version);
+    return true;
+  } catch (erreur) {
+    if (erreur instanceof ErreurDocument) {
+      return false;
+    }
+    throw erreur;
+  }
+}
 
 /** Session d'une page dont un identifiant est refusé : elle n'a ni document, ni base, ni façade. */
 export function sessionDePageIntrouvable(): SessionPage {
@@ -140,6 +208,14 @@ class SessionDePage {
   readonly #garderVersion = (rappel: () => void): (() => void) =>
     this.#fermee ? () => undefined : inscrire(this.#gardes, rappel);
 
+  // Une seule fonction pour toute la session, comme la garde. Hors de toute transaction
+  // englobante : l'élévation n'emporte jamais l'inscription qui la suit (F-028-AC21, H3).
+  readonly #preparerLaVersion = (elements: ElementsDuFormat): boolean => {
+    const facade = this.#ouverte;
+    const ouverte = !this.#fermee && this.#etat !== VERSION_NON_PRISE_EN_CHARGE;
+    return ouverte && facade !== undefined && eleverPour(facade, elements);
+  };
+
   readonly fermer = (): void => {
     this.#fermee = true;
     this.#abonnes.clear();
@@ -210,6 +286,7 @@ class SessionDePage {
       phase: "pret",
       contenu: facade.contenu,
       garderVersion: this.#garderVersion,
+      preparerLaVersion: this.#preparerLaVersion,
       enregistre,
       baseRelue,
       reessayer: this.#persistance.reessayer,

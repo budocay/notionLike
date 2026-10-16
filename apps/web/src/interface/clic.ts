@@ -28,3 +28,11 @@ export function estUnClicSimple(clic: Clic): boolean {
     estLeBoutonPrincipal(clic) && !clic.ctrlKey && !clic.metaKey && !clic.altKey && !clic.shiftKey
   );
 }
+
+/**
+ * Vrai pour un clic qui ouvre l'adresse d'un lien de l'éditeur : bouton principal, Ctrl ou ⌘
+ * enfoncé (F-028-AC10). Un clic simple place le curseur dans le lien.
+ */
+export function estUnClicAvecMod(clic: Clic): boolean {
+  return estLeBoutonPrincipal(clic) && (clic.ctrlKey || clic.metaKey);
+}

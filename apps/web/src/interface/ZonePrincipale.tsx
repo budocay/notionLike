@@ -17,6 +17,7 @@ import {
   titreAffiche,
   titreEstVide,
 } from "./messages.ts";
+import { estUnClicAvecMod } from "./clic.ts";
 import { estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
 
 /** Ce que l'adresse désigne, confronté à l'arborescence lue. */
@@ -66,6 +67,10 @@ function meneALaBarreDeBlocs(frappe: Parameters<typeof estLaFrappe>[0]): boolean
   return estLaFrappe(frappe, RACCOURCIS.barreDeBlocs);
 }
 
+function ouvreLePanneauDeLien(frappe: Parameters<typeof estLaFrappe>[0]): boolean {
+  return estLaFrappe(frappe, RACCOURCIS.lien);
+}
+
 // Sous le titre, dans la même colonne : l'éditeur de la page, ou ce qui en tient lieu tant que son
 // document n'est pas relu ou que sa version n'est pas prise en charge (F-003-AC1, AC4, AC19).
 function corps(
@@ -86,7 +91,10 @@ function corps(
           key={idPage}
           contenu={page.contenu}
           garderVersion={page.garderVersion}
+          preparerLaVersion={page.preparerLaVersion}
           meneALaBarre={meneALaBarreDeBlocs}
+          ouvreLePanneauDeLien={ouvreLePanneauDeLien}
+          ouvreLAdresse={estUnClicAvecMod}
           lectureSeule={lectureSeule}
         />
       );

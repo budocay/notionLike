@@ -16,10 +16,12 @@ import {
   placerLeCurseurApres,
   porteUnEditeurVivant,
   presser,
+  presserAvecMod,
   recevoirDUneReplique,
   retablir,
   selectionnerLeBloc,
   taper,
+  typeDeSelection,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
 
@@ -352,5 +354,24 @@ describe("contenu hors du schéma dans un document de version prise en charge", 
       '<orderedlist start="1"><listitem><paragraph>texte</paragraph></listitem></orderedlist>',
       "<paragraph>texte</paragraph>",
     ]);
+  });
+});
+
+// F-028-AC30 : chaque frappe relit d'abord la sélection du navigateur ; ce qui suit garde ce que
+// l'éditeur faisait déjà quand elle était relue.
+describe("sélection du navigateur relue avant une frappe", () => {
+  it("F-028-AC30 une sélection de tout le document reste entière à la frappe suivante, et une frappe sur une sélection déjà relue n'émet rien", () => {
+    const { doc, emises } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("premier");
+    presser("Enter");
+    taper("second");
+    presserAvecMod("a");
+    const avant = [typeDeSelection(), contenuLu(doc), emises.length];
+
+    presser("Shift");
+
+    expect(avant[0]).toBe("all");
+    expect([typeDeSelection(), contenuLu(doc), emises.length]).toEqual(avant);
   });
 });

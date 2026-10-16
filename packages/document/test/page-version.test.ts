@@ -51,7 +51,48 @@ describe("table des versions du document de page", () => {
       TABLE_DES_VERSIONS_PAGE.map((_, rang) => rang + 1),
     );
     expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(TABLE_DES_VERSIONS_PAGE.at(-1)?.version);
-    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(1);
+    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(2);
+  });
+
+  it("F-028-AC19 F-028-AC28 les numéros se suivent depuis 1 sans trou, chaque ligne contient la précédente, la ligne 2 ajoute à la ligne 1 les marques bold, italic et link, et la version prise en charge est son numéro", () => {
+    const numeros = TABLE_DES_VERSIONS_PAGE.map((ligne) => ligne.version);
+    expect(numeros).toEqual(numeros.map((_, rang) => rang + 1));
+    TABLE_DES_VERSIONS_PAGE.slice(1).forEach((ligne, rang) => {
+      const precedente = TABLE_DES_VERSIONS_PAGE[rang];
+      expect(precedente, `ligne ${String(ligne.version)}`).toBeDefined();
+      for (const [noeud, attributs] of Object.entries(precedente?.noeuds ?? {})) {
+        expect(ligne.noeuds[noeud], noeud).toEqual(expect.arrayContaining([...attributs]));
+      }
+      expect(ligne.marques).toEqual(expect.arrayContaining([...(precedente?.marques ?? [])]));
+      expect(ligne.typesPartages).toEqual(
+        expect.arrayContaining([...(precedente?.typesPartages ?? [])]),
+      );
+    });
+    const [premiere, deuxieme] = TABLE_DES_VERSIONS_PAGE;
+    expect(deuxieme).toEqual({
+      version: 2,
+      noeuds: premiere?.noeuds,
+      marques: ["bold", "italic", "link"],
+      typesPartages: [],
+    });
+    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(2);
+  });
+});
+
+describe("couture de la version prise en charge (F-028)", () => {
+  it("F-028-AC28 le paquet relève sa version prise en charge sans nouvel export ni type racine : yjs reste sa seule dépendance d'exécution, il s'exécute sous Node sans DOM, et l'élévation reste l'opération de F-003", () => {
+    const doc = new Y.Doc();
+    const page = ouvrirPageSuivie(doc);
+
+    page.eleverVersion(VERSION_PAGE_PRISE_EN_CHARGE);
+
+    expect(Object.keys(manifeste.dependencies)).toEqual(["yjs"]);
+    expect("document" in globalThis).toBe(false);
+    expect([...doc.share.keys()].sort()).toEqual([TYPE_DU_CONTENU, TYPE_DES_VERSIONS].sort());
+    expect(lireVersionPage(doc)).toBe(VERSION_PAGE_PRISE_EN_CHARGE);
+    expect(
+      codeDuRefusDe(() => ouvrirPageSuivie(docDeVersion(VERSION_PAGE_PRISE_EN_CHARGE + 1))),
+    ).toBe("version-non-prise-en-charge");
   });
 });
 

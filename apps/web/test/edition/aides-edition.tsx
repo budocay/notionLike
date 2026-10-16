@@ -10,7 +10,9 @@ import { afterEach, vi } from "vitest";
 import * as Y from "yjs";
 
 import { EditeurDePage } from "../../src/edition/index.ts";
+import { estUnClicAvecMod } from "../../src/interface/clic.ts";
 import { estLaFrappe, RACCOURCIS } from "../../src/interface/raccourcis.ts";
+import { eleverPour } from "../../src/page/session-page.ts";
 import {
   miseAJourDUneReplique,
   ouvrirFacadeDePage,
@@ -52,7 +54,10 @@ export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
       <EditeurDePage
         contenu={page.contenu}
         garderVersion={page.garderVersion}
+        preparerLaVersion={(elements) => eleverPour(page, elements)}
         meneALaBarre={(frappe) => estLaFrappe(frappe, RACCOURCIS.barreDeBlocs)}
+        ouvreLePanneauDeLien={(frappe) => estLaFrappe(frappe, RACCOURCIS.lien)}
+        ouvreLAdresse={estUnClicAvecMod}
       />
     </StrictMode>,
   );
@@ -97,6 +102,9 @@ export const NOMS_DES_COMMANDES = [
   "Liste numérotée",
 ] as const;
 export type NomDeCommande = (typeof NOMS_DES_COMMANDES)[number];
+/** Les commandes de mise en forme, après celles des types de bloc (F-028-AC4). */
+export const NOMS_DES_COMMANDES_DE_MARQUE = ["Gras", "Italique", "Lien"] as const;
+export type NomDeCommandeDeMarque = (typeof NOMS_DES_COMMANDES_DE_MARQUE)[number];
 
 export function zoneDeSaisie(): HTMLElement {
   return screen.getByRole("textbox", { name: NOM_DE_L_EDITEUR });
@@ -233,6 +241,186 @@ export function barreDeBlocs(): HTMLElement | null {
   return screen.queryByRole("toolbar", { name: "Type de bloc" });
 }
 
-export function commande(nom: NomDeCommande): HTMLElement {
+export function commande(nom: NomDeCommande | NomDeCommandeDeMarque): HTMLElement {
   return screen.getByRole("button", { name: nom });
+}
+
+// ——— Mise en forme dans le texte (F-028) ———
+
+/** Mod+touche, envoyée à l'élément qui a le focus : sous jsdom, Mod vaut Ctrl (F-028 H9). */
+export function presserAvecMod(touche: string, modificateurs: Modificateurs = {}): boolean {
+  return presser(touche, { ...modificateurs, ctrlKey: true });
+}
+
+/** Position, dans le document de l'éditeur, du début de ce texte dans le premier bloc qui le porte. */
+function positionDuTexte(texte: string): number {
+  const editeur = editeurMonte();
+  let position = -1;
+  editeur.state.doc.descendants((noeud, debut) => {
+    const rang = noeud.isTextblock ? noeud.textContent.indexOf(texte) : -1;
+    if (position < 0 && rang >= 0) {
+      position = debut + 1 + rang;
+    }
+    return position < 0;
+  });
+  if (position < 0) {
+    throw new Error(`Aucun bloc ne porte le texte « ${texte} ».`);
+  }
+  return position;
+}
+
+/** Sélectionne ce texte, là où il paraît pour la première fois. */
+export function selectionnerLeTexte(texte: string): void {
+  const editeur = editeurMonte();
+  const debut = positionDuTexte(texte);
+  act(() => void editeur.commands.setTextSelection({ from: debut, to: debut + texte.length }));
+}
+
+/**
+ * Sélectionne ce texte dans la sélection du navigateur seulement, comme Maj+flèche : l'éditeur ne la
+ * relira qu'à l'événement `selectionchange`, que le navigateur livre plus tard, dans une autre tâche.
+ */
+export function selectionnerDansLeNavigateur(texte: string): void {
+  const { noeud, rang } = texteAffiche(texte);
+  window.getSelection()?.setBaseAndExtent(noeud, rang, noeud, rang + texte.length);
+}
+
+/** Pose le curseur après ce texte dans la sélection du navigateur seulement, comme la touche Fin. */
+export function placerDansLeNavigateurApres(texte: string): void {
+  const { noeud, rang } = texteAffiche(texte);
+  window.getSelection()?.collapse(noeud, rang + texte.length);
+}
+
+function texteAffiche(texte: string): { readonly noeud: Node; readonly rang: number } {
+  const parcours = document.createTreeWalker(zoneDeSaisie(), NodeFilter.SHOW_TEXT);
+  for (let noeud = parcours.nextNode(); noeud !== null; noeud = parcours.nextNode()) {
+    const rang = noeud.textContent?.indexOf(texte) ?? -1;
+    if (rang >= 0) {
+      return { noeud, rang };
+    }
+  }
+  throw new Error(`Aucun texte affiché ne porte « ${texte} ».`);
+}
+
+/** Laisse le navigateur livrer l'événement `selectionchange` en attente : l'éditeur le relit. */
+export async function laisserRelireLaSelection(): Promise<void> {
+  await act(() => new Promise<void>((suite) => setTimeout(suite, 0)));
+}
+
+/**
+ * Colle ce texte par un événement `paste` du navigateur envoyé à la zone de saisie, porteur de ses
+ * données, comme un collage de l'utilisateur ; `pasteText` de la vue, lui, ne passe par aucun
+ * gestionnaire d'événement.
+ */
+export function collerParLeNavigateur(texte: string): void {
+  const collage = new Event("paste", { bubbles: true, cancelable: true });
+  const donnees = { getData: (type: string) => (type === "text/plain" ? texte : "") };
+  Object.defineProperty(collage, "clipboardData", { value: donnees });
+  act(() => void zoneDeSaisie().dispatchEvent(collage));
+}
+
+/** Le texte que l'éditeur tient pour sélectionné, d'après son propre état. */
+export function selectionVueParLEditeur(): string {
+  const { doc, selection } = editeurMonte().state;
+  return doc.textBetween(selection.from, selection.to);
+}
+
+/** Le type de la sélection de l'éditeur : `text`, `node` ou `all`. */
+export function typeDeSelection(): string {
+  return String(editeurMonte().state.selection.toJSON().type);
+}
+
+/** Pose le curseur dans ce texte, après son `decalage`-ième caractère. */
+export function placerLeCurseurDans(texte: string, decalage = 1): void {
+  const editeur = editeurMonte();
+  const position = positionDuTexte(texte) + decalage;
+  act(() => void editeur.commands.setTextSelection(position));
+}
+
+/** Sélectionne du début du premier texte à la fin du second, dans deux blocs différents. */
+export function selectionnerDe(premier: string, second: string): void {
+  const editeur = editeurMonte();
+  const debut = positionDuTexte(premier);
+  const fin = positionDuTexte(second) + second.length;
+  act(() => void editeur.commands.setTextSelection({ from: debut, to: fin }));
+}
+
+/**
+ * Appelle le gestionnaire de clic de l'éditeur dans ce texte : un événement `click` envoyé au DOM
+ * ne l'atteint pas sous jsdom (F-028 H9). Rend vrai si le clic a été traité.
+ */
+export function cliquerDansLeTexte(texte: string, avecMod: boolean): boolean {
+  const { view } = editeurMonte();
+  const position = positionDuTexte(texte) + 1;
+  const clic = new MouseEvent("click", { button: 0, bubbles: true, ctrlKey: avecMod });
+  let traite = false;
+  act(() => {
+    traite = view.someProp("handleClick", (gerer) => gerer(view, position, clic)) === true;
+  });
+  return traite;
+}
+
+/**
+ * Dépose un contenu riche venu d'ailleurs à la position de ce texte, comme le navigateur le livre :
+ * jsdom n'a ni `DataTransfer` ni mise en page, la position du pointeur est donc donnée à la vue.
+ */
+export function deposerDuHtml(html: string, surLeTexte: string): void {
+  const donnees = (type: string): string => (type === "text/html" ? html : "");
+  deposer(surLeTexte, { getData: donnees, types: ["text/html"], files: [], dropEffect: "copy" });
+}
+
+/**
+ * Déplace ce texte au début d'un autre par glisser-déposer dans la page : la vue retient le contenu
+ * glissé comme elle le fait au début d'un glisser, que jsdom ne produit pas, puis reçoit le dépôt.
+ */
+export function deplacerLeTexte(texte: string, surLeTexte: string): void {
+  selectionnerLeTexte(texte);
+  const { view } = editeurMonte();
+  const glisser = { slice: view.state.selection.content(), move: true };
+  Object.assign(view, { dragging: glisser });
+  deposer(surLeTexte, { getData: () => "", types: [], files: [], dropEffect: "move" });
+}
+
+function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
+  const { view } = editeurMonte();
+  const position = positionDuTexte(surLeTexte);
+  const depot = new Event("drop", { bubbles: true, cancelable: true });
+  Object.defineProperty(depot, "dataTransfer", { value: transfert });
+  Object.assign(depot, { clientX: 0, clientY: 0 });
+  const viaLaVue = view as typeof view & { posAtCoords: typeof view.posAtCoords };
+  const avant = viaLaVue.posAtCoords;
+  viaLaVue.posAtCoords = () => ({ pos: position, inside: -1 });
+  try {
+    act(() => void view.dom.dispatchEvent(depot));
+  } finally {
+    viaLaVue.posAtCoords = avant;
+  }
+}
+
+/**
+ * La commande de lien de l'éditeur tel que le module d'édition le crée, appelée directement, sans
+ * passer par le panneau (F-028-AC32) ; rend ce qu'elle rend.
+ */
+export function appelerLaCommandeDeLien(
+  nom: "setLink" | "toggleLink" | "setMark",
+  adresse: unknown,
+): boolean {
+  const { commands } = editeurMonte();
+  let rendu = false;
+  act(() => {
+    const attributs = { href: adresse as string };
+    rendu =
+      nom === "setMark"
+        ? commands.setMark("link", attributs)
+        : nom === "setLink"
+          ? commands.setLink(attributs)
+          : commands.toggleLink(attributs);
+  });
+  return rendu;
+}
+
+/** Les marques du texte sous le curseur, par leur nom, dans l'éditeur monté. */
+export function marquesSousLeCurseur(): string[] {
+  const { state } = editeurMonte();
+  return (state.storedMarks ?? state.selection.$from.marks()).map((marque) => marque.type.name);
 }

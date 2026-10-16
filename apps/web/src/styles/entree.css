@@ -206,6 +206,12 @@
   }
 }
 
+/* Panneau de lien : sous la barre de blocs, à la même abscisse (F-028-AC6). */
+@utility panneau-de-lien {
+  left: calc(var(--barre-gauche, 0) * 1px);
+  top: calc(var(--barre-haut, 0) * 1px + var(--spacing-cible) + var(--spacing-petit));
+}
+
 /* Zone de saisie de l'éditeur : ni cadre ni contour, le curseur dit seul où l'on écrit. C'est la
    seule suppression du contour de focus de l'application (F-003-AC37, AC44). */
 @utility saisie-sans-contour {
@@ -264,6 +270,22 @@
 
   & li > p {
     margin-block: var(--spacing-mince);
+  }
+
+  /* Lien : souligné plein. Lien neutralisé : souligné tireté, sans cible ; il se distingue d'un
+     lien par autre chose que la couleur (F-028 H10). */
+  & a {
+    color: var(--color-texte-principal);
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-repere-accent-fin);
+    text-underline-offset: 0.2em;
+  }
+
+  & [data-lien-neutralise] {
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-decoration-color: var(--color-texte-discret);
+    text-underline-offset: 0.2em;
   }
 
   /* Invite du bloc vide : elle ne fait pas partie du contenu (F-003-AC40). */

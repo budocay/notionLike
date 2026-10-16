@@ -59,6 +59,19 @@ export const NOM_DE_LA_ZONE_DE_SAISIE = "Contenu de la page";
 export const INVITE_DU_BLOC_VIDE = "Écris quelque chose…";
 export const NOM_DE_LA_BARRE_DE_BLOCS = "Type de bloc";
 
+/** Commandes de mise en forme de la barre de blocs et du panneau de lien (F-028-AC27). */
+export const COMMANDE_GRAS = "Gras";
+export const COMMANDE_ITALIQUE = "Italique";
+export const COMMANDE_LIEN = "Lien";
+export const NOM_DU_PANNEAU_DE_LIEN = "Lien";
+export const CHAMP_ADRESSE_DU_LIEN = "Adresse du lien";
+export const APPLIQUER_LE_LIEN = "Appliquer";
+export const OUVRIR_LE_LIEN = "Ouvrir le lien";
+export const RETIRER_LE_LIEN = "Retirer le lien";
+/** Une adresse refusée par la règle des adresses (F-028-AC12, H4). */
+export const ADRESSE_DU_LIEN_REFUSEE =
+  "Adresse refusée : seules les adresses https, http et mailto sont acceptées. Écrivez l'adresse en entier, en commençant par https, http ou mailto.";
+
 /** Tenu à la place de l'éditeur d'une page que cette application ne sait pas lire (F-003-AC19). */
 export const PAGE_DE_VERSION_NON_PRISE_EN_CHARGE =
   "Cette page a été enregistrée par une version plus récente de l'application. Mettez l'application à jour pour l'ouvrir ; rien n'a été modifié sur cet appareil.";

@@ -19,7 +19,7 @@ import {
 const derniereLigne = TABLE_DES_VERSIONS_PAGE[TABLE_DES_VERSIONS_PAGE.length - 1];
 
 describe("schéma de l'éditeur", () => {
-  it("F-003-AC22 les nœuds, les attributs de chaque nœud et les marques du schéma de l'éditeur sont exactement ceux de la dernière ligne de la table des versions, dont le numéro est la version prise en charge", () => {
+  it("F-003-AC22 F-028-AC19 les nœuds, les attributs de chaque nœud et les marques du schéma de l'éditeur sont exactement ceux de la dernière ligne de la table des versions, dont le numéro est la version prise en charge", () => {
     monterLEditeur();
 
     const schema = schemaDeLEditeur();
@@ -28,7 +28,7 @@ describe("schéma de l'éditeur", () => {
     expect(schema.marques).toEqual(derniereLigne?.marques);
     expect(schema.noeuds.heading).toEqual(["level"]);
     expect(schema.noeuds.orderedList).toEqual(["start", "type"]);
-    expect(schema.marques).toEqual([]);
+    expect(schema.marques).toEqual(["bold", "italic", "link"]);
     expect(derniereLigne?.version).toBe(VERSION_PAGE_PRISE_EN_CHARGE);
     expect(derniereLigne?.typesPartages).toEqual([]);
   });

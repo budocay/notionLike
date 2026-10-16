@@ -33,6 +33,21 @@ export const TABLE_DES_VERSIONS_PAGE: readonly LigneDeVersionPage[] = [
     marques: [],
     typesPartages: [],
   },
+  // F-028 : gras, italique et lien, ce dernier avec le seul attribut `href` (F-028-AC19, AC24).
+  {
+    version: 2,
+    noeuds: {
+      bulletList: [],
+      doc: [],
+      heading: ["level"],
+      listItem: [],
+      orderedList: ["start", "type"],
+      paragraph: [],
+      text: [],
+    },
+    marques: ["bold", "italic", "link"],
+    typesPartages: [],
+  },
 ];
 
 /** Numéro de la dernière ligne de la table. */

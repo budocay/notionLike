@@ -1,5 +1,6 @@
 // Collage et texte balisé : le contenu riche passe par le schéma, rien n'est interprété
-// (F-003-AC13, AC20).
+// (F-003-AC13, AC20). Depuis F-028, du presse-papiers ne survivent que les blocs, le texte, les
+// trois marques et l'adresse normalisée d'un lien (F-028 H8).
 import { TABLE_DES_VERSIONS_PAGE } from "@notionlike/document";
 import { describe, expect, it } from "vitest";
 
@@ -7,8 +8,13 @@ import { contenuLu, inventaireDuContenu } from "../aides-facade-page.ts";
 import {
   collerDuHtml,
   collerDuTexte,
+  collerParLeNavigateur,
   entrerDansLEditeur,
+  laisserRelireLaSelection,
   monterLEditeur,
+  placerDansLeNavigateurApres,
+  selectionnerLeTexte,
+  selectionVueParLEditeur,
   taper,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
@@ -31,7 +37,7 @@ const CONTENU_RICHE = [
 ].join("");
 
 describe("collage d'un contenu riche", () => {
-  it("F-003-AC13 seuls les nœuds et les attributs de la dernière ligne de la table des versions entrent dans le document, sans marque ; le reste est réduit à son texte, sans balise, style ni script", () => {
+  it("F-003-AC13 F-028-AC13 seuls les nœuds, les attributs et les marques de la dernière ligne de la table des versions entrent dans le document ; le reste est réduit à son texte, sans balise, style ni script", () => {
     const { doc } = monterLEditeur();
     entrerDansLEditeur();
 
@@ -44,7 +50,8 @@ describe("collage d'un contenu riche", () => {
       expect(Object.keys(admis), noeud).toContain(noeud);
       expect(admis[noeud], noeud).toEqual(expect.arrayContaining([...attributs]));
     }
-    expect(inventaire.marques).toEqual([]);
+    expect(inventaire.marques).toEqual(["bold", "italic", "link"]);
+    expect(derniereLigne?.marques).toEqual(expect.arrayContaining([...inventaire.marques]));
     expect(inventaire.noeuds).toEqual({
       bulletList: [],
       heading: ["level"],
@@ -59,7 +66,10 @@ describe("collage d'un contenu riche", () => {
     for (const texte of ["titre de niveau cinq", "citation", "cellule", "bloc de code"]) {
       expect(contenu, texte).toContain(texte);
     }
-    expect(contenu).not.toMatch(/style|class|onclick|onerror|href|data-|alert|script|iframe|src=/);
+    expect(contenu).not.toMatch(/style|class|onclick|onerror|data-|alert|script|iframe|src=/);
+    expect([...contenu.matchAll(/href="[^"]*"/g)].map(([attribut]) => attribut)).toEqual([
+      'href="https://exemple.invalid/"',
+    ]);
     expect(contenu).toContain('<orderedlist start="3" type="a">');
   });
 
@@ -83,10 +93,14 @@ describe("collage d'un contenu riche", () => {
     collerDuHtml(CONTENU_RICHE);
 
     const zone = zoneDeSaisie();
-    expect(zone.querySelectorAll("script, style, img, iframe, table, a, strong, em")).toHaveLength(
-      0,
-    );
-    expect(zone.querySelectorAll("[style], [onclick], [onerror], [class], [href]")).toHaveLength(0);
+    expect(zone.querySelectorAll("script, style, img, iframe, table")).toHaveLength(0);
+    expect(zone.querySelectorAll("[style], [onclick], [onerror], [class]")).toHaveLength(0);
+    // F-028-AC13 F-028-AC16 : le seul lien collé porte sa forme normalisée et les attributs imposés.
+    expect(
+      [...zone.querySelectorAll("[href]")].map((lien) =>
+        lien.getAttributeNames().map((nom) => `${nom}=${lien.getAttribute(nom) ?? ""}`),
+      ),
+    ).toEqual([["href=https://exemple.invalid/", "rel=noopener noreferrer", "target=_blank"]]);
     expect(zone.querySelector("h1")?.textContent).toBe("Grand titre");
   });
 });
@@ -116,5 +130,38 @@ describe("texte qui contient du balisage", () => {
     expect(zone.textContent).toBe(BALISAGE);
     expect(zone.querySelectorAll("b, script, img")).toHaveLength(0);
     expect(inventaireDuContenu(doc).noeuds).toEqual({ paragraph: [] });
+  });
+});
+
+// F-028-AC30 sous macOS : Chromium livre `selectionchange` après un collage qui suit de près la
+// touche Fin, et l'éditeur ne relit la sélection du navigateur qu'à cet événement.
+describe("collage juste après un déplacement du curseur", () => {
+  it("F-028-AC30 un collage reçu avant que l'éditeur n'ait relu la sélection du navigateur s'insère au curseur affiché, sans remplacer l'ancienne sélection", () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerLeTexte("site");
+    placerDansLeNavigateurApres("voir le site");
+    const vueAvantLeCollage = selectionVueParLEditeur();
+
+    collerParLeNavigateur(" collé");
+
+    expect(vueAvantLeCollage).toBe("site");
+    expect(contenuLu(doc)).toBe("<paragraph>voir le site collé</paragraph>");
+  });
+
+  it("F-028-AC30 témoin : le même curseur, une fois relu par l'éditeur à son événement, reçoit le même collage", async () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerLeTexte("site");
+    placerDansLeNavigateurApres("voir le site");
+    await laisserRelireLaSelection();
+    const vueAvantLeCollage = selectionVueParLEditeur();
+
+    collerParLeNavigateur(" collé");
+
+    expect(vueAvantLeCollage).toBe("");
+    expect(contenuLu(doc)).toBe("<paragraph>voir le site collé</paragraph>");
   });
 });
