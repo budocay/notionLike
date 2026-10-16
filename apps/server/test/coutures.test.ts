@@ -367,6 +367,8 @@ describe("appelants de la configuration (F-031-AC14)", () => {
       // F-031-AC9 : sa propre valeur factice, en shell, pour POSTGRES_PASSWORD ; la vérification de
       // la configuration du serveur passe par l'entrée de vérification (ADR-0017).
       "infra/pile.sh": ["MOT_DE_PASSE_FACTICE"],
+      // F-031-AC9 : couture de la valeur factice de pile.sh.
+      "infra/tests/pile-valeur-factice.test.ts": ["MOT_DE_PASSE_FACTICE"],
     });
   });
 
