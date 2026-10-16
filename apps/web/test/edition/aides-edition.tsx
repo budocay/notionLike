@@ -325,6 +325,11 @@ export function selectionVueParLEditeur(): string {
   return doc.textBetween(selection.from, selection.to);
 }
 
+/** Le type de la sélection de l'éditeur : `text`, `node` ou `all`. */
+export function typeDeSelection(): string {
+  return String(editeurMonte().state.selection.toJSON().type);
+}
+
 /** Pose le curseur dans ce texte, après son `decalage`-ième caractère. */
 export function placerLeCurseurDans(texte: string, decalage = 1): void {
   const editeur = editeurMonte();
