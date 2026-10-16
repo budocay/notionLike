@@ -483,8 +483,17 @@ describe("ports déjà pris", () => {
       const resultat = lancer(arbre, ["demarrer"]);
 
       expect(resultat.code).not.toBe(0);
+      // Le nom vient du vrai `lsof` : `node` sous macOS, le nom du fil principal (`node-MainThread`)
+      // sous Linux. AC18 exige le processus « quand le système le donne », pas un nom normalisé.
+      expect(resultat.erreur).toMatch(
+        new RegExp(
+          `^Le port ${String(port)} \\(PORT_PUBLIE_SERVEUR\\) est déjà en écoute sur le poste, processus : node[^\\s.]*\\.$`,
+          "m",
+        ),
+      );
+      expect(resultat.erreur).toContain("Rien n'est lancé. Deux issues :");
       expect(resultat.erreur).toContain(
-        `Le port ${String(port)} (PORT_PUBLIE_SERVEUR) est déjà en écoute sur le poste, processus : node.`,
+        "  - arrêter ce processus ; si c'est le serveur lancé en mode hôte",
       );
       expect(resultat.erreur).toContain("mode hôte (pnpm --filter @notionlike/server demarrer)");
       expect(resultat.erreur).toContain(
