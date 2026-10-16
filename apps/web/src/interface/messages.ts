@@ -224,3 +224,8 @@ export function pageDeposee(titre: string, lieu: string | undefined): string {
 export function deplacementAbandonne(titre: string): string {
   return `Déplacement de « ${titreCite(titre)} » annulé.`;
 }
+
+// Déplacement d'un bloc (F-006-AC14, AC18) : poignée et commandes de la barre de blocs.
+export const DEPLACER_LE_BLOC = "Déplacer le bloc";
+export const MONTER_LE_BLOC = "Monter le bloc";
+export const DESCENDRE_LE_BLOC = "Descendre le bloc";

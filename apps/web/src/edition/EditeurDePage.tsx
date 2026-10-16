@@ -1,4 +1,5 @@
 import { Editor } from "@tiptap/core";
+import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { EditorContent } from "@tiptap/react";
 import {
   type KeyboardEvent,
@@ -14,6 +15,8 @@ import {
   BarreDeBlocs,
   type CommandeDeBloc,
   PanneauDeLien,
+  PoigneeDeBloc,
+  PoigneeDuCurseur,
   ZoneDEdition,
   ZoneDeSaisie,
 } from "../interface/composants/Edition.tsx";
@@ -24,6 +27,9 @@ import {
   COMMANDE_GRAS,
   COMMANDE_ITALIQUE,
   COMMANDE_LIEN,
+  DEPLACER_LE_BLOC,
+  DESCENDRE_LE_BLOC,
+  MONTER_LE_BLOC,
   NOM_DE_LA_BARRE_DE_BLOCS,
   NOM_DE_LA_ZONE_DE_SAISIE,
   NOM_DU_PANNEAU_DE_LIEN,
@@ -32,8 +38,15 @@ import {
 } from "../interface/messages.ts";
 import { type Barre, useBarre } from "./barre.ts";
 import { basculerLeGras, basculerLItalique, type EtatDuLien } from "./commandes-de-marque.ts";
+import {
+  deplacerLeBlocCourant,
+  destinationDuBlocCourant,
+  type SensDuDeplacement,
+} from "./deplacement-de-bloc.ts";
+import type { OptionsDuDepot } from "./depot.ts";
 import type { ElementsInscrits, OptionsDesMarques } from "./marques.ts";
 import { type EtatDuPanneau, usePanneauDeLien } from "./panneau.ts";
+import { type PoigneeAuCurseur, usePoigneeAuCurseur } from "./poignee.ts";
 import { extensionsDeLEditeur } from "./schema.ts";
 import { COMMANDES_DE_TYPE, donnerLeType, memeType } from "./types-de-bloc.ts";
 
@@ -54,6 +67,15 @@ export interface ProprietesEditeurDePage {
   /** Vrai pour un clic qui ouvre l'adresse d'un lien : Mod enfoncé (F-028-AC10). */
   readonly ouvreLAdresse: (clic: MouseEvent) => boolean;
   /**
+   * Le sens du déplacement d'un bloc que la frappe désigne, Alt+Maj+Flèche haut ou bas ;
+   * `undefined` pour toute autre frappe (F-006-AC18).
+   */
+  readonly deplacementDuBloc: (
+    frappe: globalThis.KeyboardEvent,
+  ) => "monter" | "descendre" | undefined;
+  /** Les raccourcis de déplacement d'un bloc, pour `aria-keyshortcuts` de sa poignée. */
+  readonly raccourcisDuBloc?: string | undefined;
+  /**
    * Vrai : l'espace est ouvert en lecture seule (F-013-AC25) ; ni frappe, ni collage, ni commande
    * de la barre de blocs, ni annulation.
    */
@@ -61,22 +83,18 @@ export interface ProprietesEditeurDePage {
 }
 
 export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
-  const marques = useOptionsDesMarques(props);
-  const editeur = useEditeur(props.contenu, props.garderVersion, marques);
+  const options = useOptionsRecues(props);
+  const geste = useRef(false);
+  const editeur = useEditeur(props.contenu, props.garderVersion, options, geste);
   const lectureSeule = useModifiable(editeur, props.lectureSeule === true);
   const zone = useRef<HTMLDivElement>(null);
   const refBarre = useRef<HTMLDivElement>(null);
   const barre = useBarre(editeur, { zone, barre: refBarre });
   const panneau = usePanneauDeLien(editeur);
+  const poignee = usePoigneeAuCurseur(editeur, zone, barre.focusDedans && !lectureSeule, geste);
   const surTouche = (frappe: KeyboardEvent<HTMLElement>): void => {
-    if (editeur === null || lectureSeule) {
-      return;
-    }
-    if (props.ouvreLePanneauDeLien(frappe) && editeur.view.dom.contains(frappe.target as Node)) {
-      panneau.surRaccourci(frappe);
-    } else if (barre.affichee && props.meneALaBarre(frappe)) {
-      frappe.preventDefault();
-      refBarre.current?.querySelector("button")?.focus();
+    if (editeur !== null && !lectureSeule) {
+      surToucheDeLaZone(frappe, { editeur, props, barre, panneau, refBarre });
     }
   };
   const visible = editeur !== null && barre.affichee && !lectureSeule;
@@ -93,6 +111,11 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       <ZoneDeSaisie>
         <EditorContent editor={editeur} />
       </ZoneDeSaisie>
+      <Poignees
+        editeur={lectureSeule ? null : editeur}
+        poignee={poignee}
+        raccourcis={props.raccourcisDuBloc}
+      />
       {visible && (
         <BarreDeBlocs
           ref={refBarre}
@@ -107,6 +130,24 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       )}
     </ZoneDEdition>
   );
+}
+
+interface ZoneTenue {
+  readonly editeur: Editor;
+  readonly props: ProprietesEditeurDePage;
+  readonly barre: Barre;
+  readonly panneau: EtatDuPanneau;
+  readonly refBarre: RefObject<HTMLDivElement | null>;
+}
+
+function surToucheDeLaZone(frappe: KeyboardEvent<HTMLElement>, zone: ZoneTenue): void {
+  const { editeur, props, barre, panneau, refBarre } = zone;
+  if (props.ouvreLePanneauDeLien(frappe) && editeur.view.dom.contains(frappe.target as Node)) {
+    panneau.surRaccourci(frappe);
+  } else if (barre.affichee && props.meneALaBarre(frappe)) {
+    frappe.preventDefault();
+    refBarre.current?.querySelector("button")?.focus();
+  }
 }
 
 /** Rend `lectureSeule`, appliquée à l'éditeur (F-013-AC25). */
@@ -136,6 +177,37 @@ function proprietesDuPanneau(lien: EtatDuLien, panneau: EtatDuPanneau, barre: Ba
     adresseAOuvrir: lien.ouvrable,
     retirable: lien.retirable,
   } as const;
+}
+
+/**
+ * La poignée que l'éditeur place au survol d'un bloc, et celle du bloc du curseur quand le pointeur
+ * n'en montre aucune (F-006-AC14). Ni l'une ni l'autre n'écrit dans le document à l'affichage.
+ */
+function Poignees(props: {
+  /** Absent, ou en lecture seule : aucune poignée. */
+  readonly editeur: Editor | null;
+  readonly poignee: PoigneeAuCurseur;
+  readonly raccourcis: string | undefined;
+}): ReactElement | null {
+  const { editeur, poignee, raccourcis } = props;
+  if (editeur === null) {
+    return null;
+  }
+  return (
+    <>
+      <DragHandle
+        editor={editeur}
+        onElementDragStart={poignee.surDebutDuGeste}
+        onElementDragEnd={poignee.surFinDuGeste}
+        onNodeChange={({ node }) => poignee.surSurvol(node !== null)}
+      >
+        <PoigneeDeBloc nom={DEPLACER_LE_BLOC} raccourcis={raccourcis} />
+      </DragHandle>
+      {poignee.haut !== undefined && (
+        <PoigneeDuCurseur nom={DEPLACER_LE_BLOC} raccourcis={raccourcis} haut={poignee.haut} />
+      )}
+    </>
+  );
 }
 
 // L'activation applique le type ou la marque, puis rend le focus à la zone de saisie, tout de
@@ -173,12 +245,33 @@ function commandesDe(editeur: Editor, barre: Barre, ouvrirLePanneau: () => void)
       indisponible: marques?.lien.disponible !== true,
       surActivation: ouvrirLePanneau,
     },
+    ...commandesDeDeplacement(editeur, avecFocus),
   ];
 }
 
-function creerLEditeur(contenu: Y.XmlFragment, marques: OptionsDesMarques): Editor {
+// « Monter le bloc » et « Descendre le bloc » (F-006-AC18) : indisponibles sur le premier, le
+// dernier, ou une sélection sur plusieurs blocs ; le curseur reste dans son bloc.
+function commandesDeDeplacement(
+  editeur: Editor,
+  avecFocus: (action: (cible: Editor) => void) => () => void,
+): CommandeDeBloc[] {
+  const commande = (nom: string, repere: string, sens: SensDuDeplacement): CommandeDeBloc => ({
+    nom,
+    repere,
+    active: false,
+    indisponible: destinationDuBlocCourant(editeur.state, sens) === undefined,
+    surActivation: avecFocus((cible) => void deplacerLeBlocCourant(cible, sens)),
+  });
+  return [commande(MONTER_LE_BLOC, "↑", "monter"), commande(DESCENDRE_LE_BLOC, "↓", "descendre")];
+}
+
+function creerLEditeur(
+  contenu: Y.XmlFragment,
+  marques: OptionsDesMarques,
+  depot: OptionsDuDepot,
+): Editor {
   return new Editor({
-    extensions: extensionsDeLEditeur(contenu, marques),
+    extensions: extensionsDeLEditeur(contenu, marques, depot),
     editorProps: {
       attributes: {
         role: "textbox",
@@ -190,8 +283,8 @@ function creerLEditeur(contenu: Y.XmlFragment, marques: OptionsDesMarques): Edit
 }
 
 // L'éditeur ne se recrée pas quand ces fonctions changent : il lit toujours les dernières reçues.
-function useOptionsDesMarques(props: ProprietesEditeurDePage): RefObject<OptionsDesMarques> {
-  const options = useRef<OptionsDesMarques>(props);
+function useOptionsRecues(props: ProprietesEditeurDePage): RefObject<ProprietesEditeurDePage> {
+  const options = useRef<ProprietesEditeurDePage>(props);
   useEffect(() => {
     options.current = props;
   });
@@ -205,7 +298,8 @@ function useOptionsDesMarques(props: ProprietesEditeurDePage): RefObject<Options
 function useEditeur(
   contenu: Y.XmlFragment,
   garderVersion: ProprietesEditeurDePage["garderVersion"],
-  marques: RefObject<OptionsDesMarques>,
+  options: RefObject<ProprietesEditeurDePage>,
+  geste: RefObject<boolean>,
 ): Editor | null {
   const [editeur, setEditeur] = useState<Editor | null>(null);
   useEffect(() => {
@@ -217,15 +311,22 @@ function useEditeur(
       setEditeur(null);
     };
     const cesserDeGarder = garderVersion(detruire);
-    cree = creerLEditeur(contenu, {
-      preparerLaVersion: (elements) => marques.current.preparerLaVersion(elements),
-      ouvreLAdresse: (clic) => marques.current.ouvreLAdresse(clic),
-    });
+    cree = creerLEditeur(
+      contenu,
+      {
+        preparerLaVersion: (elements) => options.current.preparerLaVersion(elements),
+        ouvreLAdresse: (clic) => options.current.ouvreLAdresse(clic),
+      },
+      {
+        deplacementDuBloc: (frappe) => options.current.deplacementDuBloc(frappe),
+        gesteDeLaPoignee: () => geste.current,
+      },
+    );
     setEditeur(cree);
     return () => {
       cesserDeGarder();
       detruire();
     };
-  }, [contenu, garderVersion, marques]);
+  }, [contenu, garderVersion, options, geste]);
   return editeur;
 }

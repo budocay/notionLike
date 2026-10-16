@@ -14,6 +14,7 @@ import {
   monterLEditeur,
   type NomDeCommande,
   NOMS_DES_COMMANDES,
+  NOMS_DES_COMMANDES_DE_DEPLACEMENT,
   NOMS_DES_COMMANDES_DE_MARQUE,
   placerLeCurseurApres,
   presser,
@@ -78,7 +79,7 @@ describe("barre de blocs flottante", () => {
     expect(emises.length).toBe(emisesParLaSaisie);
   });
 
-  it("F-003-AC41 F-003-AC16 F-028-AC27 la barre porte les six commandes de type, puis, depuis F-028, Gras, Italique et Lien, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
+  it("F-003-AC41 F-003-AC16 F-028-AC27 F-006-AC18 la barre porte les six commandes de type, puis, depuis F-028, Gras, Italique et Lien, et depuis F-006 Monter le bloc et Descendre le bloc, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
     monterLEditeur();
     entrerDansLEditeur();
 
@@ -87,9 +88,13 @@ describe("barre de blocs flottante", () => {
     expect(boutons.map((bouton) => bouton.getAttribute("aria-label"))).toEqual([
       ...NOMS_DES_COMMANDES,
       ...NOMS_DES_COMMANDES_DE_MARQUE,
+      ...NOMS_DES_COMMANDES_DE_DEPLACEMENT,
     ]);
     expect(boutons.map((bouton) => bouton.getAttribute("aria-pressed"))).toEqual([
       "true",
+      // F-006 : Monter le bloc, Descendre le bloc.
+      "false",
+      "false",
       "false",
       "false",
       "false",
@@ -157,7 +162,8 @@ describe("barre de blocs au clavier", () => {
     expect(traitee).toBe(true);
     expect(premiere).toBe(commande("Paragraphe"));
     expect(suivante).toBe(commande("Titre 1"));
-    expect(enBoucle).toBe(commande("Lien"));
+    // F-006 : la dernière commande est « Descendre le bloc ».
+    expect(enBoucle).toBe(commande("Descendre le bloc"));
     expect(document.activeElement).toBe(zoneDeSaisie());
     expect(barreDeBlocs()).not.toBeNull();
     expect(window.getSelection()?.toString()).toBe(selectionAvant);

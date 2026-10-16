@@ -219,6 +219,23 @@
   top: calc(var(--barre-haut, 0) * 1px + var(--spacing-cible) + var(--spacing-petit));
 }
 
+/* Curseur de dépôt de l'éditeur (F-006-AC37) : l'extension pose sa géométrie en ligne, sans couleur ;
+   la couleur vient d'ici. */
+@utility curseur-de-depot {
+  background-color: var(--color-repere-focus);
+}
+
+/* Poignée d'un bloc (F-006-AC14) : elle se saisit pour faire glisser le bloc. */
+@utility poignee-de-bloc {
+  cursor: grab;
+}
+
+/* Poignée du bloc où se trouve le curseur (F-006-AC14) : à gauche de la colonne ; sa hauteur, celle
+   du bloc que le module d'édition mesure, est posée en ligne. */
+@utility poignee-du-curseur {
+  right: 100%;
+}
+
 /* Zone de saisie de l'éditeur : ni cadre ni contour, le curseur dit seul où l'on écrit. C'est la
    seule suppression du contour de focus de l'application (F-003-AC37, AC44). */
 @utility saisie-sans-contour {

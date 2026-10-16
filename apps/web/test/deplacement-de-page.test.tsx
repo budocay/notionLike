@@ -724,3 +724,60 @@ describe("repère de dépôt", () => {
     await waitFor(() => expect(reperes()).toEqual([]));
   });
 });
+
+const MESSAGES_DE_REFUS = [
+  ["page-introuvable", "Cette page n'existe plus : l'action n'a pas été effectuée."],
+  ["page-a-la-corbeille", "Cette page a été mise à la corbeille : l'action n'a pas été effectuée."],
+  ["deplacement-cyclique", "Une page ne peut pas être déplacée dans l'une de ses sous-pages."],
+  ["position-invalide", "Cet emplacement n'existe plus : l'action n'a pas été effectuée."],
+] as const;
+
+describe("refus du document", () => {
+  it.each(MESSAGES_DE_REFUS)(
+    "F-006-AC30 F-002-AC15 le refus typé %s, au clavier comme au pointeur, aboutit au message de F-002-AC15, l'arborescence affichée restant celle lue, sans mise à jour Yjs",
+    async (code, message) => {
+      const coquille = await ouvrirLArbre();
+      const misesAJour = compterLesMisesAJour(coquille.session);
+      espionnerDeplacerPage(coquille.session).mockImplementation(() => {
+        throw new ErreurDocument(code, "essai");
+      });
+
+      act(() => lien("C").focus());
+      await coquille.utilisateur.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
+      const auClavier = within(barre()).getByRole("alert").textContent;
+      glisser("B", "A", "haut");
+
+      expect(auClavier).toBe(message);
+      expect(within(barre()).getByRole("alert").textContent).toBe(message);
+      expect(fratries()).toEqual([
+        ["A", "B", "C"],
+        ["A1", "A2"],
+      ]);
+      expect(within(barre()).getByRole("status").textContent).toBe("");
+      expect(misesAJour.nombre()).toBe(0);
+    },
+  );
+});
+
+describe("réseau coupé", () => {
+  it("F-006-AC33 au pointeur comme au clavier, une page se déplace réseau coupé, sans aucune requête", async () => {
+    const coquille = await ouvrirLArbre();
+    const appels: string[] = [];
+    for (const nom of ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"]) {
+      vi.stubGlobal(nom, () => {
+        appels.push(nom);
+        throw new Error(`F-006-AC33 : ${nom} appelé pendant un déplacement.`);
+      });
+    }
+
+    glisser("C", "A", "haut");
+    act(() => lien("B").focus());
+    await coquille.utilisateur.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+
+    expect(fratries()).toEqual([
+      ["C", "A"],
+      ["A1", "A2", "B"],
+    ]);
+    expect(appels).toEqual([]);
+  });
+});

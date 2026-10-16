@@ -5,6 +5,7 @@
 import type { DocumentPage } from "@notionlike/document";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
+import { NodeRangeSelection } from "@tiptap/extension-node-range";
 import { StrictMode } from "react";
 import { afterEach, vi } from "vitest";
 import * as Y from "yjs";
@@ -58,6 +59,13 @@ export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
         meneALaBarre={(frappe) => estLaFrappe(frappe, RACCOURCIS.barreDeBlocs)}
         ouvreLePanneauDeLien={(frappe) => estLaFrappe(frappe, RACCOURCIS.lien)}
         ouvreLAdresse={estUnClicAvecMod}
+        // F-006 : Alt+Maj+Flèche haut et bas déplacent le bloc du curseur (F-006-AC18).
+        deplacementDuBloc={(frappe) => {
+          if (estLaFrappe(frappe, RACCOURCIS.monterLeBloc)) {
+            return "monter";
+          }
+          return estLaFrappe(frappe, RACCOURCIS.descendreLeBloc) ? "descendre" : undefined;
+        }}
       />
     </StrictMode>,
   );
@@ -105,6 +113,9 @@ export type NomDeCommande = (typeof NOMS_DES_COMMANDES)[number];
 /** Les commandes de mise en forme, après celles des types de bloc (F-028-AC4). */
 export const NOMS_DES_COMMANDES_DE_MARQUE = ["Gras", "Italique", "Lien"] as const;
 export type NomDeCommandeDeMarque = (typeof NOMS_DES_COMMANDES_DE_MARQUE)[number];
+/** Les commandes de déplacement du bloc courant, en dernier (F-006-AC18). */
+export const NOMS_DES_COMMANDES_DE_DEPLACEMENT = ["Monter le bloc", "Descendre le bloc"] as const;
+export type NomDeCommandeDeDeplacement = (typeof NOMS_DES_COMMANDES_DE_DEPLACEMENT)[number];
 
 export function zoneDeSaisie(): HTMLElement {
   return screen.getByRole("textbox", { name: NOM_DE_L_EDITEUR });
@@ -241,7 +252,9 @@ export function barreDeBlocs(): HTMLElement | null {
   return screen.queryByRole("toolbar", { name: "Type de bloc" });
 }
 
-export function commande(nom: NomDeCommande | NomDeCommandeDeMarque): HTMLElement {
+export function commande(
+  nom: NomDeCommande | NomDeCommandeDeMarque | NomDeCommandeDeDeplacement,
+): HTMLElement {
   return screen.getByRole("button", { name: nom });
 }
 
@@ -381,9 +394,16 @@ export function deplacerLeTexte(texte: string, surLeTexte: string): void {
   deposer(surLeTexte, { getData: () => "", types: [], files: [], dropEffect: "move" });
 }
 
-function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
+function deposer(surLeTexte: string, transfert: Record<string, unknown>): boolean {
+  return deposerA(positionDuTexte(surLeTexte), transfert);
+}
+
+/**
+ * Lâcher construit par le test (F-006 H11) : jsdom n'a ni `DragEvent`, ni `DataTransfer`, ni mise en
+ * page ; la position du pointeur est donnée à la vue. Rend vrai si l'action par défaut est empêchée.
+ */
+function deposerA(position: number, transfert: Record<string, unknown>): boolean {
   const { view } = editeurMonte();
-  const position = positionDuTexte(surLeTexte);
   const depot = new Event("drop", { bubbles: true, cancelable: true });
   Object.defineProperty(depot, "dataTransfer", { value: transfert });
   Object.assign(depot, { clientX: 0, clientY: 0 });
@@ -395,6 +415,102 @@ function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
   } finally {
     viaLaVue.posAtCoords = avant;
   }
+  return depot.defaultPrevented;
+}
+
+// ——— Déplacement d'un bloc (F-006) ———
+
+/** Position du début du bloc de premier niveau d'indice donné, ou de la fin du document. */
+function debutDuBlocMonte(indice: number): number {
+  const { doc } = editeurMonte().state;
+  let position = 0;
+  for (let rang = 0; rang < indice && rang < doc.childCount; rang += 1) {
+    position += doc.child(rang).nodeSize;
+  }
+  return position;
+}
+
+/** L'élément glissable de la poignée de l'éditeur, qui porte la poignée de l'application. */
+function elementDeLaPoignee(): HTMLElement {
+  const element = document.querySelector("[data-poignee-de-bloc]")?.parentElement;
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("La poignée de bloc n'est pas rendue.");
+  }
+  return element;
+}
+
+/**
+ * Début d'un geste de la poignée sur le bloc d'indice `de`, comme elle le fait : jsdom n'ayant pas
+ * de `DataTransfer`, le test pose lui-même la sélection du bloc et l'état de glissement de la vue.
+ */
+export function saisirLeBlocParSaPoignee(de: number): void {
+  const { view } = editeurMonte();
+  act(() => void elementDeLaPoignee().dispatchEvent(new Event("dragstart", { bubbles: true })));
+  act(() => {
+    const debut = debutDuBlocMonte(de);
+    const fin = debutDuBlocMonte(de + 1);
+    const selection = NodeRangeSelection.create(view.state.doc, debut, fin);
+    view.dispatch(view.state.tr.setSelection(selection));
+    Object.assign(view, { dragging: { slice: selection.content(), move: true } });
+  });
+}
+
+/** Fin du geste de la poignée, après un lâcher ou un abandon (Échap, lâcher hors de l'éditeur). */
+export function finirLeGesteDeLaPoignee(): void {
+  const { view } = editeurMonte();
+  Object.assign(view, { dragging: null });
+  act(() => void elementDeLaPoignee().dispatchEvent(new Event("dragend", { bubbles: true })));
+}
+
+/**
+ * Glisse le bloc d'indice `de` par sa poignée et le lâche dans l'intervalle d'indice `intervalle`
+ * entre deux blocs (0 : avant le premier). Rend vrai si l'action par défaut est empêchée.
+ */
+export function glisserLeBlocParSaPoignee(de: number, intervalle: number): boolean {
+  saisirLeBlocParSaPoignee(de);
+  const transfert = { getData: () => "", types: [], files: [], dropEffect: "move" };
+  const empeche = deposerA(debutDuBlocMonte(intervalle), transfert);
+  finirLeGesteDeLaPoignee();
+  return empeche;
+}
+
+/**
+ * Lâche des fichiers dans l'éditeur, sur ce texte, seuls ou avec du texte : un fichier HTML nommé
+ * `image.png`, qui n'est pas une image conforme (F-006-AC35). Rend vrai si l'action par défaut est
+ * empêchée.
+ */
+export function deposerUnFichier(surLeTexte: string, avecDuTexte: boolean): boolean {
+  const fichier = new File(["<p>contenu du fichier</p>"], "image.png", { type: "text/html" });
+  const texte = avecDuTexte ? "texte joint au fichier" : "";
+  return deposer(surLeTexte, {
+    getData: (type: string) => (type === "text/plain" ? texte : ""),
+    types: avecDuTexte ? ["Files", "text/plain"] : ["Files"],
+    files: [fichier],
+    dropEffect: "copy",
+  });
+}
+
+/** Les options du curseur de dépôt, telles que le module d'édition a créé l'éditeur. */
+export function optionsDuCurseurDeDepot(): Record<string, unknown> | undefined {
+  const extension = editeurMonte().extensionManager.extensions.find(
+    (une) => une.name === "dropCursor",
+  );
+  return extension?.options as Record<string, unknown> | undefined;
+}
+
+/** Texte de chaque bloc de premier niveau, dans l'ordre. */
+export function textesDesBlocs(): string[] {
+  const { doc } = editeurMonte().state;
+  const textes: string[] = [];
+  doc.forEach((noeud) => textes.push(noeud.textContent));
+  return textes;
+}
+
+/** Le bloc de premier niveau du curseur, et la position du curseur dans son texte. */
+export function curseurDansLeBloc(): { readonly bloc: number; readonly decalage: number } {
+  const { selection } = editeurMonte().state;
+  const bloc = selection.$from.index(0);
+  return { bloc, decalage: selection.from - debutDuBlocMonte(bloc) };
 }
 
 /**

@@ -40,12 +40,16 @@ describe("aucun HTML brut", () => {
       "src/edition/adresses.ts",
       "src/edition/barre.ts",
       "src/edition/commandes-de-marque.ts",
+      // F-006 : déplacement d'un bloc, lâcher et raccourcis, poignée du curseur.
+      "src/edition/deplacement-de-bloc.ts",
+      "src/edition/depot.ts",
       "src/edition/index.ts",
       "src/edition/invite.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
       "src/edition/panneau.ts",
       "src/edition/placement.ts",
+      "src/edition/poignee.ts",
       "src/edition/schema.ts",
       "src/edition/selection-du-navigateur.ts",
       "src/edition/types-de-bloc.ts",
@@ -113,10 +117,14 @@ describe("confinement de la bibliothèque d'édition", () => {
       "src/edition/EditeurDePage.tsx",
       "src/edition/barre.ts",
       "src/edition/commandes-de-marque.ts",
+      // F-006 : poignée de bloc, curseur de dépôt, déplacement d'un bloc (F-006-AC32).
+      "src/edition/deplacement-de-bloc.ts",
+      "src/edition/depot.ts",
       "src/edition/invite.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
       "src/edition/panneau.ts",
+      "src/edition/poignee.ts",
       "src/edition/schema.ts",
       "src/edition/selection-du-navigateur.ts",
       "src/edition/types-de-bloc.ts",
@@ -307,8 +315,9 @@ describe("coutures avec F-004", () => {
     const contexte = contexteDe(lire(FICHIER_DES_JETONS), lire(FEUILLE_D_ENTREE));
 
     // 13 fichiers à F-003, 19 depuis F-028 (six fichiers du module d'édition, dont la relecture de
-    // la sélection du navigateur, F-028-AC30).
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(19);
+    // la sélection du navigateur, F-028-AC30), 22 depuis F-006 (déplacement d'un bloc, lâcher,
+    // poignée du curseur).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(22);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

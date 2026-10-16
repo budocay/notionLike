@@ -35,6 +35,8 @@ import {
   CorpsDePage,
   NoteDePage,
   PanneauDeLien,
+  PoigneeDeBloc,
+  PoigneeDuCurseur,
   ZoneDEdition,
   ZoneDeSaisie,
 } from "../interface/composants/Edition.tsx";
@@ -54,6 +56,7 @@ import {
   AVERTISSEMENT_BASE_NON_RELUE,
   AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
+  DEPLACER_LE_BLOC,
   EXPLICATION_PAGE_INTROUVABLE,
   EXPLICATION_VERSION_NON_PRISE_EN_CHARGE,
   FERMER_LA_BARRE_LATERALE,
@@ -458,6 +461,7 @@ function SectionEditeur(): ReactElement {
         </div>
       </Specimen>
       <SpecimenDuPanneauDeLien />
+      <SpecimenDesPoignees />
       <Specimen etiquette="Page d'une version plus récente">
         <div className={PAGE.fondZone}>
           <CorpsDePage>
@@ -489,6 +493,26 @@ function SpecimenDuPanneauDeLien(): ReactElement {
               surRetrait={sansEffet}
               surAbandon={sansEffet}
             />
+          </ZoneDEdition>
+        </CorpsDePage>
+      </div>
+    </Specimen>
+  );
+}
+
+// Poignées d'un bloc (F-006-AC14) : celle que l'éditeur place au survol, et celle du bloc du
+// curseur, à gauche de la colonne.
+function SpecimenDesPoignees(): ReactElement {
+  return (
+    <Specimen etiquette="Poignées de bloc : au survol, et au bloc du curseur">
+      <div className={PAGE.fondZone}>
+        <CorpsDePage>
+          <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+            <ZoneDeSaisie>
+              <p>Un bloc à déplacer.</p>
+            </ZoneDeSaisie>
+            <PoigneeDuCurseur nom={DEPLACER_LE_BLOC} haut={0} />
+            <PoigneeDeBloc nom={DEPLACER_LE_BLOC} />
           </ZoneDEdition>
         </CorpsDePage>
       </div>
