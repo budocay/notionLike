@@ -239,3 +239,39 @@
 - Tests: 44 tests du fichier touché verts — état: verts — preuve: agent-frontend ; suite complète au pre-push
 - Gates: aucun (trivial) · `gates-verts.sh main..HEAD` : OK
 - Mesures: aucune boucle · coût non mesuré
+
+## [2026-10-16] Correctif de verifier.sh : pre-push bloqué après des tests verts
+
+- TYPE: FIX
+- Tier: trivial
+- Scope: `.agents/checks/verifier.sh` (ligne 41) — agents: dev — commits: ee874f0
+- Détail: la substitution bash `${out//[[:space:]]/}` sur la sortie complète de la suite est quadratique (plus de 300 s mesurées pour 200 Ko) ; le pre-push restait bloqué après des tests verts, et GitHub fermait la connexion SSH. Remplacée par un `grep` linéaire, même comportement. `.agents/SOCLE.sha256` non mis à jour pour ce fichier (signalé en `[INFO]` par `test-blocage.sh`).
+- Dette: aucune
+- ADR: aucun
+- Tests: aucun ajouté — état: verts — preuve: pre-push de F-028
+- Gates: aucun (trivial)
+- Mesures: coût non mesuré
+
+## [2026-10-16] CI GitHub Actions et protection de main
+
+- TYPE: DEBT
+- Tier: structurel (infra), commité par le dev sans spec
+- Scope: `.github/workflows/ci.yml` ; réglages du dépôt GitHub — agents: agent-devops (conception, hors dépôt), dev, orchestrateur — commits: b8b73b9, PR #3, fusion f3cdaf9
+- Détail: quatre jobs requis sur `main` : `commits` (trailers, périmètre, secrets de chaque commit ; `main` n'avance que par merge commit), `controles` (`controles.sh <base>`), `typecheck` (`pnpm typecheck`, lint et format de tout l'arbre), `gates` (`gates-verts.sh`). Node 26.11.1, pnpm 12.10.1, actions épinglées par SHA, gitleaks et trivy vérifiés par sha256, semgrep en image épinglée. Ruleset `main` : PR obligatoire, merge commit seul, 4 checks requis, branche à jour, ni force push ni suppression, aucun contournement ; squash, rebase et auto-merge désactivés ; Actions sélectionnées, épinglage par SHA exigé, jeton en lecture. Hooks git gardés (règle 4) jusqu'à l'accord du dev.
+- Dette: résorbée D-001 ; D-007 couverte en CI (`typecheck`), toujours hors des hooks
+- ADR: aucun
+- Tests: CI verte sur la PR #3 et sur `main` après fusion
+- Gates: aucun gate LLM (fichiers protégés, commit du dev)
+- Mesures: coût non mesuré
+
+## [2026-10-16] F-028 Mise en forme dans le texte : gras, italique, liens
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/edition/` (marques, règle des adresses, lien, panneau, relecture de la sélection du navigateur), `packages/document` (version 2 du document de page), `apps/web/e2e/mise-en-forme.spec.ts` — agents: agent-veille, agent-frontend, orchestrateur ; liste blanche de `.dependency-cruiser.cjs` par le dev (d9e5a89) — commits: 4631119..ba5e77f
+- Détail: gras, italique et liens sans compte ni réseau ; règle des adresses unique en double barrière, lien réduit à `href`, lien refusé reçu neutralisé au rendu, aucun lien automatique, Mod+K selon H12, version élevée paresseusement. Le bout en bout a trouvé un vrai défaut : Chromium livre `selectionchange` dans une tâche séparée, un raccourci ou un collage rapide agissait sur une sélection périmée ; corrigé par la relecture de la sélection du navigateur avant chaque frappe et chaque collage.
+- Dette: introduite D-025 (reviewer-frontend non rejoué après deux séries de correctifs, dont la relecture de la sélection ; sécurité jugée sur la première empreinte ; architecture non lancée) ; laissées D-003, D-007
+- ADR: aucun (version 2 inscrite dans la table de F-003)
+- Tests: 3465 tests sur 167 fichiers — état: verts — preuve: checks.txt (empreinte `5df7774ce0c4`) ; AC30 en Chromium sous macOS : vert, puis 10 sur 10
+- Gates: sur `9b376ff9bc97` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (6 points, corrigés) ; sur `61c223f307ae` puis `5df7774ce0c4` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-025
+- Mesures: boucles 1 passage, 1 tour de correctifs, 1 correctif du bout en bout · constats confirmés 6, dont 2 règles de saisie fausses (AC3) et l'héritage d'un lien refusé (AC18) · coût non mesuré
