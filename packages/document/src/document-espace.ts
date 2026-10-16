@@ -27,16 +27,7 @@ import {
   type PlaceAdmise,
   retirerEntree,
 } from "./format.ts";
-import {
-  AUCUN_RANG_ADMIS,
-  BORNE_BASSE,
-  BORNE_HAUTE,
-  LONGUEUR_MAX_RANG,
-  type Rang,
-  rangEntre,
-  rangsCroissantsEntre,
-  rangsRepartis,
-} from "./rang.ts";
+import { AUCUN_RANG_ADMIS, insertionParmi, LONGUEUR_MAX_RANG, type Rang } from "./rang.ts";
 
 declare const crypto: { randomUUID(): string };
 // Le paquet compile sans DOM ni types Node ; `console` existe pourtant sous l'un comme sous l'autre.
@@ -350,9 +341,9 @@ function positionAdmise(position: number | undefined, nombreDeSoeurs: number): n
   return position;
 }
 
-// Entre deux sœurs de même rang, aucun rang n'existe : celles de ce rang qui suivent la position
-// sont réattribuées, jusqu'à la première sœur d'un rang supérieur (ADR-0002, « Rangs »). Si la
-// borne ne laisse aucun rang admis à la position, la réattribution s'élargit à la fratrie (F-029).
+// Calcul commun aux façades (`insertionParmi`, ADR-0002 « Rangs », F-029) : réattribution d'égalité,
+// puis réattribution élargie à la fratrie. Le refus `rang-indisponible` (F-029-AC10) vient après tous
+// les autres contrôles de l'opération.
 function insertionALaPosition(
   etat: EtatLu,
   soeurs: readonly PageLue[],
@@ -360,53 +351,21 @@ function insertionALaPosition(
   borne: number,
 ): Insertion {
   const rangs = soeurs.map((soeur) => exigerEntree(etat, soeur.id).rang);
-  const fin = finDesRangsEgauxAuPrecedent(rangs, position);
-  const haut = rangs[fin] ?? BORNE_HAUTE;
-  const rang = rangEntre(rangs[position - 1] ?? BORNE_BASSE, haut, borne);
-  if (rang !== AUCUN_RANG_ADMIS) {
-    const reattribuees = soeurs.slice(position, fin).map((soeur) => soeur.id);
-    const rangsReattribues = rangsCroissantsEntre(rang, haut, reattribuees, borne);
-    if (rangsReattribues !== AUCUN_RANG_ADMIS) {
-      return { rang, rangsReattribues };
-    }
-  }
-  return insertionElargie(soeurs, rangs, position, borne);
-}
-
-// Réattribution élargie (F-029-AC7) : toute la fratrie lue, page insérée comprise, reçoit des rangs
-// courts répartis dans l'ordre demandé. Seules les sœurs dont le rang change sont réécrites. Le refus
-// `rang-indisponible` (F-029-AC10) vient après tous les autres contrôles de l'opération.
-function insertionElargie(
-  soeurs: readonly PageLue[],
-  rangs: readonly Rang[],
-  position: number,
-  borne: number,
-): Insertion {
-  const repartis = rangsRepartis(soeurs.length + 1, borne);
-  const rang = repartis === AUCUN_RANG_ADMIS ? undefined : repartis[position];
-  if (repartis === AUCUN_RANG_ADMIS || rang === undefined) {
+  const insertion = insertionParmi(rangs, position, borne);
+  if (insertion === AUCUN_RANG_ADMIS) {
     throw new ErreurDocument(
       "rang-indisponible",
       `Aucun rang admis ne permet de placer la page en position ${position}.`,
     );
   }
   const rangsReattribues = new Map<IdPage, Rang>();
-  soeurs.forEach((soeur, indice) => {
-    const nouveau = repartis[indice < position ? indice : indice + 1];
-    if (nouveau !== undefined && nouveau !== rangs[indice]) {
-      rangsReattribues.set(soeur.id, nouveau);
+  insertion.reattribues.forEach((rang, indice) => {
+    const soeur = soeurs[indice];
+    if (soeur !== undefined) {
+      rangsReattribues.set(soeur.id, rang);
     }
   });
-  return { rang, rangsReattribues };
-}
-
-function finDesRangsEgauxAuPrecedent(rangs: readonly Rang[], position: number): number {
-  const precedent = rangs[position - 1];
-  let fin = position;
-  while (precedent !== undefined && rangs[fin] === precedent) {
-    fin += 1;
-  }
-  return fin;
+  return { rang: insertion.rang, rangsReattribues };
 }
 
 // La page coupée dont `id` descend dans l'arborescence lue : elle est la racine de sa lignée.

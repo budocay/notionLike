@@ -8,7 +8,17 @@ export type CodeErreurDocument =
   | "facade-fermee"
   | "version-invalide"
   | "rang-indisponible"
-  | "page-hors-corbeille";
+  | "page-hors-corbeille"
+  // F-017 : refus du document de table (ADR-0016).
+  | "pas-un-document-de-table"
+  | "type-de-colonne-inconnu"
+  | "nom-non-admis"
+  | "libelle-non-admis"
+  | "ligne-introuvable"
+  | "colonne-introuvable"
+  | "colonne-sans-options"
+  | "option-introuvable"
+  | "valeur-non-conforme";
 
 export class ErreurDocument extends Error {
   readonly code: CodeErreurDocument;
