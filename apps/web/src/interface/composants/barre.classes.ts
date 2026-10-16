@@ -13,4 +13,5 @@ export const BARRE = {
   liste: "flex flex-col gap-infime",
   pied: "filet-haut flex flex-none flex-col px-petit py-petit",
   message: "px-moyen py-petit text-petit text-texte-erreur",
+  annonce: "sr-only",
 } as const;

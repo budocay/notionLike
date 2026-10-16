@@ -181,6 +181,9 @@
 2026-10-16T08:34:01Z | reviewer-frontend | F-028 | DEROGATION D-025 | 5df7774ce0c4
 2026-10-16T08:34:01Z | agent-securite | F-028 | DEROGATION D-025 | 5df7774ce0c4
 2026-10-16T08:34:01Z | agent-architecte | F-028 | DEROGATION D-025 | 5df7774ce0c4
+2026-10-16T10:09:14Z | agent-craft | F-006 | CRAFT GATE: PASS | 8e8746a30214
+2026-10-16T10:10:39Z | agent-securite | F-006 | SECURITY GATE: PASS | 8e8746a30214
+2026-10-16T10:12:16Z | reviewer-frontend | F-006 | CHANGES_REQUESTED | 8e8746a30214
 2026-10-16T10:03:47Z | agent-craft | F-031 | CRAFT GATE: PASS | ebda9c44b1db
 2026-10-16T10:05:33Z | reviewer-backend | F-031 | CHANGES_REQUESTED | ebda9c44b1db
 2026-10-16T10:05:55Z | agent-securite | F-031 | SECURITY GATE: UNVERIFIED | ebda9c44b1db
@@ -203,3 +206,7 @@
 2026-10-16T12:16:53Z | reviewer-backend | F-031 | DEROGATION D-029 | 96dc1a9afe2b
 2026-10-16T12:16:53Z | agent-securite | F-031 | DEROGATION D-029 | 96dc1a9afe2b
 2026-10-16T12:16:53Z | agent-architecte | F-031 | DEROGATION D-029 | 96dc1a9afe2b
+2026-10-16T12:41:00Z | agent-craft | F-006 | CRAFT GATE: PASS | 35405d0fee2c
+2026-10-16T14:14:36Z | reviewer-frontend | F-006 | DEROGATION D-034 | 35405d0fee2c
+2026-10-16T14:14:36Z | agent-securite | F-006 | DEROGATION D-034 | 35405d0fee2c
+2026-10-16T14:14:36Z | agent-architecte | F-006 | DEROGATION D-034 | 35405d0fee2c

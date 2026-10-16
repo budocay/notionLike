@@ -181,6 +181,9 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "PanneauDeLien",
       "Partie",
       "Pictogramme",
+      // F-006 : poignées d'un bloc.
+      "PoigneeDeBloc",
+      "PoigneeDuCurseur",
       "Principale",
       "Raccourci",
       "Rangee",

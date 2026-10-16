@@ -18,7 +18,7 @@ import {
   titreEstVide,
 } from "./messages.ts";
 import { estUnClicAvecMod } from "./clic.ts";
-import { estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
+import { cleAria, estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
 
 /** Ce que l'adresse désigne, confronté à l'arborescence lue. */
 export type Selection =
@@ -35,6 +35,8 @@ interface Proprietes {
   readonly ref?: Ref<HTMLElement> | undefined;
   /** Vrai : l'espace est ouvert en lecture seule, l'éditeur n'est pas modifiable (F-013-AC25). */
   readonly lectureSeule?: boolean | undefined;
+  /** Faux sur écran étroit : les poignées de bloc ne sont pas rendues (F-006, hors périmètre). */
+  readonly poignees?: boolean | undefined;
 }
 
 const PAGE_REFUSEE = (
@@ -71,12 +73,27 @@ function ouvreLePanneauDeLien(frappe: Parameters<typeof estLaFrappe>[0]): boolea
   return estLaFrappe(frappe, RACCOURCIS.lien);
 }
 
+// Alt+Maj+Flèche haut ou bas dans la zone de saisie : le bloc du curseur monte ou descend
+// (F-006-AC18).
+function deplacementDuBloc(
+  frappe: Parameters<typeof estLaFrappe>[0],
+): "monter" | "descendre" | undefined {
+  if (estLaFrappe(frappe, RACCOURCIS.monterLeBloc)) {
+    return "monter";
+  }
+  return estLaFrappe(frappe, RACCOURCIS.descendreLeBloc) ? "descendre" : undefined;
+}
+
+const RACCOURCIS_DU_BLOC = [RACCOURCIS.monterLeBloc, RACCOURCIS.descendreLeBloc]
+  .map((combinaison) => cleAria(combinaison))
+  .join(" ");
+
 // Sous le titre, dans la même colonne : l'éditeur de la page, ou ce qui en tient lieu tant que son
 // document n'est pas relu ou que sa version n'est pas prise en charge (F-003-AC1, AC4, AC19).
 function corps(
   idPage: string,
   page: EtatSessionPage,
-  lectureSeule: boolean | undefined,
+  { lectureSeule, poignees }: Pick<Proprietes, "lectureSeule" | "poignees">,
 ): ReactElement | null {
   switch (page.phase) {
     case "introuvable":
@@ -95,6 +112,9 @@ function corps(
           meneALaBarre={meneALaBarreDeBlocs}
           ouvreLePanneauDeLien={ouvreLePanneauDeLien}
           ouvreLAdresse={estUnClicAvecMod}
+          deplacementDuBloc={deplacementDuBloc}
+          raccourcisDuBloc={RACCOURCIS_DU_BLOC}
+          poignees={poignees}
           lectureSeule={lectureSeule}
         />
       );
@@ -104,9 +124,7 @@ function corps(
 export function ZonePrincipale(props: Proprietes): ReactElement {
   const { selection, page } = props;
   const contenu =
-    selection.type === "page" && page !== undefined
-      ? corps(selection.page.id, page, props.lectureSeule)
-      : null;
+    selection.type === "page" && page !== undefined ? corps(selection.page.id, page, props) : null;
   return (
     <Principale ref={props.ref}>
       {entete(props)}

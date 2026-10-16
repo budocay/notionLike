@@ -275,7 +275,8 @@ describe("accessibilité des commandes de mise en forme", () => {
     const selectionAvant = window.getSelection()?.toString();
 
     act(() => void zoneDeSaisie().dispatchEvent(altF10()));
-    await utilisateur.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    // F-006 : Descendre le bloc et Monter le bloc suivent Lien, en dernier.
+    await utilisateur.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}");
     const atteinte = document.activeElement;
     await utilisateur.keyboard("{Enter}");
 
