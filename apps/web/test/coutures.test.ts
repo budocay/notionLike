@@ -929,7 +929,11 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       expect(texte, chemin).not.toMatch(
         /\.(getMap|getArray|getText|getXmlFragment|getXmlElement|transact)\(/,
       );
-      expect(texte, chemin).not.toContain("deplacerPage");
+      // F-006 : `deplacerPage` a un seul appelant d'écran, l'action de la barre, par l'opération que
+      // la session expose ; leur couture est éprouvée par F-006-AC30.
+      expect(texte.includes("deplacerPage"), chemin).toBe(
+        ["apps/web/src/interface/Application.tsx", SESSION].includes(chemin),
+      );
       expect(importeLePaquet(texte, "y-indexeddb"), chemin).toBe(
         chemin === "apps/web/src/persistance/indexeddb.ts",
       );

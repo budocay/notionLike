@@ -23,16 +23,19 @@ interface Proprietes {
 
 const PAS_DES_FLECHES: Readonly<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 };
 
-// Flèche bas et Flèche haut parcourent les entrées, en boucle ; Entrée et Espace sont ceux d'un
-// bouton natif. Quand le focus est sur le menu lui-même (clic sur son bord), Flèche bas mène à la
-// première entrée et Flèche haut à la dernière.
+// Flèche bas et Flèche haut parcourent les entrées disponibles, en boucle ; une entrée désactivée ne
+// prend pas le focus, elle est sautée (F-006-AC11). Entrée et Espace sont ceux d'un bouton natif.
+// Quand le focus est sur le menu lui-même (clic sur son bord), Flèche bas mène à la première entrée
+// et Flèche haut à la dernière.
 function surFleche(evenement: KeyboardEvent<HTMLDivElement>): void {
   const pas = PAS_DES_FLECHES[evenement.key];
   if (pas === undefined) {
     return;
   }
   evenement.preventDefault();
-  const entrees = [...evenement.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+  const entrees = [
+    ...evenement.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)'),
+  ];
   const rang = entrees.findIndex((entree) => entree === evenement.target);
   const depart = rang === -1 && pas < 0 ? 0 : rang;
   entrees[(depart + pas + entrees.length) % entrees.length]?.focus();

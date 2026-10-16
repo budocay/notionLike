@@ -6,6 +6,16 @@ const LIGNE =
 export const RANGEE = {
   element: "list-none px-petit",
   sousPage: "depliage list-none px-petit",
+  // Rangée glissée (F-006) : au-dessus des autres, elle suit le geste par `transform`.
+  elementGlisse: "relative plan-menu list-none px-petit",
+  sousPageGlissee: "depliage relative plan-menu list-none px-petit",
+  // Repères de dépôt (F-006-AC1, AC28) : un trait avant ou après la rangée, un contour en tirets
+  // pour « dans ».
+  depotAvant:
+    "pointer-events-none absolute inset-x-nul top-nul h-repere rounded-full bg-repere-focus",
+  depotApres:
+    "pointer-events-none absolute inset-x-nul bottom-nul h-repere rounded-full bg-repere-focus",
+  depotDans: "contour-de-depot pointer-events-none absolute inset-nul rounded-moyen",
   repos: `${LIGNE} text-texte-secondaire hover:bg-surface-survol hover:text-texte-principal`,
   courante: `${LIGNE} bg-surface-active font-moyen text-texte-principal`,
   repere:

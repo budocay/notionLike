@@ -161,6 +161,13 @@
   position: relative;
 }
 
+/* Repère de dépôt « dans » une rangée (F-006-AC28) : un contour en tirets, qui ne repose pas sur la
+   couleur seule et ne se confond pas avec le contour de focus, plein. */
+@utility contour-de-depot {
+  outline: var(--epaisseur-contour) dashed var(--color-repere-focus);
+  outline-offset: calc(var(--epaisseur-contour) * -1);
+}
+
 @utility chevron {
   transition: transform var(--duree-rapide) var(--ease-sortie);
 }

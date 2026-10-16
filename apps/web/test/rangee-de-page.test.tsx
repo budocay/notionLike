@@ -9,8 +9,10 @@ import {
   boutonDuMenu,
   type CoquilleRendue,
   creerPageNommee,
+  descriptionDeLaPlace,
   ENTREES_DU_MENU,
   etatEncode,
+  INSTRUCTIONS_DU_GLISSER,
   nomAjouterSousPage,
   nomDuMenu,
   nomDuRepli,
@@ -98,7 +100,8 @@ describe("rangée : titre et actions", () => {
     const infobulle = rangeeDe(TITRE_DE_200).querySelector('[data-infobulle="titre"]');
     expect(infobulle?.textContent).toBe(TITRE_DE_200);
     expect(infobulle?.getAttribute("aria-hidden")).toBe("true");
-    expect(long.getAttribute("aria-describedby")).toBeNull();
+    // F-006 : le lien est décrit par les seules instructions du geste, jamais par l'infobulle.
+    expect(descriptionDeLaPlace(long)).toBeNull();
     await utilisateur.unhover(long);
     expect(barre().querySelector('[data-infobulle="titre"]')).toBeNull();
 
@@ -217,24 +220,39 @@ describe("menu « ⋯ »", () => {
     expect(screen.getAllByRole("menu")).toHaveLength(1);
   });
 
-  it("F-004-AC26 Flèche bas et Flèche haut parcourent les entrées, en boucle", async () => {
+  // F-006 : les entrées désactivées, sans destination pour la page, sont sautées (F-006-AC11) ;
+  // « Carnet », première racine, ne peut que descendre.
+  it("F-004-AC26 F-006-AC11 Flèche bas et Flèche haut parcourent les entrées disponibles, en boucle", async () => {
     const coquille = await ouvrirTroisNiveaux();
     const entrees = within(await ouvrirLeMenu(coquille, "Carnet")).getAllByRole("menuitem");
     const parcours: (string | null | undefined)[] = [];
 
-    for (const touche of ["ArrowDown", "ArrowDown", "ArrowDown", "ArrowUp", "ArrowUp"]) {
+    for (const touche of [
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowUp",
+      "ArrowUp",
+    ]) {
       await coquille.utilisateur.keyboard(`{${touche}}`);
       parcours.push(document.activeElement?.firstChild?.textContent);
     }
 
     expect(parcours).toEqual([
-      ENTREES_DU_MENU[1],
-      ENTREES_DU_MENU[2],
-      ENTREES_DU_MENU[0],
-      ENTREES_DU_MENU[2],
-      ENTREES_DU_MENU[1],
+      "Ajouter une sous-page",
+      "Mettre à la corbeille",
+      "Descendre",
+      "Renommer",
+      "Descendre",
+      "Mettre à la corbeille",
     ]);
-    expect(entrees).toHaveLength(3);
+    expect(entrees).toHaveLength(ENTREES_DU_MENU.length);
+    expect(
+      entrees
+        .filter((entree) => entree.hasAttribute("disabled"))
+        .map((e) => e.firstChild?.textContent),
+    ).toEqual(["Monter", "Mettre sous la page précédente", "Sortir d'un niveau"]);
   });
 
   it("F-004-AC26 Échap ferme le menu sans effet et rend le focus au bouton « ⋯ »", async () => {
@@ -273,7 +291,8 @@ describe("menu « ⋯ »", () => {
     expect(document.activeElement).toBe(menu);
     expect(screen.getByRole("menu")).toBe(menu);
     await coquille.utilisateur.keyboard("{ArrowUp}");
-    expect(document.activeElement).toBe(entrees[2]);
+    // F-006 : la dernière entrée disponible ; « Sortir d'un niveau » ne l'est pas à la racine.
+    expect(document.activeElement).toBe(entrees[ENTREES_DU_MENU.indexOf("Descendre")]);
 
     await coquille.utilisateur.click(menu);
     await coquille.utilisateur.keyboard("{ArrowDown}");
@@ -578,7 +597,18 @@ describe("tête, pied et raccourcis", () => {
   });
 
   it("F-004-AC31 F-003-AC42 la déclaration des raccourcis ne porte que F2 et, depuis F-003, Alt+F10 ; F2 agit dans sa portée et s'affiche dans un kbd à côté de « Renommer », exposé par aria-keyshortcuts sans entrer dans le nom", async () => {
-    expect(Object.keys(RACCOURCIS)).toEqual(["renommer", "barreDeBlocs", "lien"]);
+    // F-006-AC10, AC18 : les déplacements d'une page et d'un bloc.
+    expect(Object.keys(RACCOURCIS)).toEqual([
+      "renommer",
+      "barreDeBlocs",
+      "lien",
+      "monterLaPage",
+      "descendreLaPage",
+      "mettreSousLaPagePrecedente",
+      "sortirDUnNiveau",
+      "monterLeBloc",
+      "descendreLeBloc",
+    ]);
     expect(RACCOURCIS.barreDeBlocs).toEqual({ touche: "F10", modificateurs: ["Alt"] });
     // F-028-AC6 : Mod+K, ouvert sur une sélection ou dans un lien.
     expect(RACCOURCIS.lien).toEqual({ touche: "k", modificateurs: ["Mod"] });
@@ -592,12 +622,13 @@ describe("tête, pied et raccourcis", () => {
     const touches = renommer.querySelector("kbd");
     expect(touches?.textContent).toBe("F2");
     expect(touches?.getAttribute("aria-hidden")).toBe("true");
-    for (const libelle of ENTREES_DU_MENU.slice(1)) {
+    for (const libelle of ENTREES_DU_MENU.slice(1, 3)) {
       const entree = within(menu).getByRole("menuitem", { name: libelle });
       expect(entree.querySelector("kbd")).toBeNull();
       expect(entree.hasAttribute("aria-keyshortcuts")).toBe(false);
     }
-    expect(barre().querySelectorAll("kbd kbd")).toHaveLength(1);
+    // F-006 : une touche pour Renommer, trois pour chacune des quatre commandes de déplacement.
+    expect(barre().querySelectorAll("kbd kbd")).toHaveLength(1 + 3 * 4);
 
     await coquille.utilisateur.keyboard("{F2}");
     expect(screen.queryByRole("menu")).toBeNull();
@@ -757,9 +788,9 @@ describe("raccourcis : une seule source", () => {
 });
 
 describe("arbre : hiérarchie décrite, repli au nom stable, titre cité", () => {
+  // F-006 : les instructions du geste sont jointes à la description du lien, et en sont exclues.
   function description(titre: string): string | null {
-    const cible = lien(titre).getAttribute("aria-describedby");
-    return cible === null ? null : (document.getElementById(cible)?.textContent ?? null);
+    return descriptionDeLaPlace(lien(titre));
   }
 
   it("F-004-AC55 le lien d'une rangée de niveau 2 ou plus est décrit « Niveau N, sous-page de « P » », celui d'une racine ne l'est pas ; la liste reste plate, sans rôle d'arbre", async () => {
@@ -772,10 +803,12 @@ describe("arbre : hiérarchie décrite, repli au nom stable, titre cité", () =>
     expect(
       within(barre()).getByRole("link", {
         name: "Lundi",
-        description: "Niveau 3, sous-page de « Semaine »",
+        description: `Niveau 3, sous-page de « Semaine » ${INSTRUCTIONS_DU_GLISSER}`,
       }),
     ).toBe(lien("Lundi"));
-    expect(within(barre()).getByRole("link", { name: "Carnet", description: "" })).toBeDefined();
+    expect(
+      within(barre()).getByRole("link", { name: "Carnet", description: INSTRUCTIONS_DU_GLISSER }),
+    ).toBeDefined();
     expect(barre().querySelector('[role="tree"], [role="treeitem"], [role="group"]')).toBeNull();
     expect(barre().querySelectorAll("ul")).toHaveLength(1);
     expect(barre().querySelectorAll("li li")).toHaveLength(0);

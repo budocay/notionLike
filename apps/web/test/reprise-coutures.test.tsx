@@ -426,6 +426,8 @@ describe("chaque appelant de production traite la reprise", () => {
       operations: {
         creerPage: vi.fn(),
         renommerPage: vi.fn(),
+        // F-006 : déplacement d'une page.
+        deplacerPage: vi.fn(),
         mettreALaCorbeille: vi.fn(),
         // F-007 : opérations de la corbeille.
         restaurerPage: vi.fn(),

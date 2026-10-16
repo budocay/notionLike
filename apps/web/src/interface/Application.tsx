@@ -1,6 +1,7 @@
 import {
   type Arborescence,
   type CodeErreurDocument,
+  type Emplacement,
   ErreurDocument,
   type IdPage,
   type PageLue,
@@ -33,6 +34,7 @@ import {
   type OperationsDeLaCorbeille,
 } from "./EcranDeLaCorbeille.tsx";
 import { EcranDuCompte } from "./EcranDuCompte.tsx";
+import { placeApres } from "./destination-de-page.ts";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
 import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
@@ -45,6 +47,7 @@ import {
   MODIFICATIONS_NON_ENREGISTREES_PERDUES,
   NOM_DU_TIROIR,
   OUVRIR_LA_BARRE_LATERALE,
+  pageDeplacee,
   TITRE_CONTEXTE_NON_SECURISE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
   titreAffiche,
@@ -369,6 +372,7 @@ function barreLateraleDe(
       ecran={barre.ecran}
       actions={barre.actions}
       erreur={barre.erreur}
+      annonce={barre.annonce}
       boutonNouvellePage={barre.boutonNouvellePage}
       fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
       synchronisation={synchronisation}
@@ -476,6 +480,8 @@ interface Barre {
   readonly ecran: EcranBarre;
   readonly actions: ActionsBarre;
   readonly erreur: string | undefined;
+  /** Dernière annonce d'un déplacement au clavier (F-006-AC12). */
+  readonly annonce: string;
   readonly boutonNouvellePage: RefObject<HTMLButtonElement | null>;
 }
 
@@ -485,6 +491,9 @@ interface Moyens {
   readonly setSaisie: (saisie: Saisie) => void;
   readonly setErreur: (erreur: string | undefined) => void;
   readonly deplier: (pages: readonly IdPage[]) => void;
+  /** Arborescence lue au rendu : celle où un déplacement est calculé et annoncé. */
+  readonly racines: readonly PageLue[];
+  readonly setAnnonce: (annonce: string) => void;
 }
 
 // État d'écran de la barre : pages repliées, saisie ouverte, dernier refus. Le menu ouvert, le
@@ -500,12 +509,15 @@ function useBarreLaterale(
   const repli = useRepli(etat.arborescence.racines, idPageDesignee);
   const [saisie, setSaisie] = useState<Saisie>(undefined);
   const [erreur, setErreur] = useState<string | undefined>(undefined);
+  const [annonce, setAnnonce] = useState("");
   const boutonNouvellePage = useRef<HTMLButtonElement>(null);
   const moyens: Moyens = {
     operations: etat.operations,
     setSaisie,
     setErreur,
     deplier: repli.deplier,
+    racines: etat.arborescence.racines,
+    setAnnonce,
   };
 
   const actions = actionsDeLaBarre(moyens, {
@@ -520,6 +532,7 @@ function useBarreLaterale(
     ecran: { idPageCourante, repliees: repli.repliees, saisie, lectureSeule },
     actions,
     erreur,
+    annonce,
     boutonNouvellePage,
   };
 }
@@ -561,8 +574,41 @@ function actionsDeLaBarre(
         contexte.boutonNouvellePage.current?.focus();
       }
     },
+    deplacer: (idPage, ou, auClavier) => ecrit && deplacerLaPage(moyens, idPage, ou, auClavier),
     basculerRepli: contexte.basculerRepli,
   };
+}
+
+/**
+ * Le seul appel de `deplacerPage` d'apps/web (F-006-AC30) : un geste lâché ou une commande au
+ * clavier. Un refus typé est dit comme tout refus de la barre (F-002-AC15) ; un succès déplie la
+ * nouvelle mère, sans toucher au repli des autres pages, ni à la page sélectionnée
+ * ni à l'adresse (F-006-AC3, AC9). Au clavier, la nouvelle place est annoncée (F-006-AC12).
+ */
+function deplacerLaPage(
+  moyens: Moyens,
+  idPage: IdPage,
+  ou: Emplacement,
+  auClavier: boolean,
+): boolean {
+  const place = placeApres(moyens.racines, idPage, ou);
+  const { refus } = essayer(() => moyens.operations.deplacerPage(idPage, ou));
+  if (refus !== undefined) {
+    moyens.setErreur(messageErreur(refus));
+    return false;
+  }
+  moyens.setErreur(undefined);
+  // Les ancêtres de la nouvelle mère sont déjà dépliés : elle était visible, cible du geste, sœur
+  // précédente ou mère de la mère de la page déplacée.
+  if (ou.parent !== null) {
+    moyens.deplier([ou.parent]);
+  }
+  const page = trouverPage(moyens.racines, idPage);
+  if (auClavier && place !== undefined && page !== undefined) {
+    const mere = place.parent === undefined ? undefined : titreAffiche(place.parent.titre);
+    moyens.setAnnonce(pageDeplacee(titreAffiche(page.titre), mere, place.rang, place.total));
+  }
+  return true;
 }
 
 function creerPage(moyens: Moyens, parent: IdPage | null): void {
