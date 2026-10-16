@@ -816,7 +816,7 @@ describe("codes d'erreur du document", () => {
     expect(message).not.toContain("fermee");
   });
 
-  it("F-002-AC15 F-003-AC24 F-029-AC16 chaque code d'erreur du document, les sept de F-002, version-invalide et rang-indisponible, a un message français distinct, sans code ni identifiant", () => {
+  it("F-002-AC15 F-003-AC24 F-029-AC16 F-017-AC25 chaque code d'erreur du document, les dix-neuf (sept de F-002, version-invalide, rang-indisponible, page-hors-corbeille et neuf de la table), a un message français distinct, sans code ni identifiant", () => {
     // F-007 : dix codes, page-hors-corbeille compris ; F-017 : dix-neuf, avec les neuf de la table.
     expect(CODES_DU_DOCUMENT).toHaveLength(19);
     const messages = CODES_DU_DOCUMENT.map((code) => {

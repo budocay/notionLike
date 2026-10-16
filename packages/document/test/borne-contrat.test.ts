@@ -129,7 +129,7 @@ describe("contrat public", () => {
     expect(texteDe("../src/index.ts")).not.toMatch(/rang|LONGUEUR|Borne|format\.ts/);
   });
 
-  it("F-029-AC15 le seul ajout au contrat est le code rang-indisponible, porté par ErreurDocument", () => {
+  it("F-029-AC15 F-017-AC25 rang-indisponible est porté par ErreurDocument, et l'union des codes est celle de F-001, F-003, F-029, F-007 et F-017, dans cet ordre", () => {
     const code: CodeErreurDocument = "rang-indisponible";
     const erreur = new ErreurDocument(code, "Aucun rang admis.");
 

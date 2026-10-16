@@ -85,13 +85,16 @@ function ecrivainsDePlace(textes: Textes): string[] {
   );
 }
 
-/** (c) Les modules de src/ qui lisent un type racine du `Y.Doc` ou en citent le nom en chaîne. */
+/**
+ * (c) Les modules de src/ qui lisent un type racine du `Y.Doc` ou en citent le nom en chaîne ;
+ * `getMap` est vu avec ou sans argument de type, imbriqué compris (F-017).
+ */
 function lecteursDesTypesRacines(textes: Textes): string[] {
   return filtrer(
     textes,
     (chemin, texte) =>
       /^(apps|packages)\/[^/]+\/src\//.test(chemin) &&
-      (/\bgetMap\s*\(/.test(texte) || /["'`](meta|pages)["'`]/.test(texte)),
+      (/\bgetMap\s*(<[^>]*>+)?\s*\(/.test(texte) || /["'`](meta|pages)["'`]/.test(texte)),
   );
 }
 
@@ -134,6 +137,8 @@ const ECRIVAINS_DE_PLACE: Readonly<Record<string, string>> = {
 };
 const LECTEURS_DES_TYPES_RACINES: Readonly<Record<string, string>> = {
   [FORMAT]: "packages/document/test/borne-lecture.test.ts",
+  // F-017 : le format de table lit ses propres types racine (`colonnes`, `lignes`) et y lit les rangs.
+  [FORMAT_TABLE]: TEST_DU_RANG_DE_TABLE,
   // F-012 : lecture de la clé de version et publication des versions admises (F-012-AC29).
   "apps/server/src/synchro-stockage.ts": "apps/server/test/synchro-document.test.ts",
   "packages/contrats/src/synchro.ts": "apps/server/test/synchro-document.test.ts",
@@ -190,6 +195,16 @@ describe("énumérations de F-029 sur des cas fautifs", () => {
       `doc.getMap("${NOMS_DU_FORMAT.pages}");\n`,
     ],
     [
+      "un lecteur de types racines à argument de type",
+      lecteursDesTypesRacines,
+      `doc.getMap<unknown>("${NOMS_DU_FORMAT.pages}");\n`,
+    ],
+    [
+      "un lecteur de types racines à argument de type imbriqué",
+      lecteursDesTypesRacines,
+      `doc.getMap <Y.Map<unknown>> ("${NOMS_DU_FORMAT.pages}");\n`,
+    ],
+    [
       "un nom de type racine cité",
       lecteursDesTypesRacines,
       `const TYPE = '${NOMS_DU_FORMAT.meta}';\n`,
@@ -235,7 +250,7 @@ describe("coutures du rang borné dans le workspace", () => {
     ["(a) appelants du calcul et du contrôle d'un rang", appelantsDuRang, APPELANTS_DU_RANG],
     ["(b) points d'écriture de place et leurs appelants", ecrivainsDePlace, ECRIVAINS_DE_PLACE],
     [
-      "(c) lecteurs des types racines meta et pages",
+      "(c) lecteurs des types racines (meta et pages, colonnes et lignes de la table)",
       lecteursDesTypesRacines,
       LECTEURS_DES_TYPES_RACINES,
     ],

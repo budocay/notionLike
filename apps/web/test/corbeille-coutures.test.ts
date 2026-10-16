@@ -98,7 +98,7 @@ describe("modules qui importent le document", () => {
     expect(atteints.has("src/inexistant.ts")).toBe(false);
   });
 
-  it("F-007-AC24 le traducteur donne un message français distinct, sans code, pour chacun des dix codes, page-hors-corbeille compris", () => {
+  it("F-007-AC24 F-017-AC25 le traducteur donne un message français distinct, sans code, pour chacun des dix-neuf codes, page-hors-corbeille et les neuf de la table compris", () => {
     // F-017 : dix-neuf, avec les neuf de la table.
     expect(CODES).toHaveLength(19);
     const messages = CODES.map((code) => {

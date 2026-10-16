@@ -37,6 +37,18 @@ function compteur(table: DocumentTable): { readonly valeur: () => number; arrete
   return { valeur: () => notifications, arreter };
 }
 
+/** La table lue par une façade ouverte puis fermée pour l'occasion, ou le code du refus. */
+function lectureNeuve(doc: Y.Doc): string {
+  const neuve = ouvrirDocumentTable(doc);
+  try {
+    return JSON.stringify(neuve.lire());
+  } catch (erreur) {
+    return erreur instanceof ErreurDocument ? erreur.code : "autre";
+  } finally {
+    neuve.fermer();
+  }
+}
+
 describe("notifications", () => {
   it("F-017-AC9 chaque opération locale qui change la table notifie chaque abonné une fois", () => {
     const table = creerDocumentTable();
@@ -200,10 +212,11 @@ describe("notifications", () => {
           let notifications = 0;
           ici.table.abonner(() => (notifications += 1));
           let attendues = 0;
+          // Oracle indépendant de la façade abonnée : une lecture neuve du même Y.Doc à chaque pas.
           const pas = (action: () => void): void => {
-            const avant = JSON.stringify(ici.table.lire());
+            const avant = lectureNeuve(ici.table.doc);
             action();
-            attendues += JSON.stringify(ici.table.lire()) === avant ? 0 : 1;
+            attendues += lectureNeuve(ici.table.doc) === avant ? 0 : 1;
             expect(notifications).toBe(attendues);
           };
 
