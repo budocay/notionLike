@@ -207,6 +207,7 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
         selection={selection}
         page={etatDeLaPage}
         lectureSeule={synchronisation.lectureSeule}
+        etroit={tiroir.etroit}
       />
     </Coquille>
   );
@@ -286,6 +287,8 @@ function ZoneAffichee(props: {
   readonly selection: Selection;
   readonly page: ReturnType<typeof usePageOuverte>;
   readonly lectureSeule: string | undefined;
+  /** Écran étroit : pas de poignée de bloc, le geste à la souris est celui d'un écran large. */
+  readonly etroit: boolean;
 }): ReactElement {
   const { zone, etat, compte, navigation } = props;
   if (compte !== undefined && navigation.ecran !== undefined) {
@@ -313,6 +316,7 @@ function ZoneAffichee(props: {
       espaceVide={etat.arborescence.racines.length === 0}
       page={props.page}
       lectureSeule={props.lectureSeule !== undefined}
+      poignees={!props.etroit}
     />
   );
 }

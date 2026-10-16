@@ -9,6 +9,8 @@ import * as Y from "yjs";
 import { lireVersionPage, TABLE_DES_VERSIONS_PAGE } from "@notionlike/document";
 
 import { contenuLu, fragmentBrut, inventaireDuContenu } from "../aides-facade-page.ts";
+import { simulerLaLargeur } from "../aides-largeur.ts";
+import { ouvrirUnePage } from "../aides-page.tsx";
 import {
   annuler,
   barreDeBlocs,
@@ -441,4 +443,22 @@ describe("réseau coupé", () => {
     expect(textesDesBlocs()).toEqual(["two", "one", "three"]);
     expect(appels).toEqual([]);
   });
+});
+
+describe("poignée selon la largeur", () => {
+  it.each([
+    ["large", 1280, 1],
+    ["étroit", 360, 0],
+  ])(
+    "F-006-AC14 sur écran %s (%s pixels), l'application rend %s poignée au bloc du curseur : sur écran étroit, hors périmètre du geste, le bloc se déplace par la barre et le clavier",
+    async (_cas, largeur, attendues) => {
+      simulerLaLargeur(largeur);
+      await ouvrirUnePage("Poignées");
+      entrerDansLEditeur();
+      taper("un bloc");
+
+      expect(screen.queryAllByRole("button", { name: "Déplacer le bloc" })).toHaveLength(attendues);
+      expect(document.querySelectorAll("[data-poignee-de-bloc]")).toHaveLength(attendues);
+    },
+  );
 });

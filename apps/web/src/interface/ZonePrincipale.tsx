@@ -35,6 +35,8 @@ interface Proprietes {
   readonly ref?: Ref<HTMLElement> | undefined;
   /** Vrai : l'espace est ouvert en lecture seule, l'éditeur n'est pas modifiable (F-013-AC25). */
   readonly lectureSeule?: boolean | undefined;
+  /** Faux sur écran étroit : les poignées de bloc ne sont pas rendues (F-006, hors périmètre). */
+  readonly poignees?: boolean | undefined;
 }
 
 const PAGE_REFUSEE = (
@@ -91,7 +93,7 @@ const RACCOURCIS_DU_BLOC = [RACCOURCIS.monterLeBloc, RACCOURCIS.descendreLeBloc]
 function corps(
   idPage: string,
   page: EtatSessionPage,
-  lectureSeule: boolean | undefined,
+  { lectureSeule, poignees }: Pick<Proprietes, "lectureSeule" | "poignees">,
 ): ReactElement | null {
   switch (page.phase) {
     case "introuvable":
@@ -112,6 +114,7 @@ function corps(
           ouvreLAdresse={estUnClicAvecMod}
           deplacementDuBloc={deplacementDuBloc}
           raccourcisDuBloc={RACCOURCIS_DU_BLOC}
+          poignees={poignees}
           lectureSeule={lectureSeule}
         />
       );
@@ -121,9 +124,7 @@ function corps(
 export function ZonePrincipale(props: Proprietes): ReactElement {
   const { selection, page } = props;
   const contenu =
-    selection.type === "page" && page !== undefined
-      ? corps(selection.page.id, page, props.lectureSeule)
-      : null;
+    selection.type === "page" && page !== undefined ? corps(selection.page.id, page, props) : null;
   return (
     <Principale ref={props.ref}>
       {entete(props)}

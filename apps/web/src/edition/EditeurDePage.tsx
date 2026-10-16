@@ -76,6 +76,11 @@ export interface ProprietesEditeurDePage {
   /** Les raccourcis de déplacement d'un bloc, pour `aria-keyshortcuts` de sa poignée. */
   readonly raccourcisDuBloc?: string | undefined;
   /**
+   * Faux : aucune poignée de bloc n'est rendue (écran étroit, où le geste à la souris n'est pas
+   * offert) ; le bloc se déplace par la barre de blocs et le clavier. Vrai par défaut.
+   */
+  readonly poignees?: boolean | undefined;
+  /**
    * Vrai : l'espace est ouvert en lecture seule (F-013-AC25) ; ni frappe, ni collage, ni commande
    * de la barre de blocs, ni annulation.
    */
@@ -112,7 +117,7 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
         <EditorContent editor={editeur} />
       </ZoneDeSaisie>
       <Poignees
-        editeur={lectureSeule ? null : editeur}
+        editeur={avecPoignees(props, lectureSeule) ? editeur : null}
         poignee={poignee}
         raccourcis={props.raccourcisDuBloc}
       />
@@ -177,6 +182,11 @@ function proprietesDuPanneau(lien: EtatDuLien, panneau: EtatDuPanneau, barre: Ba
     adresseAOuvrir: lien.ouvrable,
     retirable: lien.retirable,
   } as const;
+}
+
+/** Ni en lecture seule, ni sur écran étroit (F-006, hors périmètre). */
+function avecPoignees(props: ProprietesEditeurDePage, lectureSeule: boolean): boolean {
+  return !lectureSeule && props.poignees !== false;
 }
 
 /**
