@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Script de fumée : constats 1 à 10 de l'ADR-0006 (F-008-AC19 pour les constats 1 à 8, F-008-AC21
-# pour le 9, F-008-AC20 pour le 10), puis ceux de la commande de la pile (F-031-AC26) : 11 démarrage
-# par `pile.sh demarrer` sans volume, 12 second démarrage, 13 inscription selon l'origine, 14 arrêt
-# qui garde le volume, 15 mot de passe désaccordé puis remis en accord, 16 port du serveur déjà pris ;
-# 17 nettoyage, en dernier, et pile de travail intacte (F-031-AC27).
+# pour le 9, F-008-AC20 pour le 10), puis ceux de la commande de la pile (F-031-AC26) : 11 configuration
+# refusée sans volume créé, puis démarrage par `pile.sh demarrer` sans volume, 12 second démarrage,
+# 13 inscription selon l'origine, 14 arrêt qui garde le volume, 15 mot de passe désaccordé puis remis
+# en accord, 16 port du serveur déjà pris ; 17 nettoyage, en dernier, et pile de travail intacte
+# (F-031-AC27).
 #
 # Lancé par le dev, Docker démarré, depuis n'importe quel dossier du dépôt : pnpm -w fumee
 # Prérequis : Docker avec Compose 2.24.0 ou plus récent, curl, trivy, node, et le fichier
@@ -20,7 +21,15 @@ RACINE="$(cd "$(dirname "$0")/.." && pwd)"
 PROJET="notionlike-fumee"
 export PORT_PUBLIE_BASE=55432
 export PORT_PUBLIE_SERVEUR=53000
-POSTGRES_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+# Mot de passe de 32 caractères tirés de A-Z a-z 0-9 : la recherche de ses segments de 4 caractères
+# dans le journal de la base (constat 15) ne bute pas sur des segments hexadécimaux du journal.
+tirer_un_mot_de_passe() {
+  local alea
+  alea="$(head -c 1024 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9')"
+  [ "${#alea}" -ge 32 ] || { printf 'ECHEC : le générateur aléatoire du poste n a pas répondu\n' >&2; exit 1; }
+  printf '%s' "${alea:0:32}"
+}
+POSTGRES_PASSWORD="$(tirer_un_mot_de_passe)"
 export POSTGRES_PASSWORD
 
 VERSION_ATTENDUE="PostgreSQL 18.6 "
@@ -37,6 +46,7 @@ VOLUME_DE_FUMEE="${PROJET}_donnees-base"
 # (mode 600) et une surcharge qui impose au serveur les origines qu'écrit `pile.sh preparer`.
 ENV_DE_FUMEE="$TEMPORAIRE/infra.env"
 SURCHARGE_DES_ORIGINES="$TEMPORAIRE/origines.yml"
+SURCHARGE_REFUSEE="$TEMPORAIRE/refusee.yml"
 ORIGINE_DU_CLIENT="http://127.0.0.1:5173"
 ORIGINE_REFUSEE="http://localhost:5173"
 ROUTE_D_INSCRIPTION="/api/auth/sign-up/email"
@@ -299,6 +309,24 @@ ecrire_l_env_de_fumee
 constat 11 "pile.sh demarrer sans volume préexistant finit en code 0 et GET /pret répond 200"
 compose down -v --remove-orphans
 if docker volume inspect "$VOLUME_DE_FUMEE" >/dev/null 2>&1; then echec "volume $VOLUME_DE_FUMEE encore présent"; fi
+# F-031-AC8 sur la pile réelle : une configuration refusée par la vérification ne crée pas le volume.
+cat >"$SURCHARGE_REFUSEE" <<SURCHARGE
+services:
+  serveur:
+    environment:
+      URL_PUBLIQUE: "$ORIGINE_DU_CLIENT"
+      ORIGINES_AUTORISEES: "$ORIGINE_DU_CLIENT"
+      BETTER_AUTH_SECRET: "trop-court"
+SURCHARGE
+if PILE_PROJET="$PROJET" PILE_ENV_INFRA="$ENV_DE_FUMEE" PILE_SURCHARGE="$SURCHARGE_REFUSEE" \
+  bash "$RACINE/infra/pile.sh" demarrer 2>"$TEMPORAIRE/refus"; then
+  echec "pile.sh demarrer a fini en code 0 avec une configuration refusée"
+fi
+grep "^Configuration invalide : " "$TEMPORAIRE/refus" || echec "le refus de la configuration n'est pas relayé"
+if docker volume inspect "$VOLUME_DE_FUMEE" >/dev/null 2>&1; then
+  echec "la configuration refusée a laissé le volume $VOLUME_DE_FUMEE"
+fi
+printf 'configuration refusée : volume %s absent\n' "$VOLUME_DE_FUMEE"
 pile demarrer || echec "pile.sh demarrer a fini en code $?"
 exiger_statut /pret 200
 
@@ -328,7 +356,7 @@ exiger_le_temoin
 
 constat 15 "mot de passe changé après l'initialisation : diagnostic sans migration, puis accorder et demarrer"
 pile arreter >/dev/null
-POSTGRES_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+POSTGRES_PASSWORD="$(tirer_un_mot_de_passe)"
 export POSTGRES_PASSWORD
 ecrire_l_env_de_fumee
 if pile demarrer 2>"$TEMPORAIRE/diagnostic"; then echec "pile.sh demarrer a fini en code 0 avec un mot de passe désaccordé"; fi
@@ -340,16 +368,21 @@ pile accorder || echec "pile.sh accorder a fini en code $?"
 pile demarrer || echec "pile.sh demarrer après accorder a fini en code $?"
 exiger_le_temoin
 journal="$(compose logs --no-color base 2>&1)"
-case "$journal" in
-*"$POSTGRES_PASSWORD"*) echec "le nouveau mot de passe figure dans le journal de la base" ;;
-esac
-printf 'journal de la base : aucun mot de passe en clair\n'
+# F-031-AC22 : ni le mot de passe entier, ni l'un de ses segments de 4 caractères (sans les recopier).
+position=0
+while [ "$position" -le $((${#POSTGRES_PASSWORD} - 4)) ]; do
+  case "$journal" in
+  *"${POSTGRES_PASSWORD:$position:4}"*) echec "un segment de 4 caractères du nouveau mot de passe (position $position) figure dans le journal de la base" ;;
+  esac
+  position=$((position + 1))
+done
+printf 'journal de la base : ni le mot de passe ni aucun de ses %s segments de 4 caractères\n' "$position"
 
 constat 16 "port du serveur tenu par un autre processus : pile.sh demarrer refuse sans rien démarrer"
 pile arreter >/dev/null
 node -e "require('node:net').createServer().listen($PORT_PUBLIE_SERVEUR, '127.0.0.1')" &
 ECOUTEUR=$!
-for essai in $(seq 1 20); do
+for _ in $(seq 1 20); do
   if (exec 3<>"/dev/tcp/127.0.0.1/$PORT_PUBLIE_SERVEUR") 2>/dev/null; then break; fi
   sleep 0.5
 done
