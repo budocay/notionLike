@@ -80,6 +80,8 @@ Variables lues par le serveur (`apps/server/src/configuration.ts`) : `URL_PUBLIQ
 
 `pnpm -w pile demarrer` dit les quatre premiers cas, et une configuration sans `http://127.0.0.1:5173`, avant de rien lancer ; l'adresse tapée dans le navigateur reste au dev. Pour une migration en échec : `pnpm -w pile demarrer` nomme le service et montre son journal ; sauvegarde, restauration et retour arrière : [`infra/RETOUR-ARRIERE.md`](infra/RETOUR-ARRIERE.md).
 
+En cas de panne de `pile.sh` : depuis `infra/`, `docker compose up -d --wait` démarre la pile et `docker compose down` l'arrête, le volume des données gardé (jamais l'option `-v`, qui l'efface). `infra/.env` et `apps/server/.env` doivent alors exister et être justes : sans les vérifications de `pile.sh`, une erreur ne se voit que dans le journal (`docker compose logs`).
+
 ## Contrôles
 
 | Commande                                 | Rôle                                                              |
