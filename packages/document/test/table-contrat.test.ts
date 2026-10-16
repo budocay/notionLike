@@ -54,6 +54,8 @@ const EXPORTS_DE_F017 = [
   "creerDocumentTable",
   "ouvrirDocumentTable",
 ];
+// F-018 : type des pages lues ; aucun code nouveau.
+const EXPORTS_DE_F018 = ["TypeDePage"];
 const CODES_D_AVANT = [
   "page-introuvable",
   "page-a-la-corbeille",
@@ -114,13 +116,13 @@ describe("contrat public", () => {
     ]);
   });
 
-  it("F-017-AC25 src/index.ts rend exactement les exports de F-001 et des features suivantes, plus les douze de F-017", () => {
+  it("F-017-AC25 F-018-AC8 src/index.ts rend exactement les exports de F-001 et des features suivantes, plus les douze de F-017 et celui de F-018", () => {
     expect(nomsExportes(texteDe("../src/index.ts"))).toEqual(
-      [...EXPORTS_DE_F001_ET_SUIVANTES, ...EXPORTS_DE_F017].sort(),
+      [...EXPORTS_DE_F001_ET_SUIVANTES, ...EXPORTS_DE_F017, ...EXPORTS_DE_F018].sort(),
     );
   });
 
-  it("F-017-AC25 la liste des codes est celle d'avant, dans le même ordre, suivie des neuf codes de la table", () => {
+  it("F-017-AC25 F-018-AC8 la liste des codes est celle d'avant, dans le même ordre, suivie des neuf codes de la table", () => {
     expect(codesDeLUnion(texteDe("../src/erreurs.ts"))).toEqual([
       ...CODES_D_AVANT,
       ...CODES_DE_F017,
@@ -198,7 +200,7 @@ describe("paquets qui dépendent du document", () => {
     expect(dependantsDuPaquet(essais)).toEqual(["apps/x", "packages/y"]);
   });
 
-  it("F-017-AC25 exactement apps/server et apps/web en dépendent : chacun passe sa vérification de types, et ses tests sont un projet du même pnpm test", () => {
+  it("F-017-AC25 F-018-AC8 exactement apps/server et apps/web en dépendent : chacun passe sa vérification de types, et ses tests sont un projet du même pnpm test", () => {
     const manifestes = manifestesDuWorkspace();
     const dependants = dependantsDuPaquet(manifestes);
     expect(dependants).toEqual(["apps/server", "apps/web"]);

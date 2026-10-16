@@ -1,9 +1,14 @@
 // Lecture du document d'espace (ADR-0002, « Lecture ») : des entrées de page à l'arborescence lue.
 export type IdPage = string;
 
+/** Type d'une page (F-018, ADR-0002 amendement F-018) : fixé à la création, jamais changé. */
+export type TypeDePage = "page" | "table";
+
 export interface PageLue {
   readonly id: IdPage;
   readonly titre: string;
+  /** Présent pour une table seulement : une page lue n'a pas ce champ (F-018-AC2). */
+  readonly type?: "table";
   readonly enfants: readonly PageLue[];
 }
 
@@ -15,6 +20,7 @@ export interface Arborescence {
 export interface EntreePage {
   readonly id: IdPage;
   readonly titre: string;
+  readonly type: TypeDePage;
   readonly parent: IdPage | null;
   readonly rang: string;
   readonly corbeille: boolean;
@@ -139,7 +145,12 @@ function memesPages(a: readonly PageLue[], b: readonly PageLue[]): boolean {
     }
     for (const [indice, une] of unes.entries()) {
       const autre = autres[indice];
-      if (autre === undefined || une.id !== autre.id || une.titre !== autre.titre) {
+      if (
+        autre === undefined ||
+        une.id !== autre.id ||
+        une.titre !== autre.titre ||
+        une.type !== autre.type
+      ) {
         return false;
       }
       aComparer.push([une.enfants, autre.enfants]);
@@ -152,10 +163,19 @@ function enfantsDe(fratries: Fratries, parent: IdPage | null): readonly EntreePa
   return fratries.get(parent) ?? [];
 }
 
+interface PageEnConstruction extends PageLue {
+  readonly enfants: PageLue[];
+}
+
 interface Noeud {
   readonly entree: EntreePage;
-  readonly page: { readonly id: IdPage; readonly titre: string; readonly enfants: PageLue[] };
+  readonly page: PageEnConstruction;
   readonly jete: boolean;
+}
+
+// Une page lue ne porte le champ `type` que pour une table (F-018-AC2).
+function pageVide({ id, titre, type }: EntreePage): PageEnConstruction {
+  return type === "table" ? { id, titre, type, enfants: [] } : { id, titre, enfants: [] };
 }
 
 // Corbeille (étape 5) et ordre (étape 6). Une page est jetée par son drapeau ou par une ancêtre ;
@@ -166,7 +186,7 @@ function construireArborescence(fratries: Fratries): Arborescence {
   const aDescendre: Noeud[] = [];
   const ranger = (entree: EntreePage, parent: Noeud | undefined): void => {
     const parentJete = parent?.jete === true;
-    const page = { id: entree.id, titre: entree.titre, enfants: [] };
+    const page = pageVide(entree);
     const noeud = { entree, page, jete: parentJete || entree.corbeille };
     aDescendre.push(noeud);
     if (noeud.jete && !parentJete) {

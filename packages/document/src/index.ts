@@ -1,4 +1,4 @@
-export type { Arborescence, IdPage, PageLue } from "./arbre.ts";
+export type { Arborescence, IdPage, PageLue, TypeDePage } from "./arbre.ts";
 export {
   creerDocumentEspace,
   type DocumentEspace,
