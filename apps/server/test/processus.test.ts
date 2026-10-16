@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   lireConfiguration,
   MOT_DE_PASSE_FACTICE,
+  RAISONS,
   SECRET_FACTICE,
   type Environnement,
 } from "../src/configuration.ts";
@@ -67,19 +68,21 @@ afterEach(async () => {
 
 describe("refus de démarrer", () => {
   it(
-    "F-008-AC12 sans URL_BASE_DONNEES, le processus finit en code 1 en nommant la variable, sans rien écouter",
+    "F-008-AC12 F-031-AC12 sans URL_BASE_DONNEES, le processus finit en code 1 en nommant la variable et sa raison, sans rien écouter",
     async () => {
       const processus = lancer({ ...ENV_DES_COMPTES_D_ESSAI, PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
-      expect(processus.sortieDErreur()).toBe("Configuration invalide : URL_BASE_DONNEES\n");
+      expect(processus.sortieDErreur()).toBe(
+        `Configuration invalide : URL_BASE_DONNEES\n- URL_BASE_DONNEES : ${RAISONS.absente}\n`,
+      );
       expect(processus.sortieStandard()).toBe("");
     },
     DELAI_DES_TESTS_DE_PROCESSUS_MS,
   );
 
   it(
-    "F-008-AC12 chaque variable invalide est nommée sur la sortie d'erreur, sans sa valeur",
+    "F-008-AC12 F-031-AC12 F-031-AC13 chaque variable invalide est nommée sur la sortie d'erreur, avec sa raison, sans sa valeur",
     async () => {
       const processus = lancer({
         ...ENV_DES_COMPTES_D_ESSAI,
@@ -90,21 +93,32 @@ describe("refus de démarrer", () => {
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe(
-        "Configuration invalide : PORT, ORIGINES_AUTORISEES\n",
+        [
+          "Configuration invalide : PORT, ORIGINES_AUTORISEES",
+          `- PORT : ${RAISONS.entier}`,
+          `- ORIGINES_AUTORISEES : ${RAISONS.origineNonExacte}`,
+          "",
+        ].join("\n"),
       );
+      expect(processus.sortieDErreur()).not.toContain(MARQUEUR);
       expect(processus.sortieStandard()).toBe("");
     },
     DELAI_DES_TESTS_DE_PROCESSUS_MS,
   );
 
   it(
-    "F-008-AC14 F-009-AC18 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
+    "F-008-AC14 F-009-AC18 F-031-AC12 F-031-AC30 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
     async () => {
       const processus = lancer({ NODE_ENV: "production", ...variablesDe(EXEMPLE), PORT: "0" });
 
       expect(await processus.fin).toEqual({ code: 1, signal: null });
       expect(processus.sortieDErreur()).toBe(
-        "Configuration invalide : URL_BASE_DONNEES, BETTER_AUTH_SECRET\n",
+        [
+          "Configuration invalide : URL_BASE_DONNEES, BETTER_AUTH_SECRET",
+          `- URL_BASE_DONNEES : ${RAISONS.factice}`,
+          `- BETTER_AUTH_SECRET : ${RAISONS.factice}`,
+          "",
+        ].join("\n"),
       );
       expect(processus.sortieStandard()).toBe("");
     },
@@ -139,9 +153,9 @@ describe("fichier d'exemple du serveur", () => {
       hote: "127.0.0.1",
       port: 3000,
       urlBaseDonnees: variables.URL_BASE_DONNEES,
-      originesAutorisees: [],
+      originesAutorisees: ["http://127.0.0.1:5173", "http://127.0.0.1:5174"],
       secretDesSessions: SECRET_FACTICE,
-      urlPublique: "http://127.0.0.1:3000",
+      urlPublique: "http://127.0.0.1:5173",
       cookiesSecurises: false,
       proxysDeConfiance: 0,
     });

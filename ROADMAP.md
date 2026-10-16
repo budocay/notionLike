@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-16
 
-Source du besoin : `.agents/fiche.yaml`. Les trente features ont une spec (`specs/F-001.md` à `specs/F-030.md`), et les trente portent `Statut : validée` au 2026-10-16 (relu à leur ligne `Statut :`). Quinze sont terminées et fusionnées dans `main` (section « Terminé ») ; aucune n'est en cours ; quinze restent à faire. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
+Source du besoin : `.agents/fiche.yaml`. Trente et une features ont une spec (`specs/F-001.md` à `specs/F-031.md`) ; toutes portent `Statut : validée` au 2026-10-16 (relu à leur ligne `Statut :` ; F-031 validée par le dev, `eed4af0`). Dix-sept sont terminées et fusionnées dans `main` (section « Terminé »), dont F-028 (`07b2163`) et F-017 (`3a12b72`) ; deux sont en cours, F-031 et F-006 (section « En cours ») ; douze restent à faire. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
 
 Ce que cette ROADMAP ne dit pas, et où le lire : l'état d'une feature en cours ou terminée fait foi dans `MEMORY/STATE.md` et `MEMORY/features/<F-id>.md`, le verdict de chaque gate dans `MEMORY/gates.log`, le déroulé d'une feature terminée dans `PROJECT_LOG.md`, le statut d'une spec à sa ligne `Statut :`, et la structure livrée dans `ARCHITECTURE.md`. Cette ROADMAP ne tient que l'ordre, les dépendances, les décisions d'ordonnancement et les reports.
 
@@ -15,7 +15,14 @@ Décision du dev du 2026-10-16 (accélérer) :
 - Pour chaque feature : un passage des gates (relecteurs de la ligne `Revue :`, gate sécurité, craft), un tour de correctifs, puis dérogation du dev pour ce qui n'est pas rejoué et pour le gate d'architecture. Avant la fusion d'une feature qui touche le serveur ou la synchronisation, le bout en bout est joué par le dev sur la pile Docker (`MEMORY/STATE.md`, pratique gardée sauf décision contraire).
 - Fusion de features menées en parallèle (règle du 2026-10-09, gardée) : la première prête fusionne dans `main` ; la seconde intègre `main` dans sa branche, fait résoudre les conflits par le propriétaire du fichier (le dev pour un fichier protégé, `agent-architecte-conception` pour `ARCHITECTURE.md`, jamais l'agent qui fusionne), puis repasse tous ses contrôles (`controles.sh main`, `dossier-revue.sh`, les gates : l'empreinte a changé) avant sa propre fusion. Un merge fusionne une branche à la fois, jamais en squash. Fichiers racine partagés, en conflit probable à la seconde fusion : `.dependency-cruiser.cjs`, `eslint.config.mjs`, `vitest.config.ts`, `package.json`, `pnpm-lock.yaml`, `ARCHITECTURE.md`.
 
-Décision du dev du 2026-10-16 (CI avant toute nouvelle feature) :
+Décision du dev du 2026-10-16 (pile Docker d'abord) :
+
+- « Faut qu'on répare toute la partie docker car si c'est elle qu'on doit utiliser en priorité c'est mieux quand même pour qu'elle soit fonctionnelle. » F-031 (pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande) passe en tête des « À faire », avant F-005. Spec écrite le 2026-10-16 (`specs/F-031.md`), validée par le dev le même jour (`eed4af0`) ; ses décisions ouvertes sont dans ses hypothèses (H1, H4, H5, H8, H14, H15).
+- Motif d'ordonnancement : le bout en bout de toute feature qui touche le serveur ou la synchronisation se joue sur la pile Docker (pratique ci-dessous) ; six incidents de mise en route l'ont bloquée le 2026-10-16 (`specs/F-031.md`, objectif et critères).
+
+Décision du dev du 2026-10-16 (CI avant toute nouvelle feature), exécutée :
+
+- Fait le 2026-10-16 hors feature, sans spec : `.github/workflows/ci.yml` (PR #3, fusion `f3cdaf9`) et ruleset de `main` ; D-001 levée (`PROJECT_LOG.md`, entrée « [2026-10-16] CI GitHub Actions et protection de main »). Le texte de la décision est gardé ci-dessous pour l'historique ; le numéro F-031, qu'il réservait à la CI, est pris par la pile Docker.
 
 - Avant toute nouvelle feature, `agent-devops` conçoit une CI GitHub Actions pour lever D-001 (pas de CI ni de branche protégée). Le dépôt distant est sur GitHub (`MEMORY/STATE.md`) : la plateforme, que la dette attendait, est donc choisie.
 - Les hooks git ne seront retirés qu'après une CI verte et la protection de `main`, avec l'accord du dev ; d'ici là ils restent la seule barrière (`AGENTS.md`).
@@ -31,26 +38,26 @@ Décisions antérieures toujours en vigueur (texte complet dans les versions pr�
 
 La chaîne de la collaboration en temps réel, F-001 → F-002 → F-004 → F-030 → F-003 côté client et F-008 → F-009 → F-011 → F-012 côté serveur, jointes en F-013, est livrée en entier (F-029 avant F-012, F-010, F-014, F-027 et F-007 avant F-013).
 
-Chemin critique restant, la plus longue chaîne de dépendances parmi les features à faire, après la CI (préalable du 2026-10-16) : F-017 → F-018 → F-020, F-020 attendant aussi F-006 ; F-025 se place après F-018 (et après F-016, F-022 et F-026), qui lui sont des dépendances conditionnelles (F-025 H16, H17). F-019 et F-021 n'attendent que F-018. F-017 est donc la feature dont le retard repousse le plus de features, et c'est aussi celle qui se mène le mieux en parallèle (plus bas).
+Chemin critique restant, la plus longue chaîne de dépendances parmi les features à faire, après F-031 (décision du 2026-10-16, hors de toute chaîne de dépendances : aucune feature n'en dépend, elle ne dépend que de features livrées) : F-017 → F-018 → F-020, F-020 attendant aussi F-006 ; F-025 se place après F-018 (et après F-016, F-022 et F-026), qui lui sont des dépendances conditionnelles (F-025 H16, H17). F-019 et F-021 n'attendent que F-018. F-017 est donc la feature dont le retard repousse le plus de features, et c'est aussi celle qui se mène le mieux en parallèle (plus bas).
 
 Collaboration à deux appareils, hors chaîne de dépendances mais à signaler : F-013 (H4) et F-015 (H12) ne sont utilisables à deux appareils, hors des tests, qu'avec la feature qui reprendra la part retirée de F-014 le 2026-10-13 (ouvrir un espace du serveur, changer d'espace, plusieurs espaces sur un appareil). F-015 H12 demande de la placer avant F-015 ; elle n'a ni numéro ni spec (« À prévoir », plus bas).
 
 ## En cours
 
-Aucune feature en cours, aucune branche de feature ouverte (2026-10-16). Travail hors feature du même jour, sur la branche `alignement-2026-10-16` : mise à jour de cette ROADMAP, alignement d'`ARCHITECTURE.md` et de l'ADR-0001 sur F-012 et F-013 (`MEMORY/STATE.md`, « Prochaine action prévue »).
+Deux features en cours (2026-10-16), chacune dans sa branche et son worktree, dossiers disjoints :
+
+- [ ] F-031 Pile Docker de travail fiable : préparation, démarrage, diagnostic et arrêt en une commande — tier: structurel — dépend de: F-008, F-009, F-010 (livrées) — agents: agent-veille, agent-architecte-conception, agent-backend, agent-devops — spec: specs/F-031.md (validée, `eed4af0`) — branche `F-031`, worktree `notionLike-F-031` — revue : reviewer-devops, reviewer-backend ; fumée et bout en bout par le dev avant le DONE (F-031-AC27, AC28)
+- [ ] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003, F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-006.md (validée) — branche `F-006`, worktree `notionLike-F-006`
 
 ## À faire (ordonné)
 
-Préalable à toute feature (décision du 2026-10-16) : la CI GitHub Actions d'`agent-devops`, après validation de sa spec (à écrire, voir les décisions en tête).
+Préalable de la CI (décision du 2026-10-16) : levé, CI en place.
 
-Ordre donné par le dev le 2026-10-16 : F-028, F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste.
+Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste ; F-031 placée en tête par sa décision du même jour (« pile Docker d'abord »).
 
-- [ ] F-028 Mise en forme dans le texte : gras, italique, liens — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-028.md (validée)
 - [ ] F-005 Bloc code et commandes slash — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-005.md (validée)
-- [ ] F-006 Glisser-déposer des blocs et des pages — tier: structurel — dépend de: F-003, F-002 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-006.md (validée)
 - [ ] F-015 Présence et curseurs des autres membres — tier: structurel — dépend de: F-013, F-004 — agents: agent-veille, agent-architecte-conception, agent-backend, agent-frontend — spec: specs/F-015.md (validée) — doit livrer le contrôle d'identité de présence côté serveur (F-015-AC16 à AC18, AC34) : tant qu'elle ne l'a pas fait, la présence est usurpable (constat accepté par D-023 à la livraison de F-012) ; bout en bout par le dev avant la fusion (serveur et synchronisation)
 - [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-016.md (validée)
-- [ ] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-017.md (validée) — tête du chemin critique restant
 - [ ] F-018 Vue tableau d'une base de données — tier: structurel — dépend de: F-002, F-007, F-017, F-030 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-018.md (validée)
 - [ ] F-019 Filtres et tris d'une vue — tier: standard — dépend de: F-018 — agents: agent-frontend (agent-veille sur déclencheur) — spec: specs/F-019.md (validée)
 - [ ] F-020 Vue kanban — tier: standard — dépend de: F-006, F-018 — agents: agent-veille, agent-frontend — spec: specs/F-020.md (validée ; veille de F-020 H6 avant le code)
@@ -61,7 +68,9 @@ Ordre donné par le dev le 2026-10-16 : F-028, F-005, F-006, F-015, F-016, F-017
 - [ ] F-025 RGPD : export des données d'un compte, suppression d'un compte, effacement et hygiène — tier: structurel — dépend de: F-011, F-012, F-013 (F-016, F-018, F-022, F-026 et F-027 conditionnelles : F-025 H16, H17) — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-devops, agent-frontend — spec: specs/F-025.md (validée ; sa spec recommande en tête une scission, F-025 H0)
 - [ ] F-026 Courriels : vérification d'adresse et réinitialisation du mot de passe — tier: structurel — dépend de: F-009 (F-010 et F-011 conditionnelles : F-026 H10, F-026-AC20) — agents: agent-veille, agent-architecte-conception, agent-devops, agent-bdd, agent-backend, agent-frontend (F-010 étant fusionnée, ses écrans F-026-AC35 à AC39 sont dans le périmètre : F-026 H10) — spec: specs/F-026.md (validée)
 
-Toutes les dépendances des quatre premières sont livrées (F-002, F-003, F-004, F-013) et aucune ne dépend d'une autre : ce qui les empêche d'avancer ensemble, ce sont leurs dossiers. Relevé dans leurs specs (définitions, critères, prérequis, « Pourquoi ce tier ») et dans le code de `main` :
+F-031 et F-005 sont parallélisables, à proposer au dev (l'ordre ne change pas sans sa décision) : F-031 touche `infra/`, `apps/server/src/configuration.ts` et une entrée de vérification d'`apps/server/src`, `apps/server/.env.example`, `README.md` et les scripts du `package.json` racine, sans dépendance nouvelle ni changement de `pnpm-lock.yaml` ; F-005 touche `apps/web`, `packages/document`, `apps/web/package.json` et `pnpm-lock.yaml`. Seul `README.md` pourrait se croiser, à la seconde fusion. F-031 ne se mène pas en parallèle de F-015, qui touche le relais d'`apps/server` et dont le bout en bout attend une pile Docker réparée.
+
+Tableau ci-dessous relevé avant la livraison de F-028 (fusionnée le 2026-10-16, `07b2163`) ; ses lignes F-028 sont historiques. Toutes les dépendances des quatre premières sont livrées (F-002, F-003, F-004, F-013) et aucune ne dépend d'une autre : ce qui les empêche d'avancer ensemble, ce sont leurs dossiers. Relevé dans leurs specs (définitions, critères, prérequis, « Pourquoi ce tier ») et dans le code de `main` :
 
 - F-028 et F-005 modifient le module d'édition d'`apps/web` (`apps/web/src/edition/` : schéma, barre de blocs) et la table des versions du document de page de `packages/document` (`packages/document/src/format-page.ts` : `TABLE_DES_VERSIONS_PAGE`, `VERSION_PAGE_PRISE_EN_CHARGE` ; F-028-AC19, AC28, F-005-AC23, AC32).
 - F-006 modifie le module d'édition (opération unique de déplacement de bloc, F-006-AC16 ; poignée dans la marge de la colonne de lecture) et la barre latérale de la coquille (`apps/web/src/interface/`), sans toucher `packages/document` (F-006-AC30, AC31 : `deplacerPage` appelée telle quelle, format inchangé).
@@ -151,7 +160,7 @@ Aucun.
 
 Dettes que la planification touche (liste complète et à jour : `MEMORY/STATE.md`, « Dettes ouvertes ») :
 
-- D-001 (pas de CI ni de branche protégée) : à lever par la CI GitHub Actions décidée le 2026-10-16, préalable à toute nouvelle feature (décisions en tête). Les hooks restent jusqu'à une CI verte, la protection de `main` et l'accord du dev.
+- D-001 (pas de CI ni de branche protégée) : levée le 2026-10-16 (CI GitHub Actions, PR #3, ruleset de `main`). Les hooks restent, sauf accord du dev pour les retirer.
 - D-002 (tests d'intégration du serveur sur PGlite, pas sur un PostgreSQL réel ; origine F-008 H5, étendue par F-011 H10 et F-012 H11) : une CI peut lancer PostgreSQL ; à trancher dans la spec de la CI.
 - D-003 (bout en bout, captures et `preuve:construction` hors des hooks) : s'étend aux scénarios de bout en bout de F-005, F-006, F-015, F-016 et F-028 (F-005-AC34 ; geste au pointeur de F-006, F-006-AC1 à AC3, AC7, AC14, AC15, AC34 ; F-015-AC33 et F-015 H13 ; F-016-AC35 ; F-028-AC30) ; à lever quand Playwright est branché dans `.agents/outils.env` ou dans la CI.
 - D-005 : levée par F-029 (fusionnée, `2243ff7`).
@@ -160,6 +169,8 @@ Dettes que la planification touche (liste complète et à jour : `MEMORY/STATE.m
 
 ## Terminé (lien PROJECT_LOG)
 
+- [x] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules — tier: structurel — dépend de: F-001 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-017.md (validée) — acceptée par dérogation le 2026-10-16 (D-026), fusionnée dans `main` le 2026-10-16 (PR #5, `3a12b72`) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules »
+- [x] F-028 Mise en forme dans le texte : gras, italique, liens — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-028.md (validée) — acceptée par dérogation le 2026-10-16 (D-025), fusionnée dans `main` le 2026-10-16 (`07b2163`) — `PROJECT_LOG.md`, entrée « [2026-10-16] F-028 Mise en forme dans le texte : gras, italique, liens »
 - [x] F-013 Synchronisation côté client : connexion au serveur, reprise après hors ligne, état de synchronisation visible — tier: structurel — dépend de: F-003, F-007, F-010, F-012, F-014, F-030 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-013.md (validée) — acceptée par dérogation le 2026-10-16 (D-024), fusionnée dans `main` le 2026-10-16 (`0d04c60`) — `PROJECT_LOG.md`, entrée « [2026-10-15] F-013 Synchronisation côté client (connexion, reprise après hors ligne, état visible) »
 - [x] F-012 Synchronisation serveur des documents : Hocuspocus, stockage des instantanés Yjs, autorisation par espace — tier: structurel — dépend de: F-011, F-001, F-029 — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-frontend — spec: specs/F-012.md (validée) — acceptée par dérogation le 2026-10-14 (D-023), fusionnée dans `main` le 2026-10-15 (`797d708`) — `PROJECT_LOG.md`, entrée « [2026-10-14] F-012 Synchronisation serveur des documents (Hocuspocus, instantanés Yjs, autorisation par espace) »
 - [x] F-007 Corbeille : écran de la corbeille, restauration et suppression définitive d'une page — tier: structurel — dépend de: F-002, F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-007.md (validée) — acceptée par dérogation le 2026-10-14 (D-022), fusionnée dans `main` le 2026-10-14 (`5bc0d40`) — `PROJECT_LOG.md`, entrée « [2026-10-14] F-007 Corbeille : écran, restauration, suppression définitive »

@@ -97,6 +97,18 @@ const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
     "Impossible de placer la page à cet endroit : l'action n'a pas été effectuée.",
   "page-hors-corbeille":
     "Cette page n'est plus dans la corbeille : l'action n'a pas été effectuée.",
+  // F-017 : refus du document de table, sans écran avant F-018.
+  "pas-un-document-de-table": "Ce document n'est pas une table : l'action n'a pas été effectuée.",
+  "type-de-colonne-inconnu": "Ce type de colonne n'existe pas : l'action n'a pas été effectuée.",
+  "nom-non-admis": "Le nom de la colonne est trop long : l'action n'a pas été effectuée.",
+  "libelle-non-admis": "Le libellé du choix est trop long : l'action n'a pas été effectuée.",
+  "ligne-introuvable": "Cette ligne n'existe plus : l'action n'a pas été effectuée.",
+  "colonne-introuvable": "Cette colonne n'existe plus : l'action n'a pas été effectuée.",
+  "colonne-sans-options":
+    "Cette colonne ne propose pas de liste de choix : l'action n'a pas été effectuée.",
+  "option-introuvable": "Ce choix n'existe plus dans la colonne : l'action n'a pas été effectuée.",
+  "valeur-non-conforme":
+    "Cette valeur ne correspond pas au type de la colonne : l'action n'a pas été effectuée.",
 };
 
 export function messageErreur(code: CodeErreurDocument): string {

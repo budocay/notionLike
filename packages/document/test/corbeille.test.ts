@@ -407,6 +407,19 @@ const EXPORTS_ATTENDUS = [
   "lireVersionPage",
   "ouvrirDocumentEspace",
   "ouvrirDocumentPage",
+  // F-017 : document de table.
+  "ColonneLue",
+  "DocumentTable",
+  "IdColonne",
+  "IdLigne",
+  "IdOption",
+  "LigneLue",
+  "OptionLue",
+  "TableLue",
+  "TypeDeColonne",
+  "ValeurDeCellule",
+  "creerDocumentTable",
+  "ouvrirDocumentTable",
 ];
 const METHODES_ATTENDUES: Readonly<Record<string, number>> = {
   abonner: 1,
@@ -430,6 +443,16 @@ const CODES_ATTENDUS = [
   "version-invalide",
   "rang-indisponible",
   "page-hors-corbeille",
+  // F-017 : refus du document de table.
+  "pas-un-document-de-table",
+  "type-de-colonne-inconnu",
+  "nom-non-admis",
+  "libelle-non-admis",
+  "ligne-introuvable",
+  "colonne-introuvable",
+  "colonne-sans-options",
+  "option-introuvable",
+  "valeur-non-conforme",
 ];
 // Empreintes des tests de F-001, relevées par F-029 (`borne-contrat.test.ts`) : F-007 n'en modifie aucun.
 const TESTS_DE_F001: Readonly<Record<string, string>> = {

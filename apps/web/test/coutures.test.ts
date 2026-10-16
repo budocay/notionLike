@@ -676,6 +676,16 @@ const CODES_DU_DOCUMENT = Object.keys({
   "rang-indisponible": true,
   // F-007 : code des opérations de corbeille sur une page qui n'y est pas.
   "page-hors-corbeille": true,
+  // F-017 : refus du document de table.
+  "pas-un-document-de-table": true,
+  "type-de-colonne-inconnu": true,
+  "nom-non-admis": true,
+  "libelle-non-admis": true,
+  "ligne-introuvable": true,
+  "colonne-introuvable": true,
+  "colonne-sans-options": true,
+  "option-introuvable": true,
+  "valeur-non-conforme": true,
 } satisfies Record<CodeErreurDocument, true>) as CodeErreurDocument[];
 
 function litUnCode(texte: string): boolean {
@@ -806,9 +816,9 @@ describe("codes d'erreur du document", () => {
     expect(message).not.toContain("fermee");
   });
 
-  it("F-002-AC15 F-003-AC24 F-029-AC16 chaque code d'erreur du document, les sept de F-002, version-invalide et rang-indisponible, a un message français distinct, sans code ni identifiant", () => {
-    // F-007 : dix codes, page-hors-corbeille compris.
-    expect(CODES_DU_DOCUMENT).toHaveLength(10);
+  it("F-002-AC15 F-003-AC24 F-029-AC16 F-017-AC25 chaque code d'erreur du document, les dix-neuf (sept de F-002, version-invalide, rang-indisponible, page-hors-corbeille et neuf de la table), a un message français distinct, sans code ni identifiant", () => {
+    // F-007 : dix codes, page-hors-corbeille compris ; F-017 : dix-neuf, avec les neuf de la table.
+    expect(CODES_DU_DOCUMENT).toHaveLength(19);
     const messages = CODES_DU_DOCUMENT.map((code) => {
       const message = messageErreur(code);
       expect(message.length, code).toBeGreaterThan(20);

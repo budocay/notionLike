@@ -67,6 +67,14 @@ module.exports = {
       },
     },
     {
+      name: "serveur-verification-de-configuration-confinee",
+      severity: "error",
+      comment:
+        "F-031 H6, ADR-0017 : l'entrée de vérification de la configuration et configuration.ts n'importent que configuration.ts et zod (ni base, ni réseau, ni module de Node) ; lancée avec les secrets du service, la vérification n'ouvre aucune connexion et n'écoute sur aucun port.",
+      from: { path: "^apps/server/src/(configuration|verifier-configuration)\\.ts$" },
+      to: { pathNot: ["^apps/server/src/configuration\\.ts$", "(^|/)node_modules/zod/"] },
+    },
+    {
       name: "db-reserve-au-serveur",
       severity: "error",
       comment: "F-008-AC23 : seuls packages/db et apps/server importent packages/db.",
@@ -209,9 +217,9 @@ module.exports = {
       name: "document-coeur-pur",
       severity: "error",
       comment:
-        "ADR-0003 : rang, arbre et erreurs sont purs ; ils n'importent qu'eux-mêmes (ni yjs, ni format, ni document-espace).",
-      from: { path: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
-      to: { pathNot: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
+        "ADR-0003, ADR-0016 : rang, arbre, table et erreurs sont purs ; ils n'importent qu'eux-mêmes (ni yjs, ni format, ni format-table, ni façade).",
+      from: { path: "^packages/document/src/(rang|arbre|table|erreurs)\\.ts$" },
+      to: { pathNot: "^packages/document/src/(rang|arbre|table|erreurs)\\.ts$" },
     },
     {
       name: "web-y-indexeddb-confinee",

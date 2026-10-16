@@ -275,3 +275,27 @@
 - Tests: 3465 tests sur 167 fichiers — état: verts — preuve: checks.txt (empreinte `5df7774ce0c4`) ; AC30 en Chromium sous macOS : vert, puis 10 sur 10
 - Gates: sur `9b376ff9bc97` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (6 points, corrigés) ; sur `61c223f307ae` puis `5df7774ce0c4` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-025
 - Mesures: boucles 1 passage, 1 tour de correctifs, 1 correctif du bout en bout · constats confirmés 6, dont 2 règles de saisie fausses (AC3) et l'héritage d'un lien refusé (AC18) · coût non mesuré
+
+## [2026-10-16] F-017 Modèle de table (Yjs, `packages/document`) : colonnes typées, lignes, cellules
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/document/src` (`table.ts`, `format-table.ts`, `document-table.ts` ; `insertionParmi` extraite dans `rang.ts`), `apps/web/src/interface/messages.ts` (neuf codes) — agents: agent-veille, agent-architecte-conception, agent-frontend, orchestrateur ; règle `document-coeur-pur` élargie par le dev (02f2a72) — commits: eb2668f..b230a81
+- Détail: second format de document (table), sans appelant dans `apps/web` avant F-018 ; trois types racine (`colonnes`, `lignes`, `versions`), ordre par rang borné, suppression par drapeau, cellules créées avec leur ligne, comparaison avant notification, reconnaissance par les types racine ; 12 exports et 9 codes d'erreur nouveaux. Après revue : chaînes à unité UTF-16 isolée normalisées comme l'encodage V1 à l'écriture et à la lecture (décision de l'orchestrateur, sans amender la spec), oracle d'AC9 indépendant de la façade.
+- Dette: introduite D-026 (reviewer-frontend non rejoué après correctifs, sécurité jugée sur la première empreinte, architecture non lancée, AC25 qui n'éprouve que la compilation des dépendants), D-027 (clé à unité isolée forgée par un pair non normalisée ; même défaut sur les titres de page de F-001) ; laissées D-003, D-007
+- ADR: ADR-0016 (proposée)
+- Tests: 3711 tests sur 174 fichiers, dont 651 dans `packages/document` — état: verts — preuve: checks.txt (empreinte `3515753d84af`)
+- Gates: sur `24eb1f6dfe62` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (4 points, corrigés) ; sur `3515753d84af` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-026
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 4 (divergence évitable, refus hors spec, AC25, oracle circulaire) · coût non mesuré
+
+## [2026-10-16] F-031 Pile Docker de travail utilisable en une commande
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `infra/` (`pile.sh` et ses six sous-commandes, `verification-configuration.yml`, `fumee.sh` à 17 constats, tests sans Docker), `apps/server` (`configuration.ts` : raisons des refus ; `verifier-configuration.ts` ; `.env.example`), `package.json` racine (scripts `pile`, `fumee`), `README.md`, `infra/RETOUR-ARRIERE.md` — agents: agent-planif, agent-veille, agent-architecte-conception, agent-backend, agent-devops, orchestrateur ; règle de contrats par le dev (45c66b2) — commits: ab47006..e470999
+- Détail: demandée par le dev après six incidents de mise en route du 2026-10-16 (secret et mot de passe factices, raison des refus absente, volume initialisé avec un ancien mot de passe, serveur lancé sur l'hôte sans base, fumée lancée par un chemin relatif, origine non vérifiée). `preparer` crée les `.env` (mode 600, secrets aléatoires, jamais d'écrasement) ; `demarrer` vérifie la configuration par le code du serveur dans son image, sans volume ni réseau (ADR-0017), éprouve le mot de passe contre le volume, détecte les ports pris, va jusqu'à `/pret` 200 ; `accorder` remet le mot de passe d'accord sans perte de données et sans trace dans le journal de la base. Hypothèse H6 de la spec fausse (`run --no-deps` crée le volume), parée par une surcharge et un garde.
+- Dette: introduite D-029 (dérogation), D-030 (Compose 2.24.0 à 2.24.3 sans preuve), D-031 (`PGPASSWORD` dans l'environnement du client le temps de l'épreuve), D-032 (origine 5174 admise sous Compose), D-033 (aucun contrôle bash au socle) ; D-018 précisée (GHSA-67mh-4wv8-2f99) ; laissées D-003, D-007
+- ADR: ADR-0017 (proposée) ; amendement d'ADR-0006 prévu
+- Tests: 3656 tests sur 176 fichiers — état: verts — preuve: checks.txt ; fumée d'agent `FUMEE: OK (constats 1 à 17)` sur `ec898f0` ; `test-blocage.sh` : tous les blocages effectifs ; shellcheck 0.11.0 sans constat ; fumée officielle et inscription réelle à verser par le dev
+- Gates: sur `ebda9c44b1db` : CRAFT PASS · reviewer-devops, reviewer-backend CHANGES_REQUESTED (12 points, corrigés) · SECURITY UNVERIFIED (shellcheck, fumée du dev ; aucun constat élevé) ; sur l'empreinte finale : CRAFT PASS · relecteurs, sécurité et architecture par DEROGATION D-029
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 12, dont 2 simulacres qui se testaient eux-mêmes et 1 défaut de création exclusive trouvé par les tests · coût non mesuré
