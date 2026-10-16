@@ -417,7 +417,8 @@ const forge = (avecSubstituts: boolean): fc.Arbitrary<Forge> => {
       texteForge(avecSubstituts),
       fc.integer(),
       fc.boolean(),
-      fc.constantFrom("2024-02-29", "0001-01-01", ...IDS),
+      // Des jours valides et des presque-jours : l'oracle de date les départage.
+      fc.constantFrom("2024-02-29", "0001-01-01", "2023-02-29", "1900-02-29", "0000-01-01", ...IDS),
     ),
     avecSubstituts,
   );
