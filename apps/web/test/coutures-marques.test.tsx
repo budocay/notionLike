@@ -12,9 +12,7 @@ import * as Y from "yjs";
 import { RACCOURCIS } from "../src/interface/raccourcis.ts";
 import { creerPagesOuvertes } from "../src/page/pages-ouvertes.ts";
 import type { SessionPage } from "../src/page/session-page.ts";
-import type { CanalEntreOnglets } from "../src/synchronisation/environnement.ts";
 import { versionAdmise } from "../src/synchronisation/index.ts";
-import { PageSynchronisee } from "../src/synchronisation/page-affichee.ts";
 import { lireLesFichiersDuWorkspace } from "./aides-coutures.ts";
 import { lire, lireDossier } from "./aides-disque.ts";
 import { contenuLu, fragmentBrut, ouvrirFacadeDePage } from "./aides-facade-page.ts";
@@ -30,6 +28,7 @@ import {
 } from "./aides-lignes.ts";
 import { ESPACE_A } from "./aides-persistance.ts";
 import { attendrePhase, demarrerUneSession, rendreLaSession } from "./aides-session-page.tsx";
+import { recevoirSurLaPageAffichee } from "./synchronisation/aides-page-affichee.ts";
 import {
   chercherLaZoneDeSaisie,
   couperLeReseau,
@@ -343,49 +342,6 @@ function finDuChargement(session: SessionPage): Promise<void> {
   ]);
 }
 
-function canalDEssai(): CanalEntreOnglets {
-  return { postMessage: () => undefined, close: () => undefined, onmessage: null };
-}
-
-/** La page affichée de la synchronisation, sur un document lié vierge, et son canal entre onglets. */
-function pageSynchroniseeDEssai(): {
-  page: PageSynchronisee;
-  lie: Y.Doc;
-  canal: CanalEntreOnglets;
-  refus: number[];
-} {
-  const lie = new Y.Doc();
-  const canal = canalDEssai();
-  const refus: number[] = [];
-  const horloge = { maintenant: () => Date.now(), programmer: () => () => undefined };
-  const page = PageSynchronisee.creer({
-    page: { idPage: crypto.randomUUID(), doc: lie, refuserLaVersion: () => void refus.push(1) },
-    idEspace: ESPACE_A,
-    environnement: {
-      WebSocket: WebSocket,
-      adresse: "ws://localhost/synchro",
-      horloge,
-      alea: () => 0,
-      ecouter: () => () => undefined,
-      ouvrirUnCanal: () => canal,
-    },
-    contexte: {
-      prise: () => undefined,
-      horloge,
-      alea: () => 0,
-      verifierLEspace: () => Promise.resolve("membre"),
-      surAcquise: () => undefined,
-      surChangement: () => undefined,
-      blocage: () => undefined,
-      noterLeBlocage: () => undefined,
-    },
-  });
-  if (page === undefined) {
-    throw new Error("La page synchronisée d'essai n'a pas été créée.");
-  }
-  return { page, lie, canal, refus };
-}
-
 /**
  * Ce que chaque appelant d'une enveloppe fait d'un document de chaque ligne et de la version
  * suivante, joué par son propre code. Un appelant absent de cette liste fait échouer l'énumération.
@@ -426,21 +382,8 @@ const SCENARIOS_DES_ENVELOPPES: Readonly<
     }
   },
   // La page affichée de la synchronisation reçoit le document d'un autre onglet par son miroir.
-  "apps/web/src/synchronisation/page-affichee.ts": (doc) => {
-    const { page, lie, canal, refus } = pageSynchroniseeDEssai();
-    try {
-      const maj = Y.encodeStateAsUpdate(doc);
-      canal.onmessage?.(new MessageEvent("message", { data: { sorte: "maj", maj } }));
-      if (refus.length > 0) {
-        expect(fragmentBrut(lie).length).toBe(0);
-        return Promise.resolve("refuse");
-      }
-      expect(fragmentBrut(lie).toString()).toBe(fragmentBrut(doc).toString());
-      return Promise.resolve("lu");
-    } finally {
-      page.fermer();
-    }
-  },
+  "apps/web/src/synchronisation/page-affichee.ts": (doc) =>
+    Promise.resolve(recevoirSurLaPageAffichee(doc)),
 };
 
 const fichiersDuWorkspace = lireLesFichiersDuWorkspace();
