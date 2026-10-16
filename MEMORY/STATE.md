@@ -50,7 +50,7 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 
 ## État des contrôles / gates
 
-Les verdicts font foi dans `MEMORY/gates.log`. F-028 : sécurité, craft PASS et reviewer-frontend CHANGES_REQUESTED sur `9b376ff9bc97` ; craft PASS sur `61c223f307ae` et `5df7774ce0c4` ; dérogation D-025 sur `5df7774ce0c4` ; 167 fichiers, 3465 tests ; AC30 vert en Chromium sous macOS. `gates-verts.sh main..HEAD` : `RESULTAT GATES: OK`. CI : verte sur la PR #3 et sur `main` (`f3cdaf9`). Bout en bout complet depuis le worktree F-028 : 52 réussis, 1 ignoré, 5 en échec, déjà en échec avant F-028 (F-004-AC50, F-010, F-014-AC40, F-013-AC41 et AC43), probablement faute de serveur dans le worktree : à vérifier sur la pile Docker du dev. Fumée Docker : OK sur `main` `07b2163` (F-028) le 2026-10-16, constats 1 à 11. F-017 : sécurité, craft PASS et reviewer-frontend CHANGES_REQUESTED sur `24eb1f6dfe62` ; craft PASS sur `3515753d84af` ; dérogation D-026 ; 174 fichiers, 3711 tests.
+Les verdicts font foi dans `MEMORY/gates.log` ; le déroulé de chaque feature dans `PROJECT_LOG.md`. Dernières : F-028 (D-025), F-017 (D-026), F-031 (D-029), F-006 (D-034), chacune avec craft PASS sur son empreinte finale et `RESULTAT GATES: OK` avant fusion. CI verte sur chaque PR depuis la #3. Après F-006 : 173 fichiers, 3585 tests sur sa branche. Fumée Docker : OK sur `main` `07b2163` (constats 1 à 11), puis `FUMEE: OK (constats 1 à 17)` par le dev sur F-031. Bout en bout complet : seul F-004-AC50 (débordement à 360 px, D-020) échoue, déjà avant F-006.
 
 ## Pièges actifs
 
