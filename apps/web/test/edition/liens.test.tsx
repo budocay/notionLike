@@ -18,12 +18,15 @@ import {
   couperLeReseau,
   deplacerLeTexte,
   entrerDansLEditeur,
+  laisserRelireLaSelection,
   monterLEditeur,
   placerLeCurseurDans,
   presser,
   presserAvecMod,
+  selectionnerDansLeNavigateur,
   selectionnerDe,
   selectionnerLeTexte,
+  selectionVueParLEditeur,
   taper,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
@@ -133,6 +136,46 @@ describe("panneau de lien", () => {
     expect(commande("Lien").getAttribute("aria-disabled")).toBe("true");
     expect(panneau()).toBeNull();
     expect([contenuLu(doc), emises.length]).toEqual(avant);
+  });
+
+  // F-028-AC30 sous macOS : Chromium livre `selectionchange` après une frappe qui suit de près une
+  // Maj+flèche, et l'éditeur ne relit la sélection du navigateur qu'à cet événement.
+  it("F-028-AC6 F-028-AC30 Mod+K pressé avant que l'éditeur n'ait relu la sélection du navigateur ouvre le panneau sur la sélection affichée, et le lien porte sur elle", async () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerDansLeNavigateur("site");
+    const vueAvantLaFrappe = selectionVueParLEditeur();
+
+    const traitee = ouvrirParModK();
+    const champALOuverture = screen.queryByRole("textbox", CHAMP);
+    const focusALOuverture = document.activeElement;
+    await saisirDansLeChamp("exemple.fr");
+
+    expect(vueAvantLaFrappe).toBe("");
+    expect(traitee).toBe(true);
+    expect(focusALOuverture).toBe(champALOuverture);
+    expect(contenuLu(doc)).toBe(
+      '<paragraph>voir le <link href="https://exemple.fr/">site</link></paragraph>',
+    );
+  });
+
+  it("F-028-AC6 témoin : la même sélection, une fois relue par l'éditeur à son événement, ouvre le même panneau", async () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerDansLeNavigateur("site");
+    await laisserRelireLaSelection();
+    const vueAvantLaFrappe = selectionVueParLEditeur();
+
+    const traitee = ouvrirParModK();
+    await saisirDansLeChamp("exemple.fr");
+
+    expect(vueAvantLaFrappe).toBe("site");
+    expect(traitee).toBe(true);
+    expect(contenuLu(doc)).toBe(
+      '<paragraph>voir le <link href="https://exemple.fr/">site</link></paragraph>',
+    );
   });
 
   it("F-028-AC7 dans un lien, Mod+K affiche l'adresse enregistrée comme du texte ; Appliquer la remplace sur toute l'étendue du lien", async () => {

@@ -276,6 +276,55 @@ export function selectionnerLeTexte(texte: string): void {
   act(() => void editeur.commands.setTextSelection({ from: debut, to: debut + texte.length }));
 }
 
+/**
+ * Sélectionne ce texte dans la sélection du navigateur seulement, comme Maj+flèche : l'éditeur ne la
+ * relira qu'à l'événement `selectionchange`, que le navigateur livre plus tard, dans une autre tâche.
+ */
+export function selectionnerDansLeNavigateur(texte: string): void {
+  const { noeud, rang } = texteAffiche(texte);
+  window.getSelection()?.setBaseAndExtent(noeud, rang, noeud, rang + texte.length);
+}
+
+/** Pose le curseur après ce texte dans la sélection du navigateur seulement, comme la touche Fin. */
+export function placerDansLeNavigateurApres(texte: string): void {
+  const { noeud, rang } = texteAffiche(texte);
+  window.getSelection()?.collapse(noeud, rang + texte.length);
+}
+
+function texteAffiche(texte: string): { readonly noeud: Node; readonly rang: number } {
+  const parcours = document.createTreeWalker(zoneDeSaisie(), NodeFilter.SHOW_TEXT);
+  for (let noeud = parcours.nextNode(); noeud !== null; noeud = parcours.nextNode()) {
+    const rang = noeud.textContent?.indexOf(texte) ?? -1;
+    if (rang >= 0) {
+      return { noeud, rang };
+    }
+  }
+  throw new Error(`Aucun texte affiché ne porte « ${texte} ».`);
+}
+
+/** Laisse le navigateur livrer l'événement `selectionchange` en attente : l'éditeur le relit. */
+export async function laisserRelireLaSelection(): Promise<void> {
+  await act(() => new Promise<void>((suite) => setTimeout(suite, 0)));
+}
+
+/**
+ * Colle ce texte par un événement `paste` du navigateur envoyé à la zone de saisie, porteur de ses
+ * données, comme un collage de l'utilisateur ; `pasteText` de la vue, lui, ne passe par aucun
+ * gestionnaire d'événement.
+ */
+export function collerParLeNavigateur(texte: string): void {
+  const collage = new Event("paste", { bubbles: true, cancelable: true });
+  const donnees = { getData: (type: string) => (type === "text/plain" ? texte : "") };
+  Object.defineProperty(collage, "clipboardData", { value: donnees });
+  act(() => void zoneDeSaisie().dispatchEvent(collage));
+}
+
+/** Le texte que l'éditeur tient pour sélectionné, d'après son propre état. */
+export function selectionVueParLEditeur(): string {
+  const { doc, selection } = editeurMonte().state;
+  return doc.textBetween(selection.from, selection.to);
+}
+
 /** Pose le curseur dans ce texte, après son `decalage`-ième caractère. */
 export function placerLeCurseurDans(texte: string, decalage = 1): void {
   const editeur = editeurMonte();

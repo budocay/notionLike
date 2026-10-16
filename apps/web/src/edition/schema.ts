@@ -16,6 +16,7 @@ import { INVITE_DU_BLOC_VIDE } from "../interface/messages.ts";
 import { inviteDuBlocVide } from "./invite.ts";
 import { Lien } from "./lien.ts";
 import { marquesDeLEditeur, type OptionsDesMarques } from "./marques.ts";
+import { selectionDuNavigateur } from "./selection-du-navigateur.ts";
 
 const NIVEAU_DE_TITRE_MAX = 3;
 export type NiveauDeTitre = 1 | 2 | typeof NIVEAU_DE_TITRE_MAX;
@@ -66,5 +67,6 @@ export function extensionsDeLEditeur(
     marquesDeLEditeur(marques),
     Collaboration.configure({ fragment: contenu }),
     inviteDuBlocVide(INVITE_DU_BLOC_VIDE),
+    selectionDuNavigateur,
   ];
 }

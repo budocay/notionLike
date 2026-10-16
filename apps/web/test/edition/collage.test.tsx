@@ -8,8 +8,13 @@ import { contenuLu, inventaireDuContenu } from "../aides-facade-page.ts";
 import {
   collerDuHtml,
   collerDuTexte,
+  collerParLeNavigateur,
   entrerDansLEditeur,
+  laisserRelireLaSelection,
   monterLEditeur,
+  placerDansLeNavigateurApres,
+  selectionnerLeTexte,
+  selectionVueParLEditeur,
   taper,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
@@ -125,5 +130,38 @@ describe("texte qui contient du balisage", () => {
     expect(zone.textContent).toBe(BALISAGE);
     expect(zone.querySelectorAll("b, script, img")).toHaveLength(0);
     expect(inventaireDuContenu(doc).noeuds).toEqual({ paragraph: [] });
+  });
+});
+
+// F-028-AC30 sous macOS : Chromium livre `selectionchange` après un collage qui suit de près la
+// touche Fin, et l'éditeur ne relit la sélection du navigateur qu'à cet événement.
+describe("collage juste après un déplacement du curseur", () => {
+  it("F-028-AC30 un collage reçu avant que l'éditeur n'ait relu la sélection du navigateur s'insère au curseur affiché, sans remplacer l'ancienne sélection", () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerLeTexte("site");
+    placerDansLeNavigateurApres("voir le site");
+    const vueAvantLeCollage = selectionVueParLEditeur();
+
+    collerParLeNavigateur(" collé");
+
+    expect(vueAvantLeCollage).toBe("site");
+    expect(contenuLu(doc)).toBe("<paragraph>voir le site collé</paragraph>");
+  });
+
+  it("F-028-AC30 témoin : le même curseur, une fois relu par l'éditeur à son événement, reçoit le même collage", async () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("voir le site");
+    selectionnerLeTexte("site");
+    placerDansLeNavigateurApres("voir le site");
+    await laisserRelireLaSelection();
+    const vueAvantLeCollage = selectionVueParLEditeur();
+
+    collerParLeNavigateur(" collé");
+
+    expect(vueAvantLeCollage).toBe("");
+    expect(contenuLu(doc)).toBe("<paragraph>voir le site collé</paragraph>");
   });
 });

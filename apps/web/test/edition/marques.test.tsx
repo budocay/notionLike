@@ -14,8 +14,10 @@ import {
   placerLeCurseurDans,
   presserAvecMod,
   schemaDeLEditeur,
+  selectionnerDansLeNavigateur,
   selectionnerDe,
   selectionnerLeTexte,
+  selectionVueParLEditeur,
   taper,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
@@ -76,6 +78,25 @@ describe("gras et italique sur une sélection", () => {
       '<heading level="1"><bold>Titre</bold></heading><paragraph><bold>corps</bold></paragraph>',
     );
   });
+  // F-028-AC30 sous macOS : Chromium livre `selectionchange` après une frappe qui suit de près une
+  // Maj+flèche, et l'éditeur ne relit la sélection du navigateur qu'à cet événement.
+  it.each(MARQUES)(
+    "F-028-AC1 F-028-AC30 « $nom » par Mod+$touche, pressé avant que l'éditeur n'ait relu la sélection du navigateur, marque la sélection affichée",
+    (marque) => {
+      const { doc } = monterLEditeur();
+      entrerDansLEditeur();
+      taper("un deux trois");
+      selectionnerDansLeNavigateur("deux");
+      const vueAvantLaFrappe = selectionVueParLEditeur();
+
+      presserAvecMod(marque.touche);
+
+      expect(vueAvantLaFrappe).toBe("");
+      expect(contenuLu(doc)).toBe(
+        `<paragraph>un <${marque.marque}>deux</${marque.marque}> trois</paragraph>`,
+      );
+    },
+  );
 });
 
 function presserEntree(): void {
