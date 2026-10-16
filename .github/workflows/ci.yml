@@ -1,0 +1,302 @@
+# .github/workflows/ci.yml — reprend les contrôles des hooks git (.githooks/) et de controles.sh (D-001).
+# Proposé par agent-devops le 2026-10-16 ; fichier protégé : commité par le dev (« Agent: dev »).
+#
+# Noms des jobs = noms exacts des « status checks » requis sur main (PROTECTION-MAIN.md) :
+#   commits    trailers, périmètre et secrets de chaque commit de la PR ou du push (commit-msg, pre-push)
+#   controles  .agents/checks/controles.sh <base> : périmètre, secrets, format et lint des fichiers modifiés,
+#              tests, ac-couverture, deps, SAST (semgrep), SCA (pnpm audit), CONTRATS (dependency-cruiser),
+#              CONTENEURS (trivy fs), sync-agents
+#   typecheck  pnpm typecheck (D-007), plus lint et formatage de tout l'arbre
+#   gates      gates-verts.sh vers main : chaque feature a ses gates verts sur son contenu actuel
+#
+# Plage jugée :
+#   pull_request : HEAD est la fusion de test calculée par GitHub (refs/pull/N/merge, commit github.sha) ;
+#                  base = HEAD^1 (pointe de main au moment du calcul), plage = HEAD^1..HEAD, soit
+#                  origin/main..HEAD quand la branche est à jour. La fusion de test n'a pas de trailers :
+#                  perimetre.sh l'ignore (sa résolution est vide), comme toute fusion automatique.
+#   push sur main : base = github.event.before, plage = before..HEAD (comme le pre-push).
+# Aucun secret n'est requis ; la CI n'a pas apps/server/.env (valeurs factices : infra/tests/exemples.test.ts).
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Une PR : la nouvelle exécution remplace l'ancienne. main : chaque push a sa propre plage, rien n'est annulé.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "26.11.1" # même version que infra/Dockerfile (node:26.11.1-alpine3.24)
+  GITLEAKS_VERSION: "8.30.0"
+  GITLEAKS_SHA256: "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e" # gitleaks_8.30.0_linux_x64.tar.gz
+  TRIVY_VERSION: "0.73.0"
+  TRIVY_SHA256: "2edd39da482bb4e9831962487b68f68e3928ec3137794757f54d00383d79547b" # trivy_0.73.0_Linux-64bit.tar.gz
+  # semgrep 1.178.0 : index multi-plateforme épinglé par empreinte (docker buildx imagetools inspect, 2026-10-16)
+  SEMGREP_IMAGE: "semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  commits:
+    name: commits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Extraire tout l'historique
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Calculer la plage
+        id: plage
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          TETE_PR: ${{ github.event.pull_request.head.sha }}
+          AVANT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          zero=0000000000000000000000000000000000000000
+          case "$EVENEMENT" in
+            pull_request)
+              [ "$(git rev-parse HEAD^2 2>/dev/null)" = "$TETE_PR" ] \
+                || { echo "::error::HEAD n'est pas la fusion de test de la tête de la PR ($TETE_PR)"; exit 2; }
+              base="$(git rev-parse HEAD^1)" ;;
+            push)
+              [ "$AVANT" != "$zero" ] || { echo "::error::création de la branche : lancer controles.sh --tout en local"; exit 2; }
+              git cat-file -e "$AVANT^{commit}" 2>/dev/null \
+                || { echo "::error::$AVANT absent de l'historique (réécriture de main ?)"; exit 2; }
+              base="$AVANT" ;;
+            *) echo "::error::événement non prévu : $EVENEMENT"; exit 2 ;;
+          esac
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "Plage : $base..$(git rev-parse HEAD)"
+          git log --format='%h %s%n    Agent: %(trailers:key=Agent,valueonly,separator=) | Feature: %(trailers:key=Feature,valueonly,separator=)' "$base..HEAD"
+
+      - name: Vérifier Python (config-protegee.py demande 3.11 ou plus)
+        run: python3 -c 'import sys; assert sys.version_info >= (3, 11), sys.version; print(sys.version)'
+
+      - name: Installer gitleaks (somme de contrôle vérifiée)
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/outils"; mkdir -p "$d"; cd "$RUNNER_TEMP"
+          f="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL --retry 3 -o "$f" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$f"
+          echo "${GITLEAKS_SHA256}  $f" | sha256sum -c -
+          tar -xzf "$f" -C "$d" gitleaks
+          echo "$d" >> "$GITHUB_PATH"
+          "$d/gitleaks" version
+
+      # commit-msg (un seul Agent:/Feature:, valeurs valides, pas de lien symbolique pour un agent, périmètre,
+      # fichiers protégés « Agent: dev » seulement, clés protégées de package.json) et pre-push
+      # (perimetre.sh --commits), sur CHAQUE commit de la plage. Un squash sans trailer échoue ici.
+      - name: Trailers et périmètre de chaque commit
+        env:
+          BASE: ${{ steps.plage.outputs.base }}
+        run: .agents/checks/perimetre.sh --commits "$BASE..HEAD"
+
+      - name: Secrets de chaque commit
+        env:
+          BASE: ${{ steps.plage.outputs.base }}
+        run: .agents/checks/secrets.sh --plage "$BASE..HEAD"
+
+      # Squash et rebase par GitHub sont désactivés (PROTECTION-MAIN.md). Si un réglage saute : un squash qui ne
+      # garde qu'un « Agent: dev » passerait perimetre.sh et gates-verts.sh (aucun « Feature: » à juger).
+      # Sur main, chaque commit de premier parent poussé doit donc être un merge commit (deux parents).
+      - name: main n'avance que par des merge commits
+        if: github.event_name == 'push'
+        env:
+          BASE: ${{ steps.plage.outputs.base }}
+        run: |
+          set -euo pipefail
+          ko=0
+          for c in $(git rev-list --first-parent "$BASE..HEAD"); do
+            n="$(git rev-list --parents -n 1 "$c" | wc -w)"
+            [ "$n" -eq 3 ] || { echo "::error::$(git log -1 --format='%h %s' "$c") : arrivé sur main sans merge commit (squash, rebase ou push direct)"; ko=1; }
+          done
+          exit "$ko"
+
+  controles:
+    name: controles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Extraire tout l'historique
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Calculer la base
+        id: plage
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          TETE_PR: ${{ github.event.pull_request.head.sha }}
+          AVANT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          zero=0000000000000000000000000000000000000000
+          case "$EVENEMENT" in
+            pull_request)
+              [ "$(git rev-parse HEAD^2 2>/dev/null)" = "$TETE_PR" ] \
+                || { echo "::error::HEAD n'est pas la fusion de test de la tête de la PR ($TETE_PR)"; exit 2; }
+              base="$(git rev-parse HEAD^1)" ;;
+            push)
+              [ "$AVANT" != "$zero" ] || { echo "::error::création de la branche : lancer controles.sh --tout en local"; exit 2; }
+              git cat-file -e "$AVANT^{commit}" 2>/dev/null \
+                || { echo "::error::$AVANT absent de l'historique (réécriture de main ?)"; exit 2; }
+              base="$AVANT" ;;
+            *) echo "::error::événement non prévu : $EVENEMENT"; exit 2 ;;
+          esac
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+
+      - name: Installer Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Installer pnpm (version du champ packageManager, cache du store)
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+
+      - name: Installer les dépendances
+        run: |
+          node --version; pnpm --version
+          pnpm install --frozen-lockfile
+
+      - name: Vérifier Python (deps-nouvelles.py et config-protegee.py demandent 3.11 ou plus)
+        run: python3 -c 'import sys; assert sys.version_info >= (3, 11), sys.version; print(sys.version)'
+
+      - name: Installer gitleaks et trivy (sommes de contrôle vérifiées)
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/outils"; mkdir -p "$d"; cd "$RUNNER_TEMP"
+          f="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL --retry 3 -o "$f" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$f"
+          echo "${GITLEAKS_SHA256}  $f" | sha256sum -c -
+          tar -xzf "$f" -C "$d" gitleaks
+          f="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL --retry 3 -o "$f" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$f"
+          echo "${TRIVY_SHA256}  $f" | sha256sum -c -
+          tar -xzf "$f" -C "$d" trivy
+          echo "$d" >> "$GITHUB_PATH"
+          "$d/gitleaks" version; "$d/trivy" --version
+
+      # semgrep tourne dans son image officielle épinglée par empreinte, sans réseau, dépôt en lecture seule.
+      # Le relais est hors du dépôt ($RUNNER_TEMP) : il n'entre ni dans les fichiers non suivis ni dans les scans.
+      - name: Installer semgrep (image épinglée par empreinte)
+        run: |
+          set -euo pipefail
+          docker pull "$SEMGREP_IMAGE"
+          d="$RUNNER_TEMP/outils"; mkdir -p "$d"
+          cat > "$d/semgrep" <<EOF
+          #!/bin/sh
+          exec docker run --rm --network none --user "\$(id -u):\$(id -g)" -e HOME=/tmp \\
+            -e SEMGREP_ENABLE_VERSION_CHECK=0 -e SEMGREP_SEND_METRICS=off \\
+            -v "\$PWD:/src:ro" -w /src "$SEMGREP_IMAGE" semgrep "\$@"
+          EOF
+          chmod +x "$d/semgrep"
+          echo "$d" >> "$GITHUB_PATH"
+          "$d/semgrep" --version
+
+      # Point d'entrée unique de la CI (en-tête de controles.sh). CI=true est posé par GitHub : un UNVERIFIED
+      # accepté seulement hors CI (ACCEPTE_UNVERIFIED_LOCAL) bloque ici. Code 4 (UNVERIFIED) = échec du job.
+      - name: controles.sh
+        env:
+          BASE: ${{ steps.plage.outputs.base }}
+        run: |
+          set -uo pipefail
+          .agents/checks/controles.sh "$BASE" 2>&1 | tee "$RUNNER_TEMP/controles.txt"; code=${PIPESTATUS[0]}
+          { echo '### controles.sh'; echo; echo '```'; grep -E '^(CONTROLE|RESULTAT)' "$RUNNER_TEMP/controles.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Extraire le commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Installer Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Installer pnpm (version du champ packageManager, cache du store)
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm typecheck (D-007)
+        run: pnpm typecheck
+
+      # controles.sh ne juge que les fichiers modifiés de la plage ; ici, tout l'arbre (mêmes règles).
+      - name: Lint de tout l'arbre
+        run: pnpm lint
+
+      - name: Formatage de tout l'arbre
+        run: pnpm format:check
+
+  gates:
+    name: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Extraire tout l'historique
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Calculer la plage
+        id: plage
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          TETE_PR: ${{ github.event.pull_request.head.sha }}
+          BRANCHE_CIBLE: ${{ github.base_ref }}
+          AVANT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          zero=0000000000000000000000000000000000000000
+          case "$EVENEMENT" in
+            pull_request)
+              [ "$(git rev-parse HEAD^2 2>/dev/null)" = "$TETE_PR" ] \
+                || { echo "::error::HEAD n'est pas la fusion de test de la tête de la PR ($TETE_PR)"; exit 2; }
+              base="$(git rev-parse HEAD^1)"; cible="refs/heads/$BRANCHE_CIBLE" ;;
+            push)
+              [ "$AVANT" != "$zero" ] || { echo "::error::création de la branche : lancer controles.sh --tout en local"; exit 2; }
+              git cat-file -e "$AVANT^{commit}" 2>/dev/null \
+                || { echo "::error::$AVANT absent de l'historique (réécriture de main ?)"; exit 2; }
+              base="$AVANT"; cible="$GITHUB_REF" ;;
+            *) echo "::error::événement non prévu : $EVENEMENT"; exit 2 ;;
+          esac
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "cible=$cible" >> "$GITHUB_OUTPUT"
+
+      # Même appel que le pre-push : --si-principale ne juge que si la cible est BRANCHE_PRINCIPALE (outils.env).
+      # Spec et journal (MEMORY/gates.log) sont lus dans le commit jugé (HEAD), jamais dans l'arbre de travail.
+      - name: gates-verts.sh
+        env:
+          BASE: ${{ steps.plage.outputs.base }}
+          CIBLE: ${{ steps.plage.outputs.cible }}
+        run: .agents/checks/gates-verts.sh --si-principale "$CIBLE" --rev HEAD "$BASE..HEAD"
