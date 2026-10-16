@@ -72,13 +72,17 @@ const ENTETE = (arbre: Arbre): string =>
   `#!${BASH}\nPATH=/usr/bin:/bin\nE='${arbre.etat}'\nJ='${arbre.journal}'\n`;
 
 // `docker` de substitution : répond selon les fichiers de l'état (volume, mdp-volume, conteneurs,
-// verification, refus, up-en-echec, sans-demon, version-compose). Le mot de passe du volume est celui
-// du fichier --env-file au moment où un `up` le crée, comme PostgreSQL à l'initialisation.
+// verification, refus, up-en-echec, sans-demon, version-compose, run-cree-le-volume). Comme Compose,
+// `up` et `run` créent le volume des données ; `run` ne le crée pas quand le dernier `-f` est la
+// surcharge de vérification (`!reset` des volumes, essai E1 de l'ADR-0017), sauf si l'état porte
+// « run-cree-le-volume » (une Compose qui ignorerait `!reset`). Le mot de passe du volume est celui du
+// fichier --env-file au moment où il est créé, comme PostgreSQL à l'initialisation.
 const DOCKER = `printf 'docker %s\\n' "$*" >>"$J"
 if [ -n "\${PGPASSWORD:-}" ]; then printf 'docker : PGPASSWORD reçu par son environnement\\n' >>"$J"; fi
-fichier_env=""; precedent=""
+fichier_env=""; dernier_fichier_compose=""; precedent=""
 for argument in "$@"; do
   if [ "$precedent" = "--env-file" ]; then fichier_env="$argument"; fi
+  if [ "$precedent" = "-f" ]; then dernier_fichier_compose="$argument"; fi
   precedent="$argument"
 done
 creer_volume() {
@@ -92,7 +96,12 @@ case " $* " in
 *" compose version --short "*) if [ -f "$E/version-compose" ]; then cat "$E/version-compose"; else echo 2.29.1; fi; exit 0 ;;
 *" volume inspect "*) if [ -f "$E/volume" ]; then exit 0; fi; echo "Error: no such volume" >&2; exit 1 ;;
 " ps "*) if [ -f "$E/conteneurs" ]; then cat "$E/conteneurs"; fi; exit 0 ;;
-*" run "*"verifier-configuration.ts"*)
+*" run "*)
+  case "$dernier_fichier_compose" in
+  */verification-configuration.yml) if [ -f "$E/run-cree-le-volume" ]; then creer_volume; fi ;;
+  *) creer_volume ;;
+  esac
+  case " $* " in *"verifier-configuration.ts"*) ;; *) exit 0 ;; esac
   mode=acceptee; if [ -f "$E/verification" ]; then mode="$(cat "$E/verification")"; fi
   case "$mode" in
   acceptee) grep -E '^(URL_PUBLIQUE|ORIGINES_AUTORISEES)=' "$RACINE_DU_FAUX/apps/server/.env"; exit 0 ;;

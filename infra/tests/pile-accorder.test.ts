@@ -197,11 +197,13 @@ describe("accorder", () => {
 
       const resultat = lancer(arbre, ["accorder"]);
 
+      // Le `docker` de substitution crée le volume sur `up` comme sur `run` : constaté en premier.
+      expect(existsSync(join(arbre.etat, "volume"))).toBe(scenario !== "sans-volume");
       expect(resultat.code).not.toBe(0);
       expect(resultat.erreur).toContain(message);
       expect(appelsDe(resultat.appels, " up ")).toEqual([]);
+      expect(appelsDe(resultat.appels, " run ")).toEqual([]);
       expect(appelsDe(resultat.appels, " exec ")).toEqual([]);
-      expect(existsSync(join(arbre.etat, "volume"))).toBe(scenario !== "sans-volume");
     },
   );
 });
