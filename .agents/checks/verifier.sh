@@ -38,7 +38,7 @@ for t in $(chaines); do
 done
 o="$( (cd "$dir" && "$RACINE/.agents/checks/secrets.sh" --arbre) 2>&1)"; c=$?; noter secrets "$c" "$o"
 
-if [ $code -eq 0 ]; then rm -f "$compteur"; [ -z "${out//[[:space:]]/}" ] || printf '%s' "$out" | grep 'accepté' >&2; exit 0; fi
+if [ $code -eq 0 ]; then rm -f "$compteur"; printf '%s\n' "$out" | grep 'accepté' >&2; exit 0; fi  # grep : linéaire ; la substitution bash sur la sortie était quadratique
 n=$(( $(cat "$compteur" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$compteur"
 printf '%s\n' "$out" | tail -c 3000 >&2                 # extrait de sortie brute = preuve (§3.0)
 if [ "$n" -ge 3 ]; then rm -f "$compteur"; echo "ESCALADE (§5.6) : 3 échecs consécutifs." >&2; exit 3; fi

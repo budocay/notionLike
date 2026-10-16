@@ -1,7 +1,7 @@
 # ADR-0012 — Client du serveur dans `apps/web` : module `compte/`, une seule origine, formes d'adresse des écrans
 
-Statut : accepté (décision du dev du 2026-10-14, après le code ; consigne les choix de F-010, F-014 et F-027, livrées sans ADR en mode économe)
-Date : 2026-10-14
+Statut : accepté (décision du dev du 2026-10-14, après le code ; consigne les choix de F-010, F-014 et F-027, livrées sans ADR en mode économe) ; section « Amendement F-013 » : écrite après coup le 2026-10-16, proposée, à accepter par le dev
+Date : 2026-10-14 ; amendement F-013 du 2026-10-16
 
 ## Contexte et problème
 
@@ -23,6 +23,15 @@ Jusqu'à F-009, `apps/web` n'appelait aucun serveur (ADR-0007 : `fetch` et conso
 - **Formes d'adresse des écrans**, écrites et lues par `apps/web/src/navigation/route.ts` seul, comparées à l'identique (aucune variante de casse, de barre finale ou de paramètre) : `#/connexion` et `#/inscription` (routes, F-010) ; `#/compte` (F-027) ; `#/corbeille` (F-007) ; `#/espaces`, `#/espaces/<idEspace>` (UUID canonique, sinon la liste) et `#/invitation` (F-014). `lireRoute` rend les quatre derniers comme l'accueil, sans page sélectionnée. La destination de retour après un écran de compte n'est jamais lue dans l'adresse ni dans une valeur qu'un tiers peut fournir : c'est une valeur d'une liste fermée, tenue en mémoire (`DESTINATIONS`, F-010 H2).
 - **Jeton d'invitation retiré de l'historique.** Le lien est `<origine>/#/invitation/<jeton>` (`lienDInvitation`). À l'ouverture, `interface/navigation-espaces.ts` lit le jeton brut, sans décodage, ne le garde en mémoire que s'il a la forme publiée (`FORME_DU_JETON`, 43 caractères base64url), puis remplace l'entrée courante de l'historique par `#/invitation` (`remplacerParLEcran`, `location.replace` vers un fragment, `navigation/fragment.ts`) : le précédent n'y ramène pas, et aucune forme écrite par l'application ne porte de jeton. Le jeton n'est envoyé que dans le corps de `POST /api/v1/invitations/acceptation`, sur un geste explicite.
 
+### Amendement F-013 (2026-10-16) : un second module parle au serveur, par WebSocket
+
+Contexte : F-013 (`0d04c60`) ouvre une connexion WebSocket vers le point de synchronisation de F-012 (ADR-0013) sans amender cet ADR (mode économe, D-024). Deux phrases de la décision ne décrivent plus le code : « Un seul module parle au serveur : `apps/web/src/compte/` » et « Hors de lui, aucun fichier d'`apps/web/src` n'importe `@notionlike/contrats` ».
+
+- **Deux modules parlent au serveur.** `compte/` garde toutes les requêtes HTTP : `fetch` reste confiné à `compte/reseau.ts`, et les deux requêtes REST de la synchronisation (déclaration de l'espace local, lecture d'un espace) passent par son client des espaces (`declarerEspace`, ajouté par F-013 : 201 pour une création, 200 pour une création rejouée, `compte/client-espaces.ts` ; `lireEspace`), adapté pour la synchronisation par `interface/branchement-synchronisation.ts`. `synchronisation/` ouvre la WebSocket, par le fournisseur `@hocuspocus/provider` 4.7.0 et le constructeur que lui donne `synchronisation/reseau.ts`, seul fichier d'`apps/web` qui nomme `WebSocket` (ADR-0014).
+- **`@notionlike/contrats` a deux importateurs** dans `apps/web/src` : `compte/` et `synchronisation/` (contrat `web-synchronisation-liste-blanche`, qui l'admet par son entrée publique ; le module est retiré de l'origine de `web-src-liste-blanche`). Il y lit le chemin, le nom des documents, les limites et les motifs publiés.
+- **Une seule origine, WebSocket comprise.** L'adresse du point est `ws:` ou `wss:` selon le schéma de la page, sur le même hôte, chemin `/api/v1/synchro`, sans paramètre (`adresseDuPointDeSynchronisation`, `synchronisation/reseau.ts`). En développement, le relais `/api` de Vite, déjà déclaré avec `ws: true` (`apps/web/vite.config.ts`), la porte vers le serveur ; le navigateur joint de lui-même le cookie de session à la demande de passage, et `Origin` arrive tel quel. Le scénario `e2e/synchronisation.spec.ts` (F-013-AC41) passe par ce relais.
+- **Documents sur le réseau.** La phrase « Aucune requête ne porte un document ni une mise à jour Yjs » reste vraie des requêtes HTTP ; la WebSocket porte des mises à jour Yjs au format V1.
+
 ## Conséquences
 
 - Un déploiement hors du poste devra servir l'application et l'API sur la même origine (proxy inverse) : aucun en-tête d'ouverture entre origines n'existe, et le cookie de session est `SameSite=Lax`. Aucun serveur du dépôt ne sert aujourd'hui la construction d'`apps/web`.
@@ -31,3 +40,4 @@ Jusqu'à F-009, `apps/web` n'appelait aucun serveur (ADR-0007 : `fetch` et conso
 - Les formes d'adresse sont publiques : des liens d'invitation déjà donnés portent `#/invitation/<jeton>`, et les changer casserait ces liens.
 - Le jeton a été dans l'adresse jusqu'au remplacement : il reste dans l'historique de l'onglet si le remplacement n'a pas lieu, et partout où le lien a été copié. Seul `e2e/espaces.spec.ts`, ignoré sans serveur, prouve le remplacement dans un vrai navigateur.
 - Limite reportée par le dev le 2026-10-14 : aucune règle ne fait de `compte/index.ts` l'interface du module ; des fichiers d'`interface/` importent directement ses fichiers internes (`regles-espaces.ts`, `validation.ts`, `messages-erreur.ts`, types de `client-auth.ts`).
+- Amendement F-013 : un appel REST de plus se fait toujours dans `compte/` ; un échange de documents se fait dans `synchronisation/`, et nulle part ailleurs (contrats `hocuspocus-provider-confine`, `web-synchronisation-par-son-interface`). Un déploiement hors du poste devra relayer aussi la WebSocket de `/api/v1/synchro` sur la même origine.

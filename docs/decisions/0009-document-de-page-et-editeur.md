@@ -1,7 +1,7 @@
 # ADR-0009 — Document de page : contenu Tiptap dans un fragment Yjs, version à maximum, éditeur confiné
 
-Statut : accepté
-Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé)
+Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, proposée, à accepter par le dev
+Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé par le gate d'architecture de F-003).
 
 ## Contexte et problème
@@ -39,6 +39,16 @@ Place de la bibliothèque d'édition : partout dans `apps/web`, ou **confinée �
 - Éditeur : Tiptap 3.31.4 en paquets unitaires, sans kit de départ ; l'annulation est celle de l'extension de collaboration, dont la portée est le seul fragment. `@tiptap/y-tiptap` 3.0.9 et `y-protocols` 1.0.7 sont déclarés par `apps/web` pour la liaison, et aucun fichier de `src/` ne les importe. Pas de `@floating-ui/dom` : la position de la barre de blocs est un calcul sur les rectangles mesurés (`edition/placement.ts`).
 - Confinement : Tiptap, ProseMirror et la liaison ne sont importés que par `apps/web/src/edition/` et l'aide de ses tests ; hors du module, seul `edition/index.ts` est importable, et il n'exporte que le composant `EditeurDePage` et le type de ses propriétés, faites de types de `yjs` et de fonctions. Contrats `edition-confinee`, `web-edition-par-son-interface`, `web-edition-liste-blanche` et `web-page-liste-blanche`, posés par le dev (`c2ac84d`).
 
+### Amendement F-012 et F-013 (2026-10-16) : seconde barrière de version, lecture seule, serveur qui ne lit pas la page
+
+Contexte : F-012 (`797d708`) et F-013 (`0d04c60`) font arriver dans le document d'une page des mises à jour d'autres appareils et d'autres onglets, sans amender cet ADR (mode économe, D-023, D-024). F-013 H8 demande deux barrières de version, parce que la perte serait destructive et propagée.
+
+- **Seconde barrière : la réplique** (`apps/web/src/synchronisation/miroir.ts`, `page-affichee.ts`). Le document que l'éditeur lie ne reçoit plus rien directement du réseau ni d'un autre onglet : le fournisseur et le canal entre onglets écrivent dans une réplique, construite après la relecture locale de la page. Chaque mise à jour de la réplique n'est recopiée dans le document lié qu'après lecture de la version de la réplique (`lireVersionPage`, `VERSION_PAGE_PRISE_EN_CHARGE`). Une version non prise en charge n'atteint jamais le document lié : la synchronisation appelle `refuserLaVersion` de la session de page (`apps/web/src/page/session-page.ts`), qui a le même effet que la garde (éditeur détruit, façade et persistance fermées, note affichée), plus rien n'est recopié dans un sens ni dans l'autre, et la réplique est enregistrée telle quelle dans la base de la page et continue de recevoir. La première barrière, la garde de version dans la transaction, reste en place pour ce qui arrive autrement (relecture de la base).
+- **Ce que la réplique ne couvre pas** : le cas « Non garanti » des « Conséquences » demeure. Un contenu nouveau reçu dans une mise à jour, sa version dans une suivante : la réplique est encore en version prise en charge, la mise à jour est recopiée, la liaison retire le contenu inconnu du document lié, et ce retrait repart par la réplique vers le serveur et les autres appareils.
+- **Le serveur ne lit pas la version d'une page** : il ne contrôle que celle du document d'espace (ADR-0002, amendement F-012), et relaie et stocke tout document de page tel qu'un `editeur` l'écrit.
+- **Lecture seule** : `EditeurDePage` reçoit `lectureSeule` (`apps/web/src/edition/EditeurDePage.tsx`) quand le dernier droit connu de l'espace est la lecture (ADR-0014) : l'éditeur n'est plus modifiable (`setEditable(false)`) et la barre de blocs n'est plus rendue.
+- **Construction du document lié inchangée** : `page/pages-ouvertes.ts` le construit toujours par `new Y.Doc()` ; la réplique prend le même réglage du ramasse-miettes (`new Y.Doc({ gc: lie.gc })`).
+
 ## Conséquences
 
 - Entorse à l'ADR-0003 : le paquet expose un type partagé, le fragment du contenu. Le reste du format (noms des types racines, forme de la version) n'en sort pas.
@@ -46,3 +56,4 @@ Place de la bibliothèque d'édition : partout dans `apps/web`, ou **confinée �
 - Toute feature qui ajoute au schéma un nœud, un attribut, une marque, ou un type partagé au document, ajoute une ligne à la table, relève la version prise en charge et appelle `eleverVersion` au plus tard dans la transaction qui inscrit le premier élément nouveau. Dans F-003, `eleverVersion` n'a aucun appelant de production.
 - Non garanti : un contenu nouveau reçu dans une mise à jour, et sa version dans une mise à jour suivante. La liaison retire le contenu avant que la version ne soit connue ; risque accepté par la spec F-003 (H4, cas a), qui ne peut venir que d'un client qui enfreint la règle ci-dessus ou d'un maillon qui scinde une transaction.
 - Un document conservé par le client et par le serveur garde le tableau `versions` pour toujours ; il ne grandit que d'une entrée par version atteinte et par réplique qui l'élève.
+- Amendement F-012 et F-013 : la page affichée vit en deux `Y.Doc` dans l'onglet, le document lié et sa réplique, chacun avec l'état complet de la page ; la mémoire d'une page affichée double.

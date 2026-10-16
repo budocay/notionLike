@@ -1,7 +1,7 @@
 # ADR-0003 — Paquet `@notionlike/document` : interface publique et outillage
 
-Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`) ; section « Amendements F-029 et F-007 » : écrite après coup, d'après le code de F-029 et de F-007 et leurs specs validées, acceptée par le dev le 2026-10-14
-Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception ; conséquence « Une seule instance de `yjs` » amendée le 2026-10-09, après le bloc 3 de F-002 ; amendements F-029 et F-007 du 2026-10-14
+Statut : accepté, section « Amendement F-002 » comprise : écrite « proposée », elle est acceptée depuis que le dev a revalidé `specs/F-002.md` amendée (commit `86542e8`, `Agent: dev`) ; section « Amendements F-029 et F-007 » : écrite après coup, d'après le code de F-029 et de F-007 et leurs specs validées, acceptée par le dev le 2026-10-14 ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, proposée, à accepter par le dev
+Date : 2026-10-08 ; amendement F-002 du 2026-10-08 (levée de la dette D-006), révisé le même jour après le premier rejet du gate de conception ; conséquence « Une seule instance de `yjs` » amendée le 2026-10-09, après le bloc 3 de F-002 ; amendements F-029 et F-007 du 2026-10-14 ; amendement F-012 et F-013 du 2026-10-16
 
 ## Contexte et problème
 
@@ -166,6 +166,14 @@ export interface DocumentEspace {
 - Rien d'autre n'est exporté : ni la borne des rangs (`LONGUEUR_MAX_RANG`), ni `AUCUN_RANG_ADMIS`, ni `admettrePlace`.
 - Appelants touchés : le module qui traduit chaque code en message (`apps/web/src/interface/messages.ts`) traite les dix codes ; les deux opérations de corbeille sont portées par l'état `pret` de la session d'espace (`espace/session-espace.ts`) et appelées dans `apps/web/src/` par `interface/Application.tsx` seul, pour l'écran de la corbeille.
 
+### Amendement F-012 et F-013 (2026-10-16) : consommateurs réels, troisième manifeste qui déclare `yjs`
+
+Contexte : le « Contexte et problème » prévoyait que le paquet serait importé par le client (F-002, F-013) et par le serveur (F-012). F-012 (`797d708`) et F-013 (`0d04c60`) ont tranché sans amender cet ADR (mode économe).
+
+- **Le serveur n'importe pas le paquet à l'exécution** (F-012 H5) : la synchronisation ne valide pas le contenu, sauf la clé `version` de `meta`, qu'elle lit elle-même d'après `packages/contrats` (ADR-0002, amendement F-012). Le contrat `serveur-liste-blanche` refuse `@notionlike/document` depuis `apps/server/src/` ; le paquet n'est qu'une dépendance de développement d'`apps/server`, que ses tests atteignent par `src/index.ts` seulement (contrat `serveur-tests-document-par-son-entree`).
+- **Consommateurs nouveaux dans `apps/web`** : le module de synchronisation importe `lireVersionPage` et `VERSION_PAGE_PRISE_EN_CHARGE` (`apps/web/src/synchronisation/miroir.ts`, seconde barrière de version de la page affichée, ADR-0009 amendé) et les types `Arborescence` et `PageLue` (`pages-de-l-espace.ts`) ; `lireVersionPage` a ainsi son premier appelant de production. Le module n'ouvre aucune façade : il reçoit les pages lues par la session d'espace (`lirePages`), seule abonnée de la façade (ADR-0007).
+- **Troisième manifeste qui déclare `yjs`** : `apps/server/package.json` (`yjs` 13.6.33, F-012). La « condition de réouverture » des « Conséquences » demandait de choisir entre catalogue pnpm, `overrides` et maintien de la seule détection ; F-012-AC30 retient le maintien de la détection : la liste fermée du test de F-002-AC21 (`apps/web/test/structure.test.ts`) est étendue à `apps/server/package.json` (`6c9e8f3`), et le verrou ne résout qu'une version de `yjs`, de `y-protocols` et de `lib0` (`MEMORY/features/F-012.md`). Rien n'est posé à la racine.
+
 ### Organisation interne
 
 - `src/rang.ts`, `src/arbre.ts` et `src/erreurs.ts` forment le cœur pur : calcul des rangs ; passage des entrées valides à l'arborescence (parent effectif, cycles, corbeille, ordre) ; classe d'erreur. Ils n'importent qu'eux-mêmes : ni `yjs` ni aucun autre paquet, ni `format.ts`, ni `document-espace.ts`. Le contrat `document-coeur-pur` le vérifie.
@@ -197,3 +205,4 @@ export interface DocumentEspace {
 - `ouvrirDocumentEspace` appelé plusieurs fois sur le même `Y.Doc` crée autant de façades et d'écouteurs : une façade par document, tenue par l'appelant. Avec l'amendement F-002, l'appelant la ferme quand il cesse de s'en servir, et l'écouteur est retiré.
 - Amendement F-002 : un abonné fautif ne prive plus les autres et ne casse plus l'application d'une mise à jour reçue ; en contrepartie, son exception ne s'arrête plus sur la pile de l'appelant et n'est visible que sur la console d'erreur. Un appelant qui veut la traiter autrement la rattrape dans son propre rappel. Un appelant qui ne ferme pas sa façade garde le coût d'une relecture par transaction du `Y.Doc`, comme avant. Un consommateur qui énumère les codes d'erreur a un code de plus à traiter.
 - Amendements F-029 et F-007 : la façade compte dix membres et le type des erreurs dix codes ; un consommateur qui énumère les codes en a deux de plus à traiter. Le refus `rang-indisponible` et la réattribution élargie ne sont prouvés que par le point d'entrée interne à borne abaissée : un consommateur ne peut pas les provoquer à la borne réelle.
+- Amendement F-012 et F-013 : trois manifestes déclarent `yjs` à la même version exacte, tenus ensemble par un test et par le verrou, sans contrainte à l'installation ; une quatrième déclaration rouvre la question.
