@@ -209,9 +209,9 @@ module.exports = {
       name: "document-coeur-pur",
       severity: "error",
       comment:
-        "ADR-0003 : rang, arbre et erreurs sont purs ; ils n'importent qu'eux-mêmes (ni yjs, ni format, ni document-espace).",
-      from: { path: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
-      to: { pathNot: "^packages/document/src/(rang|arbre|erreurs)\\.ts$" },
+        "ADR-0003, ADR-0016 : rang, arbre, table et erreurs sont purs ; ils n'importent qu'eux-mêmes (ni yjs, ni format, ni format-table, ni façade).",
+      from: { path: "^packages/document/src/(rang|arbre|table|erreurs)\\.ts$" },
+      to: { pathNot: "^packages/document/src/(rang|arbre|table|erreurs)\\.ts$" },
     },
     {
       name: "web-y-indexeddb-confinee",
