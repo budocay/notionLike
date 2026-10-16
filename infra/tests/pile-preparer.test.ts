@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   type Arbre,
@@ -27,7 +27,10 @@ import {
   poserCommande,
   supprimerArbre,
   variables,
+  DELAI_D_UN_TEST_MS,
 } from "./aides-pile.ts";
+
+vi.setConfig({ testTimeout: DELAI_D_UN_TEST_MS });
 
 const MODE_RESERVE = 0o600;
 const PERMISSIONS = 0o777;

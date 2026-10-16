@@ -24,6 +24,8 @@ export const ENV_INFRA = "infra/.env";
 export const ENV_SERVEUR = "apps/server/.env";
 export const SOUS_COMMANDES = ["aide", "preparer", "demarrer", "etat", "arreter", "accorder"];
 export const DELAI_DES_TESTS_DE_LA_PILE_MS = 20_000;
+/** Délai d'un test de la pile : plusieurs lancements du script, chacun borné au délai ci-dessus. */
+export const DELAI_D_UN_TEST_MS = 60_000;
 
 const BASH = "/bin/bash";
 const EXECUTABLE = 0o755;

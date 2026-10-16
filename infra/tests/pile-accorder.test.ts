@@ -3,7 +3,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ANCIEN_MOT_DE_PASSE,
@@ -19,7 +19,10 @@ import {
   poserEtat,
   poserLesFichiers,
   supprimerArbre,
+  DELAI_D_UN_TEST_MS,
 } from "./aides-pile.ts";
+
+vi.setConfig({ testTimeout: DELAI_D_UN_TEST_MS });
 
 const EPREUVE =
   "exec -T -e PGPASSWORD base psql -h base -U notionlike -d notionlike -w -At -c select 1";

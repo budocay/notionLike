@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ANCIEN_MOT_DE_PASSE,
@@ -27,7 +27,10 @@ import {
   SOUS_COMMANDES,
   supprimerArbre,
   variables,
+  DELAI_D_UN_TEST_MS,
 } from "./aides-pile.ts";
+
+vi.setConfig({ testTimeout: DELAI_D_UN_TEST_MS });
 import { constatsBash4 } from "./regles/bash.ts";
 import { constatsSyntaxe } from "./regles/fumee.ts";
 import { constatsSuppressionDuVolume, fichiersSurveilles } from "./regles/retention.ts";

@@ -5,7 +5,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createServer, type Server } from "node:net";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   type Arbre,
@@ -24,7 +24,10 @@ import {
   retirerCommande,
   supprimerArbre,
   variables,
+  DELAI_D_UN_TEST_MS,
 } from "./aides-pile.ts";
+
+vi.setConfig({ testTimeout: DELAI_D_UN_TEST_MS });
 import { lireCompose } from "./regles/compose.ts";
 
 const texteDuScript = readFileSync(join(DEPOT, "infra/pile.sh"), "utf8");
