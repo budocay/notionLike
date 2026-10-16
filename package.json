@@ -13,7 +13,9 @@
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
     "contrats": "depcruise --config .dependency-cruiser.cjs apps packages",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "pile": "bash infra/pile.sh",
+    "fumee": "bash infra/fumee.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
