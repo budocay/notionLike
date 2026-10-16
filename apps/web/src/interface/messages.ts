@@ -100,10 +100,8 @@ const MESSAGE_PAR_CODE: Readonly<Record<CodeErreurDocument, string>> = {
   // F-017 : refus du document de table, sans écran avant F-018.
   "pas-un-document-de-table": "Ce document n'est pas une table : l'action n'a pas été effectuée.",
   "type-de-colonne-inconnu": "Ce type de colonne n'existe pas : l'action n'a pas été effectuée.",
-  "nom-non-admis":
-    "Le nom de la colonne est trop long ou contient un caractère invalide : l'action n'a pas été effectuée.",
-  "libelle-non-admis":
-    "Le libellé du choix est trop long ou contient un caractère invalide : l'action n'a pas été effectuée.",
+  "nom-non-admis": "Le nom de la colonne est trop long : l'action n'a pas été effectuée.",
+  "libelle-non-admis": "Le libellé du choix est trop long : l'action n'a pas été effectuée.",
   "ligne-introuvable": "Cette ligne n'existe plus : l'action n'a pas été effectuée.",
   "colonne-introuvable": "Cette colonne n'existe plus : l'action n'a pas été effectuée.",
   "colonne-sans-options":
