@@ -107,7 +107,7 @@ describe("refus de démarrer", () => {
   );
 
   it(
-    "F-008-AC14 F-009-AC18 F-031-AC12 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
+    "F-008-AC14 F-009-AC18 F-031-AC12 F-031-AC30 en production, comme dans l'image, le fichier d'exemple copié tel quel fait refuser le démarrage, par ses deux secrets factices",
     async () => {
       const processus = lancer({ NODE_ENV: "production", ...variablesDe(EXEMPLE), PORT: "0" });
 

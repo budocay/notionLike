@@ -200,7 +200,7 @@ describe("valeur factice en production", () => {
   it.each([
     ["tel quel", URL_FACTICE],
     ["encodé dans l'URL", URL_FACTICE.replace("factice-a", "factice%2Da")],
-  ])("F-008-AC14 en production, le mot de passe factice %s est refusé", (_cas, url) => {
+  ])("F-008-AC14 F-031-AC30 en production, le mot de passe factice %s est refusé", (_cas, url) => {
     const erreur = refus({
       ...ENV_DES_COMPTES_D_ESSAI,
       NODE_ENV: "production",
@@ -279,7 +279,7 @@ describe("secret des sessions", () => {
     });
   });
 
-  it("F-009-AC18 en production, le secret factice du fichier d'exemple est refusé", () => {
+  it("F-009-AC18 F-031-AC30 en production, le secret factice du fichier d'exemple est refusé", () => {
     const env = { ...ENV_D_ESSAI, NODE_ENV: "production", BETTER_AUTH_SECRET: SECRET_FACTICE };
 
     expect(SECRET_FACTICE.length).toBeGreaterThanOrEqual(32);
@@ -337,11 +337,14 @@ describe("cookies sécurisés", () => {
     ["development", "http://app.exemple.test", false],
     ["test", "http://app.exemple.test", false],
     [undefined, "http://app.exemple.test", false],
-  ])("F-009-AC9 avec NODE_ENV=%s et URL_PUBLIQUE=%s, le réglage vaut %s", (mode, url, attendu) => {
-    const env = { ...ENV_D_ESSAI, NODE_ENV: mode, URL_PUBLIQUE: url };
+  ])(
+    "F-009-AC9 F-031-AC30 avec NODE_ENV=%s et URL_PUBLIQUE=%s, le réglage vaut %s",
+    (mode, url, attendu) => {
+      const env = { ...ENV_D_ESSAI, NODE_ENV: mode, URL_PUBLIQUE: url };
 
-    expect(lireConfiguration(env).cookiesSecurises).toBe(attendu);
-  });
+      expect(lireConfiguration(env).cookiesSecurises).toBe(attendu);
+    },
+  );
 });
 
 describe("proxys de confiance", () => {
