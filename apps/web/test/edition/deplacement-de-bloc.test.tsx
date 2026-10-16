@@ -191,6 +191,25 @@ describe("une seule opération", () => {
     }
     expect([...blocsDuDocument(doc)].sort()).toEqual([...depart].sort());
   });
+
+  it("F-006-AC16 au clavier aussi, chaque type de bloc descend par la même opération : une mise à jour Yjs, le bloc intact une place plus bas", () => {
+    const { doc, emises } = monterLEditeur();
+    entrerDansLEditeur();
+    collerDuHtml(UN_BLOC_DE_CHAQUE_TYPE);
+
+    for (const texte of ["gras", "titre un", "titre deux", "titre trois", "puce"]) {
+      const avant = blocsDuDocument(doc);
+      const de = avant.findIndex((bloc) => bloc.includes(texte));
+      const misesAJour = emises.length;
+      placerLeCurseurDans(texte, 1);
+      presser("ArrowDown", ALT_MAJ);
+      const apres = blocsDuDocument(doc);
+      expect(emises.length - misesAJour, texte).toBe(1);
+      expect(apres[de + 1], texte).toBe(avant[de]);
+      expect(apres[de], texte).toBe(avant[de + 1]);
+      expect([...apres].sort()).toEqual([...avant].sort());
+    }
+  });
 });
 
 describe("déplacement d'un bloc au clavier", () => {
