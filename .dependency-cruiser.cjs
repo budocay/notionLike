@@ -399,7 +399,7 @@ module.exports = {
           "^apps/web/src/interface/composants/Edition\\.tsx$",
           "^apps/web/src/interface/messages\\.ts$",
           "(^|/)node_modules/(react|yjs)/",
-          "(^|/)node_modules/@tiptap/(core|pm|react|extension-(collaboration|document|heading|list|paragraph|text))/",
+          "(^|/)node_modules/@tiptap/(core|pm|react|extension-(bold|collaboration|document|heading|italic|link|list|paragraph|text))/",
         ],
       },
     },
