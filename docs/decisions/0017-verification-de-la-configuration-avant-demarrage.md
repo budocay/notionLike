@@ -65,10 +65,23 @@ volumes: !reset {}
 
 ## Conséquences
 
-- ADR-0006 est amendé sur deux points, à reporter dans son texte à l'acceptation de celui-ci. L'image a trois points d'entrée. Deux fichiers touchent au `process` global, `main.ts` et `verifier-configuration.ts`. La barrière d'ADR-0006 vaut aussi pour la nouvelle entrée : un test la lance par un vrai processus `node`. Le Dockerfile ne change pas.
+- Amendement prévu d'ADR-0006 (accepté), à reporter dans son texte quand le dev acceptera le présent ADR, pas avant. Il porte sur deux points :
+  - l'image a trois points d'entrée, `apps/server/src/verifier-configuration.ts` s'ajoutant à `main.ts` et `migrer.ts` ;
+  - deux fichiers touchent au `process` global, `main.ts` et `verifier-configuration.ts`.
+
+  La barrière d'ADR-0006 vaut aussi pour la nouvelle entrée : un test la lance par un vrai processus `node` (`apps/server/test/verifier-configuration.test.ts`). Le Dockerfile ne change pas.
+
 - La liste des constats de la fumée d'ADR-0006 s'allonge par F-031-AC26 : les constats 1 à 10 gardent leur numéro et leur sens, puis viennent les six constats de F-031 et le nettoyage, en dernier.
 - Le format du refus devient un contrat lu par `pile.sh` et par les tests. Seule la première ligne est fixe depuis F-008. Changer un libellé de raison touche `configuration.ts`, ses tests et rien dans `pile.sh`, qui relaie sans interpréter, hors du nom de la variable en tête de ligne.
 - Le refus de `main.ts` gagne des lignes : le test de processus qui attend la sortie d'erreur exacte (`apps/server/test/processus.test.ts`, F-008-AC12) attend le texte complet. L'assertion devient plus stricte, aucune n'est retirée (F-031-AC14).
 - `docker compose run` crée le réseau `<projet>_default` même refusé (E2) : sans effet sur les données, il disparaît au prochain `arreter`.
-- Le comportement mesuré (E1) est celui de Compose v5.6.0. Si une version future cessait de créer les volumes au `run`, la surcharge resterait inoffensive. La version minimale reste 2.24.0 (F-031-AC17), dont la veille confirme qu'elle lit `!reset` et `--progress quiet` (non vérifié ici : seul Compose v5.6.0 a été essayé). Une version qui ne lirait pas `!reset` ferait échouer le chargement du modèle, sans rien créer, et `pile.sh` le dirait comme une vérification impossible.
-- Ce qui n'est prouvé que sur une pile réelle : l'absence de volume après un refus, sur la version de Compose du dev. Les tests de `pnpm test` constatent les arguments exacts passés à `docker` (`--no-deps`, `-T`, la surcharge en dernier) et la forme de la surcharge. Les essais E1 à E3 de ce document en sont le relevé.
+- Le comportement mesuré (E1) est celui de Compose v5.6.0. Si une version future cessait de créer les volumes au `run`, la surcharge resterait inoffensive. La version minimale reste 2.24.0 (F-031-AC17). Que les versions 2.24.0 à 2.24.3 lisent `!reset` et `--progress quiet` n'est PAS vérifié : seule Compose v5.6.0 a été essayée, ici comme par la veille (`MEMORY/VEILLE.md`, `df931af`). C'est probable, `!reset` existant déjà dans compose-go 1.13.5 (2023), mais non prouvé. Les notes de Compose 2.24.4 disent seulement qu'elle corrige la fusion de plusieurs fichiers Compose (compose-go v2.0.0-rc3). Relever la version minimale à 2.24.4 est une décision du dev ; à défaut, seule une fumée lancée sur une 2.24.x le prouverait. Une version qui ne lirait pas `!reset` ferait échouer le chargement du modèle, sans rien créer, et `pile.sh` le dirait comme une vérification impossible.
+- Ce qui n'est prouvé que sur une pile réelle : l'absence de volume après un refus, sur la version de Compose du dev. Les tests de `pnpm test` constatent les arguments exacts passés à `docker` (`--no-deps`, `-T`, la surcharge en dernier) et la forme de la surcharge (`infra/tests/pile-demarrer.test.ts`). Les essais E1 à E3 de ce document en sont le relevé.
+
+## Écarts du code livré avec la note de conception
+
+Relevés le 2026-10-16 sur le code d'agent-devops (`7801de3` à `b5c6ea8`). Aucun ne change la décision ci-dessus.
+
+- **Découpage.** Le code de `demarrer` et d'`accorder` est entré dans `infra/pile.sh` dès D1 (`7801de3`, le script entier), et non en D2 comme le prévoyait `F-031-conception.md`. D2 (`d18bb92`) n'apporte que leurs tests et la couture d'AC4.
+- **Construction de l'image.** Comme le prévoient la note et la section « Décision », `demarrer` construit l'image par un `docker compose build` visible (fonction `demarrer` de `pile.sh`), avant la vérification. Il n'emploie pas `run --build`, que la veille cite aussi comme possible. Sans l'une ou l'autre, `run` lirait une image périmée (veille).
+- **Publication du fichier de configuration.** Le fichier est publié par `link` (link(2)), et non par `ln` comme l'écrivait la note (fonction `creer_si_absent`). `ln` sans `-f` crée le lien _dans_ un dossier présent au chemin final ; `link` refuse. F-031-AC5 couvre ce cas, d'où l'écart.
