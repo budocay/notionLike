@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { RACCOURCIS } from "../../src/interface/raccourcis.ts";
 import { contenuLu } from "../aides-facade-page.ts";
 import {
-  barreDeBlocs,
   commande,
   entrerDansLEditeur,
   marquesSousLeCurseur,
@@ -154,6 +153,18 @@ describe("règles de saisie", () => {
 
     expect(contenuLu(doc)).not.toMatch(/<bold>|<italic>/);
   });
+
+  it.each(["** texte**", "**texte **", "* texte*", "*texte *"])(
+    "F-028-AC3 %s, texte précédé ou suivi d'une espace, ne pose aucune marque et garde ses astérisques",
+    (saisie) => {
+      const { doc } = monterLEditeur();
+      entrerDansLEditeur();
+
+      taper(`voici ${saisie}`);
+
+      expect(contenuLu(doc)).toBe(`<paragraph>voici ${saisie}</paragraph>`);
+    },
+  );
 });
 
 describe("marques cumulées et état de la barre", () => {
@@ -176,7 +187,9 @@ describe("marques cumulées et état de la barre", () => {
       commande(nom as "Gras").getAttribute("aria-pressed"),
     );
 
-    expect(contenuLu(doc)).toMatch(/<bold>|<italic>|<link/);
+    expect(contenuLu(doc)).toBe(
+      '<paragraph>un <bold><italic><link href="https://exemple.fr/">mot</link></italic></bold> ici</paragraph>',
+    );
     expect(marquesSousLeCurseur().sort()).toEqual(["bold", "italic", "link"]);
     expect(pressees).toEqual(["true", "true", "true"]);
   });
@@ -219,12 +232,13 @@ describe("marques cumulées et état de la barre", () => {
 });
 
 describe("bloc code", () => {
-  it("F-028-AC25 le schéma ne contient pas le bloc code (F-005 non livrée) : la condition de ce critère n'est pas remplie, et aucun nœud n'y refuse de marque", () => {
+  it("F-028-AC25 le schéma ne contient pas le bloc code (F-005 non livrée) : la condition de ce critère n'est pas remplie", () => {
     monterLEditeur();
-    entrerDansLEditeur();
 
-    expect(Object.keys(schemaDeLEditeur().noeuds)).not.toContain("codeBlock");
-    expect(barreDeBlocs()).not.toBeNull();
+    expect(
+      Object.keys(schemaDeLEditeur().noeuds),
+      "Le bloc code est arrivé (F-005 livrée) : réécrire ce test pour prouver F-028-AC25 (aucune marque, commande, raccourci ni règle de saisie dans un bloc code).",
+    ).not.toContain("codeBlock");
   });
 });
 

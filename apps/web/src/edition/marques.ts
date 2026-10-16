@@ -1,9 +1,16 @@
 // Ce que l'éditeur fait des marques au-delà des extensions : il élève la version du document avant
 // d'y inscrire un élément d'une version supérieure (F-028-AC21), refuse tout lien d'adresse refusée
-// demandé par une commande (F-028-AC18, AC32), pose un lien au collage d'une adresse seule sur une
-// sélection (F-028-AC9) et ouvre un lien au clic avec Mod (F-028-AC10).
+// demandé par une commande et sort de tout lien refusé le texte saisi dans son étendue (F-028-AC18,
+// AC32, H5), pose un lien au collage d'une adresse seule sur une sélection (F-028-AC9) et ouvre un
+// lien au clic avec Mod (F-028-AC10).
 import { Extension, getMarkRange } from "@tiptap/core";
-import type { Mark, Node as NoeudProseMirror, ResolvedPos, Slice } from "@tiptap/pm/model";
+import type {
+  Fragment,
+  Mark,
+  Node as NoeudProseMirror,
+  ResolvedPos,
+  Slice,
+} from "@tiptap/pm/model";
 import { type EditorState, Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
 import { AddMarkStep, AddNodeMarkStep, ReplaceAroundStep, ReplaceStep } from "@tiptap/pm/transform";
 
@@ -65,8 +72,8 @@ function marquesDuDocument(document: NoeudProseMirror, filtre: (marque: Mark) =>
 }
 
 // Un lien d'adresse refusée n'entre dans le document par aucune commande (F-028-AC18, AC32). Seul
-// passe celui qui y était déjà, reçu d'un autre client et neutralisé au rendu (H5) : le texte saisi
-// dans son étendue en hérite, et le déplacer ne le crée pas.
+// passe celui qui y était déjà, reçu d'un autre client et neutralisé au rendu (H5) : le déplacer ne
+// le crée pas, et le texte saisi dans son étendue en sort aussitôt (`texteHorsDesLiensRefuses`).
 function liensAdmis(transaction: Transaction): boolean {
   if ((transaction.storedMarks ?? []).some(estUnLienRefuse)) {
     return false;
@@ -86,6 +93,76 @@ function liensAdmis(transaction: Transaction): boolean {
   }
   const presents = marquesDuDocument(transaction.before, estUnLienRefuse);
   return inseres.every((insere) => presents.some((present) => present.eq(insere)));
+}
+
+/** Un texte qui porte un lien refusé, et sa place dans un document. */
+interface TexteSousUnLienRefuse {
+  readonly de: number;
+  readonly a: number;
+  readonly texte: string;
+  readonly lien: Mark;
+}
+
+function textesSousUnLienRefuse(contenu: Fragment, debut: number): TexteSousUnLienRefuse[] {
+  const trouves: TexteSousUnLienRefuse[] = [];
+  contenu.descendants((noeud, position) => {
+    const lien = noeud.isText ? noeud.marks.find(estUnLienRefuse) : undefined;
+    if (lien !== undefined) {
+      const de = debut + position;
+      trouves.push({ de, a: de + noeud.nodeSize, texte: noeud.text ?? "", lien });
+    }
+  });
+  return trouves;
+}
+
+// Les textes qu'une transaction inscrit sous un lien refusé, placés dans le document qu'elle
+// produit ; sauf ceux qu'elle déplace, retirés sous le même lien par la même transaction (H5).
+function textesNouveauxSousUnLienRefuse(transaction: Transaction): TexteSousUnLienRefuse[] {
+  const retires: TexteSousUnLienRefuse[] = [];
+  const inscrits: TexteSousUnLienRefuse[] = [];
+  transaction.steps.forEach((etape, rang) => {
+    const avant = transaction.docs[rang];
+    if (!(etape instanceof ReplaceStep) || avant === undefined) {
+      return;
+    }
+    retires.push(...textesSousUnLienRefuse(avant.slice(etape.from, etape.to).content, 0));
+    const suite = transaction.mapping.slice(rang + 1);
+    const debut = etape.from - etape.slice.openStart;
+    for (const inscrit of textesSousUnLienRefuse(etape.slice.content, debut)) {
+      inscrits.push({ ...inscrit, de: suite.map(inscrit.de, 1), a: suite.map(inscrit.a, -1) });
+    }
+  });
+  const deplace = (inscrit: TexteSousUnLienRefuse): boolean =>
+    retires.some(({ lien, texte }) => lien.eq(inscrit.lien) && texte === inscrit.texte);
+  return inscrits.filter((inscrit) => !deplace(inscrit));
+}
+
+/**
+ * Le texte qu'une modification locale inscrit dans l'étendue d'un lien refusé reçu en hériterait
+ * (F-028-AC18, H5) : il en sort, avant que la liaison n'écrive dans Yjs, et le lien garde son
+ * étendue d'origine. Rend la transaction qui l'en sort, ou `null` s'il n'y a rien à sortir.
+ */
+export function texteHorsDesLiensRefuses(
+  transactions: readonly Transaction[],
+  etat: EditorState,
+): Transaction | null {
+  const sortie = etat.tr;
+  transactions.forEach((transaction, rang) => {
+    if (estAppliqueeDepuisYjs(transaction) || !transaction.docChanged) {
+      return;
+    }
+    const suivantes = transactions.slice(rang + 1);
+    for (const { de, a, lien } of textesNouveauxSousUnLienRefuse(transaction)) {
+      const [debut, fin] = suivantes.reduce(
+        ([d, f], une) => [une.mapping.map(d, 1), une.mapping.map(f, -1)],
+        [de, a],
+      );
+      if (debut < fin) {
+        sortie.removeMark(debut, fin, lien);
+      }
+    }
+  });
+  return sortie.docChanged ? sortie : null;
 }
 
 /** Nœuds et marques que les étapes d'une transaction inscrivent. */
@@ -192,6 +269,10 @@ export function marquesDeLEditeur(options: OptionsDesMarques): Extension {
               !transaction.docChanged || options.preparerLaVersion(elementsInscrits(transaction))
             );
           },
+          // Passe après chaque modification et avant la vue, donc avant que la liaison n'écrive
+          // dans Yjs : aucune mise à jour ne porte le texte saisi sous un lien refusé.
+          appendTransaction: (transactions, _avant, etat) =>
+            texteHorsDesLiensRefuses(transactions, etat),
           props: {
             handlePaste: (vue, evenement, contenu) => {
               if (!selectionDansUnBloc(vue.state)) {

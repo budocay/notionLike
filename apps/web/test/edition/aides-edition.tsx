@@ -311,13 +311,27 @@ export function cliquerDansLeTexte(texte: string, avecMod: boolean): boolean {
  * jsdom n'a ni `DataTransfer` ni mise en page, la position du pointeur est donc donnée à la vue.
  */
 export function deposerDuHtml(html: string, surLeTexte: string): void {
+  const donnees = (type: string): string => (type === "text/html" ? html : "");
+  deposer(surLeTexte, { getData: donnees, types: ["text/html"], files: [], dropEffect: "copy" });
+}
+
+/**
+ * Déplace ce texte au début d'un autre par glisser-déposer dans la page : la vue retient le contenu
+ * glissé comme elle le fait au début d'un glisser, que jsdom ne produit pas, puis reçoit le dépôt.
+ */
+export function deplacerLeTexte(texte: string, surLeTexte: string): void {
+  selectionnerLeTexte(texte);
+  const { view } = editeurMonte();
+  const glisser = { slice: view.state.selection.content(), move: true };
+  Object.assign(view, { dragging: glisser });
+  deposer(surLeTexte, { getData: () => "", types: [], files: [], dropEffect: "move" });
+}
+
+function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
   const { view } = editeurMonte();
   const position = positionDuTexte(surLeTexte);
-  const donnees = (type: string): string => (type === "text/html" ? html : "");
   const depot = new Event("drop", { bubbles: true, cancelable: true });
-  Object.defineProperty(depot, "dataTransfer", {
-    value: { getData: donnees, types: ["text/html"], files: [], dropEffect: "copy" },
-  });
+  Object.defineProperty(depot, "dataTransfer", { value: transfert });
   Object.assign(depot, { clientX: 0, clientY: 0 });
   const viaLaVue = view as typeof view & { posAtCoords: typeof view.posAtCoords };
   const avant = viaLaVue.posAtCoords;

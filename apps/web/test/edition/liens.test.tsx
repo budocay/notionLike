@@ -16,6 +16,7 @@ import {
   collerDuTexte,
   commande,
   couperLeReseau,
+  deplacerLeTexte,
   entrerDansLEditeur,
   monterLEditeur,
   placerLeCurseurDans,
@@ -546,19 +547,81 @@ describe("commande de lien de l'éditeur appelée directement", () => {
 });
 
 describe("texte saisi dans un lien neutralisé", () => {
-  it("F-028-AC18 H5 le texte saisi dans l'étendue d'un lien neutralisé reçu en hérite sans en créer de nouveau ; aucun autre lien refusé n'entre", () => {
-    const doc = documentForge(paragrapheAvecLienRefuse("voir ", "piège", "javascript:alert(1)"));
-    monterLEditeur(doc);
+  it("F-028-AC18 H5 le texte saisi dans l'étendue d'un lien neutralisé reçu n'en hérite jamais : il sort du lien, qui garde son étendue ; aucune mise à jour émise ne le pose sur ce texte, et aucun autre lien refusé n'entre", () => {
+    const doc = documentForge(paragrapheAvecLienRefuse("voir ", "piège", REFUSEE));
+    const { emises } = monterLEditeur(doc);
     entrerDansLEditeur();
     placerLeCurseurDans("piège", 2);
+    const etatAvant = Y.encodeStateAsUpdate(doc);
+    const avant = emises.length;
 
     taper("x");
+    const parLaFrappe = emises.slice(avant);
     selectionnerLeTexte("voir");
-    const refuseeParLaCommande = appelerLaCommandeDeLien("setLink", "javascript:alert(1)");
+    const refuseeParLaCommande = appelerLaCommandeDeLien("setLink", REFUSEE);
 
     expect(refuseeParLaCommande).toBe(false);
     expect(contenuLu(doc)).toBe(
-      '<paragraph>voir <link href="javascript:alert(1)">pixège</link></paragraph>',
+      `<paragraph>voir <link href="${REFUSEE}">pi</link>x<link href="${REFUSEE}">ège</link></paragraph>`,
+    );
+    expect(parLaFrappe.length).toBeGreaterThan(0);
+    expect(etatsRejoues(etatAvant, parLaFrappe).filter((lu) => X_DANS_UN_LIEN.test(lu))).toEqual(
+      [],
     );
   });
+
+  it.each([
+    ["au début", 0],
+    ["à la fin", "piège".length],
+  ])(
+    "F-028-AC18 H5 le texte saisi %s d'un lien neutralisé reçu reste hors du lien",
+    (_cas, decalage) => {
+      const doc = documentForge(paragrapheAvecLienRefuse("voir ", "piège", REFUSEE));
+      monterLEditeur(doc);
+      entrerDansLEditeur();
+      placerLeCurseurDans("piège", decalage);
+
+      taper("x");
+
+      expect(contenuLu(doc)).toContain(`<link href="${REFUSEE}">piège</link>`);
+      expect(contenuLu(doc)).not.toMatch(X_DANS_UN_LIEN);
+    },
+  );
+
+  it("F-028-AC18 H5 le texte qui remplace une partie sélectionnée d'un lien neutralisé reçu sort du lien ; le reste du lien garde son adresse", () => {
+    const doc = documentForge(paragrapheAvecLienRefuse("voir ", "piège", REFUSEE));
+    monterLEditeur(doc);
+    entrerDansLEditeur();
+    selectionnerLeTexte("èg");
+
+    taper("x");
+
+    expect(contenuLu(doc)).toBe(
+      `<paragraph>voir <link href="${REFUSEE}">pi</link>x<link href="${REFUSEE}">e</link></paragraph>`,
+    );
+  });
+
+  it("F-028-AC18 H5 un lien neutralisé reçu déplacé dans la page garde son adresse : le déplacer ne l'efface pas et n'en crée pas d'autre", () => {
+    const doc = documentForge(paragrapheAvecLienRefuse("voir ", "piège", REFUSEE));
+    monterLEditeur(doc);
+    entrerDansLEditeur();
+
+    deplacerLeTexte("piège", "voir");
+
+    expect(contenuLu(doc)).toBe(`<paragraph><link href="${REFUSEE}">piège</link>voir </paragraph>`);
+  });
 });
+
+const REFUSEE = "javascript:alert(1)";
+/** Un « x » dans l'étendue d'un lien, dans le contenu lu. */
+const X_DANS_UN_LIEN = /<link[^>]*>[^<]*x/;
+
+/** Le contenu lu après chacune de ces mises à jour, rejouées sur l'état de départ. */
+function etatsRejoues(depart: Uint8Array, misesAJour: readonly Uint8Array[]): string[] {
+  const rejoue = new Y.Doc();
+  Y.applyUpdate(rejoue, depart);
+  return misesAJour.map((miseAJour) => {
+    Y.applyUpdate(rejoue, miseAJour);
+    return contenuLu(rejoue);
+  });
+}
