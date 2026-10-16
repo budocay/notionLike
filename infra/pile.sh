@@ -62,6 +62,7 @@ PORT_BASE=""
 PORT_SERVEUR=""
 PROCESSUS=""
 CONTENEURS=""
+VERSION_DE_COMPOSE=""
 
 nettoyer() {
   if [ -n "$FICHIER_EN_COURS" ]; then rm -f "$FICHIER_EN_COURS"; fi
@@ -337,6 +338,7 @@ verifier_le_poste() {
     echouer "Le démon Docker ne répond pas : démarrer Docker Desktop (ou le service docker sous Linux), puis relancer."
   fi
   version="$(docker compose version --short 2>/dev/null || true)"
+  VERSION_DE_COMPOSE="$version"
   if ! version_suffisante "$version"; then
     echouer "Docker Compose ${version:-introuvable} : la version 2.24.0 ou plus récente est requise ; mettre à jour Docker Desktop ou le greffon docker-compose-plugin."
   fi
@@ -442,11 +444,21 @@ verifier_les_ports() {
 # F-031-AC8, AC10 (ADR-0017) : la configuration du service serveur, vérifiée par le code du serveur, dans
 # son image, avec l'environnement exact du service ; la surcharge retire les volumes et le réseau.
 verifier_la_configuration() {
-  local sortie code=0 erreurs ligne publique="" origines="" relayer=0 variables variable
+  local sortie code=0 erreurs ligne publique="" origines="" relayer=0 variables variable volume_avant=0
   dossier_temporaire
   erreurs="$DOSSIER_TEMPORAIRE/verification"
+  if volume_present; then volume_avant=1; fi
   sortie="$(compose -f "$SURCHARGE_DE_VERIFICATION" --progress quiet \
     run --rm --no-deps -T serveur node "$ENTREE_DE_VERIFICATION" 2>"$erreurs")" || code=$?
+  # Garde de l'ADR-0017 : `!reset` n'est éprouvé que sous Compose 5.6.0 ; une version qui ne
+  # l'appliquerait pas ferait créer le volume par `run`. Constaté, dit, et rien n'est supprimé.
+  if [ "$volume_avant" = 0 ] && volume_present; then
+    erreur "La vérification de la configuration a créé le volume des données $VOLUME : Docker Compose"
+    erreur "${VERSION_DE_COMPOSE:-inconnue} n'applique pas la surcharge infra/verification-configuration.yml (!reset). Rien d'autre n'est lancé."
+    erreur "Le volume, vide, est gardé : le prochain démarrage l'initialisera avec POSTGRES_PASSWORD de $(relatif "$ENV_INFRA")."
+    erreur "Issue : mettre à jour Docker Desktop ou le greffon docker-compose-plugin, puis relancer : pnpm -w pile demarrer."
+    exit 1
+  fi
 
   if [ "$code" = 1 ]; then
     while IFS= read -r ligne || [ -n "$ligne" ]; do

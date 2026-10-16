@@ -153,6 +153,41 @@ describe("vérification de la configuration avant tout lancement", () => {
     expect(existsSync(join(arbre.etat, "volume"))).toBe(false);
   });
 
+  it("F-031-AC8 une Compose qui n'appliquerait pas !reset : le volume apparu pendant la vérification est dit, rien n'est lancé ni supprimé", () => {
+    poserLesFichiers(arbre);
+    poserEtat(arbre, "run-cree-le-volume");
+
+    const resultat = lancer(arbre, ["demarrer"]);
+
+    expect(resultat.code).not.toBe(0);
+    expect(resultat.erreur).toContain(
+      "La vérification de la configuration a créé le volume des données notionlike_donnees-base",
+    );
+    expect(resultat.erreur).toContain("Docker Compose");
+    expect(appelsDe(resultat.appels, " up ")).toEqual([]);
+    expect(resultat.appels.filter((appel) => /volume (rm|remove)|prune| -v\b/.test(appel))).toEqual(
+      [],
+    );
+    expect(existsSync(join(arbre.etat, "volume"))).toBe(true);
+    const inspections = resultat.appels.flatMap((appel, position) =>
+      appel.includes("volume inspect") ? [position] : [],
+    );
+    expect(inspections.at(-2)).toBeLessThan(rang(resultat.appels, ENTREE));
+    expect(inspections.at(-1)).toBeGreaterThan(rang(resultat.appels, ENTREE));
+  });
+
+  it("F-031-AC8 un volume déjà présent avant la vérification n'est pas pris pour un volume apparu", () => {
+    poserLesFichiers(arbre);
+    poserEtat(arbre, "run-cree-le-volume");
+    poserEtat(arbre, "volume");
+    poserEtat(arbre, "mdp-volume", MOT_DE_PASSE);
+
+    const resultat = lancer(arbre, ["demarrer"]);
+
+    expect(resultat.code).toBe(0);
+    expect(resultat.erreur).not.toContain("a créé le volume");
+  });
+
   it("F-031-AC8 H3 l'issue proposée met le fichier de côté sous un nom que git ignore", () => {
     poserLesFichiers(arbre);
     poserEtat(arbre, "verification", "refusee");
