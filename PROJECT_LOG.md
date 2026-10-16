@@ -299,3 +299,15 @@
 - Tests: 3656 tests sur 176 fichiers — état: verts — preuve: checks.txt ; fumée d'agent `FUMEE: OK (constats 1 à 17)` sur `ec898f0` ; `test-blocage.sh` : tous les blocages effectifs ; shellcheck 0.11.0 sans constat ; fumée officielle et inscription réelle à verser par le dev
 - Gates: sur `ebda9c44b1db` : CRAFT PASS · reviewer-devops, reviewer-backend CHANGES_REQUESTED (12 points, corrigés) · SECURITY UNVERIFIED (shellcheck, fumée du dev ; aucun constat élevé) ; sur l'empreinte finale : CRAFT PASS · relecteurs, sécurité et architecture par DEROGATION D-029
 - Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 12, dont 2 simulacres qui se testaient eux-mêmes et 1 défaut de création exclusive trouvé par les tests · coût non mesuré
+
+## [2026-10-16] F-006 Glisser-déposer des blocs et des pages
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/glisser/` (nouveau, seul importateur de dnd-kit), `apps/web/src/interface/` (barre latérale, `destination-de-page.ts`, menu « ⋯ », raccourcis, annonces), `apps/web/src/edition/` (`deplacement-de-bloc.ts`, `depot.ts`, `poignee.ts`), `apps/web/package.json` et `pnpm-lock.yaml` (dnd-kit 6.3.1, poignée et curseur de dépôt Tiptap 3.31.4) — agents: agent-veille, agent-architecte-conception, agent-frontend, orchestrateur ; règles de contrats par le dev (f9a5d63) — commits: 0c2bb24..ec8b4a5
+- Détail: pages réordonnées et imbriquées à la souris et au clavier (Alt+Maj+Flèche, quatre commandes du menu), premier appelant de `deplacerPage` ; blocs déplacés par la poignée, la barre de blocs et le clavier, en une transaction annulable seule ; fichiers lâchés refusés, lecture seule comprise ; pas de poignée sur écran étroit ni sous pointeur imprécis. Le bout en bout a trouvé une cible de 24 px sur écran étroit ; la revue a trouvé un fichier lâché en lecture seule ouvert par le navigateur.
+- Dette: introduite D-034 (dérogation), D-035 (dnd-kit sans publication depuis décembre 2024) ; D-018 confirmée antérieure (GHSA-67mh-4wv8-2f99) ; laissées D-003, D-007
+- ADR: ADR-0015 (proposée) ; amendement d'ADR-0007 (proposé)
+- Tests: 3585 tests sur 173 fichiers — état: verts — preuve: checks.txt ; bout en bout `glisser-deposer.spec.ts` 3 sur 3 en Chromium
+- Gates: sur `8e8746a30214` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (2 points et 9 suggestions, traités) ; sur l'empreinte finale : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-034
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 2, dont 1 défaut réel en lecture seule · coût non mesuré
