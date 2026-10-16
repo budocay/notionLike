@@ -411,8 +411,8 @@ const PORTEURS: readonly Porteur[] = [
 
 describe("version forgée (F-018-AC58)", () => {
   it.each(CAS_DE_VERSION_FORGEE)(
-    "F-018-AC58 $cas : la lecture du paquet du document refuse le document qui en résulte, sauf la baisse, qu'il lit en version 1",
-    ({ cas, forger }) => {
+    "F-018-AC58 $cas : la lecture du paquet du document refuse le document qui en résulte : $refuseParLePaquet",
+    ({ forger, refuseParLePaquet }) => {
       const doc = new Y.Doc();
       Y.applyUpdate(doc, miseAJourSurUneCopie(doc, elevationADeux));
       Y.applyUpdate(doc, miseAJourSurUneCopie(doc, forger));
@@ -427,7 +427,9 @@ describe("version forgée (F-018-AC58)", () => {
           return erreur instanceof ErreurDocument && erreur.code === "version-non-prise-en-charge";
         }
       })();
-      expect(refuse).toBe(!cas.startsWith("version lue qui baisse"));
+      // Les baisses sont lues par le paquet (en version 1, ou en version 2 quand `versions` garde
+      // le 2) ; seul le serveur les refuse, au nom de la version que le document portait.
+      expect(refuse).toBe(refuseParLePaquet);
     },
   );
 

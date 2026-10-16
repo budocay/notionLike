@@ -82,9 +82,12 @@ const VERSION_ABSENTE = 1;
 // de l'ADR-0002, celle que le paquet du document applique) : le plus grand de `meta.version` et des
 // entrées de `versions`, 1 en leur absence. `bienFormee` est faux si `meta.version` est présente
 // sans être un entier supérieur ou égal à 1, ou si `versions` porte une entrée nommée (l'écriture
-// d'un autre type partagé sous ce nom) ou une entrée qui n'est pas un tel entier.
+// d'un autre type partagé sous ce nom) ou une entrée qui n'est pas un tel entier. `parMeta` :
+// `meta.version`, 1 si la clé est absente, la barrière des applications de version 1 (n'a de sens
+// que pour un document bien formé).
 interface VersionLue {
   readonly lue: number;
+  readonly parMeta: number;
   readonly bienFormee: boolean;
 }
 
@@ -99,16 +102,23 @@ function estAdmise(version: number): boolean {
 function versionDe(doc: Y.Doc): VersionLue {
   const meta = doc.getMap<unknown>(typeRacine);
   const versions = doc.getArray<unknown>(typeRacineDesVersions);
-  const valeurs = [...(meta.has(cle) ? [meta.get(cle)] : []), ...versions.toArray()];
+  const deMeta: unknown = meta.has(cle) ? meta.get(cle) : VERSION_ABSENTE;
+  const valeurs = [deMeta, ...versions.toArray()];
   const lue = valeurs
     .filter(estUneVersionEntiere)
     .reduce((plusGrande, version) => Math.max(plusGrande, version), VERSION_ABSENTE);
-  return { lue, bienFormee: versions._map.size === 0 && valeurs.every(estUneVersionEntiere) };
+  return {
+    lue,
+    parMeta: estUneVersionEntiere(deMeta) ? deMeta : VERSION_ABSENTE,
+    bienFormee: versions._map.size === 0 && valeurs.every(estUneVersionEntiere),
+  };
 }
 
 // La mise à jour est éprouvée sur une copie du document : le document servi n'est pas touché tant
 // qu'elle n'est pas admise. Elle l'est si, après elle, le document est bien formé, que sa version
-// lue est dans la liste publiée et qu'elle n'a pas baissé. Une copie illisible, ou un type racine
+// lue est dans la liste publiée, et que ni elle ni `meta.version` (clé retirée comprise) n'ont
+// baissé : la barrière des applications de version 1 ne se lève pas, même quand `versions` garde
+// la version (décision du dev du 2026-10-16, F-018-AC58). Une copie illisible, ou un type racine
 // déjà lu sous un autre type partagé, refuse. Un document déjà mal formé n'a pas de version à
 // défendre : seul l'après compte.
 export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): boolean {
@@ -118,9 +128,8 @@ export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): bool
     const avant = versionDe(copie);
     Y.applyUpdate(copie, miseAJour);
     const apres = versionDe(copie);
-    return (
-      apres.bienFormee && estAdmise(apres.lue) && (!avant.bienFormee || apres.lue >= avant.lue)
-    );
+    const sansBaisse = apres.lue >= avant.lue && apres.parMeta >= avant.parMeta;
+    return apres.bienFormee && estAdmise(apres.lue) && (!avant.bienFormee || sansBaisse);
   } catch {
     return false;
   } finally {
