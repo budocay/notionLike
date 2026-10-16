@@ -10,12 +10,12 @@ import {
   type EntreeColonne,
   type EntreeLigne,
   type EntreeOption,
-  estUnLibelleAdmis,
-  estUnNomAdmis,
   estUnTypeDeColonne,
   type IdColonne,
   type IdLigne,
   type IdOption,
+  libelleAdmis,
+  nomAdmis,
   type TypeDeColonne,
   type ValeurDeCellule,
 } from "./table.ts";
@@ -128,7 +128,8 @@ interface ChampsCommuns {
 }
 
 // Une entrée mal formée est ignorée, sans exception (F-017-AC20). Un champ peut manquer un temps
-// sans que personne n'ait mal écrit : mise à jour retenue par Yjs (veille, constat 5).
+// sans que personne n'ait mal écrit : mise à jour retenue par Yjs (veille, constat 5). Un nom ou un
+// libellé se lit sous sa forme normalisée, la même sur toutes les répliques (F-017-AC21).
 function champsCommuns(valeur: Y.Map<unknown>): ChampsCommuns | undefined {
   const rang = valeur.get(CHAMP_RANG);
   const supprimee = valeur.get(CHAMP_SUPPRIMEE);
@@ -140,10 +141,8 @@ function lireOption(id: IdOption, valeur: unknown): EntreeOption | undefined {
     return undefined;
   }
   const communs = champsCommuns(valeur);
-  const libelle = valeur.get(CHAMP_LIBELLE);
-  return communs !== undefined && estUnLibelleAdmis(libelle)
-    ? { id, libelle, ...communs }
-    : undefined;
+  const libelle = libelleAdmis(valeur.get(CHAMP_LIBELLE));
+  return communs !== undefined && libelle !== undefined ? { id, libelle, ...communs } : undefined;
 }
 
 function lireOptions(valeur: unknown): EntreeOption[] | undefined {
@@ -166,9 +165,9 @@ function lireColonne(id: IdColonne, valeur: unknown): EntreeColonne | undefined 
     return undefined;
   }
   const communs = champsCommuns(valeur);
-  const nom = valeur.get(CHAMP_NOM);
+  const nom = nomAdmis(valeur.get(CHAMP_NOM));
   const type = valeur.get(CHAMP_TYPE);
-  if (communs === undefined || !estUnNomAdmis(nom) || !estUnTypeDeColonne(type)) {
+  if (communs === undefined || nom === undefined || !estUnTypeDeColonne(type)) {
     return undefined;
   }
   const options = type === "selection" ? lireOptions(valeur.get(CHAMP_OPTIONS)) : [];

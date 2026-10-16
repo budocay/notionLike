@@ -335,26 +335,48 @@ describe("état encodé", () => {
     expect(ouvrirDocumentTable(vierge).lire()).toEqual(a.table.lire());
   });
 
-  it("F-017-AC16 un texte, un nom ou un libellé à unité UTF-16 isolée est refusé à l'écriture : l'état encodé se relit identique", () => {
+  it("F-017-AC16 F-017-AC21 un texte, un nom ou un libellé à unité UTF-16 isolée est écrit normalisé : l'état encodé se relit identique", () => {
     const table = creerDocumentTable();
     const texte = table.creerColonne("T", "texte");
     const choix = table.creerColonne("S", "selection");
     const ligne = table.creerLigne();
-    const essayer = (operation: () => unknown) => {
-      try {
-        operation();
-      } catch {
-        // Refus attendu ; ce test ne juge que l'état encodé.
-      }
-    };
 
-    essayer(() => table.ecrireCellule(ligne, texte, "a\ud800b"));
-    essayer(() => table.renommerColonne(texte, "\udc00"));
-    essayer(() => table.ajouterOption(choix, "x\ud83d"));
+    table.ecrireCellule(ligne, texte, "a\ud800b");
+    table.renommerColonne(texte, "\udc00");
+    table.ajouterOption(choix, "x\ud83d");
 
     const vierge = new Y.Doc();
     Y.applyUpdate(vierge, Y.encodeStateAsUpdate(table.doc));
     expect(ouvrirDocumentTable(vierge).lire()).toEqual(table.lire());
+    expect(table.lire().lignes[0]?.cellules[0]).toBe("a\ufffdb");
+    expect(table.lire().colonnes.map((c) => c.nom)).toEqual(["\ufffd", "S"]);
+    expect(table.lire().colonnes[1]?.options.map((o) => o.libelle)).toEqual(["x\ufffd"]);
+  });
+
+  it("F-017-AC16 F-017-AC21 pour tout texte tiré, unités isolées comprises, écrit par la façade comme nom, libellé et cellule : l'état encodé rend la même table, et la valeur lue est celle que Yjs transmet", () => {
+    fc.assert(
+      fc.property(fc.string({ unit: "binary", maxLength: 8 }), (tire) => {
+        const table = creerDocumentTable();
+        const colonne = table.creerColonne(tire, "texte");
+        const choix = table.creerColonne("S", "selection");
+        table.ajouterOption(choix, tire);
+        table.creerLigne(new Map([[colonne, tire]]));
+        // Oracle tiré de Yjs, indépendant du module : la chaîne reçue par une autre réplique.
+        const temoin = new Y.Doc();
+        temoin.getMap("essai").set("t", tire);
+        const transmis = new Y.Doc();
+        Y.applyUpdate(transmis, Y.encodeStateAsUpdate(temoin));
+        const attendu = transmis.getMap("essai").get("t");
+
+        const vierge = new Y.Doc();
+        Y.applyUpdate(vierge, Y.encodeStateAsUpdate(table.doc));
+        expect(ouvrirDocumentTable(vierge).lire()).toEqual(table.lire());
+        expect(table.lire().colonnes[0]?.nom).toBe(attendu);
+        expect(table.lire().colonnes[1]?.options[0]?.libelle).toBe(attendu);
+        expect(table.lire().lignes[0]?.cellules[0]).toBe(attendu);
+      }),
+      { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
+    );
   });
 
   it("F-017-AC16 pour toute suite d'opérations tirée, l'état encodé appliqué à un Y.Doc vierge rend la même table", () => {

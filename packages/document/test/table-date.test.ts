@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { creerDocumentTable } from "../src/index.ts";
 import { estUneDate } from "../src/table.ts";
 import { GRAINE, NOMBRE_EXECUTIONS } from "./aides.ts";
-import { refus, refusDe } from "./aides-table.ts";
+import { dateSelonLOracle as oracle, refus, refusDe } from "./aides-table.ts";
 
 /** Seule table des cas de date de F-017-AC18 : vrai = accepté, faux = refusé. */
 const CAS_DE_DATES: readonly (readonly [string, boolean])[] = [
@@ -64,18 +64,6 @@ function dateDuJour(numero: number): string {
   const mois = String(instant.getUTCMonth() + 1).padStart(2, "0");
   const quantieme = String(instant.getUTCDate()).padStart(2, "0");
   return `${annee}-${mois}-${quantieme}`;
-}
-
-function oracle(texte: string): boolean {
-  const morceaux = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texte);
-  if (morceaux === null) return false;
-  const [annee = 0, mois = 0, jour = 0] = morceaux.slice(1).map(Number);
-  if (annee < 1) return false;
-  const date = new Date(0);
-  date.setUTCFullYear(annee, mois - 1, jour);
-  return (
-    date.getUTCFullYear() === annee && date.getUTCMonth() === mois - 1 && date.getUTCDate() === jour
-  );
 }
 
 describe("contrôle d'une date", () => {

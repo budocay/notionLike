@@ -503,7 +503,6 @@ describe("refus et limites", () => {
 
   it.each<[TypeDeColonne, unknown]>([
     ["texte", "x".repeat(2001)],
-    ["texte", "a\ud800b"],
     ["texte", 1],
     ["nombre", Number.NaN],
     ["nombre", Number.POSITIVE_INFINITY],
@@ -559,9 +558,6 @@ describe("refus et limites", () => {
     expect(refusDe(table.doc, () => table.renommerColonne(prix, "n".repeat(201)))).toEqual(
       refus("nom-non-admis"),
     );
-    expect(refusDe(table.doc, () => table.renommerColonne(prix, "a\udc00"))).toEqual(
-      refus("nom-non-admis"),
-    );
     expect(noms(table.lire())).toEqual(["Titre", "Prix", "État", "", "n".repeat(200)]);
   });
 
@@ -574,9 +570,6 @@ describe("refus et limites", () => {
       refus("libelle-non-admis"),
     );
     expect(refusDe(table.doc, () => table.renommerOption(etat, ouvert, "l".repeat(101)))).toEqual(
-      refus("libelle-non-admis"),
-    );
-    expect(refusDe(table.doc, () => table.ajouterOption(etat, "\ud800"))).toEqual(
       refus("libelle-non-admis"),
     );
     expect(libelles(table.lire(), etat)).toEqual(["Ouvert", "Clos", "", "l".repeat(100)]);
@@ -673,5 +666,109 @@ describe("refus et limites", () => {
     expect(
       refusDe(table.doc, () => table.creerLigne(new Map([[titre, 1 as ValeurDeCellule]]), -1)).code,
     ).toBe("valeur-non-conforme");
+  });
+});
+
+// ── Chaînes à unité UTF-16 isolée (F-017-AC4, AC5, AC8, AC18, AC19, AC21) ─────────────────────────
+
+/** Ce que porte le `Y.Doc` sous un champ, sans passer par la lecture du module. */
+function champEcrit(doc: Y.Doc, [racine = "", ...cles]: readonly string[]): unknown {
+  let courant: unknown = doc.getMap(racine);
+  for (const cle of cles) {
+    courant = courant instanceof Y.Map ? courant.get(cle) : undefined;
+  }
+  return courant;
+}
+
+/** La table lue par une réplique qui reçoit l'état complet. */
+function lueAilleurs(table: DocumentTable): TableLue {
+  const recue = new Y.Doc();
+  Y.applyUpdate(recue, Y.encodeStateAsUpdate(table.doc));
+  return ouvrirDocumentTable(recue).lire();
+}
+
+describe("chaînes à unité UTF-16 isolée", () => {
+  it("F-017-AC4 F-017-AC18 un texte à unité isolée est accepté, écrit et lu sous sa forme normalisée (U+FFFD), la même ailleurs", () => {
+    const { table, titre, l1 } = tableExemple();
+
+    table.ecrireCellule(l1, titre, "a\ud800b");
+    const l3 = table.creerLigne(new Map([[titre, "\udc00\ud800" as ValeurDeCellule]]));
+
+    expect(cellule(table, l1, titre)).toBe("a\ufffdb");
+    expect(cellule(table, l3, titre)).toBe("\ufffd\ufffd");
+    expect(champEcrit(table.doc, ["lignes", l1, "cellules", titre])).toBe("a\ufffdb");
+    expect(champEcrit(table.doc, ["lignes", l3, "cellules", titre])).toBe("\ufffd\ufffd");
+    expect(lueAilleurs(table)).toEqual(table.lire());
+  });
+
+  it("F-017-AC4 réécrire le même texte à unité isolée n'émet aucune mise à jour", () => {
+    const { table, titre, l1 } = tableExemple();
+    table.ecrireCellule(l1, titre, "a\ud800b");
+
+    expect(refusDe(table.doc, () => table.ecrireCellule(l1, titre, "a\ud800b"))).toEqual({
+      code: "aucun",
+      misesAJour: 0,
+    });
+  });
+
+  it("F-017-AC18 la limite de 2 000 unités ne bouge pas : 2 000 avec une unité isolée accepté, 2 001 refusé", () => {
+    const { table, titre, l1 } = tableExemple();
+
+    table.ecrireCellule(l1, titre, `${"x".repeat(1999)}\ud800`);
+    expect(cellule(table, l1, titre)).toBe(`${"x".repeat(1999)}\ufffd`);
+    expect(
+      refusDe(table.doc, () => table.ecrireCellule(l1, titre, `${"x".repeat(2000)}\ud800`)),
+    ).toEqual(refus("valeur-non-conforme"));
+  });
+
+  it("F-017-AC5 F-017-AC19 un nom de colonne à unité isolée est accepté et écrit normalisé ; 200 unités acceptées, 201 refusées", () => {
+    const { table, prix } = tableExemple();
+
+    const isolee = table.creerColonne("\ud83d", "texte");
+    table.renommerColonne(prix, "a\udc00");
+    table.creerColonne(`${"n".repeat(199)}\udc00`, "texte");
+
+    expect(noms(table.lire())).toEqual([
+      "Titre",
+      "a\ufffd",
+      "État",
+      "\ufffd",
+      `${"n".repeat(199)}\ufffd`,
+    ]);
+    expect(champEcrit(table.doc, ["colonnes", isolee, "nom"])).toBe("\ufffd");
+    expect(champEcrit(table.doc, ["colonnes", prix, "nom"])).toBe("a\ufffd");
+    expect(refusDe(table.doc, () => table.renommerColonne(prix, "a\udc00"))).toEqual({
+      code: "aucun",
+      misesAJour: 0,
+    });
+    expect(
+      refusDe(table.doc, () => table.creerColonne(`${"n".repeat(200)}\udc00`, "texte")),
+    ).toEqual(refus("nom-non-admis"));
+    expect(lueAilleurs(table)).toEqual(table.lire());
+  });
+
+  it("F-017-AC8 F-017-AC19 un libellé d'option à unité isolée est accepté et écrit normalisé ; 100 unités acceptées, 101 refusées", () => {
+    const { table, etat, ouvert } = tableExemple();
+
+    const isolee = table.ajouterOption(etat, "\ud800");
+    table.renommerOption(etat, ouvert, "o\udfff");
+    table.ajouterOption(etat, `${"l".repeat(99)}\ud800`);
+
+    expect(libelles(table.lire(), etat)).toEqual([
+      "o\ufffd",
+      "Clos",
+      "\ufffd",
+      `${"l".repeat(99)}\ufffd`,
+    ]);
+    expect(champEcrit(table.doc, ["colonnes", etat, "options", isolee, "libelle"])).toBe("\ufffd");
+    expect(champEcrit(table.doc, ["colonnes", etat, "options", ouvert, "libelle"])).toBe("o\ufffd");
+    expect(refusDe(table.doc, () => table.renommerOption(etat, ouvert, "o\udfff"))).toEqual({
+      code: "aucun",
+      misesAJour: 0,
+    });
+    expect(refusDe(table.doc, () => table.ajouterOption(etat, `${"l".repeat(100)}\ud800`))).toEqual(
+      refus("libelle-non-admis"),
+    );
+    expect(lueAilleurs(table)).toEqual(table.lire());
   });
 });

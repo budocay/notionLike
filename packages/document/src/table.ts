@@ -86,41 +86,51 @@ export function estUnTypeDeColonne(valeur: unknown): valeur is TypeDeColonne {
 const DEBUT_SUBSTITUT_HAUT = 0xd800;
 const DEBUT_SUBSTITUT_BAS = 0xdc00;
 const FIN_SUBSTITUT_BAS = 0xdfff;
+const CARACTERE_DE_REMPLACEMENT = "\ufffd";
+
+function estUnSubstitutBas(unite: number): boolean {
+  return unite >= DEBUT_SUBSTITUT_BAS && unite <= FIN_SUBSTITUT_BAS;
+}
 
 /**
- * Vrai si la chaîne n'a aucune unité UTF-16 isolée (ADR-0016, veille constat 6) : l'encodage de Yjs
- * les remplace par U+FFFD chez les autres répliques. `String.prototype.isWellFormed` n'est pas dans
- * la `lib` ES2023 du paquet.
+ * La chaîne où chaque unité UTF-16 isolée est remplacée par U+FFFD, longueur inchangée : ce que lit
+ * toute réplique qui reçoit la chaîne par l'encodage V1 de Yjs (ADR-0016, veille constat 6). La
+ * réplique d'origine lit et écrit donc la même chaîne que les autres (F-017-AC21). Sans unité isolée,
+ * la chaîne est rendue telle quelle. `String.prototype.toWellFormed` n'est pas dans la `lib` ES2023 du
+ * paquet.
  */
-export function estBienFormee(texte: string): boolean {
+export function formeNormalisee(texte: string): string {
+  let normalisee = "";
+  let recopiee = 0;
   for (let indice = 0; indice < texte.length; indice += 1) {
     const unite = texte.charCodeAt(indice);
-    if (unite >= DEBUT_SUBSTITUT_HAUT && unite <= FIN_SUBSTITUT_BAS) {
-      const suivante = texte.charCodeAt(indice + 1);
-      const paire =
-        unite < DEBUT_SUBSTITUT_BAS &&
-        suivante >= DEBUT_SUBSTITUT_BAS &&
-        suivante <= FIN_SUBSTITUT_BAS;
-      if (!paire) {
-        return false;
-      }
-      indice += 1;
+    if (unite < DEBUT_SUBSTITUT_HAUT || unite > FIN_SUBSTITUT_BAS) {
+      continue;
     }
+    if (unite < DEBUT_SUBSTITUT_BAS && estUnSubstitutBas(texte.charCodeAt(indice + 1))) {
+      indice += 1;
+      continue;
+    }
+    normalisee += texte.slice(recopiee, indice) + CARACTERE_DE_REMPLACEMENT;
+    recopiee = indice + 1;
   }
-  return true;
+  return recopiee === 0 ? texte : normalisee + texte.slice(recopiee);
 }
 
-function estUnTexteAdmis(valeur: unknown, longueurMax: number): valeur is string {
-  // La longueur est contrôlée avant tout parcours.
-  return typeof valeur === "string" && valeur.length <= longueurMax && estBienFormee(valeur);
+/** La forme normalisée d'une chaîne d'au plus `longueurMax` unités, ou `undefined`. */
+function texteAdmis(valeur: unknown, longueurMax: number): string | undefined {
+  // La longueur est contrôlée avant tout parcours ; la normalisation ne la change pas.
+  return typeof valeur === "string" && valeur.length <= longueurMax
+    ? formeNormalisee(valeur)
+    : undefined;
 }
 
-export function estUnNomAdmis(valeur: unknown): valeur is string {
-  return estUnTexteAdmis(valeur, LONGUEUR_MAX_NOM);
+export function nomAdmis(valeur: unknown): string | undefined {
+  return texteAdmis(valeur, LONGUEUR_MAX_NOM);
 }
 
-export function estUnLibelleAdmis(valeur: unknown): valeur is string {
-  return estUnTexteAdmis(valeur, LONGUEUR_MAX_LIBELLE);
+export function libelleAdmis(valeur: unknown): string | undefined {
+  return texteAdmis(valeur, LONGUEUR_MAX_LIBELLE);
 }
 
 const FORME_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -164,31 +174,31 @@ export function estUneDate(valeur: string): boolean {
   );
 }
 
-type Controle = (valeur: unknown, options: ReadonlySet<IdOption>) => valeur is ValeurDeCellule;
+/** La valeur exposée, ou `null` si elle n'est pas conforme : un contrôle par type de colonne. */
+type Controle = (valeur: unknown, options: ReadonlySet<IdOption>) => ValeurDeCellule | null;
 
 // Un contrôle par type, sans valeur par défaut : un type ajouté sans contrôle ne compile pas.
 const CONFORMITE: Readonly<Record<TypeDeColonne, Controle>> = {
-  texte: (valeur): valeur is string => estUnTexteAdmis(valeur, LONGUEUR_MAX_TEXTE),
-  nombre: (valeur): valeur is number => typeof valeur === "number" && Number.isFinite(valeur),
-  case: (valeur): valeur is boolean => typeof valeur === "boolean",
-  date: (valeur): valeur is string => typeof valeur === "string" && estUneDate(valeur),
-  selection: (valeur, options): valeur is string =>
-    typeof valeur === "string" && options.has(valeur),
+  texte: (valeur) => texteAdmis(valeur, LONGUEUR_MAX_TEXTE) ?? null,
+  // `-0` se lit `0`.
+  nombre: (valeur) => (typeof valeur === "number" && Number.isFinite(valeur) ? valeur + 0 : null),
+  case: (valeur) => (typeof valeur === "boolean" ? valeur : null),
+  date: (valeur) => (typeof valeur === "string" && estUneDate(valeur) ? valeur : null),
+  selection: (valeur, options) =>
+    typeof valeur === "string" && options.has(valeur) ? valeur : null,
 };
 
 /**
  * La valeur exposée d'une cellule, ou `null` si elle n'est pas conforme au type de sa colonne
- * (F-017-AC18, AC21). `options` : les options lues de la colonne. `-0` se lit `0`.
+ * (F-017-AC18, AC21). `options` : les options lues de la colonne. `-0` se lit `0` ; un texte se lit
+ * sous sa forme normalisée.
  */
 export function valeurConforme(
   type: TypeDeColonne,
   valeur: unknown,
   options: ReadonlySet<IdOption>,
 ): ValeurDeCellule | null {
-  if (!CONFORMITE[type](valeur, options)) {
-    return null;
-  }
-  return typeof valeur === "number" ? valeur + 0 : valeur;
+  return CONFORMITE[type](valeur, options);
 }
 
 interface AvecRang {

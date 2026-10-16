@@ -16,7 +16,7 @@ import {
 import { GRAINE, NOMBRE_EXECUTIONS } from "./aides.ts";
 // Documents d'espace produits par creerDocumentEspace, par l'aide suivie de F-007 (F-002-AC31).
 import { creerSuivie, fermerLesSuivies } from "./aides-corbeille.ts";
-import { compterMisesAJour, refus, refusDe } from "./aides-table.ts";
+import { compterMisesAJour, dateSelonLOracle, refus, refusDe } from "./aides-table.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -85,7 +85,6 @@ describe("entrées mal formées ignorées", () => {
     ["sans nom", { nom: undefined }],
     ["au nom numérique", { nom: 3 }],
     ["au nom de 201 unités", { nom: "n".repeat(201) }],
-    ["au nom mal formé", { nom: "a\ud800" }],
     ["au type inconnu", { type: "relation" }],
     ["au type absent", { type: null }],
     ["au rang absent", { rang: undefined }],
@@ -121,7 +120,6 @@ describe("entrées mal formées ignorées", () => {
   it.each<[string, Champs]>([
     ["sans libellé", { libelle: 1 }],
     ["au libellé de 101 unités", { libelle: "l".repeat(101) }],
-    ["au libellé mal formé", { libelle: "\udfff" }],
     ["au rang non admis", { rang: "" }],
     ["au drapeau absent", { supprimee: null }],
   ])("F-017-AC20 une option %s est ignorée, les autres restent", (_cas, champs) => {
@@ -176,7 +174,6 @@ describe("cellules non conformes lues vides", () => {
   it.each<[string, string, unknown]>([
     ["texte", "texte", 12],
     ["texte de 2 001 unités", "texte", "x".repeat(2001)],
-    ["texte mal formé", "texte", "a\ud800b"],
     ["nombre NaN", "nombre", Number.NaN],
     ["nombre infini", "nombre", Number.NEGATIVE_INFINITY],
     ["nombre en chaîne", "nombre", "4"],
@@ -241,18 +238,97 @@ describe("cellules non conformes lues vides", () => {
       lignes: [{ id: "lig", cellules: ["a"] }],
     });
   });
+});
 
-  it("F-017-AC21 limite connue (conception, écart 1) : un texte mal formé écrit par un pair se lit vide chez lui, U+FFFD chez les autres", () => {
+// ── Chaînes à unité UTF-16 isolée (F-017-AC20, AC21) ─────────────────────────────────────────────
+
+/** Ce que lit une réplique qui reçoit la chaîne par l'encodage V1 : oracle tiré de Yjs, pas du module. */
+function recueParUneAutreReplique(texte: string): unknown {
+  const origine = new Y.Doc();
+  origine.getMap("essai").set("texte", texte);
+  const recue = new Y.Doc();
+  Y.applyUpdate(recue, Y.encodeStateAsUpdate(origine));
+  return recue.getMap("essai").get("texte");
+}
+
+describe("chaînes à unité UTF-16 isolée écrites par un pair", () => {
+  it.each([
+    ["a\ud800b", "a\ufffdb"],
+    ["\udfff", "\ufffd"],
+    ["x\ud83d", "x\ufffd"],
+    ["\udc00\ud800", "\ufffd\ufffd"],
+    ["\ud800\ud800\udc00", "\ufffd\ud800\udc00"],
+    ["😀", "😀"],
+  ])(
+    "F-017-AC21 l'oracle de Yjs remplace chaque unité isolée de %j par U+FFFD, longueur inchangée",
+    (texte, attendue) => {
+      expect(recueParUneAutreReplique(texte)).toBe(attendue);
+    },
+  );
+
+  it("F-017-AC20 F-017-AC21 un nom, un libellé et un texte à unité isolée se lisent normalisés, la même table sur la réplique d'origine et sur celle qui reçoit", () => {
     const pair = new Y.Doc();
     pair.transact(() => {
-      pair.getMap("colonnes").set("col", colonneForgee({}));
-      pair.getMap("lignes").set("lig", ligneForgee({ col: "a\ud800b" }));
+      pair.getMap("colonnes").set("col", colonneForgee({ nom: "a\ud800" }));
+      pair
+        .getMap("colonnes")
+        .set(
+          "sel",
+          colonneForgee(
+            { nom: "\udc00", type: "selection", rang: AUTRE_RANG },
+            { o: { libelle: "\udfffz" } },
+          ),
+        );
+      pair.getMap("lignes").set("lig", ligneForgee({ col: "a\ud800b", sel: "o" }));
+    });
+    const autre = new Y.Doc();
+    Y.applyUpdate(autre, Y.encodeStateAsUpdate(pair));
+    const attendue: TableLue = {
+      colonnes: [
+        { id: "col", nom: "a\ufffd", type: "texte", options: [] },
+        { id: "sel", nom: "\ufffd", type: "selection", options: [{ id: "o", libelle: "\ufffdz" }] },
+      ],
+      lignes: [{ id: "lig", cellules: ["a\ufffdb", "o"] }],
+    };
+
+    expect(ouvrirDocumentTable(pair).lire()).toEqual(attendue);
+    expect(ouvrirDocumentTable(autre).lire()).toEqual(attendue);
+  });
+
+  it("F-017-AC20 F-017-AC21 les limites ne bougent pas : 200, 100 et 2 000 unités avec une unité isolée se lisent, une de plus est ignorée ou lue vide, sur les deux répliques", () => {
+    const pair = new Y.Doc();
+    pair.transact(() => {
+      pair.getMap("colonnes").set("n200", colonneForgee({ nom: `${"n".repeat(199)}\ud800` }));
+      pair
+        .getMap("colonnes")
+        .set("n201", colonneForgee({ nom: `${"n".repeat(200)}\ud800`, rang: AUTRE_RANG }));
+      pair.getMap("colonnes").set(
+        "sel",
+        colonneForgee(
+          { type: "selection", rang: "z" },
+          {
+            l100: { libelle: `${"l".repeat(99)}\udc00` },
+            l101: { libelle: `${"l".repeat(100)}\udc00` },
+          },
+        ),
+      );
+      pair.getMap("lignes").set("t2000", ligneForgee({ n200: `${"t".repeat(1999)}\ud800` }));
+      pair
+        .getMap("lignes")
+        .set("t2001", ligneForgee({ n200: `${"t".repeat(2000)}\ud800` }, { rang: AUTRE_RANG }));
     });
     const autre = new Y.Doc();
     Y.applyUpdate(autre, Y.encodeStateAsUpdate(pair));
 
-    expect(ouvrirDocumentTable(pair).lire().lignes[0]?.cellules).toEqual([null]);
-    expect(ouvrirDocumentTable(autre).lire().lignes[0]?.cellules).toEqual(["a\ufffdb"]);
+    for (const doc of [pair, autre]) {
+      const lue = ouvrirDocumentTable(doc).lire();
+      expect(lue.colonnes.map((c) => c.id)).toEqual(["n200", "sel"]);
+      expect(lue.colonnes[0]?.nom).toBe(`${"n".repeat(199)}\ufffd`);
+      expect(lue.colonnes[1]?.options).toEqual([
+        { id: "l100", libelle: `${"l".repeat(99)}\ufffd` },
+      ]);
+      expect(lue.lignes.map((l) => l.cellules[0])).toEqual([`${"t".repeat(1999)}\ufffd`, null]);
+    }
   });
 });
 
@@ -405,7 +481,7 @@ function conformeAuType(colonne: ColonneLue, valeur: ValeurDeCellule): boolean {
     texte: typeof valeur === "string" && valeur.length <= 2000 && BIEN_FORMEE(valeur),
     nombre: typeof valeur === "number" && Number.isFinite(valeur) && !Object.is(valeur, -0),
     case: typeof valeur === "boolean",
-    date: typeof valeur === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valeur) && valeur >= "0001",
+    date: typeof valeur === "string" && dateSelonLOracle(valeur),
     selection: colonne.options.some((option) => option.id === valeur),
   }[colonne.type];
 }
@@ -453,19 +529,22 @@ describe("entrées brutes quelconques", () => {
     );
   });
 
-  it("F-017-AC21 sans unité UTF-16 isolée, la réplique qui forge et celle qui reçoit lisent la même table", () => {
-    fc.assert(
-      fc.property(forge(false), (forgee) => {
-        const pair = new Y.Doc();
-        appliquerForge(pair, forgee);
-        const recue = new Y.Doc();
-        Y.applyUpdate(recue, Y.encodeStateAsUpdate(pair));
+  it.each([false, true])(
+    "F-017-AC21 F-017-AC10 unités UTF-16 isolées tirées : %s ; la réplique qui forge et celle qui reçoit lisent la même table",
+    (avecSubstituts) => {
+      fc.assert(
+        fc.property(forge(avecSubstituts), (forgee) => {
+          const pair = new Y.Doc();
+          appliquerForge(pair, forgee);
+          const recue = new Y.Doc();
+          Y.applyUpdate(recue, Y.encodeStateAsUpdate(pair));
 
-        expect(ouvrirDocumentTable(recue).lire()).toEqual(ouvrirDocumentTable(pair).lire());
-      }),
-      { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
-    );
-  });
+          expect(ouvrirDocumentTable(recue).lire()).toEqual(ouvrirDocumentTable(pair).lire());
+        }),
+        { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
+      );
+    },
+  );
 });
 
 // ── Reconnaissance (F-017-AC22, AC23) ─────────────────────────────────────────────────────────────

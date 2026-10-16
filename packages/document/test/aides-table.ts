@@ -184,7 +184,11 @@ export const commande = (): fc.Arbitrary<Commande> =>
     a: fc.nat({ max: 1000 }),
     b: fc.nat({ max: 1000 }),
     c: fc.nat({ max: 1000 }),
-    texte: fc.string({ maxLength: 4 }),
+    // Des unités UTF-16 isolées de temps en temps : le module les écrit normalisées (F-017-AC21).
+    texte: fc.oneof(
+      { weight: 4, arbitrary: fc.string({ maxLength: 4 }) },
+      fc.string({ unit: "binary", maxLength: 4 }),
+    ),
   });
 
 function element<T>(elements: readonly T[], indice: number): T | undefined {
@@ -286,4 +290,21 @@ const OPERATIONS: Readonly<
 /** Applique la commande à la table telle qu'elle est lue ; aucune erreur n'est attendue. */
 export function appliquer(table: DocumentTable, c: Commande): void {
   OPERATIONS[c.sorte](table, table.lire(), c);
+}
+
+/**
+ * Oracle de date de test, indépendant du module (F-017-AC18, H13) : un jour `AAAA-MM-JJ` du
+ * `0001-01-01` au `9999-12-31`, jugé par un `Date` UTC à l'année posée par `setUTCFullYear` (sans le
+ * décalage des années 0 à 99).
+ */
+export function dateSelonLOracle(texte: string): boolean {
+  const morceaux = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texte);
+  if (morceaux === null) return false;
+  const [annee = 0, mois = 0, jour = 0] = morceaux.slice(1).map(Number);
+  if (annee < 1) return false;
+  const date = new Date(0);
+  date.setUTCFullYear(annee, mois - 1, jour);
+  return (
+    date.getUTCFullYear() === annee && date.getUTCMonth() === mois - 1 && date.getUTCDate() === jour
+  );
 }

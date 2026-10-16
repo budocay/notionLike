@@ -22,17 +22,17 @@ import {
 import { AUCUN_RANG_ADMIS, insertionParmi } from "./rang.ts";
 import {
   type ColonneLue,
-  estUnLibelleAdmis,
-  estUnNomAdmis,
   estUnTypeDeColonne,
   type EtatTable,
   type IdColonne,
   type IdLigne,
   type IdOption,
+  libelleAdmis,
   lireEtatTable,
   LONGUEUR_MAX_LIBELLE,
   LONGUEUR_MAX_NOM,
   memeTable,
+  nomAdmis,
   type TableLue,
   type TypeDeColonne,
   type ValeurDeCellule,
@@ -201,22 +201,26 @@ function exigerType(type: unknown): asserts type is TypeDeColonne {
   }
 }
 
-function exigerNom(nom: unknown): asserts nom is string {
-  if (!estUnNomAdmis(nom)) {
+// Un nom ou un libellé admis est rendu sous sa forme normalisée : c'est elle qui est écrite, pour que
+// la réplique d'origine lise ce que lisent les autres (F-017-AC21).
+function exigerNom(nom: unknown): string {
+  return (
+    nomAdmis(nom) ??
     refus(
       "nom-non-admis",
-      `Le nom de colonne doit être une chaîne bien formée d'au plus ${LONGUEUR_MAX_NOM} caractères.`,
-    );
-  }
+      `Le nom de colonne doit être une chaîne d'au plus ${LONGUEUR_MAX_NOM} caractères.`,
+    )
+  );
 }
 
-function exigerLibelle(libelle: unknown): asserts libelle is string {
-  if (!estUnLibelleAdmis(libelle)) {
+function exigerLibelle(libelle: unknown): string {
+  return (
+    libelleAdmis(libelle) ??
     refus(
       "libelle-non-admis",
-      `Le libellé d'option doit être une chaîne bien formée d'au plus ${LONGUEUR_MAX_LIBELLE} caractères.`,
-    );
-  }
+      `Le libellé d'option doit être une chaîne d'au plus ${LONGUEUR_MAX_LIBELLE} caractères.`,
+    )
+  );
 }
 
 // ── Cibles ───────────────────────────────────────────────────────────────────────────────────────
@@ -254,6 +258,7 @@ function exigerOption(colonne: ColonneLue, option: IdOption): number {
 
 // ── Valeurs ──────────────────────────────────────────────────────────────────────────────────────
 
+// La valeur exposée est celle qui est écrite : un texte sous sa forme normalisée, `-0` en `0`.
 function valeurAdmise(colonne: ColonneLue, valeur: ValeurDeCellule | null): ValeurDeCellule | null {
   if (valeur === null) {
     return null;
@@ -357,7 +362,7 @@ function creerColonne(
   position: number | undefined,
 ): IdColonne {
   exigerType(type);
-  exigerNom(nom);
+  const admis = exigerNom(nom);
   const etat = lireEtat(doc);
   const colonnes = identifiants(etat.table.colonnes);
   const place = placement(
@@ -367,17 +372,17 @@ function creerColonne(
   );
   const id = crypto.randomUUID();
   doc.transact(() => {
-    ecrireNouvelleColonne(doc, { id, nom, type, rang: place.rang });
+    ecrireNouvelleColonne(doc, { id, nom: admis, type, rang: place.rang });
     ecrireReattribues(doc, place.reattribues, colonneVisee);
   });
   return id;
 }
 
 function renommerColonne(doc: Y.Doc, colonne: IdColonne, nom: string): void {
-  exigerNom(nom);
+  const admis = exigerNom(nom);
   const etat = lireEtat(doc);
-  if (colonneLue(etat, exigerColonne(etat, colonne)).nom !== nom) {
-    doc.transact(() => ecrireNom(doc, { sorte: "colonne", id: colonne }, nom));
+  if (colonneLue(etat, exigerColonne(etat, colonne)).nom !== admis) {
+    doc.transact(() => ecrireNom(doc, { sorte: "colonne", id: colonne }, admis));
   }
 }
 
@@ -408,7 +413,7 @@ function ajouterOption(
   libelle: string,
   position: number | undefined,
 ): IdOption {
-  exigerLibelle(libelle);
+  const admis = exigerLibelle(libelle);
   const etat = lireEtat(doc);
   const options = identifiants(exigerColonneAOptions(etat, colonne).options);
   const place = placement(
@@ -418,17 +423,17 @@ function ajouterOption(
   );
   const id = crypto.randomUUID();
   doc.transact(() => {
-    ecrireNouvelleOption(doc, colonne, { id, libelle, rang: place.rang });
+    ecrireNouvelleOption(doc, colonne, { id, libelle: admis, rang: place.rang });
     ecrireReattribues(doc, place.reattribues, optionVisee(colonne));
   });
   return id;
 }
 
 function renommerOption(doc: Y.Doc, colonne: IdColonne, option: IdOption, libelle: string): void {
-  exigerLibelle(libelle);
+  const admis = exigerLibelle(libelle);
   const lue = exigerColonneAOptions(lireEtat(doc), colonne);
-  if (lue.options[exigerOption(lue, option)]?.libelle !== libelle) {
-    doc.transact(() => ecrireNom(doc, { sorte: "option", colonne, id: option }, libelle));
+  if (lue.options[exigerOption(lue, option)]?.libelle !== admis) {
+    doc.transact(() => ecrireNom(doc, { sorte: "option", colonne, id: option }, admis));
   }
 }
 
