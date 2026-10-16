@@ -220,10 +220,10 @@
 
 - TYPE: FEATURE
 - Tier: structurel
-- Scope: `apps/web` (module `src/synchronisation/`, registre de l'appareil, zone et écrans de synchronisation, lecture seule) — agents: agent-frontend, orchestrateur ; dépendances, règles, ESLint et projets Vitest par le dev (`1290f70`, poussé directement sur `main` avec `01a6bef` et la fusion `90d09c4`) — commits: b09afeb..6e31215
+- Scope: `apps/web` (module `src/synchronisation/`, registre de l'appareil, zone et écrans de synchronisation, lecture seule) — agents: agent-frontend, orchestrateur ; dépendances, règles, ESLint et projets Vitest par le dev (`1290f70`, poussé directement sur `main` avec `01a6bef` et la fusion `90d09c4`) — commits: b09afeb..15e8530
 - Détail: le client déclare son espace au serveur de F-012, écrit sans attendre le réseau, reprend après une coupure avec un aléa de 20 %, passe en lecture seule selon les droits, et affiche ce qui est transmis et pourquoi. Mode économe. Décisions prises au code dans `MEMORY/features/F-013.md`.
 - Dette: introduite D-024 (reviewer-frontend non rejoué après le tour de correctifs, sécurité jugée sur l'empreinte précédente, gate d'architecture non lancé, AC41 sans la fermeture 1001 dans le navigateur, AC10 lu par `navigator.onLine`, AC45 sur un membre typé mais absent du README : acceptés par dérogation du dev) ; laissées D-003, D-007, D-017, D-023
 - ADR: ADR-0001 et `ARCHITECTURE.md` à aligner sur F-012 et F-013
-- Tests: 3181 tests sur 161 fichiers — état: verts — preuve: checks.txt (empreinte `655e412a4518`)
-- Gates: sur `72d25cbef6ce` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (8 points, corrigés dans `6e31215`) ; sur `655e412a4518` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-024
-- Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 6, dont 2 trous réels de lecture seule ; 2 défauts trouvés par les tests (effacement entre onglets, réouverture d'une page juste fermée) · coût non mesuré
+- Tests: 3184 tests sur 161 fichiers — état: verts — preuve: checks.txt (empreinte `41ce5bc56134`) ; bout en bout joué par le dev sur la pile Docker (macOS) : 56 réussis, 1 ignoré, après correction de 3 vrais défauts (perte du réseau, relecture d'un espace supprimé, infobulle à 360 px) et de 4 défauts de test
+- Gates: sur `72d25cbef6ce` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (8 points, corrigés dans `6e31215`) ; sur `41ce5bc56134` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-024
+- Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 6, dont 2 trous réels de lecture seule ; 5 défauts trouvés par les tests et le bout en bout (effacement entre onglets, réouverture d'une page juste fermée) · coût non mesuré
