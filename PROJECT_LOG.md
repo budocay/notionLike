@@ -227,3 +227,15 @@
 - Tests: 3184 tests sur 161 fichiers — état: verts — preuve: checks.txt (empreinte `41ce5bc56134`) ; bout en bout joué par le dev sur la pile Docker (macOS) : 56 réussis, 1 ignoré, après correction de 3 vrais défauts (perte du réseau, relecture d'un espace supprimé, infobulle à 360 px) et de 4 défauts de test
 - Gates: sur `72d25cbef6ce` : SECURITY PASS · CRAFT PASS · revue reviewer-frontend CHANGES_REQUESTED (8 points, corrigés dans `6e31215`) ; sur `41ce5bc56134` : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-024
 - Mesures: boucles 1 passage et 1 tour de correctifs · constats confirmés 6, dont 2 trous réels de lecture seule ; 5 défauts trouvés par les tests et le bout en bout (effacement entre onglets, réouverture d'une page juste fermée) · coût non mesuré
+
+## [2026-10-16] Alignement après F-013 : ROADMAP, ARCHITECTURE.md, ADR, délai du serveur d'essai
+
+- TYPE: REFACTOR
+- Tier: trivial
+- Scope: `ROADMAP.md`, `ARCHITECTURE.md`, `docs/decisions/` (ADR-0013, ADR-0014 proposées ; ADR-0001 à 0004, 0007 à 0009, 0012 amendées, proposées), `apps/web/test/synchronisation/coutures-synchro.test.ts` — agents: agent-planif, agent-architecte-conception, agent-frontend, orchestrateur — commits: a39e1f3..c7361f6, fusion 2a10b99
+- Détail: ROADMAP à jour (quinze features livrées, décisions du dev du 2026-10-16, CI avant toute nouvelle feature, ordre F-028, F-005, F-006, F-015 ; aucune paire des quatre parallélisable, `apps/web/src/edition/` partagé) ; structure de F-012 et F-013 décrite telle que livrée ; délai du crochet de démarrage du serveur d'essai porté à 30 s (huit autres crochets restent à 10 s).
+- Dette: aucune introduite ; D-017, D-019 (alignement d'`ARCHITECTURE.md`) en attente d'acceptation des ADR par le dev
+- ADR: ADR-0013, ADR-0014 (proposées) ; amendements datés du 2026-10-16 (proposés)
+- Tests: 44 tests du fichier touché verts — état: verts — preuve: agent-frontend ; suite complète au pre-push
+- Gates: aucun (trivial) · `gates-verts.sh main..HEAD` : OK
+- Mesures: aucune boucle · coût non mesuré
