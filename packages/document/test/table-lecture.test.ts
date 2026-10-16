@@ -334,6 +334,18 @@ describe("chaînes à unité UTF-16 isolée écrites par un pair", () => {
 
 // ── Propriété : entrées brutes quelconques (F-017-AC20, AC21) ────────────────────────────────────
 
+// Chaînes courtes faites d'unités UTF-16 isolées, de paires valides et de lettres : les unités isolées
+// sont rares dans `fc.string({ unit: "binary" })`.
+const chaineASubstituts = fc
+  .array(fc.constantFrom("a", "\ud800", "\udbff", "\udc00", "\udfff", "😀"), { maxLength: 3 })
+  .map((morceaux) => morceaux.join(""));
+
+// Une chaîne courte, à unités isolées une fois sur deux quand la forge en demande.
+const texteForge = (avecSubstituts: boolean): fc.Arbitrary<string> =>
+  avecSubstituts
+    ? fc.oneof(fc.string({ maxLength: 3 }), chaineASubstituts)
+    : fc.string({ maxLength: 3 });
+
 // Valeurs brutes de tout type ; `fraiche` construit à l'application les types partagés, qu'un Y.Doc
 // n'accepte qu'une fois.
 const brute = (avecSubstituts: boolean): fc.Arbitrary<() => unknown> =>
@@ -342,7 +354,7 @@ const brute = (avecSubstituts: boolean): fc.Arbitrary<() => unknown> =>
       .oneof(
         fc.string({ maxLength: 6 }),
         avecSubstituts
-          ? fc.string({ unit: "binary", maxLength: 4 })
+          ? fc.oneof(fc.string({ unit: "binary", maxLength: 4 }), chaineASubstituts)
           : fc.string({ unit: "grapheme", maxLength: 4 }),
         fc.constantFrom(
           "texte",
@@ -402,7 +414,7 @@ const forge = (avecSubstituts: boolean): fc.Arbitrary<Forge> => {
   // Une valeur de chaque type, dont les identifiants d'option : la conformité dépend de la colonne.
   const valeur = champ(
     fc.oneof(
-      fc.string({ maxLength: 3 }),
+      texteForge(avecSubstituts),
       fc.integer(),
       fc.boolean(),
       fc.constantFrom("2024-02-29", "0001-01-01", ...IDS),
@@ -422,7 +434,7 @@ const forge = (avecSubstituts: boolean): fc.Arbitrary<Forge> => {
   return fc.record({
     colonnes: parId(
       fc.record({
-        nom: champ(fc.string({ maxLength: 3 }), avecSubstituts),
+        nom: champ(texteForge(avecSubstituts), avecSubstituts),
         type: champ(
           fc.constantFrom("texte", "nombre", "case", "date", "selection"),
           avecSubstituts,
@@ -433,7 +445,7 @@ const forge = (avecSubstituts: boolean): fc.Arbitrary<Forge> => {
     ),
     options: parId(
       parId(
-        fc.record({ libelle: champ(fc.string({ maxLength: 3 }), avecSubstituts), rang, supprimee }),
+        fc.record({ libelle: champ(texteForge(avecSubstituts), avecSubstituts), rang, supprimee }),
       ),
     ),
     lignes: parId(fc.record({ rang, supprimee })),

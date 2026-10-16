@@ -197,12 +197,12 @@ describe("énumérations de F-029 sur des cas fautifs", () => {
     [
       "un lecteur de types racines à argument de type",
       lecteursDesTypesRacines,
-      `doc.getMap<unknown>("${NOMS_DU_FORMAT.pages}");\n`,
+      "doc.getMap<unknown>(TYPE_RACINE);\n",
     ],
     [
       "un lecteur de types racines à argument de type imbriqué",
       lecteursDesTypesRacines,
-      `doc.getMap <Y.Map<unknown>> ("${NOMS_DU_FORMAT.pages}");\n`,
+      "doc.getMap <Y.Map<unknown>> (TYPE_RACINE);\n",
     ],
     [
       "un nom de type racine cité",
