@@ -3,10 +3,16 @@
 // service, qui écoute le signal d'arrêt et fixe le code de sortie par lui.
 import { ouvrirBase } from "@notionlike/db";
 
-import { ErreurConfiguration, lireConfiguration, type Configuration } from "./configuration.ts";
+import {
+  ErreurConfiguration,
+  lireConfiguration,
+  texteDuRefus,
+  type Configuration,
+} from "./configuration.ts";
 import { servir } from "./service.ts";
 
-// F-008-AC12 : le message nomme les variables fautives, sans leur valeur ; rien n'a écouté.
+// F-008-AC12, F-031-AC12 : le texte nomme les variables fautives et leur raison, sans leur valeur ;
+// rien n'a écouté.
 function configurationOuRefus(): Configuration | undefined {
   try {
     return lireConfiguration(process.env);
@@ -14,7 +20,7 @@ function configurationOuRefus(): Configuration | undefined {
     if (!(erreur instanceof ErreurConfiguration)) {
       throw erreur;
     }
-    process.stderr.write(`${erreur.message}\n`);
+    process.stderr.write(texteDuRefus(erreur));
     process.exitCode = 1;
     return undefined;
   }
