@@ -306,11 +306,11 @@ module.exports = {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007, F-003-AC27, F-010, F-013 : hors persistance, espace, navigation, identifiants, édition, page, compte et synchronisation, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+        "ADR-0007, F-003-AC27, F-010, F-013, F-018 : hors persistance, espace, navigation, identifiants, édition, page, compte, synchronisation, table et vues de table, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
       from: {
         path: "^apps/web/src/",
         pathNot:
-          "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte|synchronisation)/",
+          "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte|synchronisation|table|vues-de-table)/",
       },
       to: {
         pathNot: [
@@ -426,6 +426,62 @@ module.exports = {
           "(^|/)node_modules/yjs/",
         ],
       },
+    },
+    {
+      name: "web-table-liste-blanche",
+      severity: "error",
+      comment:
+        "F-018, ADR-0019 : la session de table n'importe qu'elle-même, l'interface de la persistance, la garde d'onglet, les exports de @notionlike/document et yjs (ni React, ni les vues de table).",
+      from: { path: "^apps/web/src/table/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/table/",
+          "^apps/web/src/persistance/index\\.ts$",
+          "^apps/web/src/espace/garde-onglet\\.ts$",
+          "^packages/document/src/index\\.ts$",
+          "(^|/)node_modules/yjs/",
+        ],
+      },
+    },
+    {
+      name: "web-vues-de-table-liste-blanche",
+      severity: "error",
+      comment:
+        "F-018-AC54, ADR-0019 : le module des vues de table n'importe que lui-même, l'interface de la persistance (réglages de vue), le type d'état de la session de table, les composants de présentation, les textes et les raccourcis de l'interface, les exports de @notionlike/document, react, react-dom et la seule bibliothèque de table admise : ni yjs (aucun type partagé lu ou écrit), ni bibliothèque de défilement virtuel, de dates ou de glisser-déposer.",
+      from: { path: "^apps/web/src/vues-de-table/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/vues-de-table/",
+          "^apps/web/src/persistance/index\\.ts$",
+          "^apps/web/src/table/session-table\\.ts$",
+          "^apps/web/src/interface/composants/",
+          "^apps/web/src/interface/(messages|raccourcis)\\.ts$",
+          "^packages/document/src/index\\.ts$",
+          "(^|/)node_modules/(react|react-dom|@tanstack/react-table)/",
+          "^@tanstack/react-table$",
+        ],
+      },
+    },
+    {
+      name: "web-vues-de-table-par-son-interface",
+      severity: "error",
+      comment:
+        "F-018-AC54 : hors du module des vues de table et de ses tests (test/vues-de-table/), seul son index.ts est importable ; c'est l'interface qui n'expose aucun type de bibliothèque.",
+      from: { path: "^apps/web/", pathNot: "^apps/web/(src|test)/vues-de-table/" },
+      to: {
+        path: "^apps/web/src/vues-de-table/",
+        pathNot: "^apps/web/src/vues-de-table/index\\.ts$",
+      },
+    },
+    // F-018-AC54, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "bibliotheque-de-table-reservee-aux-vues-de-table",
+      severity: "error",
+      comment:
+        "F-018-AC54, H8 : aucun paquet @tanstack/* n'est importé hors du module des vues de table d'apps/web (tests compris, ceux du module exceptés) ; le module lui-même n'admet que @tanstack/react-table (web-vues-de-table-liste-blanche).",
+      from: { pathNot: "^apps/web/(src|test)/vues-de-table/" },
+      to: { path: ["(^|/)node_modules/@tanstack/", "^@tanstack/"] },
     },
     {
       name: "web-composants-de-presentation",
