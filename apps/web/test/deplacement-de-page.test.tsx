@@ -5,7 +5,7 @@
 // où l'œil la voit, seul le bout en bout le prouve (F-006-AC34).
 import { ErreurDocument } from "@notionlike/document";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import {
@@ -25,8 +25,23 @@ type SessionEspace = CoquilleRendue["session"];
 
 // Après un geste, la bibliothèque retient 50 ms les clics sur le document, puis retire son écouteur
 // par une minuterie que la préparation des tests désarme en fin de test : le test suivant perdrait
-// ses clics. Cette attente passe avant la préparation.
-afterEach(() => new Promise<void>((suite) => setTimeout(suite, 60)));
+// ses clics. Ces retraits sont notés quand ils sont armés, et joués en fin de test, avant la
+// préparation, sans attendre l'horloge réelle.
+const DELAI_DU_RETRAIT_DES_ECOUTEURS_MS = 50;
+const retraitsEnAttente: (() => void)[] = [];
+
+beforeEach(() => {
+  const armer = globalThis.setTimeout;
+  vi.stubGlobal("setTimeout", (...arguments_: Parameters<typeof setTimeout>) => {
+    const [rappel, delai] = arguments_;
+    if (delai === DELAI_DU_RETRAIT_DES_ECOUTEURS_MS && typeof rappel === "function") {
+      retraitsEnAttente.push(() => void rappel());
+    }
+    return armer(...arguments_);
+  });
+});
+
+afterEach(() => retraitsEnAttente.splice(0).forEach((retirer) => retirer()));
 
 const HAUTEUR = 30;
 const LARGEUR = 240;
@@ -160,6 +175,12 @@ function idDe(session: SessionEspace, titre: string): string {
   }
   throw new Error(`Aucune page « ${titre} ».`);
 }
+
+/**
+ * Ce qu'un style en ligne de rangée ne doit pas porter pendant un geste (F-006-AC29) : transition,
+ * animation, durée ou courbe. Le contrôle et son cas fautif lisent cette seule expression.
+ */
+const STYLE_ANIME = /transition|animation|\d+m?s\b|ease|cubic-bezier|steps\(/;
 
 describe("déplacement d'une page au pointeur", () => {
   it("F-006-AC1 F-006-AC2 lâchée avant une rangée, la page y arrive par un seul appel de deplacerPage, repère « avant » affiché pendant le survol", async () => {
@@ -373,7 +394,7 @@ describe("déplacement d'une page au pointeur", () => {
     lacher();
 
     for (const style of styles) {
-      expect(style).not.toMatch(/transition|animation|\d+m?s\b|ease|cubic-bezier|steps\(/);
+      expect(style).not.toMatch(STYLE_ANIME);
       expect(
         style
           .split(";")
@@ -387,13 +408,12 @@ describe("déplacement d'une page au pointeur", () => {
   });
 
   it("F-006-AC29 un style de rangée qui porte une transition ou une durée est refusé par ce contrôle", () => {
-    const refuse = /transition|animation|\d+m?s\b|ease|cubic-bezier|steps\(/;
-
-    expect("--niveau: 1; transform: translate3d(0px, 4px, 0);").not.toMatch(refuse);
+    expect("--niveau: 1; transform: translate3d(0px, 4px, 0);").not.toMatch(STYLE_ANIME);
     expect("transform: translate3d(0px, 4px, 0); transition: transform 200ms ease;").toMatch(
-      refuse,
+      STYLE_ANIME,
     );
-    expect("transition: opacity var(--duree-rapide);").toMatch(refuse);
+    expect("transition: opacity var(--duree-rapide);").toMatch(STYLE_ANIME);
+    expect("animation: glisser 1s steps(4);").toMatch(STYLE_ANIME);
   });
 });
 
