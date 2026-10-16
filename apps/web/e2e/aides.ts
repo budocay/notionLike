@@ -301,3 +301,30 @@ export async function envoyerSousLePlafond(
     `${chemin} : le serveur refuse encore après ${String(ESSAIS_SOUS_LE_PLAFOND)} essais`,
   );
 }
+
+/**
+ * Appelle une route de l'API depuis la page, à travers le relais de Vite, avec le cookie de
+ * session du navigateur. Pas `page.request` : son client, côté Node, ne joint pas un cookie
+ * `Secure` (pile en production) à une requête `http://127.0.0.1`, que le navigateur, lui, tient
+ * pour un contexte sûr. Rend le statut.
+ */
+export function appelerDepuisLaPage(
+  page: Page,
+  methode: "POST" | "DELETE",
+  chemin: string,
+  corps?: unknown,
+): Promise<number> {
+  return page.evaluate(
+    async ({ methode, chemin, corps }) => {
+      const reponse = await fetch(chemin, {
+        method: methode,
+        credentials: "same-origin",
+        ...(corps === undefined
+          ? {}
+          : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) }),
+      });
+      return reponse.status;
+    },
+    { methode, chemin, corps },
+  );
+}

@@ -3,7 +3,13 @@
 import { CHEMIN_SYNCHRO, CHEMINS_ESPACES } from "@notionlike/contrats";
 import { expect, type Page, test } from "@playwright/test";
 
-import { creerPageNommee, envoyerSousLePlafond, lienDePage, ouvrir } from "./aides.ts";
+import {
+  appelerDepuisLaPage,
+  creerPageNommee,
+  envoyerSousLePlafond,
+  lienDePage,
+  ouvrir,
+} from "./aides.ts";
 
 const MOI = "/api/v1/moi";
 const MOT_DE_PASSE = "un mot de passe assez long";
@@ -193,13 +199,18 @@ test("F-013-AC41 à travers le relais de Vite, le script lit la raison d'un refu
 
   // Fermeture d'une ouverture : l'espace est supprimé pendant qu'elle est acquise.
   const idEspace = crypto.randomUUID();
-  const creation = await page.request.post(CHEMINS_ESPACES.espaces, {
-    data: { idEspace, nom: "Éphémère" },
-  });
-  expect(creation.status()).toBe(201);
+  expect(
+    await appelerDepuisLaPage(page, "POST", CHEMINS_ESPACES.espaces, { idEspace, nom: "Éphémère" }),
+  ).toBe(201);
   const lecture = lireDansLaPage(page, "espace", `espace:${idEspace}`);
   await page.waitForTimeout(1000);
-  await page.request.delete(CHEMINS_ESPACES.espace.replace(":idEspace", idEspace));
+  expect(
+    await appelerDepuisLaPage(
+      page,
+      "DELETE",
+      CHEMINS_ESPACES.espace.replace(":idEspace", idEspace),
+    ),
+  ).toBe(204);
   expect((await lecture).fermetureDOuverture).toBe("acces-refuse");
   // Le code 1001 (arrêt du serveur) suppose d'arrêter la pile pendant le test : il est éprouvé
   // contre le serveur réel sous Node (F-013-AC20), non dans ce scénario.
