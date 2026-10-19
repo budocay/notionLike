@@ -2,6 +2,7 @@ import { Editor } from "@tiptap/core";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { EditorContent } from "@tiptap/react";
 import {
+  type ComponentProps,
   type KeyboardEvent,
   type ReactElement,
   type RefObject,
@@ -47,6 +48,7 @@ import {
 } from "../interface/messages.ts";
 import { type Barre, useBarre } from "./barre.ts";
 import { choisirLeLangage } from "./bloc-code.ts";
+import { LISTE_DES_COMMANDES, memeType } from "./commandes-de-bloc.ts";
 import { basculerLeGras, basculerLItalique, type EtatDuLien } from "./commandes-de-marque.ts";
 import {
   deplacerLeBlocCourant,
@@ -54,14 +56,10 @@ import {
   type SensDuDeplacement,
 } from "./deplacement-de-bloc.ts";
 import type { OptionsDuDepot } from "./depot.ts";
-import { LANGAGES } from "./langages.ts";
+import { type Langage, LANGAGES } from "./langages.ts";
 import type { ElementsInscrits, OptionsDesMarques } from "./marques.ts";
-import {
-  type EtatDuMenu,
-  type MenuAffiche,
-  type OptionsDuMenu,
-  useMenuAffiche,
-} from "./menu-slash.ts";
+import type { EtatDuMenu, OptionsDuMenu } from "./menu-slash.ts";
+import { type MenuAffiche, useMenuAffiche } from "./menu-slash-affiche.ts";
 import { type EtatDuPanneau, usePanneauDeLien } from "./panneau.ts";
 import {
   type PoigneeAuCurseur,
@@ -69,7 +67,10 @@ import {
   usePoigneeAuCurseur,
 } from "./poignee.ts";
 import { extensionsDeLEditeur } from "./schema.ts";
-import { donnerLeType, LISTE_DES_COMMANDES, memeType, typeDisponible } from "./types-de-bloc.ts";
+import { donnerLeType, typeDisponible } from "./types-de-bloc.ts";
+
+// Un langage ajouté à la liste sans son nom français ne compile pas (F-005-AC6).
+const NOMS_DES_LANGAGES_DE_LA_LISTE: Readonly<Record<Langage, string>> = NOMS_DES_LANGAGES;
 
 export interface ProprietesEditeurDePage {
   /** Fragment du document de page, fourni par sa façade : seul type où l'éditeur écrit. */
@@ -109,7 +110,7 @@ export interface ProprietesEditeurDePage {
 }
 
 export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
-  const { geste, annonce, liens } = useLiensDuDepot();
+  const { geste, annonce, liens } = useLiensHorsEditeur();
   const editeur = useEditeur(props, liens);
   const menu = useMenuAffiche(editeur, liens.etatDuMenu);
   const lectureSeule = useModifiable(editeur, props.lectureSeule === true);
@@ -214,17 +215,24 @@ function useVersLesCommandesDeDeplacement(refBarre: RefObject<HTMLDivElement | n
 }
 
 /**
- * Texte de la région d'état de l'éditeur, qui n'existe que le focus dedans (`useLiensDuDepot`) :
+ * Texte de la région d'état de l'éditeur, qui n'existe que le focus dedans (`useLiensHorsEditeur`) :
  * menu slash ouvert, le nombre de commandes listées, à chaque changement du filtre (F-005-AC22).
  */
-function regionDEtat(barre: Barre, annonce: string, menu: EtatDuMenu | undefined) {
+function regionDEtat(
+  barre: Barre,
+  annonce: string,
+  menu: EtatDuMenu | undefined,
+): string | undefined {
   if (!barre.focusDedans) {
     return undefined;
   }
   return menu === undefined ? annonce : commandesListees(menu.commandes.length);
 }
 
-function proprietesDuMenu(menu: MenuAffiche, etat: EtatDuMenu) {
+function proprietesDuMenu(
+  menu: MenuAffiche,
+  etat: EtatDuMenu,
+): ComponentProps<typeof MenuDeCommandes> {
   return {
     ref: menu.ref,
     id: menu.idDeLaListe,
@@ -237,7 +245,7 @@ function proprietesDuMenu(menu: MenuAffiche, etat: EtatDuMenu) {
       nom: commande.nom,
       active: rang === etat.active,
     })),
-  } as const;
+  };
 }
 
 /** Le sélecteur de langage, seulement quand le curseur est dans un bloc code (F-005-AC6). */
@@ -252,7 +260,7 @@ function selecteurDeLangage(editeur: Editor, barre: Barre) {
       { valeur: "", nom: TEXTE_BRUT },
       ...LANGAGES.map((langage) => ({
         valeur: langage,
-        nom: NOMS_DES_LANGAGES[langage] ?? langage,
+        nom: NOMS_DES_LANGAGES_DE_LA_LISTE[langage],
       })),
     ],
     surChoix: (valeur: string) => choisirLeLangage(editeur, valeur),
@@ -429,7 +437,7 @@ function useOptionsRecues(props: ProprietesEditeurDePage): RefObject<ProprietesE
  * Ce que le gestionnaire de dépôt et le menu slash lisent et disent hors de l'éditeur : le geste en
  * cours, l'annonce, l'état du menu.
  */
-interface LiensDuDepot {
+interface LiensHorsEditeur {
   readonly geste: RefObject<boolean>;
   /** Stable d'un rendu à l'autre (une fonction d'état), sans quoi l'éditeur serait recréé. */
   readonly annoncer: (texte: string) => void;
@@ -439,15 +447,15 @@ interface LiensDuDepot {
 }
 
 /**
- * Le drapeau du geste de la poignée, et le texte de la région d'état que le dépôt remplit
- * (F-006-AC18). La région n'existe que tant que le focus est dans la zone d'édition, où naît
+ * Le drapeau du geste de la poignée, le texte de la région d'état que le dépôt remplit
+ * (F-006-AC18), et l'état du menu slash que l'éditeur signale (F-005-AC20). La région n'existe que tant que le focus est dans la zone d'édition, où naît
  * tout raccourci : présente avant l'annonce, elle est lue ; absente ailleurs, elle ne double pas
  * celle de l'état de chargement.
  */
-function useLiensDuDepot(): {
+function useLiensHorsEditeur(): {
   readonly geste: RefObject<boolean>;
   readonly annonce: string;
-  readonly liens: LiensDuDepot;
+  readonly liens: LiensHorsEditeur;
 } {
   const geste = useRef(false);
   const [annonce, annoncer] = useState("");
@@ -463,7 +471,7 @@ function useLiensDuDepot(): {
 // nettoyage (F-003-AC29, AC33).
 function useEditeur(
   props: ProprietesEditeurDePage,
-  { geste, annoncer, surChangementDuMenu }: LiensDuDepot,
+  { geste, annoncer, surChangementDuMenu }: LiensHorsEditeur,
 ): Editor | null {
   const { contenu, garderVersion } = props;
   const options = useOptionsRecues(props);

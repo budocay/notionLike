@@ -142,17 +142,32 @@ describe("filtre du menu slash", () => {
     expect(commandeActive()).toBe("Paragraphe");
   });
 
-  it("F-005-AC18 si aucune commande ne correspond, le menu affiche « Aucune commande » ; Entrée le ferme et coupe le bloc, la séquence restant dans le texte", async () => {
-    const { doc } = monterLEditeur();
+  it("F-005-AC18 dans un paragraphe de premier niveau, si aucune commande ne correspond (`/zzz`), le menu affiche « Aucune commande » ; Entrée n'y fait rien : ni coupure, ni mise à jour Yjs, menu ouvert, séquence gardée ; Échap puis Entrée coupent le bloc", async () => {
+    const { doc, emises } = monterLEditeur();
     entrerDansLEditeur();
     taper("abc /zzz");
     await laisserLeMenuSuivre();
     const vide = [menuSlash()?.parentElement?.textContent, nomsDuMenu()];
+    const avant = emises.length;
 
-    presser("Enter");
+    const traitee = presser("Enter");
     await laisserLeMenuSuivre();
+    const apresEntree = {
+      traitee,
+      ouvert: menuSlash() !== null,
+      contenu: contenuLu(doc),
+      emises: emises.length - avant,
+    };
+    presser("Escape");
+    presser("Enter");
 
     expect(vide).toEqual(["Aucune commande", []]);
+    expect(apresEntree).toEqual({
+      traitee: true,
+      ouvert: true,
+      contenu: "<paragraph>abc /zzz</paragraph>",
+      emises: 0,
+    });
     expect(menuSlash()).toBeNull();
     expect(contenuLu(doc)).toBe("<paragraph>abc /zzz</paragraph><paragraph></paragraph>");
   });

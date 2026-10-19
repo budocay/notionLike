@@ -41,6 +41,7 @@ describe("aucun HTML brut", () => {
       "src/edition/barre.ts",
       // F-005 : bloc code, liste des langages, filtre et menu slash (F-005-AC10).
       "src/edition/bloc-code.ts",
+      "src/edition/commandes-de-bloc.ts",
       "src/edition/commandes-de-marque.ts",
       // F-006 : déplacement d'un bloc, lâcher et raccourcis, poignée du curseur.
       "src/edition/deplacement-de-bloc.ts",
@@ -49,8 +50,10 @@ describe("aucun HTML brut", () => {
       "src/edition/index.ts",
       "src/edition/invite.ts",
       "src/edition/langages.ts",
+      "src/edition/liaison.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
+      "src/edition/menu-slash-affiche.ts",
       "src/edition/menu-slash.ts",
       "src/edition/panneau.ts",
       "src/edition/placement.ts",
@@ -128,8 +131,10 @@ describe("confinement de la bibliothèque d'édition", () => {
       "src/edition/deplacement-de-bloc.ts",
       "src/edition/depot.ts",
       "src/edition/invite.ts",
+      "src/edition/liaison.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
+      "src/edition/menu-slash-affiche.ts",
       "src/edition/menu-slash.ts",
       "src/edition/panneau.ts",
       "src/edition/poignee.ts",
@@ -327,8 +332,9 @@ describe("coutures avec F-004", () => {
 
     // 13 fichiers à F-003, 19 depuis F-028 (six fichiers du module d'édition, dont la relecture de
     // la sélection du navigateur, F-028-AC30), 22 depuis F-006 (déplacement d'un bloc, lâcher,
-    // poignée du curseur), 26 depuis F-005 (bloc code, langages, filtre, menu slash).
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(26);
+    // poignée du curseur), 29 depuis F-005 (bloc code, langages, filtre, menu slash et son
+    // affichage, commandes de bloc, origine de la liaison).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(29);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

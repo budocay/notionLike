@@ -90,6 +90,12 @@ export interface PositionDeBarre {
   readonly haut: number;
 }
 
+/** Coin haut gauche du menu slash, en pixels depuis celui de la fenêtre. */
+export interface PositionDuMenu {
+  readonly gauche: number;
+  readonly haut: number;
+}
+
 /** Sélecteur de la barre de blocs : une valeur parmi des options, toutes nommées en français. */
 export interface SelecteurDeBarre {
   /** Nom accessible du sélecteur. */
@@ -215,7 +221,7 @@ export interface OptionDuMenu {
   readonly active: boolean;
 }
 
-interface ProprietesMenuDeCommandes {
+export interface ProprietesMenuDeCommandes {
   readonly ref?: Ref<HTMLDivElement> | undefined;
   /** Identifiant de la liste d'options, que l'éditeur désigne par `aria-controls`. */
   readonly id: string;
@@ -225,7 +231,7 @@ interface ProprietesMenuDeCommandes {
   /** Ce que le menu affiche quand aucune commande n'est listée. */
   readonly vide: string;
   /** Coin haut gauche, dans la fenêtre ; `undefined` tant qu'il n'est pas mesuré. */
-  readonly position: { readonly x: number; readonly y: number } | undefined;
+  readonly position: PositionDuMenu | undefined;
   readonly surChoix: (rang: number) => void;
 }
 
@@ -236,7 +242,7 @@ interface ProprietesMenuDeCommandes {
  */
 export function MenuDeCommandes(props: ProprietesMenuDeCommandes): ReactElement {
   const { position } = props;
-  const style = { "--barre-gauche": position?.x ?? 0, "--barre-haut": position?.y ?? 0 };
+  const style = { "--menu-x": position?.gauche ?? 0, "--menu-y": position?.haut ?? 0 };
   return (
     <div
       ref={props.ref}

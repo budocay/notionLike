@@ -6,11 +6,12 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { commandesFiltrees, LISTE_DES_COMMANDES } from "../../src/edition/index.ts";
-import { bloc, contenuLu, documentForge } from "../aides-facade-page.ts";
+import { bloc, contenuLu, documentForge, fragmentBrut } from "../aides-facade-page.ts";
 import {
   barreDeBlocs,
   blocDuCurseur,
   commande,
+  demonterLEditeur,
   entrerDansLEditeur,
   laisserLeMenuSuivre,
   menuSlash,
@@ -41,50 +42,123 @@ function documentAvecUnElement(...paragraphes: string[]): Y.Doc {
   return documentForge(liste);
 }
 
-const LISTE_ATTENDUE =
-  "<bulletlist><listitem><paragraph>premier</paragraph></listitem></bulletlist>";
+/** Une commande telle que le contrôle d'AC21 la lit : son nom et le nœud qu'elle donne au bloc. */
+interface CommandeDonnee {
+  readonly nom: string;
+  readonly noeud: string;
+}
+
+/**
+ * Le contrôle de F-005-AC21 : chaque type de bloc a une commande dans la barre et dans le menu, et
+ * aucune commande ne donne un nœud absent du schéma. Rend une faute par écart, vide si tout tient.
+ */
+function fautesDeLaListe(
+  types: readonly string[],
+  noeudsDuSchema: readonly string[],
+  liste: readonly CommandeDonnee[],
+  affichees: { readonly barre: readonly string[]; readonly menu: readonly string[] },
+): string[] {
+  const sansCommande = types.flatMap((type) => {
+    const noms = liste.filter((une) => une.noeud === type).map((une) => une.nom);
+    if (noms.length === 0) {
+      return [`${type} : aucune commande`];
+    }
+    return (["barre", "menu"] as const)
+      .filter((lieu) => !noms.some((nom) => affichees[lieu].includes(nom)))
+      .map((lieu) => `${type} : aucune commande dans ${lieu === "barre" ? "la barre" : "le menu"}`);
+  });
+  const horsSchema = liste
+    .filter((une) => !noeudsDuSchema.includes(une.noeud))
+    .map((une) => `${une.nom} : ${une.noeud} absent du schéma`);
+  return [...sansCommande, ...horsSchema];
+}
+
+/** Le nœud de premier niveau que la commande donne, par la barre, à un paragraphe sélectionné. */
+function noeudDonnePar(nom: string): string {
+  const { doc } = monterLEditeur();
+  entrerDansLEditeur();
+  taper("texte");
+  selectionnerLeBloc();
+  act(() => commande(nom as (typeof NOMS_DES_COMMANDES)[number]).click());
+  const premier = fragmentBrut(doc).get(0);
+  demonterLEditeur();
+  return premier instanceof Y.XmlElement ? premier.nodeName : "";
+}
+
+const TYPES_DE_LA_TABLE = Object.keys(TABLE_DES_VERSIONS_PAGE.at(-1)?.noeuds ?? {}).filter(
+  (noeud) => !NOEUDS_SANS_COMMANDE.includes(noeud),
+);
 
 describe("une seule liste de commandes", () => {
-  it("F-005-AC21 chaque type de bloc de la dernière ligne de la table a sa commande dans la barre et dans le menu ouvert dans un paragraphe de premier niveau, et chaque commande donne un nœud du schéma", async () => {
+  it("F-005-AC21 chaque type de bloc de la dernière ligne de la table a sa commande dans la barre affichée sur une sélection non vide d'un paragraphe de premier niveau et dans le menu ouvert dans un paragraphe de premier niveau, et chaque commande donne un nœud du schéma", async () => {
+    const liste = LISTE_DES_COMMANDES.map((une) => ({
+      nom: une.nom,
+      noeud: noeudDonnePar(une.nom),
+    }));
     monterLEditeur();
     entrerDansLEditeur();
     taper("texte");
     selectionnerLeBloc();
-    const dansLaBarre = NOMS_DES_COMMANDES.filter((nom) =>
+    const barre = NOMS_DES_COMMANDES.filter((nom) =>
       barreDeBlocs()?.querySelector(`[aria-label="${nom}"]`),
     );
     placerLeCurseurALaFinDe("texte");
     taper(" /");
     await laisserLeMenuSuivre();
-    const dansLeMenu = nomsDuMenu();
+    const menu = nomsDuMenu();
     const noeudsDuSchema = Object.keys(schemaDeLEditeur().noeuds);
-    const types = Object.keys(TABLE_DES_VERSIONS_PAGE.at(-1)?.noeuds ?? {}).filter(
-      (noeud) => !NOEUDS_SANS_COMMANDE.includes(noeud),
-    );
 
     const noms = LISTE_DES_COMMANDES.map((une) => une.nom);
-    expect(dansLaBarre).toEqual(noms);
-    expect(dansLeMenu).toEqual(noms);
-    for (const type of types) {
-      expect(
-        LISTE_DES_COMMANDES.filter((une) => une.noeud === type).map((une) => une.nom),
-        type,
-      ).not.toEqual([]);
-    }
-    expect(LISTE_DES_COMMANDES.filter((une) => !noeudsDuSchema.includes(une.noeud))).toEqual([]);
-    expect([...new Set(LISTE_DES_COMMANDES.map((une) => une.noeud))].sort()).toEqual(types.sort());
+    expect(barre).toEqual(noms);
+    expect(menu).toEqual(noms);
+    expect(fautesDeLaListe(TYPES_DE_LA_TABLE, noeudsDuSchema, liste, { barre, menu })).toEqual([]);
+    expect([...new Set(liste.map((une) => une.noeud))].sort()).toEqual(
+      [...TYPES_DE_LA_TABLE].sort(),
+    );
   });
 
-  it("F-005-AC21 cas fautifs : un type de bloc sans commande, et une commande d'un type absent du schéma, sont vus", () => {
-    const sansCommande = ["bulletList", "codeBlock", "blocFutur"].filter(
-      (type) => !LISTE_DES_COMMANDES.some((une) => une.noeud === type),
-    );
-    const schema = ["paragraph", "heading"];
+  it("F-005-AC21 cas fautifs : un type sans commande, une commande absente de la barre ou du menu, une commande d'un type absent du schéma sont vus par le même contrôle", () => {
+    const liste: CommandeDonnee[] = [
+      { nom: "Paragraphe", noeud: "paragraph" },
+      { nom: "Titre 1", noeud: "heading" },
+      { nom: "Bloc code", noeud: "codeBlock" },
+    ];
+    const toutes = {
+      barre: ["Paragraphe", "Titre 1", "Bloc code"],
+      menu: ["Paragraphe", "Titre 1", "Bloc code"],
+    };
 
-    expect(sansCommande).toEqual(["blocFutur"]);
     expect(
-      LISTE_DES_COMMANDES.filter((une) => !schema.includes(une.noeud)).map((une) => une.nom),
-    ).toEqual(["Liste à puces", "Liste numérotée", "Bloc code"]);
+      fautesDeLaListe(
+        ["paragraph", "heading", "codeBlock"],
+        ["paragraph", "heading", "codeBlock"],
+        liste,
+        toutes,
+      ),
+    ).toEqual([]);
+    expect(
+      fautesDeLaListe(
+        ["paragraph", "blocFutur"],
+        ["paragraph", "heading", "codeBlock"],
+        liste,
+        toutes,
+      ),
+    ).toEqual(["blocFutur : aucune commande"]);
+    expect(
+      fautesDeLaListe(["codeBlock"], ["paragraph", "heading", "codeBlock"], liste, {
+        barre: ["Paragraphe"],
+        menu: ["Bloc code"],
+      }),
+    ).toEqual(["codeBlock : aucune commande dans la barre"]);
+    expect(
+      fautesDeLaListe(["codeBlock"], ["paragraph", "heading", "codeBlock"], liste, {
+        barre: ["Bloc code"],
+        menu: [],
+      }),
+    ).toEqual(["codeBlock : aucune commande dans le menu"]);
+    expect(fautesDeLaListe([], ["paragraph", "heading"], liste, toutes)).toEqual([
+      "Bloc code : codeBlock absent du schéma",
+    ]);
   });
 
   it("F-005-AC14 le filtre, fonction pure, garde l'ordre d'origine et ignore la casse et les accents", () => {
@@ -102,43 +176,44 @@ describe("une seule liste de commandes", () => {
 });
 
 describe("commande indisponible", () => {
-  it("F-005-AC11 dans le premier paragraphe d'un élément de liste, « Bloc code » est désactivée dans la barre et absente du menu ; ni le clic, ni le raccourci de l'extension n'écrivent quoi que ce soit, et l'élément reste dans sa liste", async () => {
+  it("F-005-AC11 F-005-AC18 dans le premier paragraphe d'un élément de liste : barre sur une sélection non vide, « Bloc code » indisponible ; menu sans « Bloc code », puis « Aucune commande » après `/code` ; clic, Entrée et raccourci de l'extension n'émettent rien, l'élément reste dans sa liste, non coupé, la séquence gardée", async () => {
     const { doc, emises } = monterLEditeur(documentAvecUnElement("premier"));
     entrerDansLEditeur();
     placerLeCurseurALaFinDe("premier");
     selectionnerLeBloc();
-    const etat = commande("Bloc code").getAttribute("aria-disabled");
-    const avant = emises.length;
-
+    const barre = {
+      affichee: barreDeBlocs() !== null,
+      blocCode: commande("Bloc code").getAttribute("aria-disabled"),
+    };
+    const avantLeClic = emises.length;
     act(() => commande("Bloc code").click());
-    placerLeCurseurALaFinDe("premier");
-    const raccourciTraite = presser("c", { ctrlKey: true, altKey: true });
-    presser("c", { ctrlKey: true, altKey: true, shiftKey: true });
+    const parLeClic = emises.length - avantLeClic;
 
-    expect(etat).toBe("true");
-    expect(raccourciTraite).toBe(false);
+    placerLeCurseurALaFinDe("premier");
+    taper(" /");
+    await laisserLeMenuSuivre();
+    const ouvert = nomsDuMenu();
+    taper("code");
+    await laisserLeMenuSuivre();
+    const filtre = [menuSlash()?.parentElement?.textContent, nomsDuMenu()];
+    const avant = emises.length;
+    const traitees = [
+      presser("Enter"),
+      presser("c", { ctrlKey: true, altKey: true }),
+      presser("c", { ctrlKey: true, altKey: true, shiftKey: true }),
+    ];
+    await laisserLeMenuSuivre();
+
+    expect(barre).toEqual({ affichee: true, blocCode: "true" });
+    expect(parLeClic).toBe(0);
+    expect(ouvert).not.toContain("Bloc code");
+    expect(ouvert).not.toEqual([]);
+    expect(filtre).toEqual(["Aucune commande", []]);
+    expect(traitees).toEqual([true, false, false]);
     expect(emises.length).toBe(avant);
-    expect(contenuLu(doc).toLowerCase()).toBe(LISTE_ATTENDUE);
-  });
-
-  it("F-005-AC11 F-005-AC18 dans le premier paragraphe d'un élément de liste, « /code » ne liste rien : Entrée y ferme le menu et agit comme Entrée, sans bloc code, l'élément restant dans sa liste", async () => {
-    const { doc } = monterLEditeur(documentAvecUnElement("premier"));
-    entrerDansLEditeur();
-    placerLeCurseurALaFinDe("premier");
-    taper(" /code");
-    await laisserLeMenuSuivre();
-    const liste = nomsDuMenu();
-    const ouvert = menuSlash();
-
-    presser("Enter");
-    await laisserLeMenuSuivre();
-
-    expect(ouvert).not.toBeNull();
-    expect(liste).toEqual([]);
-    expect(menuSlash()).toBeNull();
-    expect(contenuLu(doc).toLowerCase()).not.toContain("codeblock");
-    expect(contenuLu(doc).toLowerCase()).toMatch(
-      /^<bulletlist><listitem><paragraph>premier \/code<\/paragraph><\/listitem>/,
+    expect(menuSlash()).not.toBeNull();
+    expect(contenuLu(doc).toLowerCase()).toBe(
+      "<bulletlist><listitem><paragraph>premier /code</paragraph></listitem></bulletlist>",
     );
   });
 

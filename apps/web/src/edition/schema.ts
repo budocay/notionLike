@@ -22,7 +22,7 @@ import { Lien } from "./lien.ts";
 import { marquesDeLEditeur, type OptionsDesMarques } from "./marques.ts";
 import { menuSlash, type OptionsDuMenu } from "./menu-slash.ts";
 import { selectionDuNavigateur } from "./selection-du-navigateur.ts";
-import { BLOC_CODE, NIVEAUX_DE_TITRE } from "./types-de-bloc.ts";
+import { BLOC_CODE, NIVEAUX_DE_TITRE } from "./commandes-de-bloc.ts";
 
 // `**texte**` et `*texte*` (F-028-AC3) : « texte » non vide, sans espace en tête ni en fin. Les
 // règles des extensions marquent aussi ` texte` et `texte ` : elles sont remplacées. Les variantes

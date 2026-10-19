@@ -73,8 +73,11 @@ export function commandesListees(nombre: number): string {
   return nombre === 1 ? "1 commande" : `${nombre} commandes`;
 }
 
-/** Nom de chaque langage de la liste dans le sélecteur ; sa valeur reste son identifiant. */
-export const NOMS_DES_LANGAGES: Readonly<Record<string, string>> = {
+/**
+ * Nom de chaque langage de la liste dans le sélecteur ; sa valeur reste son identifiant. Le module
+ * d'édition le lit comme un nom par langage de sa liste : un oubli ne compile pas.
+ */
+export const NOMS_DES_LANGAGES = {
   bash: "Bash",
   css: "CSS",
   html: "HTML",
@@ -85,7 +88,7 @@ export const NOMS_DES_LANGAGES: Readonly<Record<string, string>> = {
   sql: "SQL",
   typescript: "TypeScript",
   yaml: "YAML",
-};
+} as const;
 
 /** Commandes de mise en forme de la barre de blocs et du panneau de lien (F-028-AC27). */
 export const COMMANDE_GRAS = "Gras";

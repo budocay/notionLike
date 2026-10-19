@@ -17,8 +17,8 @@ import { AttrStep } from "@tiptap/pm/transform";
 import type { EditorView } from "@tiptap/pm/view";
 
 import { langageAdmis } from "./langages.ts";
-import { estAppliqueeDepuisYjs } from "./marques.ts";
-import { BLOC_CODE } from "./types-de-bloc.ts";
+import { BLOC_CODE } from "./commandes-de-bloc.ts";
+import { estAppliqueeDepuisYjs } from "./liaison.ts";
 
 const ATTRIBUT_DU_LANGAGE = "language";
 const PREFIXE_DE_LA_CLASSE = "language-";

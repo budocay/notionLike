@@ -146,4 +146,35 @@ describe("changement de type concurrent d'une saisie (limite acceptée)", () => 
       expect(lectures[0]).toBe(`${bloc}<paragraph>zzz</paragraph>`);
     },
   );
+
+  it.each([
+    ["au début", 0],
+    ["au milieu", 1],
+    ["à la fin", 3],
+  ] as const)(
+    "F-005-AC31 l'une donne « Titre 1 », puis « Bloc code », au premier bloc pendant que l'autre y saisit « X » %s : le même contenu partout, un bloc code au texte de la première, sans « X »",
+    (_ou, decalage) => {
+      const lectures = apresEchange({
+        depart: () => {
+          taper("abc");
+          presser("Enter");
+          taper("zzz");
+        },
+        surA: () => {
+          placerLeCurseurDans("abc", 0);
+          selectionnerLeBloc();
+          act(() => commande("Titre 1").click());
+          selectionnerLeBloc();
+          act(() => commande("Bloc code").click());
+        },
+        surB: () => {
+          placerLeCurseurDans("abc", decalage);
+          taper("X");
+        },
+      });
+
+      expect(new Set(lectures).size).toBe(1);
+      expect(lectures[0]).toBe("<codeblock>abc</codeblock><paragraph>zzz</paragraph>");
+    },
+  );
 });

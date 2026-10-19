@@ -4,7 +4,6 @@
 import { shift } from "@floating-ui/dom";
 import { type Editor, Extension } from "@tiptap/core";
 import { type EditorState, Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
-import { type RefObject, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   exitSuggestion,
   Suggestion,
@@ -12,22 +11,11 @@ import {
   type SuggestionProps,
 } from "@tiptap/suggestion";
 
+import type { PositionDuMenu } from "../interface/composants/Edition.tsx";
+import { BLOC_CODE, type CommandeDeType, LISTE_DES_COMMANDES } from "./commandes-de-bloc.ts";
 import { commandesFiltrees } from "./filtre-des-commandes.ts";
-import { estAppliqueeDepuisYjs } from "./marques.ts";
-import {
-  BLOC_CODE,
-  type CommandeDeType,
-  donnerLeType,
-  LISTE_DES_COMMANDES,
-  type Retrait,
-  typeDisponible,
-} from "./types-de-bloc.ts";
-
-/** Coin haut gauche du menu, en pixels depuis celui de la fenêtre. */
-export interface PositionDuMenu {
-  readonly x: number;
-  readonly y: number;
-}
+import { estAppliqueeDepuisYjs } from "./liaison.ts";
+import { donnerLeType, type Retrait, typeDisponible } from "./types-de-bloc.ts";
 
 /** Ce que l'interface lit du menu ouvert, à chaque changement. */
 export interface EtatDuMenu {
@@ -123,9 +111,10 @@ interface ReponseALaTouche {
 
 /**
  * Flèche haut et Flèche bas parcourent la liste, en boucle, sans déplacer le curseur (AC15) ;
- * Entrée applique la commande active ; avec « Aucune commande », Entrée revient à l'éditeur et la
- * séquence reste (AC18). Menu ouvert, ces touches sont les siennes, avec ou sans modificateur : le
- * module d'édition ne lit aucun modificateur d'une frappe (F-004-AC31).
+ * Entrée applique la commande active ; avec « Aucune commande », Entrée ne fait rien : ni coupure,
+ * ni mise à jour, le menu reste ouvert et la séquence dans le texte (AC11, AC18, H16). Menu ouvert,
+ * ces touches sont les siennes, avec ou sans modificateur : le module d'édition ne lit aucun
+ * modificateur d'une frappe (F-004-AC31).
  */
 function reponseALaTouche(
   commandes: readonly CommandeDeType[],
@@ -139,10 +128,10 @@ function reponseALaTouche(
       ? { traitee: true, active: (active + pas + nombre) % nombre }
       : { traitee: true };
   }
-  if (evenement.key !== "Enter" || commandes.length === 0) {
+  if (evenement.key !== "Enter") {
     return { traitee: false };
   }
-  return { traitee: true, choisie: commandes[active] };
+  return commandes.length === 0 ? { traitee: true } : { traitee: true, choisie: commandes[active] };
 }
 
 interface MenuOuvert {
@@ -156,7 +145,7 @@ function etatPourLInterface(editeur: Editor, { props, commandes, active }: MenuO
     commandes,
     active,
     monter: (element, surPosition) =>
-      props.mount(element, { onPosition: ({ x, y }) => surPosition({ x, y }) }),
+      props.mount(element, { onPosition: ({ x, y }) => surPosition({ gauche: x, haut: y }) }),
     choisir: (rang) => appliquer(editeur, commandes[rang]),
   };
 }
@@ -270,88 +259,4 @@ export function menuSlash(options: OptionsDuMenu): Extension {
       }
     },
   });
-}
-
-// ——— Côté interface : position, désignation par l'éditeur ———
-
-/** Ce que la zone d'édition lit du menu pour le rendre. */
-export interface MenuAffiche {
-  readonly etat: EtatDuMenu | undefined;
-  /** `undefined` tant que la bibliothèque de positionnement ne l'a pas mesuré. */
-  readonly position: PositionDuMenu | undefined;
-  readonly ref: RefObject<HTMLDivElement | null>;
-  readonly idDeLaListe: string;
-  readonly idDeLOption: (rang: number) => string;
-}
-
-/**
- * Pose le menu ouvert près du curseur, une fois par ouverture : la bibliothèque le suit ensuite
- * (défilement, redimensionnement) et ne fait que donner ses coordonnées, que l'interface pose.
- */
-function usePosition(
-  etat: EtatDuMenu | undefined,
-  ref: RefObject<HTMLDivElement | null>,
-): PositionDuMenu | undefined {
-  const [position, setPosition] = useState<PositionDuMenu | undefined>(undefined);
-  const dernier = useRef(etat);
-  useLayoutEffect(() => {
-    dernier.current = etat;
-  });
-  const ouvert = etat !== undefined;
-  useLayoutEffect(() => {
-    const [element, courant] = [ref.current, dernier.current];
-    if (!ouvert || element === null || courant === undefined) {
-      setPosition(undefined);
-      return undefined;
-    }
-    return courant.monter(element, setPosition);
-  }, [ouvert, ref]);
-  return position;
-}
-
-/**
- * Tant que le menu est ouvert, l'éditeur garde le focus et désigne la liste et la commande active
- * (`aria-controls`, `aria-activedescendant`), retirées à la fermeture (F-005-AC22, H12).
- */
-function useDesignation(
-  editeur: Editor | null,
-  etat: EtatDuMenu | undefined,
-  idDeLaListe: string,
-): void {
-  const active =
-    etat === undefined || etat.commandes.length === 0 ? undefined : `${idDeLaListe}-${etat.active}`;
-  const ouvert = etat !== undefined;
-  useEffect(() => {
-    if (editeur === null || editeur.isDestroyed) {
-      return undefined;
-    }
-    const element = editeur.view.dom;
-    const poser = (nom: string, valeur: string | undefined): void => {
-      if (valeur === undefined) {
-        element.removeAttribute(nom);
-      } else {
-        element.setAttribute(nom, valeur);
-      }
-    };
-    poser("aria-controls", ouvert ? idDeLaListe : undefined);
-    poser("aria-activedescendant", active);
-    return () => {
-      poser("aria-controls", undefined);
-      poser("aria-activedescendant", undefined);
-    };
-  }, [editeur, ouvert, active, idDeLaListe]);
-}
-
-export function useMenuAffiche(editeur: Editor | null, etat: EtatDuMenu | undefined): MenuAffiche {
-  const ref = useRef<HTMLDivElement>(null);
-  const idDeLaListe = useId();
-  const position = usePosition(etat, ref);
-  useDesignation(editeur, etat, idDeLaListe);
-  return {
-    etat,
-    position,
-    ref,
-    idDeLaListe,
-    idDeLOption: (rang) => `${idDeLaListe}-${rang}`,
-  };
 }

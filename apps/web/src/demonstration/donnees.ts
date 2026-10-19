@@ -157,7 +157,7 @@ export const RANG_DU_SELECTEUR_FICTIF = COMMANDES_DE_BLOC_FICTIVES.findIndex(
   (commande) => commande.nom === COMMANDE_GRAS,
 );
 
-export const POSITION_DU_MENU_FICTIVE = { x: 24, y: 120 } as const;
+export const POSITION_DU_MENU_FICTIVE = { gauche: 24, haut: 120 } as const;
 
 /** Le panneau de lien d'un lien neutralisé, après une adresse refusée (F-028-AC12, AC17). */
 export const PANNEAU_DE_LIEN_FICTIF = {

@@ -4,4 +4,4 @@
 export { adresseAcceptee, adresseDUneSaisie } from "./adresses.ts";
 export { EditeurDePage, type ProprietesEditeurDePage } from "./EditeurDePage.tsx";
 export { commandesFiltrees } from "./filtre-des-commandes.ts";
-export { LISTE_DES_COMMANDES } from "./types-de-bloc.ts";
+export { LISTE_DES_COMMANDES } from "./commandes-de-bloc.ts";

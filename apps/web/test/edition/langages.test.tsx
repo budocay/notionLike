@@ -121,8 +121,12 @@ describe("langage hors de la liste, à la lecture", () => {
   });
 });
 
-/** Chaque chemin qui écrit un langage, joué avec cette valeur, depuis un paragraphe « mot ». */
-const CHEMINS: readonly (readonly [string, (valeur: string) => void])[] = [
+/**
+ * Chaque chemin qui écrit un langage, joué avec cette valeur, depuis un paragraphe « mot », et s'il
+ * inscrit un identifiant de la liste : la règle de saisie, le sélecteur et les commandes, oui ; le
+ * collage et le dépôt, jamais, le langage n'étant pas tiré du presse-papiers (F-005-AC7, AC36).
+ */
+const CHEMINS: readonly (readonly [string, (valeur: string) => void, boolean])[] = [
   [
     "la règle de saisie",
     (valeur) => {
@@ -130,6 +134,7 @@ const CHEMINS: readonly (readonly [string, (valeur: string) => void])[] = [
       presser("Enter");
       taper(`\`\`\`${valeur} `);
     },
+    true,
   ],
   [
     "le sélecteur",
@@ -142,18 +147,21 @@ const CHEMINS: readonly (readonly [string, (valeur: string) => void])[] = [
       selecteur?.append(option);
       choisirLeLangage(valeur);
     },
+    true,
   ],
   [
     "la commande setCodeBlock",
     (valeur) => void appelerUneCommandeDuBlocCode("setCodeBlock", valeur),
+    true,
   ],
-  ["la commande setNode", (valeur) => void appelerUneCommandeDuBlocCode("setNode", valeur)],
+  ["la commande setNode", (valeur) => void appelerUneCommandeDuBlocCode("setNode", valeur), true],
   [
     "la commande updateAttributes",
     (valeur) => {
       appelerUneCommandeDuBlocCode("setCodeBlock", null);
       appelerUneCommandeDuBlocCode("updateAttributes", valeur);
     },
+    true,
   ],
   [
     "le collage d'un `pre`",
@@ -165,6 +173,7 @@ const CHEMINS: readonly (readonly [string, (valeur: string) => void])[] = [
         "text/html": `<pre><code class="language-${valeur}">colle</code></pre>`,
       });
     },
+    false,
   ],
   [
     "le collage depuis un éditeur de code",
@@ -176,21 +185,23 @@ const CHEMINS: readonly (readonly [string, (valeur: string) => void])[] = [
         "vscode-editor-data": JSON.stringify({ version: 1, mode: valeur }),
       });
     },
+    false,
   ],
   [
     "le dépôt d'un `pre`",
     (valeur) => deposerDuHtml(`<pre><code class="language-${valeur}">depose</code></pre>`, "mot"),
+    false,
   ],
 ];
 
 describe("langage hors de la liste, à l'écriture", () => {
   it.each(
-    CHEMINS.flatMap(([chemin, jouer]) =>
-      [FORGEE, "zz", "python"].map((valeur) => [chemin, valeur, jouer] as const),
+    CHEMINS.flatMap(([chemin, jouer, inscrit]) =>
+      [FORGEE, "zz", "python"].map((valeur) => [chemin, valeur, jouer, inscrit] as const),
     ),
   )(
-    "F-005-AC35 par %s, la valeur « %s » n'est inscrite que si elle est dans la liste",
-    (_chemin, valeur, jouer) => {
+    "F-005-AC35 par %s, la valeur « %s » n'est inscrite que si elle est dans la liste, et par ce chemin seulement s'il inscrit un langage",
+    (_chemin, valeur, jouer, inscrit) => {
       const { doc } = monterLEditeur();
       entrerDansLEditeur();
       taper("mot");
@@ -198,8 +209,9 @@ describe("langage hors de la liste, à l'écriture", () => {
       jouer(valeur);
 
       const lus = langagesLus(doc);
+      const attendu = inscrit && valeur === "python" ? "python" : undefined;
       expect(lus.length).toBeGreaterThan(0);
-      expect(lus.filter((lu) => lu !== undefined && lu !== "python")).toEqual([]);
+      expect(lus).toEqual(lus.map(() => attendu));
     },
   );
 

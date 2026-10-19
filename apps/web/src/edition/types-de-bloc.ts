@@ -5,28 +5,13 @@ import { type ChainedCommands, CommandManager, type Editor } from "@tiptap/core"
 import type { Node as NoeudProseMirror, NodeType, ResolvedPos } from "@tiptap/pm/model";
 import { EditorState, Selection, type Transaction } from "@tiptap/pm/state";
 
-const NIVEAU_DE_TITRE_MAX = 3;
-export type NiveauDeTitre = 1 | 2 | typeof NIVEAU_DE_TITRE_MAX;
-export const NIVEAUX_DE_TITRE: readonly NiveauDeTitre[] = [1, 2, NIVEAU_DE_TITRE_MAX];
-
-type NoeudDeListe = "bulletList" | "orderedList";
-
-export type TypeDeBloc =
-  | { readonly forme: "paragraphe" }
-  | { readonly forme: "titre"; readonly niveau: NiveauDeTitre }
-  | { readonly forme: "liste"; readonly noeud: NoeudDeListe }
-  | { readonly forme: "code" };
-
-export interface CommandeDeType {
-  readonly nom: string;
-  /** Ce que la barre montre sur le bouton. */
-  readonly repere: string;
-  /** Ce que le filtre du menu slash compare à la saisie, en plus du nom (F-005-AC14). */
-  readonly motsCles: readonly string[];
-  readonly type: TypeDeBloc;
-  /** Le nœud du schéma que la commande donne au bloc (F-005-AC21). */
-  readonly noeud: string;
-}
+import {
+  BLOC_CODE,
+  NIVEAUX_DE_TITRE,
+  type NiveauDeTitre,
+  type NoeudDeListe,
+  type TypeDeBloc,
+} from "./commandes-de-bloc.ts";
 
 /** L'étendue retirée du texte avant de changer le type : la séquence du menu slash. */
 export interface Retrait {
@@ -37,63 +22,8 @@ export interface Retrait {
 const ELEMENT_DE_LISTE = "listItem";
 const TITRE = "heading";
 const PARAGRAPHE = "paragraph";
-export const BLOC_CODE = "codeBlock";
-
-/**
- * La liste des commandes de bloc (F-005-AC21) : sept commandes dans l'ordre du vocabulaire de la
- * spec. La barre de blocs et le menu slash la lisent toutes deux, et aucune autre liste. Aucun mot-clé
- * ne contient « tit » : « /tit » ne garde que les titres (F-005-AC34).
- */
-export const LISTE_DES_COMMANDES: readonly CommandeDeType[] = [
-  {
-    nom: "Paragraphe",
-    repere: "¶",
-    motsCles: ["texte"],
-    type: { forme: "paragraphe" },
-    noeud: PARAGRAPHE,
-  },
-  ...NIVEAUX_DE_TITRE.map((niveau): CommandeDeType => ({
-    nom: `Titre ${niveau}`,
-    repere: `T${niveau}`,
-    motsCles: [`h${niveau}`],
-    type: { forme: "titre", niveau },
-    noeud: TITRE,
-  })),
-  {
-    nom: "Liste à puces",
-    repere: "•",
-    motsCles: ["puces"],
-    type: { forme: "liste", noeud: "bulletList" },
-    noeud: "bulletList",
-  },
-  {
-    nom: "Liste numérotée",
-    repere: "1.",
-    motsCles: ["numéros"],
-    type: { forme: "liste", noeud: "orderedList" },
-    noeud: "orderedList",
-  },
-  {
-    nom: "Bloc code",
-    repere: "</>",
-    motsCles: ["code", "pre"],
-    type: { forme: "code" },
-    noeud: BLOC_CODE,
-  },
-];
-
-export function memeType(a: TypeDeBloc | undefined, b: TypeDeBloc): boolean {
-  if (a === undefined) {
-    return false;
-  }
-  if (a.forme === "titre" && b.forme === "titre") {
-    return a.niveau === b.niveau;
-  }
-  if (a.forme === "liste" && b.forme === "liste") {
-    return a.noeud === b.noeud;
-  }
-  return a.forme === b.forme;
-}
+const SAUTS_DE_LIGNE = /\n/g;
+const ESPACE = " ";
 
 function estUnNiveauDeTitre(niveau: unknown): niveau is NiveauDeTitre {
   return NIVEAUX_DE_TITRE.some((un) => un === niveau);
@@ -163,11 +93,26 @@ function blocsAChanger(
 }
 
 /**
+ * Remplace chaque saut de ligne de ce bloc par une espace, dans la transaction : hors du bloc code,
+ * le schéma n'a pas de saut de ligne, et ProseMirror en remplacerait un lui-même à la frappe
+ * suivante, en relisant le DOM (F-005-AC1, H16).
+ */
+function remplacerLesSautsDeLigne(tr: Transaction, debut: number, noeud: NoeudProseMirror): void {
+  const positions: number[] = [];
+  noeud.descendants((enfant, decalage) => {
+    for (const trouve of (enfant.text ?? "").matchAll(SAUTS_DE_LIGNE)) {
+      positions.push(debut + 1 + decalage + trouve.index);
+    }
+  });
+  // Un caractère remplacé par un seul autre : aucune position ne se décale.
+  positions.forEach((position) => tr.insertText(ESPACE, position, position + 1));
+}
+
+/**
  * Donne ce type de nœud à chaque bloc de texte de la sélection que son parent admet à cette place.
  * Vrai si un bloc a changé, ou si tous l'avaient déjà ; faux si le schéma n'en admet aucun. Vers le
- * bloc code, les marques sont retirées (F-005-AC29) ; vers un paragraphe ou un titre, le balisage
- * seul change, sauts de ligne compris : `setBlockType` les remplacerait par des espaces (F-005-AC1,
- * veille du 2026-10-16).
+ * bloc code, les marques sont retirées (F-005-AC29) ; vers un paragraphe ou un titre, chaque saut de
+ * ligne devient une espace, explicitement, et tout autre caractère reste (F-005-AC1).
  */
 function changerLesBlocsDeTexte(tr: Transaction, type: NodeType, niveau?: NiveauDeTitre): boolean {
   const cibles = blocsAChanger(tr, type, niveau);
@@ -185,6 +130,7 @@ function changerLesBlocsDeTexte(tr: Transaction, type: NodeType, niveau?: Niveau
     if (type.name === BLOC_CODE) {
       tr.setBlockType(ici, ici + noeud.nodeSize, type, attributs);
     } else {
+      remplacerLesSautsDeLigne(tr, ici, noeud);
       tr.setNodeMarkup(ici, type, attributs);
     }
   }
@@ -264,16 +210,27 @@ function composer(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): Composi
     etat = EditorState.create({ schema: tr.doc.type.schema, doc: tr.doc, selection: tr.selection });
     return true;
   };
-  const retirer: Etape = (chaine) =>
-    chaine.command(({ tr }) => {
-      tr.delete(retrait?.from ?? 0, retrait?.to ?? 0);
-      return true;
-    });
-  if (retrait !== undefined && !avancer(retirer)) {
-    return undefined;
+  if (retrait !== undefined) {
+    const retirer: Etape = (chaine) =>
+      chaine.command(({ tr }) => {
+        tr.delete(retrait.from, retrait.to);
+        return true;
+      });
+    if (!avancer(retirer)) {
+      return undefined;
+    }
   }
   const etapes = etapesDuType(etat.selection.$from, type);
   return etapes.every(avancer) ? { transactions, etatFinal: etat } : undefined;
+}
+
+// Les jugements à blanc, par état de l'éditeur : un état ne change jamais, et la barre comme le
+// menu jugent les sept commandes à chaque rendu ; chaque jugement crée plusieurs états.
+const disponibilites = new WeakMap<EditorState, Map<string, boolean>>();
+
+function cleDuJugement(type: TypeDeBloc, retrait: Retrait | undefined): string {
+  const precision = type.forme === "titre" ? type.niveau : type.forme === "liste" ? type.noeud : "";
+  return `${type.forme}:${precision}:${retrait?.from ?? ""}-${retrait?.to ?? ""}`;
 }
 
 /**
@@ -281,7 +238,17 @@ function composer(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): Composi
  * à blanc, sur des transactions jamais envoyées (F-005-AC11).
  */
 export function typeDisponible(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): boolean {
-  return composer(editeur, type, retrait) !== undefined;
+  const etat = editeur.state;
+  const jugees = disponibilites.get(etat) ?? new Map<string, boolean>();
+  disponibilites.set(etat, jugees);
+  const cle = cleDuJugement(type, retrait);
+  const connue = jugees.get(cle);
+  if (connue !== undefined) {
+    return connue;
+  }
+  const disponible = composer(editeur, type, retrait) !== undefined;
+  jugees.set(cle, disponible);
+  return disponible;
 }
 
 // Toute modification part dans une seule transaction de l'éditeur, sans transaction Yjs

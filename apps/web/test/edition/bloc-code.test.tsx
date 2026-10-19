@@ -23,11 +23,14 @@ import {
   placerLeCurseurALaFinDe,
   placerLeCurseurApres,
   placerLeCurseurAuDebutDe,
+  placerLeCurseurDans,
   placerLeCurseurDansLeDernierBloc,
   presser,
   presserAvecMod,
   selecteurDeLangage,
+  selectionnerDe,
   selectionnerLeBloc,
+  selectionnerLeTexte,
   taper,
   textesDesBlocs,
   zoneDeSaisie,
@@ -118,22 +121,55 @@ describe("conversion vers et depuis le bloc code", () => {
     ["Titre 2", "heading", { level: 2 }],
     ["Titre 3", "heading", { level: 3 }],
   ] as const)(
-    "F-005-AC1 « %s » sur un bloc code lui donne ce type en conservant tous les caractères, sauts de ligne compris",
+    "F-005-AC1 « %s » sur un bloc code lui donne ce type, chaque saut de ligne remplacé par une espace dans la même transaction, tous les autres caractères conservés",
     (nom, noeud, attributs) => {
-      const { doc } = monterLEditeur();
+      const { doc, emises } = monterLEditeur();
       entrerDansLEditeur();
       taperUnBlocCode(["a", "b", "", "c"], "```python ");
       selectionnerLeBloc();
+      const avant = emises.length;
 
       act(() => commande(nom).click());
 
       const [bloc] = fragmentBrut(doc).toArray() as Y.XmlElement[];
       expect(bloc?.nodeName).toBe(noeud);
       expect(bloc?.getAttributes()).toEqual(attributs);
-      expect(bloc?.toArray().map(String).join("")).toBe("a\nb\n\nc");
+      expect(bloc?.toArray().map(String).join("")).toBe("a b  c");
       expect(blocsCodeLus(doc)).toEqual([]);
+      expect(emises.length - avant).toBe(1);
     },
   );
+
+  it("F-005-AC1 un bloc code « aaa\\nbbb » mis en « Paragraphe », un autre en « Titre 1 » : « aaa bbb » lu par yjs seul ; « X » saisi juste après l'espace donne « aaa Xbbb », lu par yjs seul et affiché", () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taperUnBlocCode(["aaa", "bbb"]);
+    presserAvecMod("Enter");
+    taperUnBlocCode(["aaa", "bbb"]);
+    const textesLus = (): string[] =>
+      (fragmentBrut(doc).toArray() as Y.XmlElement[]).map((un) =>
+        un.toArray().map(String).join(""),
+      );
+    const textesAffiches = (): string[] =>
+      [...zoneDeSaisie().querySelectorAll("p, h1")].map((element) => element.textContent);
+
+    placerLeCurseurApres("aaa\nbbb");
+    act(() => commande("Paragraphe").click());
+    placerLeCurseurApres("aaa\nbbb");
+    act(() => commande("Titre 1").click());
+    const convertis = textesLus();
+    // Le premier « aaa bbb » est celui du paragraphe, puis, une fois celui-ci saisi, celui du titre.
+    placerLeCurseurDans("aaa bbb", "aaa ".length);
+    taper("X");
+    placerLeCurseurDans("aaa bbb", "aaa ".length);
+    taper("X");
+
+    expect(contenuLu(doc).toLowerCase()).toMatch(/^<paragraph>.*<\/paragraph><heading level="1">/);
+    expect(convertis).toEqual(["aaa bbb", "aaa bbb"]);
+    expect(textesLus()).toEqual(["aaa Xbbb", "aaa Xbbb"]);
+    expect(textesAffiches()).toEqual(["aaa Xbbb", "aaa Xbbb"]);
+    expect(blocsCodeLus(doc)).toEqual([]);
+  });
 
   it("F-005-AC1 la barre marque « Bloc code », et lui seul, quand le curseur est dans un bloc code, même sans sélection", () => {
     monterLEditeur();
@@ -333,6 +369,59 @@ describe("sélecteur de langage", () => {
     expect(selecteur?.options[0]?.textContent).toBe("Texte brut");
     expect(selecteur?.value).toBe("python");
     expect(selecteur?.tabIndex).toBe(-1);
+  });
+
+  it("F-005-AC6 F-005-AC1 curseur sans sélection : dans un bloc code, la barre et le sélecteur sont présents, « Bloc code » marqué ; dans un paragraphe rempli ou vide, pas de barre ; aucune mise à jour Yjs du fait de la barre", () => {
+    const { emises } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("texte");
+    presser("Enter");
+    taperUnBlocCode(["let a;"]);
+    presserAvecMod("Enter");
+    const avant = emises.length;
+
+    placerLeCurseurApres("let a;");
+    const dansLeCode = {
+      barre: barreDeBlocs() !== null,
+      selecteur: selecteurDeLangage() !== null,
+      marquee: commande("Bloc code").getAttribute("aria-pressed"),
+    };
+    placerLeCurseurApres("texte");
+    const dansLeParagraphe = barreDeBlocs();
+    placerLeCurseurDansLeDernierBloc();
+    const dansLeVide = { noeud: blocDuCurseur(), barre: barreDeBlocs() };
+
+    expect(dansLeCode).toEqual({ barre: true, selecteur: true, marquee: "true" });
+    expect(dansLeParagraphe).toBeNull();
+    expect(dansLeVide).toEqual({ noeud: { noeud: "paragraph", texte: "" }, barre: null });
+    expect(emises.length).toBe(avant);
+  });
+
+  it("F-005-AC6 une sélection qui n'est pas entièrement dans un même bloc code affiche la barre de F-003-AC41, sans sélecteur", () => {
+    monterLEditeur();
+    entrerDansLEditeur();
+    taper("texte");
+    presser("Enter");
+    taperUnBlocCode(["let a;"]);
+    presserAvecMod("Enter");
+    taper("suite");
+    const lire = (): unknown => ({
+      barre: barreDeBlocs() !== null,
+      selecteur: selecteurDeLangage(),
+    });
+
+    selectionnerDe("texte", "let a;");
+    const versLeCode = lire();
+    selectionnerDe("let a;", "suite");
+    const depuisLeCode = lire();
+    selectionnerLeTexte("let");
+    const dedans = selecteurDeLangage() !== null;
+
+    expect([versLeCode, depuisLeCode]).toEqual([
+      { barre: true, selecteur: null },
+      { barre: true, selecteur: null },
+    ]);
+    expect(dedans).toBe(true);
   });
 
   it("F-005-AC6 choisir un langage l'enregistre dans le bloc sans modifier son texte ; « Texte brut » retire le langage", () => {

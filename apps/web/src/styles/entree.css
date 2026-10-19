@@ -215,10 +215,10 @@
 
 /* Menu slash (F-005-AC12, AC34) : posé dans la fenêtre aux coordonnées que la bibliothèque de
    positionnement calcule pour le module d'édition, près du curseur et entier dans la fenêtre ; il
-   reçoit sa géométrie par les mêmes variables que la barre de blocs. */
+   reçoit sa géométrie par ses propres variables. */
 @utility menu-slash {
-  left: calc(var(--barre-gauche, 0) * 1px);
-  top: calc(var(--barre-haut, 0) * 1px);
+  left: calc(var(--menu-x, 0) * 1px);
+  top: calc(var(--menu-y, 0) * 1px);
 }
 
 /* Panneau de lien : sous la barre de blocs, à la même abscisse (F-028-AC6). */
