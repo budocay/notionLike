@@ -311,3 +311,15 @@
 - Tests: 3585 tests sur 173 fichiers — état: verts — preuve: checks.txt ; bout en bout `glisser-deposer.spec.ts` 3 sur 3 en Chromium
 - Gates: sur `8e8746a30214` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (2 points et 9 suggestions, traités) ; sur l'empreinte finale : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-034
 - Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 2, dont 1 défaut réel en lecture seule · coût non mesuré
+
+## [2026-10-19] ADR de main alignées sur le code et acceptées
+
+- TYPE: REFACTOR
+- Tier: trivial
+- Scope: `docs/decisions/` (ADR-0001 à 0004, 0006 à 0009, 0012 à 0017), commentaire de `apps/web/src/synchronisation/synchronisation.ts` — agents: agent-architecte-conception, agent-frontend, orchestrateur — commits: 34db427, 1d2d81e
+- Détail: décision du dev du 2026-10-19 : les ADR « proposées » ne sont acceptées qu'après correction de leurs écarts avec le code. Audit fait pendant F-005, sorti de sa branche à la demande du gate d'architecture. Écarts de description corrigés ; ADR-0014 réécrite selon le code (la dernière lecture réussie du registre est gardée, décision du dev). Restent « proposé » : l'amendement F-012 d'ADR-0002 (`meta` d'une autre nature, corrigé dans F-018) et ADR-0015 (acceptée avec F-005).
+- Dette: aucune
+- ADR: ADR-0013, 0014, 0016, 0017 et les amendements du 2026-10-16 acceptés
+- Tests: tests de documentation d'`infra` verts — état: verts — preuve: agent
+- Gates: aucun (trivial)
+- Mesures: coût non mesuré
