@@ -2,7 +2,9 @@
 // une page vide, `/` ouvre le menu près du curseur et entier dans la fenêtre ; `cod` puis Entrée
 // donnent un bloc code ; deux lignes, dont une porte `<b>` et `# `, y sont saisies ; un langage est
 // choisi au clavier ; Mod+Entrée sort ; `/tit`, Flèche bas et Entrée donnent un titre 2 ; tout est
-// relu après rechargement. Hors des hooks tant que D-003 n'est pas levée.
+// relu après rechargement. Par des frappes réelles aussi, la conversion d'un bloc code en paragraphe
+// ou en titre (F-005-AC1, H16) : une frappe à côté de l'ancien saut de ligne ne change aucun autre
+// caractère. Hors des hooks tant que D-003 n'est pas levée.
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
@@ -120,5 +122,53 @@ test("F-005-AC34 par des frappes réelles : `/` ouvre le menu près du curseur, 
   await recharger(page);
   await expect(titrePrincipal(page).first()).toHaveText(TITRE_DE_LA_PAGE);
   await verifierLeContenu(zoneDeSaisie(page));
+  expect(console_).toEqual([]);
+});
+
+/** Tape un bloc code « aaa », « bbb » par la règle de saisie, puis lui donne ce type par la barre. */
+async function convertirUnBlocCode(page: Page, pas: number): Promise<void> {
+  await page.keyboard.type("``` aaa");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("bbb");
+  await page.keyboard.press("Alt+F10");
+  for (let rang = 0; rang < pas; rang += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Home");
+  for (let rang = 0; rang < "aaa ".length; rang += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
+  await page.keyboard.type("X");
+}
+
+/** Le texte exact de chaque élément, sans la normalisation des espaces de Playwright. */
+async function textesExacts(zone: Locator, selecteur: string): Promise<string[]> {
+  return zone.locator(selecteur).evaluateAll((elements) => elements.map((un) => un.textContent));
+}
+
+test("F-005-AC1 par des frappes réelles : un bloc code « aaa », « bbb » mis en « Paragraphe », un autre en « Titre 1 » ; « X » tapé juste après l'espace donne « aaa Xbbb », relu après rechargement", async ({
+  page,
+}) => {
+  const console_ = ecouterLaConsole(page);
+  await ouvrir(page);
+  await creerPageNommee(page, "Conversion");
+  const zone = zoneDeSaisie(page);
+  await zone.click();
+
+  await convertirUnBlocCode(page, 0);
+  await expect(zone.locator("pre")).toHaveCount(0);
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await convertirUnBlocCode(page, 1);
+
+  expect(await textesExacts(zone, "p, h1")).toEqual(["aaa Xbbb", "aaa Xbbb"]);
+  await expect(zone.locator("h1")).toHaveCount(1);
+  await expect(zone.locator("pre, br")).toHaveCount(0);
+  await ecrituresAbouties(page, PREFIXE_DES_BASES_DE_PAGE);
+
+  await recharger(page);
+  await expect(titrePrincipal(page).first()).toHaveText("Conversion");
+  expect(await textesExacts(zoneDeSaisie(page), "p, h1")).toEqual(["aaa Xbbb", "aaa Xbbb"]);
   expect(console_).toEqual([]);
 });
