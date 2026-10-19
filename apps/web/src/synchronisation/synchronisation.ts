@@ -242,7 +242,9 @@ class Orchestre {
         return;
       }
       if (lecture.issue === "illisible") {
-        // L'espace est tenu pour local, l'adoption n'est pas proposée, et rien n'est inscrit.
+        // La dernière entrée lue avec succès est gardée (ADR-0014) : un espace déjà lu adopté le
+        // reste, avec son droit ; il n'est tenu pour local que si aucune lecture n'a encore abouti
+        // dans l'onglet. L'adoption n'est pas proposée, rien n'est inscrit, la lecture est refaite.
         this.#registre = { lu: false, entree: this.#registre.entree };
         this.#programmerLaRelecture();
       } else {
