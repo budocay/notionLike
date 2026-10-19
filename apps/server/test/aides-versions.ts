@@ -62,6 +62,14 @@ export const CAS_DE_VERSION_FORGEE: readonly CasDeVersionForgee[] = [
     refuseParLePaquet: true,
   },
   {
+    // Des attributs de mise en forme autour du 2 : éléments non comptés, invisibles pour `toArray`.
+    // Décision du dev du 2026-10-19 ; le paquet, qui lit `versions` par `forEach`, lit encore ce
+    // document en version 2.
+    cas: "versions défini sous un Y.Text qui ne porte que des attributs de mise en forme",
+    forger: (doc) => doc.getText("versions").format(0, 1, { bold: true }),
+    refuseParLePaquet: false,
+  },
+  {
     cas: "meta.version à 3",
     forger: (doc) => meta(doc).set("version", 3),
     refuseParLePaquet: true,

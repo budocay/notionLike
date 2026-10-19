@@ -83,8 +83,9 @@ const VERSION_ABSENTE = 1;
 // entrées de `versions`, 1 en leur absence. `bienFormee` est faux si `meta.version` est présente
 // sans être un entier supérieur ou égal à 1, si `meta` porte un contenu de liste (l'écriture d'un
 // tableau, d'un texte ou d'un fragment sous ce nom, décision du dev du 2026-10-19), ou si `versions`
-// porte une entrée nommée (l'écriture d'un autre type partagé sous ce nom) ou une entrée qui n'est
-// pas un tel entier. `parMeta` : `meta.version`, 1 si la clé est absente, la barrière des
+// porte une entrée nommée (l'écriture d'un autre type partagé sous ce nom), un élément de liste non
+// compté (un attribut de mise en forme d'un texte, décision du dev du 2026-10-19) ou une entrée qui
+// n'est pas un tel entier. `parMeta` : `meta.version`, 1 si la clé est absente, la barrière des
 // applications de version 1 (n'a de sens que pour un document bien formé).
 interface VersionLue {
   readonly lue: number;
@@ -100,11 +101,30 @@ function estAdmise(version: number): boolean {
   return (admises as readonly number[]).includes(version);
 }
 
+// Le contenu vivant d'un type de liste, élément par élément : `undefined` dès qu'un élément non
+// supprimé n'est pas compté, ce que `toArray` passerait sous silence.
+function contenuCompte(type: Y.Array<unknown>): unknown[] | undefined {
+  const contenu: unknown[] = [];
+  for (let element = type._start; element !== null; element = element.right) {
+    if (element.deleted) {
+      continue;
+    }
+    if (!element.countable) {
+      return undefined;
+    }
+    for (const valeur of element.content.getContent() as unknown[]) {
+      contenu.push(valeur);
+    }
+  }
+  return contenu;
+}
+
 function versionDe(doc: Y.Doc): VersionLue {
   const meta = doc.getMap<unknown>(typeRacine);
   const versions = doc.getArray<unknown>(typeRacineDesVersions);
   const deMeta: unknown = meta.has(cle) ? meta.get(cle) : VERSION_ABSENTE;
-  const valeurs = [deMeta, ...versions.toArray()];
+  const inscrites = contenuCompte(versions);
+  const valeurs = [deMeta, ...(inscrites ?? [])];
   const lue = valeurs
     .filter(estUneVersionEntiere)
     .reduce((plusGrande, version) => Math.max(plusGrande, version), VERSION_ABSENTE);
@@ -112,7 +132,10 @@ function versionDe(doc: Y.Doc): VersionLue {
     lue,
     parMeta: estUneVersionEntiere(deMeta) ? deMeta : VERSION_ABSENTE,
     bienFormee:
-      meta._start === null && versions._map.size === 0 && valeurs.every(estUneVersionEntiere),
+      meta._start === null &&
+      versions._map.size === 0 &&
+      inscrites !== undefined &&
+      valeurs.every(estUneVersionEntiere),
   };
 }
 
