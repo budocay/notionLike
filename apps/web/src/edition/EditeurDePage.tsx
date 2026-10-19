@@ -199,14 +199,15 @@ function surToucheDeLaZone(frappe: KeyboardEvent<HTMLElement>, zone: ZoneTenue):
 /**
  * La poignée du curseur activée (F-006-AC14, AC28) : une fois le bloc sélectionné et la barre de
  * blocs rendue, le focus va à « Monter le bloc », d'où les flèches mènent à « Descendre le bloc ».
+ * La demande ne vaut que pour le rendu qui suit la sélection : barre absente, elle est oubliée, et
+ * une barre parue plus tard ne prend pas le focus.
  */
 function useVersLesCommandesDeDeplacement(refBarre: RefObject<HTMLDivElement | null>): () => void {
   const demande = useRef(false);
   useEffect(() => {
-    const barre = refBarre.current;
-    if (demande.current && barre !== null) {
+    if (demande.current) {
       demande.current = false;
-      barre.querySelector<HTMLElement>(`[aria-label="${MONTER_LE_BLOC}"]`)?.focus();
+      refBarre.current?.querySelector<HTMLElement>(`[aria-label="${MONTER_LE_BLOC}"]`)?.focus();
     }
   });
   return () => {

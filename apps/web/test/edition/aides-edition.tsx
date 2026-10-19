@@ -6,6 +6,7 @@ import type { DocumentPage } from "@notionlike/document";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
 import { NodeRangeSelection } from "@tiptap/extension-node-range";
+import { NodeSelection } from "@tiptap/pm/state";
 import { StrictMode } from "react";
 import { afterEach, vi } from "vitest";
 import * as Y from "yjs";
@@ -474,6 +475,15 @@ export function saisirLeBlocParSaPoignee(de: number): void {
     const selection = NodeRangeSelection.create(view.state.doc, debut, fin);
     view.dispatch(view.state.tr.setSelection(selection));
     Object.assign(view, { dragging: { slice: selection.content(), move: true } });
+  });
+}
+
+/** Sélectionne comme nœud le bloc de premier niveau d'indice donné, entier. */
+export function selectionnerLeBlocEntier(indice: number): void {
+  const { view } = editeurMonte();
+  act(() => {
+    const selection = NodeSelection.create(view.state.doc, debutDuBlocMonte(indice));
+    view.dispatch(view.state.tr.setSelection(selection));
   });
 }
 

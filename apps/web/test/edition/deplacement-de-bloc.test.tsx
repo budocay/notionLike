@@ -31,10 +31,12 @@ import {
   retablir,
   saisirLeBlocParSaPoignee,
   selectionnerDe,
+  selectionnerLeBlocEntier,
   selectionnerLeTexte,
   selectionVueParLEditeur,
   taper,
   textesDesBlocs,
+  typeDeSelection,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
 
@@ -106,6 +108,55 @@ describe("poignée de bloc", () => {
     expect([contenuLu(doc), emises.length]).toEqual(avant);
     act(() => (document.activeElement as HTMLElement).click());
     expect(textesDesBlocs()).toEqual(["two", "one", "three"]);
+  });
+
+  // Depuis le menu slash, la barre ne paraît plus dans un bloc vide (F-005-AC6, H11) : la poignée
+  // y sélectionne le bloc lui-même, sélection non vide, et la barre paraît par F-003-AC41.
+  it("F-006-AC14 F-006-AC18 F-006-AC28 F-005-AC6 activée sur un bloc vide, la poignée du curseur mène aussi à « Monter le bloc », sans focus fantôme ensuite", () => {
+    const { doc, emises } = monterLEditeur();
+    entrerDansLEditeur();
+    ecrire("one", "two", "");
+    const avant = [contenuLu(doc), emises.length];
+    expect(barreDeBlocs()).toBeNull();
+
+    act(() => screen.getByRole("button", { name: "Déplacer le bloc" }).click());
+
+    const barre = barreDeBlocs() as HTMLElement;
+    expect(barre).not.toBeNull();
+    const monter = within(barre).getByRole("button", { name: "Monter le bloc" });
+    const descendre = within(barre).getByRole("button", { name: "Descendre le bloc" });
+    expect(document.activeElement).toBe(monter);
+    expect(descendre.getAttribute("aria-disabled")).toBe("true");
+    expect([contenuLu(doc), emises.length]).toEqual(avant);
+    act(() => monter.click());
+    expect(textesDesBlocs()).toEqual(["one", "", "two"]);
+    expect(curseurDansLeBloc().bloc).toBe(1);
+    expect(presser("ArrowUp", ALT_MAJ)).toBe(true);
+    expect(textesDesBlocs()).toEqual(["", "one", "two"]);
+    expect([typeDeSelection(), curseurDansLeBloc().bloc]).toEqual(["node", 0]);
+
+    // Le focus rendu à l'éditeur, une barre qui paraît plus tard ne le reprend pas.
+    act(() => zoneDeSaisie().focus());
+    selectionnerLeTexte("two");
+    expect(barreDeBlocs()).not.toBeNull();
+    expect(document.activeElement).toBe(zoneDeSaisie());
+  });
+
+  it("F-006-AC14 activée, la poignée du curseur ne laisse aucune demande de focus en suspens si la barre ne paraît pas", () => {
+    unDeuxTrois();
+    placerLeCurseurDans("two");
+    const poignee = screen.getByRole("button", { name: "Déplacer le bloc" });
+    // Le focus quitte la zone d'édition avant le rendu : la barre ne paraît pas.
+    act(() => {
+      poignee.click();
+      zoneDeSaisie().blur();
+    });
+    expect(barreDeBlocs()).toBeNull();
+
+    act(() => zoneDeSaisie().focus());
+    selectionnerLeTexte("one");
+    expect(barreDeBlocs()).not.toBeNull();
+    expect(document.activeElement).toBe(zoneDeSaisie());
   });
 
   it("F-006-AC14 sans focus dans l'éditeur, aucune poignée du curseur", () => {
@@ -182,6 +233,42 @@ const UN_BLOC_DE_CHAQUE_TYPE = [
   // F-005 : un bloc code de deux lignes.
   "<pre><code>x = 1\ny = 2</code></pre>",
 ].join("");
+
+// Couture : `blocDeLaSelection` et `deplacerLeBloc` lisent désormais une sélection de nœud d'un
+// bloc de premier niveau (celle que la poignée du curseur pose dans un bloc vide). Leurs appelants :
+// la poignée du curseur (`poignee.ts`, mesure et sélection), la disponibilité de « Monter le bloc »
+// et « Descendre le bloc » (`EditeurDePage.tsx`), Alt+Maj+Flèche (`depot.ts`), le lâcher de la
+// poignée de l'éditeur (`depot.ts`, sélection de plage de nœuds, inchangé : tests ci-dessous).
+describe("couture : sélection de nœud d'un bloc de premier niveau", () => {
+  it("F-006-AC14 F-006-AC18 chaque appelant lit le bloc sélectionné entier comme le bloc du curseur", () => {
+    const { doc, emises } = unDeuxTrois();
+    selectionnerLeBlocEntier(1);
+    const avant = emises.length;
+
+    expect(screen.getAllByRole("button", { name: "Déplacer le bloc" })).toHaveLength(1);
+    const barre = barreDeBlocs() as HTMLElement;
+    for (const nom of ["Monter le bloc", "Descendre le bloc"]) {
+      expect(
+        within(barre).getByRole("button", { name: nom }).getAttribute("aria-disabled"),
+      ).toBeNull();
+    }
+    expect(emises.length).toBe(avant);
+    expect(presser("ArrowDown", ALT_MAJ)).toBe(true);
+    expect(textesDesBlocs()).toEqual(["one", "three", "two"]);
+    expect([typeDeSelection(), curseurDansLeBloc().bloc]).toEqual(["node", 2]);
+    act(() =>
+      within(barreDeBlocs() as HTMLElement)
+        .getByRole("button", { name: "Monter le bloc" })
+        .click(),
+    );
+    expect(textesDesBlocs()).toEqual(["one", "two", "three"]);
+    expect([typeDeSelection(), curseurDansLeBloc().bloc]).toEqual(["node", 1]);
+    expect(emises.length).toBe(avant + 2);
+    expect(contenuLu(doc)).toBe(
+      "<paragraph>one</paragraph><paragraph>two</paragraph><paragraph>three</paragraph>",
+    );
+  });
+});
 
 describe("une seule opération", () => {
   it("F-006-AC16 F-006-AC19 pour chaque type de bloc de la dernière ligne de la table des versions, le déplacement est une seule mise à jour Yjs, et le contenu lu est le même à l'ordre des blocs près", () => {
