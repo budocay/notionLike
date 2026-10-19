@@ -51,7 +51,8 @@ describe("table des versions du document de page", () => {
       TABLE_DES_VERSIONS_PAGE.map((_, rang) => rang + 1),
     );
     expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(TABLE_DES_VERSIONS_PAGE.at(-1)?.version);
-    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(2);
+    // F-005 : la version prise en charge est relevée à 3 (F-005 H13).
+    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(3);
   });
 
   it("F-028-AC19 F-028-AC28 les numéros se suivent depuis 1 sans trou, chaque ligne contient la précédente, la ligne 2 ajoute à la ligne 1 les marques bold, italic et link, et la version prise en charge est son numéro", () => {
@@ -75,7 +76,43 @@ describe("table des versions du document de page", () => {
       marques: ["bold", "italic", "link"],
       typesPartages: [],
     });
-    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(2);
+  });
+
+  it("F-005-AC23 F-005-AC32 la ligne 3 ajoute à la ligne 2 le nœud codeBlock et son seul attribut language, sans retoucher les lignes 1 et 2, et la version prise en charge est son numéro", () => {
+    const [premiere, deuxieme, troisieme] = TABLE_DES_VERSIONS_PAGE;
+
+    expect(TABLE_DES_VERSIONS_PAGE.map((ligne) => ligne.version)).toEqual([1, 2, 3]);
+    expect(premiere?.marques).toEqual([]);
+    expect(deuxieme?.noeuds).toEqual(premiere?.noeuds);
+    expect(troisieme).toEqual({
+      version: 3,
+      noeuds: { ...deuxieme?.noeuds, codeBlock: ["language"] },
+      marques: deuxieme?.marques,
+      typesPartages: [],
+    });
+    expect(Object.keys(troisieme?.noeuds ?? {})).toEqual(
+      Object.keys(troisieme?.noeuds ?? {}).sort(),
+    );
+    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(3);
+  });
+});
+
+describe("couture de la version prise en charge (F-005)", () => {
+  it("F-005-AC32 le paquet relève sa version prise en charge à 3 sans nouvel export ni type racine : yjs reste sa seule dépendance d'exécution, il s'exécute sous Node sans DOM, un document élevé à 3 s'ouvre et un document de version 4 est refusé avec le même code", () => {
+    const doc = new Y.Doc();
+    const page = ouvrirPageSuivie(doc);
+
+    page.eleverVersion(3);
+
+    expect(VERSION_PAGE_PRISE_EN_CHARGE).toBe(3);
+    expect(Object.keys(manifeste.dependencies)).toEqual(["yjs"]);
+    expect("document" in globalThis).toBe(false);
+    expect([...doc.share.keys()].sort()).toEqual([TYPE_DU_CONTENU, TYPE_DES_VERSIONS].sort());
+    expect(lireVersionPage(doc)).toBe(3);
+    expect(codeDuRefusDe(() => ouvrirPageSuivie(docDeVersion(3)))).toBeUndefined();
+    expect(codeDuRefusDe(() => ouvrirPageSuivie(docDeVersion(4)))).toBe(
+      "version-non-prise-en-charge",
+    );
   });
 });
 
@@ -198,27 +235,38 @@ describe("lecture de la version d'un document de page", () => {
 });
 
 interface Repartition {
-  readonly clientQuiEleveA2: number;
-  readonly clientQuiEleveA3: number;
+  readonly clientQuiEleveABasse: number;
+  readonly clientQuiEleveAHaute: number;
 }
+
+// F-005 : la version prise en charge est passée à 3 ; les deux valeurs suivent désormais la version
+// prise en charge, pour que la plus haute reste refusée (F-003-AC31, F-005 H13).
+const BASSE = VERSION_PAGE_PRISE_EN_CHARGE;
+const HAUTE = VERSION_PAGE_PRISE_EN_CHARGE + 1;
 
 describe("élévation de la version d'un document de page", () => {
   it.each<[string, Repartition]>([
-    ["le plus grand identifiant élève à 3", { clientQuiEleveA2: 1, clientQuiEleveA3: 2 }],
-    ["le plus grand identifiant élève à 2", { clientQuiEleveA2: 2, clientQuiEleveA3: 1 }],
+    [
+      "le plus grand identifiant élève à la plus haute",
+      { clientQuiEleveABasse: 1, clientQuiEleveAHaute: 2 },
+    ],
+    [
+      "le plus grand identifiant élève à la plus basse",
+      { clientQuiEleveABasse: 2, clientQuiEleveAHaute: 1 },
+    ],
   ])(
-    "F-003-AC31 deux répliques élevées séparément à 2 et à 3 lisent 3 après convergence, dans les deux ordres, comme un troisième document vierge (%s)",
-    (_cas, { clientQuiEleveA2, clientQuiEleveA3 }) => {
-      const a = docDuClient(clientQuiEleveA2);
-      const b = docDuClient(clientQuiEleveA3);
+    "F-003-AC31 deux répliques élevées séparément à la version prise en charge et à la suivante lisent la suivante après convergence, dans les deux ordres, comme un troisième document vierge (%s)",
+    (_cas, { clientQuiEleveABasse, clientQuiEleveAHaute }) => {
+      const a = docDuClient(clientQuiEleveABasse);
+      const b = docDuClient(clientQuiEleveAHaute);
       const pageA = ouvrirPageSuivie(a);
       const pageB = ouvrirPageSuivie(b);
-      pageA.eleverVersion(2);
-      pageB.eleverVersion(3);
+      pageA.eleverVersion(BASSE);
+      pageB.eleverVersion(HAUTE);
       const deA = Y.encodeStateAsUpdate(a);
       const deB = Y.encodeStateAsUpdate(b);
-      expect(lireVersionPage(a)).toBe(2);
-      expect(lireVersionPage(b)).toBe(3);
+      expect(lireVersionPage(a)).toBe(BASSE);
+      expect(lireVersionPage(b)).toBe(HAUTE);
 
       const tiersAPuisB = docDuClient(10);
       const tiersBPuisA = docDuClient(11);
@@ -230,14 +278,14 @@ describe("élévation de la version d'un document de page", () => {
       livrerLEtat(b, a);
 
       const tous = [a, b, tiersAPuisB, tiersBPuisA];
-      expect(tous.map(lireVersionPage)).toEqual([3, 3, 3, 3]);
-      expect([pageA.lireVersion(), pageB.lireVersion()]).toEqual([3, 3]);
+      expect(tous.map(lireVersionPage)).toEqual([HAUTE, HAUTE, HAUTE, HAUTE]);
+      expect([pageA.lireVersion(), pageB.lireVersion()]).toEqual([HAUTE, HAUTE]);
       expect(tous.map((doc) => codeDuRefusDe(() => ouvrirPageSuivie(doc)))).toEqual(
         tous.map(() => "version-non-prise-en-charge"),
       );
       const relu = new Y.Doc();
       Y.applyUpdate(relu, Y.encodeStateAsUpdate(a));
-      expect(lireVersionPage(relu)).toBe(3);
+      expect(lireVersionPage(relu)).toBe(HAUTE);
     },
   );
 
