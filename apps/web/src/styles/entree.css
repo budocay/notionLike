@@ -304,8 +304,14 @@
     margin-block: var(--spacing-mince);
   }
 
-  /* Bloc code (F-005-AC8) : police à chasse fixe de la feuille de base de Tailwind, espaces et
-     sauts de ligne conservés, sans coloration ; sur une surface en retrait. */
+  /* Bloc code (F-005-AC8, H15) : police à chasse fixe du jeton, posée aussi sur le `code`, que la
+     feuille de base de Tailwind habille à part ; espaces et sauts de ligne conservés, sans
+     coloration ; sur une surface en retrait. */
+  & pre,
+  & pre code {
+    font-family: var(--font-chasse-fixe);
+  }
+
   & pre {
     margin-block: var(--spacing-petit);
     padding: var(--spacing-moyen) var(--spacing-normal);

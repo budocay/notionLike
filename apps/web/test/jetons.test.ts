@@ -13,6 +13,7 @@ import {
   controlerDegrades,
   controlerJetons,
   controlerMouvement,
+  controlerPolices,
   controlerStructure,
   controlerTeinte,
   controlerUnites,
@@ -282,6 +283,56 @@ describe("fichier des jetons : identité", () => {
       ),
     );
     expect(sombre.some((faute) => faute.includes("point 1 sur 16"))).toBe(false);
+  });
+});
+
+describe("fichier des jetons : police à chasse fixe (F-005 H15)", () => {
+  const CHASSE_FIXE = "--font-chasse-fixe";
+
+  it("F-005-AC8 F-004-AC18 le fichier réel déclare la police à chasse fixe : des polices du système, `monospace` en dernier", () => {
+    const police = lireJetons(jetons).theme.find(({ nom }) => nom === CHASSE_FIXE);
+
+    expect(controlerPolices(jetons)).toEqual([]);
+    expect(police?.valeur.split(",").at(-1)?.trim()).toBe("monospace");
+  });
+
+  it("F-005-AC8 le bloc code et son `code` prennent la police du jeton, la feuille d'entrée n'en nomme aucune", () => {
+    const entree = lire("src/styles/entree.css");
+
+    expect(entree).toContain(
+      `  & pre,\n  & pre code {\n    font-family: var(${CHASSE_FIXE});\n  }`,
+    );
+    expect(entree.match(/font-family\s*:[^;]*/g)).toEqual([`font-family: var(${CHASSE_FIXE})`]);
+  });
+
+  it("F-004-AC21 F-004-AC1 une famille de polices est un nom de typographie admis", () => {
+    const conforme = avec(
+      "  --text-courant: 1rem;\n",
+      "  --text-courant: 1rem;\n  --font-x: serif;\n",
+    );
+
+    expect(controlerJetons(conforme)).toEqual([]);
+  });
+
+  it("F-004-AC21 F-004-AC18 une police chargée, renvoyée ou sans famille générique est refusée", () => {
+    const police = (valeur: string): string =>
+      avec("  --text-courant: 1rem;\n", `  --text-courant: 1rem;\n  --font-x: ${valeur};\n`);
+
+    expect(
+      controlerPolices(police('"Fira Code", url(https://polices.example/fira.woff2)')),
+    ).toEqual([
+      '--font-x : « "Fira Code", url(https://polices.example/fira.woff2) » porte une fonction, une police ne se charge pas',
+      '--font-x : « "Fira Code", url(https://polices.example/fira.woff2) » ne finit pas par une famille générique',
+    ]);
+    expect(controlerPolices(police("var(--font-y), monospace"))).toEqual([
+      "--font-x : « var(--font-y), monospace » porte une fonction, une police ne se charge pas",
+    ]);
+    expect(controlerPolices(police("Menlo, Consolas"))).toEqual([
+      "--font-x : « Menlo, Consolas » ne finit pas par une famille générique",
+    ]);
+    expect(controlerJetons(police("Menlo"))).toEqual([
+      "--font-x : « Menlo » ne finit pas par une famille générique",
+    ]);
   });
 });
 

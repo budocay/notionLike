@@ -79,6 +79,8 @@
   --font-weight-moyen: 500;
   --font-weight-fort: 600;
   --font-weight-titre: 700;
+  /* Police à chasse fixe (F-005 H15) : polices du système, aucune n'est chargée (F-004-AC18). */
+  --font-chasse-fixe: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --tracking-etiquette: 0.09em;
   --tracking-serre: -0.01em;
 

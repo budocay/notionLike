@@ -603,6 +603,57 @@ export function choisirLeLangage(valeur: string): void {
   });
 }
 
+// Borne du parcours : bien plus de pas que la barre n'a d'éléments.
+const PAS_MAX_DANS_LA_BARRE = 32;
+
+/**
+ * Depuis l'élément de la barre qui a le focus, Flèche droite jusqu'au sélecteur de langage
+ * (F-005-AC22) : rend le sélecteur dès qu'il a le focus, `null` si le parcours revient à son point
+ * de départ, ou s'épuise, sans l'avoir atteint.
+ */
+export function atteindreLeSelecteurParLesFleches(): HTMLSelectElement | null {
+  const depart = document.activeElement;
+  for (let pas = 0; pas < PAS_MAX_DANS_LA_BARRE; pas += 1) {
+    presser("ArrowRight");
+    const cible = document.activeElement;
+    const selecteur = selecteurDeLangage();
+    if (selecteur !== null && cible === selecteur) {
+      return selecteur;
+    }
+    if (cible === depart) {
+      return null;
+    }
+  }
+  return null;
+}
+
+const PAS_DU_SELECTEUR = { ArrowDown: 1, ArrowUp: -1 } as const;
+
+/**
+ * Flèche bas ou haut sur le sélecteur qui a le focus. Ni jsdom ni user-event 14.6.7 ne jouent
+ * l'action par défaut d'un `select` fermé : l'aide la joue comme un navigateur (option voisine,
+ * puis `input` et `change`), et seulement si personne n'a annulé la frappe en chemin ; une barre ou
+ * un éditeur qui avaleraient la flèche laissent donc la valeur inchangée.
+ */
+export function presserDansLeSelecteur(touche: keyof typeof PAS_DU_SELECTEUR): void {
+  const selecteur = document.activeElement;
+  if (!(selecteur instanceof HTMLSelectElement)) {
+    throw new Error("Aucun sélecteur n'a le focus.");
+  }
+  if (presser(touche)) {
+    return;
+  }
+  const rang = selecteur.selectedIndex + PAS_DU_SELECTEUR[touche];
+  if (rang < 0 || rang >= selecteur.options.length) {
+    return;
+  }
+  act(() => {
+    selecteur.selectedIndex = rang;
+    selecteur.dispatchEvent(new Event("input", { bubbles: true }));
+    selecteur.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
 /** La liste d'options du menu slash ; `null` si le menu est fermé. */
 export function menuSlash(): HTMLElement | null {
   return screen.queryByRole("listbox", { name: NOM_DU_MENU_SLASH });
@@ -682,22 +733,24 @@ export function placerLeCurseurDansLeDernierBloc(): void {
  * Une commande du bloc code de l'éditeur tel que le module d'édition le crée, appelée directement
  * avec ce langage, sans passer par la barre ni le sélecteur (F-005-AC35) ; rend ce qu'elle rend.
  */
+type AppelDuBlocCode = (commandes: Editor["commands"], attributs: { language: string }) => boolean;
+
+const COMMANDES_DU_BLOC_CODE = {
+  setCodeBlock: (commandes, attributs) => commandes.setCodeBlock(attributs),
+  toggleCodeBlock: (commandes, attributs) => commandes.toggleCodeBlock(attributs),
+  setNode: (commandes, attributs) => commandes.setNode("codeBlock", attributs),
+  updateAttributes: (commandes, attributs) => commandes.updateAttributes("codeBlock", attributs),
+} satisfies Record<string, AppelDuBlocCode>;
+
 export function appelerUneCommandeDuBlocCode(
-  nom: "setCodeBlock" | "toggleCodeBlock" | "updateAttributes" | "setNode",
+  nom: keyof typeof COMMANDES_DU_BLOC_CODE,
   langage: unknown,
 ): boolean {
   const { commands } = editeurMonte();
   const attributs = { language: langage as string };
   let rendu = false;
   act(() => {
-    rendu =
-      nom === "setCodeBlock"
-        ? commands.setCodeBlock(attributs)
-        : nom === "toggleCodeBlock"
-          ? commands.toggleCodeBlock(attributs)
-          : nom === "setNode"
-            ? commands.setNode("codeBlock", attributs)
-            : commands.updateAttributes("codeBlock", attributs);
+    rendu = COMMANDES_DU_BLOC_CODE[nom](commands, attributs);
   });
   return rendu;
 }

@@ -1,5 +1,5 @@
-// Contrôles statiques du fichier des jetons (F-004-AC1, AC2, AC4, AC5, AC7 à AC9, AC12, AC13, AC41,
-// AC46, AC47). Chaque contrôle reçoit le texte d'un fichier des jetons et rend la liste des fautes,
+// Contrôles statiques du fichier des jetons (F-004-AC1, AC2, AC4, AC5, AC7 à AC9, AC12, AC13, AC18,
+// AC41, AC46, AC47 ; police à chasse fixe de F-005 H15). Chaque contrôle reçoit le texte d'un fichier des jetons et rend la liste des fautes,
 // chacune nommant le jeton et la valeur en cause : une liste vide vaut conformité. Ils lisent les
 // sources, jamais la feuille compilée, qui réécrit les valeurs (H7).
 import {
@@ -16,7 +16,7 @@ export const CATEGORIES: Readonly<Record<string, RegExp>> = {
   "couleur primitive": /^--primitif-/,
   "couleur sémantique": /^--color-(surface|texte|repere)-/,
   dégradé: /^--degrade-/,
-  typographie: /^--(text|font-weight|tracking)-/,
+  typographie: /^--(text|font|tracking)-/,
   espacement: /^--spacing-./,
   rayon: /^--radius-/,
   ombre: /^--shadow-/,
@@ -339,12 +339,34 @@ export function controlerMouvement(source: string): string[] {
   ];
 }
 
+const FAMILLE_GENERIQUE = /^(?:monospace|sans-serif|serif|system-ui)$/;
+
+/**
+ * F-004-AC18, F-005 H15 : une famille de polices (`--font-<nom>`, graisses mises à part) est une
+ * liste de polices du système qui finit par une famille générique ; ni adresse, ni renvoi, ni
+ * fonction : aucune police n'est chargée.
+ */
+export function controlerPolices(source: string): string[] {
+  return nommes(themeDe(source), /^--font-(?!weight-)/).flatMap(({ nom, valeur }) => {
+    const fautes: string[] = [];
+    if (/\(/.test(valeur)) {
+      fautes.push(`${nom} : « ${valeur} » porte une fonction, une police ne se charge pas`);
+    }
+    const derniere = valeur.split(",").at(-1)?.trim() ?? "";
+    if (!FAMILLE_GENERIQUE.test(derniere)) {
+      fautes.push(`${nom} : « ${valeur} » ne finit pas par une famille générique`);
+    }
+    return fautes;
+  });
+}
+
 /** Tous les contrôles du fichier des jetons, dans l'ordre des critères. */
 export function controlerJetons(source: string): string[] {
   return [
     ...controlerStructure(source),
     ...controlerCouleurs(source),
     ...controlerUnites(source),
+    ...controlerPolices(source),
     ...controlerContrastes(source),
     ...controlerDegrades(source),
     ...controlerMouvement(source),

@@ -1,9 +1,11 @@
-// Bloc code (F-005-AC1 à AC8, AC10, AC29) : conversion, règle de saisie, clavier, sélecteur de
-// langage, collage et rendu, joués par l'éditeur monté comme l'application le monte.
-import { act } from "@testing-library/react";
+// Bloc code (F-005-AC1 à AC8, AC10, AC22, AC29) : conversion, règle de saisie, clavier, sélecteur
+// de langage, collage et rendu, joués par l'éditeur monté comme l'application le monte.
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
+import { BarreDeBlocs } from "../../src/interface/composants/Edition.tsx";
+import { RACCOURCIS } from "../../src/interface/raccourcis.ts";
 import {
   bloc,
   contenuLu,
@@ -12,6 +14,7 @@ import {
   inventaireDuContenu,
 } from "../aides-facade-page.ts";
 import {
+  atteindreLeSelecteurParLesFleches,
   barreDeBlocs,
   blocDuCurseur,
   choisirLeLangage,
@@ -27,6 +30,7 @@ import {
   placerLeCurseurDansLeDernierBloc,
   presser,
   presserAvecMod,
+  presserDansLeSelecteur,
   selecteurDeLangage,
   selectionnerDe,
   selectionnerLeBloc,
@@ -436,6 +440,59 @@ describe("sélecteur de langage", () => {
     expect(choisi).toEqual([{ texte: "a\nb", attributs: { language: "typescript" } }]);
     expect(blocsCodeLus(doc)).toEqual([{ texte: "a\nb", attributs: {} }]);
     expect(selecteurDeLangage()?.value).toBe("");
+  });
+});
+
+describe("sélecteur de langage au clavier", () => {
+  it("F-005-AC22 dans un bloc code, Alt+F10 puis les flèches mènent au sélecteur « Langage du bloc code » ; Flèche bas change le langage, lu par yjs seul ; Échap rend le focus à l'éditeur", () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taperUnBlocCode(["a", "b"]);
+
+    const traitee = presser(RACCOURCIS.barreDeBlocs.touche, { altKey: true });
+    const atteint = atteindreLeSelecteurParLesFleches();
+    const focalise = document.activeElement;
+    presserDansLeSelecteur("ArrowDown");
+    const valeur = selecteurDeLangage()?.value;
+    const lus = blocsCodeLus(doc);
+    presser("Escape");
+
+    expect(traitee).toBe(true);
+    expect(atteint).not.toBeNull();
+    expect(atteint).toBe(selecteurDeLangage());
+    expect(focalise).toBe(atteint);
+    expect(valeur).toBe("bash");
+    expect(lus).toEqual([{ texte: "a\nb", attributs: { language: "bash" } }]);
+    expect(document.activeElement).toBe(zoneDeSaisie());
+  });
+
+  it("F-005-AC22 cas fautif : un sélecteur nommé hors du parcours des flèches de la barre n'est pas atteint", () => {
+    const commandeDeBarre = (nom: string) => ({
+      nom,
+      repere: nom,
+      active: false,
+      surActivation: () => undefined,
+    });
+    render(
+      <>
+        <BarreDeBlocs
+          nom="Barre témoin"
+          commandes={[commandeDeBarre("Premier"), commandeDeBarre("Second")]}
+          position={{ gauche: 0, haut: 0 }}
+          surAbandon={() => undefined}
+        />
+        <select aria-label="Langage du bloc code" tabIndex={-1}>
+          <option value="">Texte brut</option>
+        </select>
+      </>,
+    );
+    act(() => screen.getByRole("button", { name: "Premier" }).focus());
+
+    const atteint = atteindreLeSelecteurParLesFleches();
+
+    expect(selecteurDeLangage()).not.toBeNull();
+    expect(atteint).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Premier" }));
   });
 });
 
