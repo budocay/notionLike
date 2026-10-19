@@ -173,7 +173,8 @@ describe("la règle des adresses sur chaque chemin", () => {
   });
 });
 
-// ——— F-028-AC24, AC28 : appelants du format et de la version ———
+// ——— F-028-AC24, AC28 : appelants du format et de la version ; F-005-AC28, AC32 : les mêmes
+// appelants, sur chaque ligne de la table, ligne 3 du bloc code comprise, et sur la version 4 ———
 
 const NOMS_DU_FORMAT = [
   "ouvrirDocumentPage",
@@ -407,7 +408,7 @@ function documentDe(version: number): Y.Doc {
 }
 
 describe("appelants du format et de la version du document de page", () => {
-  it("F-028-AC28 F-028-AC24 les fichiers de code du workspace qui lisent la version, la vérifient ou l'élèvent sont énumérés par leurs imports : chacun a son scénario, et aucun module du serveur n'en est", () => {
+  it("F-028-AC28 F-028-AC24 F-005-AC28 F-005-AC32 les fichiers de code du workspace qui lisent la version, la vérifient ou l'élèvent sont énumérés par leurs imports : chacun a son scénario, et aucun module du serveur n'en est", () => {
     const appelants = appelantsDuFormat(fichiersDuWorkspace);
 
     expect(appelants).toEqual([
@@ -435,7 +436,7 @@ describe("appelants du format et de la version du document de page", () => {
     expect("apps/web/src/nouveau.ts" in SCENARIOS).toBe(false);
   });
 
-  it("F-028-AC28 les fonctions qui enveloppent la lecture, la vérification ou l'élévation de la version sont suivies : chaque export des appelants du paquet est classé, et chaque fichier qui appelle une enveloppe ou se sert de la garde ou de l'élévation de l'état prêt a son scénario", () => {
+  it("F-028-AC28 F-005-AC32 les fonctions qui enveloppent la lecture, la vérification ou l'élévation de la version sont suivies : chaque export des appelants du paquet est classé, et chaque fichier qui appelle une enveloppe ou se sert de la garde ou de l'élévation de l'état prêt a son scénario", () => {
     const appelants = appelantsDuFormat(fichiersDuWorkspace);
     const desEnveloppes = appelantsDesEnveloppes(fichiersDuWorkspace);
 
@@ -482,7 +483,7 @@ describe("appelants du format et de la version du document de page", () => {
         ),
     ),
   )(
-    "F-028-AC28 F-028-AC24 %s, sur un document de %s : %s",
+    "F-028-AC28 F-028-AC24 F-005-AC28 F-005-AC32 %s, sur un document de %s : %s",
     async (_chemin, _cas, version, attendue, scenario) => {
       expect(await scenario(documentDe(version), version)).toBe(attendue);
     },
