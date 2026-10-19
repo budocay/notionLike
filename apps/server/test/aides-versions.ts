@@ -89,6 +89,18 @@ export const CAS_DE_VERSION_FORGEE: readonly CasDeVersionForgee[] = [
     forger: (doc) => meta(doc).delete("version"),
     refuseParLePaquet: false,
   },
+  {
+    // Décision du dev du 2026-10-19 : `meta` n'a qu'une nature, `Y.Map`. Le paquet, qui lit `meta`
+    // par `getMap` et ignore le contenu de liste, lit encore ce document en version 2.
+    cas: "meta défini sous un Y.Array",
+    forger: (doc) => doc.getArray<unknown>("meta").push([1]),
+    refuseParLePaquet: false,
+  },
+  {
+    cas: "meta défini sous un Y.Text",
+    forger: (doc) => doc.getText("meta").insert(0, "1"),
+    refuseParLePaquet: false,
+  },
 ];
 
 // Une entrée de page de l'arborescence, de type `table` (amendement F-018 de l'ADR-0002).

@@ -81,10 +81,11 @@ const VERSION_ABSENTE = 1;
 // La version lue d'un document d'espace, par la règle de l'étape 1 de la lecture (amendement F-018
 // de l'ADR-0002, celle que le paquet du document applique) : le plus grand de `meta.version` et des
 // entrées de `versions`, 1 en leur absence. `bienFormee` est faux si `meta.version` est présente
-// sans être un entier supérieur ou égal à 1, ou si `versions` porte une entrée nommée (l'écriture
-// d'un autre type partagé sous ce nom) ou une entrée qui n'est pas un tel entier. `parMeta` :
-// `meta.version`, 1 si la clé est absente, la barrière des applications de version 1 (n'a de sens
-// que pour un document bien formé).
+// sans être un entier supérieur ou égal à 1, si `meta` porte un contenu de liste (l'écriture d'un
+// tableau, d'un texte ou d'un fragment sous ce nom, décision du dev du 2026-10-19), ou si `versions`
+// porte une entrée nommée (l'écriture d'un autre type partagé sous ce nom) ou une entrée qui n'est
+// pas un tel entier. `parMeta` : `meta.version`, 1 si la clé est absente, la barrière des
+// applications de version 1 (n'a de sens que pour un document bien formé).
 interface VersionLue {
   readonly lue: number;
   readonly parMeta: number;
@@ -110,7 +111,8 @@ function versionDe(doc: Y.Doc): VersionLue {
   return {
     lue,
     parMeta: estUneVersionEntiere(deMeta) ? deMeta : VERSION_ABSENTE,
-    bienFormee: versions._map.size === 0 && valeurs.every(estUneVersionEntiere),
+    bienFormee:
+      meta._start === null && versions._map.size === 0 && valeurs.every(estUneVersionEntiere),
   };
 }
 
@@ -118,8 +120,9 @@ function versionDe(doc: Y.Doc): VersionLue {
 // qu'elle n'est pas admise. Elle l'est si, après elle, le document est bien formé, que sa version
 // lue est dans la liste publiée, et que ni elle ni `meta.version` (clé retirée comprise) n'ont
 // baissé : la barrière des applications de version 1 ne se lève pas, même quand `versions` garde
-// la version (décision du dev du 2026-10-16, F-018-AC58). Une copie illisible, ou un type racine
-// déjà lu sous un autre type partagé, refuse. Un document déjà mal formé n'a pas de version à
+// la version (décision du dev du 2026-10-16, F-018-AC58). Une copie illisible, un type racine
+// `meta` ou `versions` d'une autre nature, ou un type racine déjà lu sous un autre type partagé,
+// refuse. Un document déjà mal formé n'a pas de version à
 // défendre : seul l'après compte.
 export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): boolean {
   const copie = new Y.Doc({ gc: true });
