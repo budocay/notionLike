@@ -1,7 +1,7 @@
 // Filtre du menu slash (F-005-AC14) : fonction pure, sans import.
 
 /** Ce que le filtre lit d'une commande : son nom et ses mots-clés. */
-export interface CommandeFiltrable {
+interface CommandeFiltrable {
   readonly nom: string;
   readonly motsCles: readonly string[];
 }

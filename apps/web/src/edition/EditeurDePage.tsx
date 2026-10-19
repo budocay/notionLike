@@ -449,9 +449,9 @@ interface LiensHorsEditeur {
 
 /**
  * Le drapeau du geste de la poignée, le texte de la région d'état que le dépôt remplit
- * (F-006-AC18), et l'état du menu slash que l'éditeur signale (F-005-AC20). La région n'existe que tant que le focus est dans la zone d'édition, où naît
- * tout raccourci : présente avant l'annonce, elle est lue ; absente ailleurs, elle ne double pas
- * celle de l'état de chargement.
+ * (F-006-AC18), et l'état du menu slash que l'éditeur signale (F-005-AC20). La région n'existe que
+ * tant que le focus est dans la zone d'édition, où naît tout raccourci : présente avant l'annonce,
+ * elle est lue ; absente ailleurs, elle ne double pas celle de l'état de chargement.
  */
 function useLiensHorsEditeur(): {
   readonly geste: RefObject<boolean>;

@@ -25,7 +25,7 @@ const PREFIXE_DE_LA_CLASSE = "language-";
 const DONNEES_D_UN_EDITEUR_DE_CODE = "vscode-editor-data";
 
 /** La classe de l'élément `code` : seul un identifiant de la liste en donne une (F-005-AC9). */
-export function classeDuLangage(valeur: unknown): string | null {
+function classeDuLangage(valeur: unknown): string | null {
   const langage = langageAdmis(valeur);
   return langage === null ? null : `${PREFIXE_DE_LA_CLASSE}${langage}`;
 }
@@ -98,7 +98,7 @@ function blocsHorsListe(
  * liste, est réécrit sans langage avant que la liaison n'écrive dans Yjs : une seule mise à jour.
  * Un document reçu n'est jamais réécrit, et le bloc où l'on tape n'est pas « inscrit » (AC9).
  */
-export function langagesHorsListeRetires(
+function langagesHorsListeRetires(
   transactions: readonly Transaction[],
   etat: EditorState,
 ): Transaction | null {

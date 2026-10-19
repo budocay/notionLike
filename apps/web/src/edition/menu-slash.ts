@@ -67,7 +67,7 @@ function sequenceOuverte(editeur: Editor): Retrait | undefined {
  * (AC12, AC13) : le caractère qui précède le `/` est relu dans le document, car l'utilitaire ne lit
  * que le nœud de texte du curseur (veille : un `/` après du gras l'ouvrirait).
  */
-export function menuPermis(etat: EditorState, debut: number): boolean {
+function menuPermis(etat: EditorState, debut: number): boolean {
   const $debut = etat.doc.resolve(debut);
   if ($debut.parent.type.name === BLOC_CODE) {
     return false;
@@ -235,9 +235,9 @@ export function menuSlash(options: OptionsDuMenu): Extension {
           char: DECLENCHEUR,
           allowedPrefixes: [ESPACE],
           allow: ({ state, range }) => menuPermis(state, range.from),
-          // La liste vient du contrôleur, calculée sur l'état courant : rien à charger ici.
+          // La liste vient du contrôleur, calculée sur l'état courant, et il applique lui-même la
+          // commande choisie : ni liste à charger ici, ni option `command`.
           items: () => [],
-          command: ({ props }) => appliquer(editor, props),
           render: () => controleur(editor, options),
           placement: "bottom-start",
           flip: true,
