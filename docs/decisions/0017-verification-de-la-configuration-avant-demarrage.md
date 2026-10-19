@@ -50,7 +50,7 @@ docker compose -p "$PROJET" --env-file "$ENV_INFRA" \
   --progress quiet run --rm --no-deps -T serveur node apps/server/src/verifier-configuration.ts
 ```
 
-`infra/verification-configuration.yml` est versé ; hors de son en-tête de commentaires, dont la première ligne, « NE JAMAIS EMPLOYER AVEC `up` », est tenue par `infra/tests/surcharge-de-verification.test.ts` (avec `up`, la base de travail tournerait sans volume et perdrait ses données au `down`), il est en tout et pour tout :
+`infra/verification-configuration.yml` est versé ; hors de son en-tête de commentaires, qui la réserve à ce seul lancement par `run --rm --no-deps` (sa première ligne est tenue par `infra/tests/surcharge-de-verification.test.ts` : employée pour démarrer la pile, elle ferait tourner la base de travail sans volume, qui perdrait ses données à l'arrêt), il est en tout et pour tout :
 
 ```yaml
 services:
