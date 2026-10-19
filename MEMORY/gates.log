@@ -210,3 +210,11 @@
 2026-10-16T14:14:36Z | reviewer-frontend | F-006 | DEROGATION D-034 | 35405d0fee2c
 2026-10-16T14:14:36Z | agent-securite | F-006 | DEROGATION D-034 | 35405d0fee2c
 2026-10-16T14:14:36Z | agent-architecte | F-006 | DEROGATION D-034 | 35405d0fee2c
+2026-10-19T08:28:56Z | agent-architecte | F-005 | UNVERIFIED (contrôles déterministes non vérifiés : pas de revue LLM (§6.1)) | eaa779f5ca68
+2026-10-19T08:28:56Z | reviewer-frontend | F-005 | UNVERIFIED (contrôles déterministes non vérifiés : pas de revue LLM (§6.1)) | eaa779f5ca68
+2026-10-19T08:28:56Z | agent-securite | F-005 | UNVERIFIED (contrôles déterministes non vérifiés : pas de revue LLM (§6.1)) | eaa779f5ca68
+2026-10-19T08:28:56Z | agent-craft | F-005 | CRAFT GATE: PASS | eaa779f5ca68
+2026-10-19T08:36:17Z | agent-craft | F-005 | CRAFT GATE: PASS | eaa779f5ca68
+2026-10-19T08:37:59Z | agent-securite | F-005 | SECURITY GATE: PASS | eaa779f5ca68
+2026-10-19T08:38:02Z | reviewer-frontend | F-005 | CHANGES_REQUESTED | eaa779f5ca68
+2026-10-19T08:38:41Z | agent-architecte | F-005 | ARCHITECTURE GATE: FAIL | eaa779f5ca68
