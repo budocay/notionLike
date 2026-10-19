@@ -1,7 +1,7 @@
 # ADR-0009 — Document de page : contenu Tiptap dans un fragment Yjs, version à maximum, éditeur confiné
 
-Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts)
-Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16 ; écarts au code corrigés le 2026-10-19
+Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-005 » : écrite le 2026-10-19, d'après le code de la branche `F-005` ; elle reporte une décision de l'ADR-0018 et en suit le statut (accepté)
+Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16 ; écarts au code corrigés le 2026-10-19 ; amendement F-005 du 2026-10-19
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé par le gate d'architecture de F-003).
 
 ## Contexte et problème
@@ -48,6 +48,13 @@ Contexte : F-012 (`797d708`) et F-013 (`0d04c60`) font arriver dans le document 
 - **Le serveur ne lit pas la version d'une page** : il ne contrôle que celle du document d'espace (ADR-0002, amendement F-012), et relaie et stocke tout document de page tel qu'un `editeur` l'écrit.
 - **Lecture seule** : `EditeurDePage` reçoit `lectureSeule` (`apps/web/src/edition/EditeurDePage.tsx`) quand le dernier droit connu de l'espace est la lecture (ADR-0014) : l'éditeur n'est plus modifiable (`setEditable(false)`), ni la barre de blocs ni les poignées de bloc (F-006) ne sont rendues, et les raccourcis de la zone d'édition ne sont plus traités.
 - **Construction du document lié inchangée** : `page/pages-ouvertes.ts` le construit toujours par `new Y.Doc()` ; la réplique prend le même réglage du ramasse-miettes (`new Y.Doc({ gc: lie.gc })`).
+
+### Amendement F-005 (2026-10-19) : positionnement du menu slash, interface du module d'édition
+
+Contexte : F-005 (ADR-0018) ajoute au module d'édition le bloc code et le menu slash. Deux phrases de la décision ci-dessus ne décrivent plus le code ; la décision qui les change est celle de l'ADR-0018 et de `specs/F-005.md` (H9, AC33), que cet amendement ne fait que reporter.
+
+- **« Pas de `@floating-ui/dom` » ne vaut plus pour le menu slash.** `@floating-ui/dom` 1.8.0 est une dépendance directe d'`apps/web`, importée par le seul `apps/web/src/edition/menu-slash.ts` (`shift`), avec `@tiptap/suggestion` 3.31.4 ; le placement du menu passe par `props.mount` de l'utilitaire, qui le calcule par cette bibliothèque. Règle `suggestion-et-positionnement-confines` (ni l'un ni l'autre hors de `apps/web/src/edition/`, tests compris) et `web-edition-liste-blanche` élargie (commit du dev `d39cd86`). La barre de blocs reste placée par `edition/placement.ts`.
+- **L'interface `edition/index.ts` n'exporte plus le seul composant.** Elle exporte `EditeurDePage` et le type de ses propriétés, les fonctions pures des adresses de F-028 (`adresseAcceptee`, `adresseDUneSaisie`), et, depuis F-005, la liste des commandes de bloc (`LISTE_DES_COMMANDES`, de `commandes-de-bloc.ts`, sans import) et son filtre (`commandesFiltrees`, de `filtre-des-commandes.ts`, sans import) : données et fonctions pures, sans aucun type de la bibliothèque d'édition. Seuls des tests consomment ces quatre derniers.
 
 ## Conséquences
 
