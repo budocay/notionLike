@@ -1,7 +1,7 @@
 # ADR-0017 — Vérification de la configuration avant démarrage : troisième entrée de l'image, lancée par `compose run` sans volume
 
-Statut : proposé
-Date : 2026-10-16
+Statut : accepté (décision du dev du 2026-10-19, après correction des écarts)
+Date : 2026-10-16 ; écarts au code corrigés le 2026-10-19
 
 ## Contexte et problème
 
@@ -21,8 +21,8 @@ Essais du 2026-10-16, Docker Engine 29.8.2, Docker Compose v5.6.0, projets jetab
 
 ## Options étudiées
 
-1. **`docker compose run --rm --no-deps serveur` tel quel** (H6) : rejetée. Il crée `notionlike_donnees-base` (E1), contre F-031-AC8.
-2. **Le même lancement, avec une surcharge Compose versée qui retire les volumes et le réseau du service lancé** (retenue). Il voit l'environnement exact du service, dans l'image, sans Node sur le poste. Il ne crée aucun volume (E2, E3).
+1. **`docker compose run --rm --no-deps serveur` tel quel** (H6) : rejetée. Il créerait `notionlike_donnees-base`, comme il crée en E1 le volume nommé d'un projet jetable, contre F-031-AC8.
+2. **Le même lancement, avec une surcharge Compose versée qui retire les volumes déclarés du projet et coupe le réseau du service lancé** (retenue). Il voit l'environnement exact du service, dans l'image, sans Node sur le poste. Il ne crée aucun volume (E2, E3).
 3. **Node du poste, avec les deux fichiers et les quatre variables recopiées dans `pile.sh`** (variante de H6) : rejetée. Elle fait une seconde copie de ce que le fichier Compose impose, celle qui avait divergé le 2026-10-16. `node --env-file` et `env_file` de Compose ne lisent pas un fichier de la même manière (guillemets, interpolation). Elle demande aussi `node_modules` sur le poste (F-031-AC17).
 4. **`docker compose config --format json` lu par un script Node du poste** : rejetée. Elle demande un lecteur JSON sur le poste (ni `jq` ni bash 3.2 n'en offrent), et lie le code du serveur au format du modèle Compose.
 5. **Une option `--verifier` de `main.ts`** au lieu d'un fichier à part : rejetée. `main.ts` importe `@notionlike/db` et `service.ts`, donc le pilote `pg` et l'écoute. Un fichier qui n'importe que `configuration.ts` se prouve sans base ni réseau par une règle de dépendances.
@@ -50,7 +50,7 @@ docker compose -p "$PROJET" --env-file "$ENV_INFRA" \
   --progress quiet run --rm --no-deps -T serveur node apps/server/src/verifier-configuration.ts
 ```
 
-`infra/verification-configuration.yml` est versé ; il est en tout et pour tout :
+`infra/verification-configuration.yml` est versé ; hors de son en-tête de commentaires, qui la réserve à ce seul lancement par `run --rm --no-deps` (sa première ligne est tenue par `infra/tests/surcharge-de-verification.test.ts` : employée pour démarrer la pile, elle ferait tourner la base de travail sans volume, qui perdrait ses données à l'arrêt), il est en tout et pour tout :
 
 ```yaml
 services:
@@ -61,26 +61,30 @@ services:
 volumes: !reset {}
 ```
 
-`-T` refuse le terminal : sans lui, Compose en alloue un quand l'entrée standard en est un, et les deux sorties se mêlent. L'image est construite avant ce lancement (`docker compose build`, sortie visible), pour que la vérification lise le code du dépôt et non une image ancienne. `pile.sh` reconnaît le refus au code 1 et à la ligne qui commence par `Configuration invalide : `. Il relaie ce texte de cette ligne à la fin, ce qui reste juste même si `--progress quiet` laissait passer une ligne de Compose. Il ajoute ensuite, pour chaque variable, le fichier à corriger (F-031-AC8). Dans tout autre cas, il dit que la vérification n'a pas pu se faire, avec son code, sans rien relayer. Le contrôle de l'adresse du client (F-031-AC10) se fait dans `pile.sh`, sur les deux lignes de la sortie standard : c'est une règle du poste de travail, pas une règle du serveur.
+`-T` refuse le terminal : sans lui, Compose en alloue un quand l'entrée standard en est un, et les deux sorties se mêlent. L'image est construite avant ce lancement (`docker compose build`, sortie visible), pour que la vérification lise le code du dépôt et non une image ancienne. `pile.sh` reconnaît le refus au code 1 et à la ligne qui commence par `Configuration invalide : `. Il relaie ce texte de cette ligne à la fin, ce qui reste juste même si `--progress quiet` laissait passer une ligne de Compose. Il ajoute ensuite, pour chaque variable de la première ligne, le fichier à corriger (F-031-AC8) : `infra/.env` pour `URL_BASE_DONNEES` (Compose la bâtit sur `POSTGRES_PASSWORD`), `infra/docker-compose.yml` pour `NODE_ENV`, `HOTE` et `PORT`, que son `environment` impose, `apps/server/.env` pour toute autre ; le renvoi de ces trois variables s'écarte de la lettre d'AC8 (écart consigné dans `MEMORY/features/F-031.md`). Une version de Compose qui lirait la surcharge sans l'appliquer ferait créer le volume par `run` : `pile.sh` relève la présence du volume avant et après la vérification et, s'il est apparu, échoue en nommant la version de Compose, sans rien lancer ni supprimer ; le volume, vide, est gardé, et le démarrage suivant l'initialise avec `POSTGRES_PASSWORD` d'`infra/.env` (dette D-030). Dans tout autre cas, il dit que la vérification n'a pas pu se faire, avec son code, sans rien relayer. Le contrôle de l'adresse du client (F-031-AC10) se fait dans `pile.sh`, sur les deux lignes de la sortie standard : c'est une règle du poste de travail, pas une règle du serveur.
 
 ## Conséquences
 
-- Amendement prévu d'ADR-0006 (accepté), à reporter dans son texte quand le dev acceptera le présent ADR, pas avant. Il porte sur deux points :
+- Amendement d'ADR-0006 (accepté), reporté dans son texte le 2026-10-19, à l'acceptation du présent ADR (« Amendement F-031 » de l'ADR-0006). Il porte sur trois points :
   - l'image a trois points d'entrée, `apps/server/src/verifier-configuration.ts` s'ajoutant à `main.ts` et `migrer.ts` ;
-  - deux fichiers touchent au `process` global, `main.ts` et `verifier-configuration.ts`.
+  - dans `apps/server/src`, deux fichiers touchent au `process` global, `main.ts` et `verifier-configuration.ts` (`migrer.ts`, dans `packages/db`, y touche comme avant) ;
+  - à l'étape 1 du processus serveur, `main.ts` écrit le texte entier du refus, et non plus le seul message de l'`ErreurConfiguration`.
 
   La barrière d'ADR-0006 vaut aussi pour la nouvelle entrée : un test la lance par un vrai processus `node` (`apps/server/test/verifier-configuration.test.ts`). Le Dockerfile ne change pas.
 
 - La liste des constats de la fumée d'ADR-0006 s'allonge par F-031-AC26 : les constats 1 à 10 gardent leur numéro et leur sens, puis viennent les six constats de F-031 et le nettoyage, en dernier.
-- Le format du refus devient un contrat lu par `pile.sh` et par les tests. Seule la première ligne est fixe depuis F-008. Changer un libellé de raison touche `configuration.ts`, ses tests et rien dans `pile.sh`, qui relaie sans interpréter, hors du nom de la variable en tête de ligne.
+- Le format du refus devient un contrat lu par `pile.sh` et par les tests. Seule la première ligne est fixe depuis F-008. Changer un libellé de raison touche `configuration.ts`, ses tests et rien dans `pile.sh`, qui relaie sans interpréter, hors de la première ligne : il y reconnaît le préfixe `Configuration invalide : ` et en tire la liste des variables, séparées par des virgules, pour nommer le fichier à corriger. Changer ce préfixe, ce séparateur ou le nom d'une variable touche `pile.sh`.
 - Le refus de `main.ts` gagne des lignes : le test de processus qui attend la sortie d'erreur exacte (`apps/server/test/processus.test.ts`, F-008-AC12) attend le texte complet. L'assertion devient plus stricte, aucune n'est retirée (F-031-AC14).
 - `docker compose run` crée le réseau `<projet>_default` même refusé (E2) : sans effet sur les données, il disparaît au prochain `arreter`.
-- Le comportement mesuré (E1) est celui de Compose v5.6.0. Si une version future cessait de créer les volumes au `run`, la surcharge resterait inoffensive. La version minimale reste 2.24.0 (F-031-AC17). Que les versions 2.24.0 à 2.24.3 lisent `!reset` et `--progress quiet` n'est PAS vérifié : seule Compose v5.6.0 a été essayée, ici comme par la veille (`MEMORY/VEILLE.md`, `df931af`). C'est probable, `!reset` existant déjà dans compose-go 1.13.5 (2023), mais non prouvé. Les notes de Compose 2.24.4 disent seulement qu'elle corrige la fusion de plusieurs fichiers Compose (compose-go v2.0.0-rc3). Relever la version minimale à 2.24.4 est une décision du dev ; à défaut, seule une fumée lancée sur une 2.24.x le prouverait. Une version qui ne lirait pas `!reset` ferait échouer le chargement du modèle, sans rien créer, et `pile.sh` le dirait comme une vérification impossible.
-- Ce qui n'est prouvé que sur une pile réelle : l'absence de volume après un refus, sur la version de Compose du dev. Les tests de `pnpm test` constatent les arguments exacts passés à `docker` (`--no-deps`, `-T`, la surcharge en dernier) et la forme de la surcharge (`infra/tests/pile-demarrer.test.ts`). Les essais E1 à E3 de ce document en sont le relevé.
+- Le comportement mesuré (E1) est celui de Compose v5.6.0. Si une version future cessait de créer les volumes au `run`, la surcharge resterait inoffensive. La version minimale reste 2.24.0 (F-031-AC17). Que les versions 2.24.0 à 2.24.3 lisent `!reset` et `--progress quiet` n'est PAS vérifié : seule Compose v5.6.0 a été essayée, ici comme par la veille (`MEMORY/VEILLE.md`, `df931af`). C'est probable, `!reset` existant déjà dans compose-go 1.13.5 (2023), mais non prouvé. Les notes de Compose 2.24.4 disent seulement qu'elle corrige la fusion de plusieurs fichiers Compose (compose-go v2.0.0-rc3). Relever la version minimale à 2.24.4 est une décision du dev ; à défaut, seule une fumée lancée sur une 2.24.x le prouverait. Une version qui ne lirait pas `!reset` ferait échouer le chargement du modèle, sans rien créer, et `pile.sh` le dirait comme une vérification impossible ; une version qui le lirait sans l'appliquer est arrêtée par la garde du volume (« Lancement par `pile.sh` »).
+- Ce qui n'est prouvé que sur une pile réelle : l'absence de volume après un refus, sur la version de Compose du dev. Les tests de `pnpm test` constatent les arguments exacts passés à `docker` (`--no-deps`, `-T`, la surcharge en dernier) et la forme de la surcharge (`infra/tests/pile-demarrer.test.ts`). Les essais E1 à E3 de ce document en sont le premier relevé ; le constat 11 de la fumée (`pnpm -w fumee`) le refait sur la pile réelle à chaque lancement (`FUMEE: OK (constats 1 à 17)` sur `ec898f0`, Compose 5.6.0, `MEMORY/features/F-031.md`).
 
 ## Écarts du code livré avec la note de conception
 
-Relevés le 2026-10-16 sur le code d'agent-devops (`7801de3` à `b5c6ea8`). Aucun ne change la décision ci-dessus.
+Relevés le 2026-10-16 sur le code d'agent-devops (`7801de3` à `b5c6ea8`), complétés le 2026-10-19 sur le tour de correctifs (`fc82cc3` à `ec898f0`). Aucun ne change la décision ci-dessus.
+
+- **Fichiers illisibles.** `demarrer` refuse, après `preparer` et avant la construction, un `infra/.env` ou un `apps/server/.env` qui est un dossier, un lien cassé ou un fichier illisible (`exiger_des_fichiers_lisibles`, `8369a74`) : une étape que l'ordre de `F-031-conception.md` n'avait pas.
+- **Garde du volume** (`e28877c`) et **en-tête de la surcharge** (`203d0ff`) : décrits dans « Lancement par `pile.sh` ».
 
 - **Découpage.** Le code de `demarrer` et d'`accorder` est entré dans `infra/pile.sh` dès D1 (`7801de3`, le script entier), et non en D2 comme le prévoyait `F-031-conception.md`. D2 (`d18bb92`) n'apporte que leurs tests et la couture d'AC4.
 - **Construction de l'image.** Comme le prévoient la note et la section « Décision », `demarrer` construit l'image par un `docker compose build` visible (fonction `demarrer` de `pile.sh`), avant la vérification. Il n'emploie pas `run --build`, que la veille cite aussi comme possible. Sans l'une ou l'autre, `run` lirait une image périmée (veille).
