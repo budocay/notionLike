@@ -179,6 +179,8 @@ const UN_BLOC_DE_CHAQUE_TYPE = [
   "<h3>titre trois</h3>",
   "<ul><li><p>puce</p><ul><li>sous-puce</li></ul></li><li>seconde puce</li></ul>",
   '<ol start="4" type="a"><li>numéro</li></ol>',
+  // F-005 : un bloc code de deux lignes.
+  "<pre><code>x = 1\ny = 2</code></pre>",
 ].join("");
 
 describe("une seule opération", () => {

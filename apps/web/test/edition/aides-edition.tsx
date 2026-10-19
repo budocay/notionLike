@@ -117,6 +117,8 @@ export const NOMS_DES_COMMANDES = [
   "Titre 3",
   "Liste à puces",
   "Liste numérotée",
+  // F-005 : la septième commande de bloc (F-005-AC21).
+  "Bloc code",
 ] as const;
 export type NomDeCommande = (typeof NOMS_DES_COMMANDES)[number];
 /** Les commandes de mise en forme, après celles des types de bloc (F-028-AC4). */
@@ -567,4 +569,137 @@ export function appelerLaCommandeDeLien(
 export function marquesSousLeCurseur(): string[] {
   const { state } = editeurMonte();
   return (state.storedMarks ?? state.selection.$from.marks()).map((marque) => marque.type.name);
+}
+
+// ——— Bloc code et menu slash (F-005) ———
+
+export const NOM_DU_SELECTEUR_DE_LANGAGE = "Langage du bloc code";
+export const NOM_DU_MENU_SLASH = "Commandes de bloc";
+
+/** Le sélecteur de langage de la barre de blocs ; `null` s'il n'est pas proposé. */
+export function selecteurDeLangage(): HTMLSelectElement | null {
+  return screen.queryByRole<HTMLSelectElement>("combobox", { name: NOM_DU_SELECTEUR_DE_LANGAGE });
+}
+
+/** Choisit un langage dans le sélecteur, comme le clavier ou la souris le font. */
+export function choisirLeLangage(valeur: string): void {
+  const selecteur = selecteurDeLangage();
+  if (selecteur === null) {
+    throw new Error("Le sélecteur de langage n'est pas proposé.");
+  }
+  act(() => {
+    selecteur.value = valeur;
+    selecteur.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+/** La liste d'options du menu slash ; `null` si le menu est fermé. */
+export function menuSlash(): HTMLElement | null {
+  return screen.queryByRole("listbox", { name: NOM_DU_MENU_SLASH });
+}
+
+/** Les commandes que le menu slash liste, dans l'ordre, et l'état de chacune. */
+export function optionsDuMenu(): { readonly nom: string; readonly active: boolean }[] {
+  return [...(menuSlash()?.querySelectorAll("[role=option]") ?? [])].map((option) => ({
+    nom: option.textContent,
+    active: option.getAttribute("aria-selected") === "true",
+  }));
+}
+
+/** Les noms des commandes que le menu slash liste ; vide s'il est fermé. */
+export function nomsDuMenu(): string[] {
+  return optionsDuMenu().map((option) => option.nom);
+}
+
+/** L'option du menu slash qui porte ce nom. */
+export function optionDuMenu(nom: string): HTMLElement {
+  return screen.getByRole("option", { name: nom });
+}
+
+/** Laisse passer les tâches que l'utilitaire de suggestion attend (éléments asynchrones). */
+export async function laisserLeMenuSuivre(): Promise<void> {
+  await act(() => new Promise<void>((suite) => setTimeout(suite, 0)));
+}
+
+/** Colle ces données, type par type, par un événement `paste` envoyé à la zone de saisie. */
+export function collerLesDonnees(donnees: Readonly<Record<string, string>>): void {
+  const collage = new Event("paste", { bubbles: true, cancelable: true });
+  const presse = { getData: (type: string) => donnees[type] ?? "", types: Object.keys(donnees) };
+  Object.defineProperty(collage, "clipboardData", { value: presse });
+  act(() => void zoneDeSaisie().dispatchEvent(collage));
+}
+
+/** Le bloc de texte où se trouve le curseur : son nœud et son texte. */
+export function blocDuCurseur(): { readonly noeud: string; readonly texte: string } {
+  const { $from } = editeurMonte().state.selection;
+  return { noeud: $from.parent.type.name, texte: $from.parent.textContent };
+}
+
+/** Place le curseur au début du bloc de texte qui contient ce texte. */
+export function placerLeCurseurAuDebutDe(texte: string): void {
+  const editeur = editeurMonte();
+  const position = positionDuTexte(texte);
+  const debut = editeur.state.doc.resolve(position).start();
+  act(() => void editeur.commands.setTextSelection(debut));
+}
+
+/** Place le curseur à la fin du bloc de texte qui contient ce texte. */
+export function placerLeCurseurALaFinDe(texte: string): void {
+  const editeur = editeurMonte();
+  const position = positionDuTexte(texte);
+  const fin = editeur.state.doc.resolve(position).end();
+  act(() => void editeur.commands.setTextSelection(fin));
+}
+
+/** Les attributs que porte l'élément de l'éditeur, par leur nom. */
+export function attributDeLEditeur(nom: string): string | null {
+  return zoneDeSaisie().getAttribute(nom);
+}
+
+/** Place le curseur au début du dernier bloc de texte du document, vide ou non. */
+export function placerLeCurseurDansLeDernierBloc(): void {
+  const editeur = editeurMonte();
+  let debut = -1;
+  editeur.state.doc.descendants((noeud, position) => {
+    if (noeud.isTextblock) {
+      debut = position + 1;
+    }
+  });
+  act(() => void editeur.commands.setTextSelection(debut));
+}
+
+/**
+ * Une commande du bloc code de l'éditeur tel que le module d'édition le crée, appelée directement
+ * avec ce langage, sans passer par la barre ni le sélecteur (F-005-AC35) ; rend ce qu'elle rend.
+ */
+export function appelerUneCommandeDuBlocCode(
+  nom: "setCodeBlock" | "toggleCodeBlock" | "updateAttributes" | "setNode",
+  langage: unknown,
+): boolean {
+  const { commands } = editeurMonte();
+  const attributs = { language: langage as string };
+  let rendu = false;
+  act(() => {
+    rendu =
+      nom === "setCodeBlock"
+        ? commands.setCodeBlock(attributs)
+        : nom === "toggleCodeBlock"
+          ? commands.toggleCodeBlock(attributs)
+          : nom === "setNode"
+            ? commands.setNode("codeBlock", attributs)
+            : commands.updateAttributes("codeBlock", attributs);
+  });
+  return rendu;
+}
+
+/**
+ * Efface le caractère avant le curseur, comme Retour arrière dans un texte : jsdom n'a pas l'action
+ * par défaut du navigateur, que ProseMirror relit d'ordinaire.
+ */
+export function effacerAvantLeCurseur(): void {
+  const { view } = editeurMonte();
+  act(() => {
+    const { from } = view.state.selection;
+    view.dispatch(view.state.tr.delete(from - 1, from));
+  });
 }

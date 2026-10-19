@@ -33,20 +33,25 @@ function premiereInjection(fichiers: ReadonlyMap<string, string>): string | unde
 }
 
 describe("aucun HTML brut", () => {
-  it("F-003-AC20 aucun fichier source d'apps/web n'injecte de HTML brut : l'énumération couvre le module d'édition et s'arrête à la première occurrence", () => {
+  it("F-003-AC20 F-005-AC10 aucun fichier source d'apps/web n'injecte de HTML brut : l'énumération couvre le module d'édition, fichiers du bloc code et du menu slash compris, et s'arrête à la première occurrence", () => {
     expect(sources.size).toBeGreaterThan(60);
     expect([...sources.keys()].filter((chemin) => chemin.startsWith("src/edition/"))).toEqual([
       "src/edition/EditeurDePage.tsx",
       "src/edition/adresses.ts",
       "src/edition/barre.ts",
+      // F-005 : bloc code, liste des langages, filtre et menu slash (F-005-AC10).
+      "src/edition/bloc-code.ts",
       "src/edition/commandes-de-marque.ts",
       // F-006 : déplacement d'un bloc, lâcher et raccourcis, poignée du curseur.
       "src/edition/deplacement-de-bloc.ts",
       "src/edition/depot.ts",
+      "src/edition/filtre-des-commandes.ts",
       "src/edition/index.ts",
       "src/edition/invite.ts",
+      "src/edition/langages.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
+      "src/edition/menu-slash.ts",
       "src/edition/panneau.ts",
       "src/edition/placement.ts",
       "src/edition/poignee.ts",
@@ -116,6 +121,8 @@ describe("confinement de la bibliothèque d'édition", () => {
     expect(importateurs).toEqual([
       "src/edition/EditeurDePage.tsx",
       "src/edition/barre.ts",
+      // F-005 : bloc code et menu slash (F-005-AC33).
+      "src/edition/bloc-code.ts",
       "src/edition/commandes-de-marque.ts",
       // F-006 : poignée de bloc, curseur de dépôt, déplacement d'un bloc (F-006-AC32).
       "src/edition/deplacement-de-bloc.ts",
@@ -123,6 +130,7 @@ describe("confinement de la bibliothèque d'édition", () => {
       "src/edition/invite.ts",
       "src/edition/lien.ts",
       "src/edition/marques.ts",
+      "src/edition/menu-slash.ts",
       "src/edition/panneau.ts",
       "src/edition/poignee.ts",
       "src/edition/schema.ts",
@@ -142,6 +150,9 @@ describe("confinement de la bibliothèque d'édition", () => {
       // F-028 : la règle des adresses, fonction pure (F-028-AC11).
       "export { adresseAcceptee, adresseDUneSaisie }",
       "export { EditeurDePage, type ProprietesEditeurDePage }",
+      // F-005 : la liste des commandes de bloc et son filtre, donnée et fonction pures.
+      "export { commandesFiltrees }",
+      "export { LISTE_DES_COMMANDES }",
     ]);
     expect(interfaceDuModule).not.toMatch(/@tiptap|prosemirror/);
     expect(proprietes).toBeDefined();
@@ -316,8 +327,8 @@ describe("coutures avec F-004", () => {
 
     // 13 fichiers à F-003, 19 depuis F-028 (six fichiers du module d'édition, dont la relecture de
     // la sélection du navigateur, F-028-AC30), 22 depuis F-006 (déplacement d'un bloc, lâcher,
-    // poignée du curseur).
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(22);
+    // poignée du curseur), 26 depuis F-005 (bloc code, langages, filtre, menu slash).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(26);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

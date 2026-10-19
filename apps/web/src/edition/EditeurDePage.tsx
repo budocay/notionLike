@@ -15,6 +15,7 @@ import type * as Y from "yjs";
 import {
   BarreDeBlocs,
   type CommandeDeBloc,
+  MenuDeCommandes,
   PanneauDeLien,
   PoigneeDeBloc,
   PoigneeDuCurseur,
@@ -24,21 +25,28 @@ import {
 import {
   ADRESSE_DU_LIEN_REFUSEE,
   APPLIQUER_LE_LIEN,
+  AUCUNE_COMMANDE,
   CHAMP_ADRESSE_DU_LIEN,
   COMMANDE_GRAS,
   COMMANDE_ITALIQUE,
   COMMANDE_LIEN,
   commandeIndisponible,
+  commandesListees,
   DEPLACER_LE_BLOC,
   DESCENDRE_LE_BLOC,
   MONTER_LE_BLOC,
   NOM_DE_LA_BARRE_DE_BLOCS,
   NOM_DE_LA_ZONE_DE_SAISIE,
+  NOM_DU_MENU_SLASH,
   NOM_DU_PANNEAU_DE_LIEN,
+  NOMS_DES_LANGAGES,
   OUVRIR_LE_LIEN,
   RETIRER_LE_LIEN,
+  SELECTEUR_DE_LANGAGE,
+  TEXTE_BRUT,
 } from "../interface/messages.ts";
 import { type Barre, useBarre } from "./barre.ts";
+import { choisirLeLangage } from "./bloc-code.ts";
 import { basculerLeGras, basculerLItalique, type EtatDuLien } from "./commandes-de-marque.ts";
 import {
   deplacerLeBlocCourant,
@@ -46,7 +54,14 @@ import {
   type SensDuDeplacement,
 } from "./deplacement-de-bloc.ts";
 import type { OptionsDuDepot } from "./depot.ts";
+import { LANGAGES } from "./langages.ts";
 import type { ElementsInscrits, OptionsDesMarques } from "./marques.ts";
+import {
+  type EtatDuMenu,
+  type MenuAffiche,
+  type OptionsDuMenu,
+  useMenuAffiche,
+} from "./menu-slash.ts";
 import { type EtatDuPanneau, usePanneauDeLien } from "./panneau.ts";
 import {
   type PoigneeAuCurseur,
@@ -54,7 +69,7 @@ import {
   usePoigneeAuCurseur,
 } from "./poignee.ts";
 import { extensionsDeLEditeur } from "./schema.ts";
-import { COMMANDES_DE_TYPE, donnerLeType, memeType } from "./types-de-bloc.ts";
+import { donnerLeType, LISTE_DES_COMMANDES, memeType, typeDisponible } from "./types-de-bloc.ts";
 
 export interface ProprietesEditeurDePage {
   /** Fragment du document de page, fourni par sa façade : seul type où l'éditeur écrit. */
@@ -96,6 +111,7 @@ export interface ProprietesEditeurDePage {
 export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
   const { geste, annonce, liens } = useLiensDuDepot();
   const editeur = useEditeur(props, liens);
+  const menu = useMenuAffiche(editeur, liens.etatDuMenu);
   const lectureSeule = useModifiable(editeur, props.lectureSeule === true);
   const [zone, refBarre] = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const barre = useBarre(editeur, { zone, barre: refBarre });
@@ -107,8 +123,6 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       surToucheDeLaZone(frappe, { editeur, props, barre, panneau, refBarre });
     }
   };
-  const visible = editeur !== null && barre.affichee && !lectureSeule;
-  const lien = barre.marques?.lien;
   return (
     <ZoneDEdition
       ref={zone}
@@ -117,30 +131,49 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
         [barre, panneau].forEach((un) => un.surPerteDeFocus(evenement))
       }
       surTouche={surTouche}
-      annonce={regionDEtat(barre, annonce)}
+      annonce={regionDEtat(barre, annonce, menu.etat)}
     >
       <ZoneDeSaisie>
         <EditorContent editor={editeur} />
       </ZoneDeSaisie>
+      {menu.etat !== undefined && <MenuDeCommandes {...proprietesDuMenu(menu, menu.etat)} />}
       <Poignees
         editeur={poignees ? editeur : null}
         poignee={poignee}
         raccourcis={props.raccourcisDuBloc}
         refBarre={refBarre}
       />
-      {visible && (
-        <BarreDeBlocs
-          ref={refBarre}
-          nom={NOM_DE_LA_BARRE_DE_BLOCS}
-          commandes={commandesDe(editeur, barre, () => panneau.ouvrir(lien?.disponible === true))}
-          position={barre.placement}
-          surAbandon={() => editeur.view.focus()}
-        />
-      )}
-      {visible && panneau.ouvert && lien !== undefined && (
-        <PanneauDeLien {...proprietesDuPanneau(lien, panneau, barre)} />
+      {editeur !== null && barre.affichee && !lectureSeule && (
+        <BarreEtPanneau editeur={editeur} barre={barre} panneau={panneau} refBarre={refBarre} />
       )}
     </ZoneDEdition>
+  );
+}
+
+/** La barre de blocs affichée, et le panneau de lien sous elle quand il est ouvert. */
+function BarreEtPanneau(props: {
+  readonly editeur: Editor;
+  readonly barre: Barre;
+  readonly panneau: EtatDuPanneau;
+  readonly refBarre: RefObject<HTMLDivElement | null>;
+}): ReactElement {
+  const { editeur, barre, panneau, refBarre } = props;
+  const lien = barre.marques?.lien;
+  return (
+    <>
+      <BarreDeBlocs
+        ref={refBarre}
+        nom={NOM_DE_LA_BARRE_DE_BLOCS}
+        commandes={commandesDe(editeur, barre, () => panneau.ouvrir(lien?.disponible === true))}
+        selecteur={selecteurDeLangage(editeur, barre)}
+        rangDuSelecteur={LISTE_DES_COMMANDES.length}
+        position={barre.placement}
+        surAbandon={() => editeur.view.focus()}
+      />
+      {panneau.ouvert && lien !== undefined && (
+        <PanneauDeLien {...proprietesDuPanneau(lien, panneau, barre)} />
+      )}
+    </>
   );
 }
 
@@ -180,9 +213,50 @@ function useVersLesCommandesDeDeplacement(refBarre: RefObject<HTMLDivElement | n
   };
 }
 
-/** Texte de la région d'état de l'éditeur, qui n'existe que le focus dedans (`useLiensDuDepot`). */
-function regionDEtat(barre: Barre, annonce: string): string | undefined {
-  return barre.focusDedans ? annonce : undefined;
+/**
+ * Texte de la région d'état de l'éditeur, qui n'existe que le focus dedans (`useLiensDuDepot`) :
+ * menu slash ouvert, le nombre de commandes listées, à chaque changement du filtre (F-005-AC22).
+ */
+function regionDEtat(barre: Barre, annonce: string, menu: EtatDuMenu | undefined) {
+  if (!barre.focusDedans) {
+    return undefined;
+  }
+  return menu === undefined ? annonce : commandesListees(menu.commandes.length);
+}
+
+function proprietesDuMenu(menu: MenuAffiche, etat: EtatDuMenu) {
+  return {
+    ref: menu.ref,
+    id: menu.idDeLaListe,
+    nom: NOM_DU_MENU_SLASH,
+    vide: AUCUNE_COMMANDE,
+    position: menu.position,
+    surChoix: etat.choisir,
+    options: etat.commandes.map((commande, rang) => ({
+      id: menu.idDeLOption(rang),
+      nom: commande.nom,
+      active: rang === etat.active,
+    })),
+  } as const;
+}
+
+/** Le sélecteur de langage, seulement quand le curseur est dans un bloc code (F-005-AC6). */
+function selecteurDeLangage(editeur: Editor, barre: Barre) {
+  if (barre.langage === undefined) {
+    return undefined;
+  }
+  return {
+    nom: SELECTEUR_DE_LANGAGE,
+    valeur: barre.langage ?? "",
+    options: [
+      { valeur: "", nom: TEXTE_BRUT },
+      ...LANGAGES.map((langage) => ({
+        valeur: langage,
+        nom: NOMS_DES_LANGAGES[langage] ?? langage,
+      })),
+    ],
+    surChoix: (valeur: string) => choisirLeLangage(editeur, valeur),
+  } as const;
 }
 
 /** Rend `lectureSeule`, appliquée à l'éditeur (F-013-AC25). */
@@ -272,11 +346,13 @@ function commandesDe(editeur: Editor, barre: Barre, ouvrirLePanneau: () => void)
     action(editeur);
     editeur.view.focus();
   };
-  const types = COMMANDES_DE_TYPE.map(({ nom, repere, type }) => ({
+  // Une commande que le schéma refuse ici est exposée, désactivée (F-005-AC11).
+  const types = LISTE_DES_COMMANDES.map(({ nom, repere, type }) => ({
     nom,
     repere,
     active: memeType(barre.courant, type),
-    surActivation: avecFocus((cible) => donnerLeType(cible, type)),
+    indisponible: !typeDisponible(editeur, type),
+    surActivation: avecFocus((cible) => void donnerLeType(cible, type)),
   }));
   const marques = barre.marques;
   return [
@@ -285,12 +361,14 @@ function commandesDe(editeur: Editor, barre: Barre, ouvrirLePanneau: () => void)
       nom: COMMANDE_GRAS,
       repere: "B",
       active: marques?.gras === true,
+      indisponible: marques?.permises === false,
       surActivation: avecFocus(basculerLeGras),
     },
     {
       nom: COMMANDE_ITALIQUE,
       repere: "I",
       active: marques?.italique === true,
+      indisponible: marques?.permises === false,
       surActivation: avecFocus(basculerLItalique),
     },
     {
@@ -324,9 +402,10 @@ function creerLEditeur(
   contenu: Y.XmlFragment,
   marques: OptionsDesMarques,
   depot: OptionsDuDepot,
+  menu: OptionsDuMenu,
 ): Editor {
   return new Editor({
-    extensions: extensionsDeLEditeur(contenu, marques, depot),
+    extensions: extensionsDeLEditeur(contenu, marques, depot, menu),
     editorProps: {
       attributes: {
         role: "textbox",
@@ -346,11 +425,17 @@ function useOptionsRecues(props: ProprietesEditeurDePage): RefObject<ProprietesE
   return options;
 }
 
-/** Ce que le gestionnaire de dépôt lit et dit hors de l'éditeur : le geste en cours, l'annonce. */
+/**
+ * Ce que le gestionnaire de dépôt et le menu slash lisent et disent hors de l'éditeur : le geste en
+ * cours, l'annonce, l'état du menu.
+ */
 interface LiensDuDepot {
   readonly geste: RefObject<boolean>;
   /** Stable d'un rendu à l'autre (une fonction d'état), sans quoi l'éditeur serait recréé. */
   readonly annoncer: (texte: string) => void;
+  /** Stable aussi : le menu slash y dit son état, jamais au document (F-005-AC20). */
+  readonly surChangementDuMenu: (etat: EtatDuMenu | undefined) => void;
+  readonly etatDuMenu: EtatDuMenu | undefined;
 }
 
 /**
@@ -366,7 +451,9 @@ function useLiensDuDepot(): {
 } {
   const geste = useRef(false);
   const [annonce, annoncer] = useState("");
-  const liens = useMemo(() => ({ geste, annoncer }), []);
+  const [etatDuMenu, surChangementDuMenu] = useState<EtatDuMenu | undefined>(undefined);
+  const stables = useMemo(() => ({ geste, annoncer, surChangementDuMenu }), []);
+  const liens = useMemo(() => ({ ...stables, etatDuMenu }), [stables, etatDuMenu]);
   return { geste, annonce, liens };
 }
 
@@ -376,7 +463,7 @@ function useLiensDuDepot(): {
 // nettoyage (F-003-AC29, AC33).
 function useEditeur(
   props: ProprietesEditeurDePage,
-  { geste, annoncer }: LiensDuDepot,
+  { geste, annoncer, surChangementDuMenu }: LiensDuDepot,
 ): Editor | null {
   const { contenu, garderVersion } = props;
   const options = useOptionsRecues(props);
@@ -402,12 +489,13 @@ function useEditeur(
         surIndisponible: (sens) =>
           annoncer(commandeIndisponible(sens === "monter" ? MONTER_LE_BLOC : DESCENDRE_LE_BLOC)),
       },
+      { surChangement: surChangementDuMenu },
     );
     setEditeur(cree);
     return () => {
       cesserDeGarder();
       detruire();
     };
-  }, [contenu, garderVersion, options, geste, annoncer]);
+  }, [contenu, garderVersion, options, geste, annoncer, surChangementDuMenu]);
   return editeur;
 }

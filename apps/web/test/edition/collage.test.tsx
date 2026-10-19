@@ -54,6 +54,8 @@ describe("collage d'un contenu riche", () => {
     expect(derniereLigne?.marques).toEqual(expect.arrayContaining([...inventaire.marques]));
     expect(inventaire.noeuds).toEqual({
       bulletList: [],
+      // F-005 : le `pre` collé devient un bloc code sans langage (F-005-AC7).
+      codeBlock: [],
       heading: ["level"],
       listItem: [],
       orderedList: ["start", "type"],

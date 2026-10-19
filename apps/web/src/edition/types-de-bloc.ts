@@ -1,35 +1,85 @@
-// Les types de bloc que la barre de blocs sait donner (F-003-AC8) et lire. Aucune commande n'écrit
-// un nœud, un attribut ou un niveau hors du schéma (F-003-AC17).
-import type { Editor } from "@tiptap/core";
+// Les types de bloc que la barre de blocs et le menu slash savent donner (F-003-AC8, F-005-AC21) et
+// lire. Aucune commande n'écrit un nœud, un attribut ou un niveau hors du schéma (F-003-AC17), et
+// aucune n'est appliquée sans avoir été jugée, à blanc, sur l'état courant (F-005-AC11).
+import { type ChainedCommands, CommandManager, type Editor } from "@tiptap/core";
+import type { Node as NoeudProseMirror, NodeType, ResolvedPos } from "@tiptap/pm/model";
+import { EditorState, Selection, type Transaction } from "@tiptap/pm/state";
 
-import { type NiveauDeTitre, NIVEAUX_DE_TITRE } from "./schema.ts";
+const NIVEAU_DE_TITRE_MAX = 3;
+export type NiveauDeTitre = 1 | 2 | typeof NIVEAU_DE_TITRE_MAX;
+export const NIVEAUX_DE_TITRE: readonly NiveauDeTitre[] = [1, 2, NIVEAU_DE_TITRE_MAX];
 
 type NoeudDeListe = "bulletList" | "orderedList";
 
 export type TypeDeBloc =
   | { readonly forme: "paragraphe" }
   | { readonly forme: "titre"; readonly niveau: NiveauDeTitre }
-  | { readonly forme: "liste"; readonly noeud: NoeudDeListe };
+  | { readonly forme: "liste"; readonly noeud: NoeudDeListe }
+  | { readonly forme: "code" };
 
 export interface CommandeDeType {
   readonly nom: string;
   /** Ce que la barre montre sur le bouton. */
   readonly repere: string;
+  /** Ce que le filtre du menu slash compare à la saisie, en plus du nom (F-005-AC14). */
+  readonly motsCles: readonly string[];
   readonly type: TypeDeBloc;
+  /** Le nœud du schéma que la commande donne au bloc (F-005-AC21). */
+  readonly noeud: string;
+}
+
+/** L'étendue retirée du texte avant de changer le type : la séquence du menu slash. */
+export interface Retrait {
+  readonly from: number;
+  readonly to: number;
 }
 
 const ELEMENT_DE_LISTE = "listItem";
 const TITRE = "heading";
+const PARAGRAPHE = "paragraph";
+export const BLOC_CODE = "codeBlock";
 
-export const COMMANDES_DE_TYPE: readonly CommandeDeType[] = [
-  { nom: "Paragraphe", repere: "¶", type: { forme: "paragraphe" } },
+/**
+ * La liste des commandes de bloc (F-005-AC21) : sept commandes dans l'ordre du vocabulaire de la
+ * spec. La barre de blocs et le menu slash la lisent toutes deux, et aucune autre liste. Aucun mot-clé
+ * ne contient « tit » : « /tit » ne garde que les titres (F-005-AC34).
+ */
+export const LISTE_DES_COMMANDES: readonly CommandeDeType[] = [
+  {
+    nom: "Paragraphe",
+    repere: "¶",
+    motsCles: ["texte"],
+    type: { forme: "paragraphe" },
+    noeud: PARAGRAPHE,
+  },
   ...NIVEAUX_DE_TITRE.map((niveau): CommandeDeType => ({
     nom: `Titre ${niveau}`,
     repere: `T${niveau}`,
+    motsCles: [`h${niveau}`],
     type: { forme: "titre", niveau },
+    noeud: TITRE,
   })),
-  { nom: "Liste à puces", repere: "•", type: { forme: "liste", noeud: "bulletList" } },
-  { nom: "Liste numérotée", repere: "1.", type: { forme: "liste", noeud: "orderedList" } },
+  {
+    nom: "Liste à puces",
+    repere: "•",
+    motsCles: ["puces"],
+    type: { forme: "liste", noeud: "bulletList" },
+    noeud: "bulletList",
+  },
+  {
+    nom: "Liste numérotée",
+    repere: "1.",
+    motsCles: ["numéros"],
+    type: { forme: "liste", noeud: "orderedList" },
+    noeud: "orderedList",
+  },
+  {
+    nom: "Bloc code",
+    repere: "</>",
+    motsCles: ["code", "pre"],
+    type: { forme: "code" },
+    noeud: BLOC_CODE,
+  },
 ];
 
 export function memeType(a: TypeDeBloc | undefined, b: TypeDeBloc): boolean {
@@ -45,10 +95,17 @@ export function memeType(a: TypeDeBloc | undefined, b: TypeDeBloc): boolean {
   return a.forme === b.forme;
 }
 
-/** `undefined` : un bloc que la barre ne sait pas nommer (titre d'un niveau hors de 1 à 3). */
-export function typeDuBlocCourant(editeur: Editor): TypeDeBloc | undefined {
-  const { $from } = editeur.state.selection;
-  const liste = listesAutour(editeur).at(-1);
+function estUnNiveauDeTitre(niveau: unknown): niveau is NiveauDeTitre {
+  return NIVEAUX_DE_TITRE.some((un) => un === niveau);
+}
+
+/** Le type du bloc de cette position, liste comprise ; `undefined` si la barre ne sait le nommer. */
+function typeA($from: ResolvedPos): TypeDeBloc | undefined {
+  // Un bloc code se nomme comme tel, même dans un élément de liste (F-005-AC1).
+  if ($from.parent.type.name === BLOC_CODE) {
+    return { forme: "code" };
+  }
+  const liste = listesAutour($from).at(-1);
   if (liste !== undefined) {
     return { forme: "liste", noeud: liste };
   }
@@ -56,14 +113,16 @@ export function typeDuBlocCourant(editeur: Editor): TypeDeBloc | undefined {
     return { forme: "paragraphe" };
   }
   const niveau: unknown = $from.parent.attrs.level;
-  return COMMANDES_DE_TYPE.map(({ type }) => type).find(
-    (type) => type.forme === "titre" && type.niveau === niveau,
-  );
+  return estUnNiveauDeTitre(niveau) ? { forme: "titre", niveau } : undefined;
 }
 
-/** Les listes qui contiennent le curseur, de la plus extérieure à la plus proche. */
-function listesAutour(editeur: Editor): NoeudDeListe[] {
-  const { $from } = editeur.state.selection;
+/** `undefined` : un bloc que la barre ne sait pas nommer (titre d'un niveau hors de 1 à 3). */
+export function typeDuBlocCourant(editeur: Editor): TypeDeBloc | undefined {
+  return typeA(editeur.state.selection.$from);
+}
+
+/** Les listes qui contiennent cette position, de la plus extérieure à la plus proche. */
+function listesAutour($from: ResolvedPos): NoeudDeListe[] {
   const listes: NoeudDeListe[] = [];
   for (let profondeur = 1; profondeur <= $from.depth; profondeur += 1) {
     const nom = $from.node(profondeur).type.name;
@@ -74,29 +133,169 @@ function listesAutour(editeur: Editor): NoeudDeListe[] {
   return listes;
 }
 
-// Toute modification part par les commandes de l'éditeur, sans transaction englobante : elle entre
-// ainsi dans l'historique d'annulation de la liaison (H9).
-export function donnerLeType(editeur: Editor, type: TypeDeBloc): void {
-  const chaine = editeur.chain();
-  const listes = listesAutour(editeur);
-  if (type.forme === "liste") {
-    if (listes.at(-1) !== type.noeud) {
-      // Un élément de liste commence par un paragraphe : un titre le redevient d'abord.
-      chaine.setParagraph();
-      if (type.noeud === "bulletList") {
-        chaine.toggleBulletList();
-      } else {
-        chaine.toggleOrderedList();
-      }
+function dejaDeCeType(noeud: NoeudProseMirror, type: NodeType, niveau?: NiveauDeTitre): boolean {
+  return noeud.type === type && (niveau === undefined || noeud.attrs.level === niveau);
+}
+
+/** Les blocs de texte de la sélection à changer ; `undefined` si le schéma n'en admet aucun. */
+function blocsAChanger(
+  tr: Transaction,
+  type: NodeType,
+  niveau?: NiveauDeTitre,
+): number[] | undefined {
+  const cibles: number[] = [];
+  let refuse = false;
+  tr.doc.nodesBetween(tr.selection.from, tr.selection.to, (noeud, position, parent, index) => {
+    if (!noeud.isTextblock) {
+      return true;
     }
-  } else {
-    // Le bloc sort de toutes les listes qui l'entourent avant de changer de type.
-    listes.forEach(() => chaine.liftListItem(ELEMENT_DE_LISTE));
-    if (type.forme === "titre") {
-      chaine.setHeading({ level: type.niveau });
+    if (dejaDeCeType(noeud, type, niveau)) {
+      return false;
+    }
+    if (parent?.canReplaceWith(index, index + 1, type) === true) {
+      cibles.push(position);
     } else {
-      chaine.setParagraph();
+      refuse = true;
+    }
+    return false;
+  });
+  return refuse && cibles.length === 0 ? undefined : cibles;
+}
+
+/**
+ * Donne ce type de nœud à chaque bloc de texte de la sélection que son parent admet à cette place.
+ * Vrai si un bloc a changé, ou si tous l'avaient déjà ; faux si le schéma n'en admet aucun. Vers le
+ * bloc code, les marques sont retirées (F-005-AC29) ; vers un paragraphe ou un titre, le balisage
+ * seul change, sauts de ligne compris : `setBlockType` les remplacerait par des espaces (F-005-AC1,
+ * veille du 2026-10-16).
+ */
+function changerLesBlocsDeTexte(tr: Transaction, type: NodeType, niveau?: NiveauDeTitre): boolean {
+  const cibles = blocsAChanger(tr, type, niveau);
+  if (cibles === undefined) {
+    return false;
+  }
+  const attributs = niveau === undefined ? null : { level: niveau };
+  const depart = tr.mapping.maps.length;
+  for (const position of cibles) {
+    const ici = tr.mapping.slice(depart).map(position);
+    const noeud = tr.doc.nodeAt(ici);
+    if (noeud === null) {
+      return false;
+    }
+    if (type.name === BLOC_CODE) {
+      tr.setBlockType(ici, ici + noeud.nodeSize, type, attributs);
+    } else {
+      tr.setNodeMarkup(ici, type, attributs);
     }
   }
-  chaine.run();
+  return true;
+}
+
+function changerEn(nom: string, niveau?: NiveauDeTitre) {
+  return ({ tr }: { readonly tr: Transaction }): boolean => {
+    const type = tr.doc.type.schema.nodes[nom];
+    return type !== undefined && changerLesBlocsDeTexte(tr, type, niveau);
+  };
+}
+
+/** Une étape de la composition : des commandes, appliquées à l'état que laisse l'étape précédente. */
+type Etape = (chaine: ChainedCommands) => ChainedCommands;
+
+/**
+ * Les étapes qui donnent ce type au bloc de cette position. Chaque étape rend faux si le schéma la
+ * refuse, sans repli qui changerait la structure (F-005-AC11 ; veille : `setNode` sort de sa liste
+ * le premier paragraphe d'un élément).
+ */
+function etapesDuType($from: ResolvedPos, type: TypeDeBloc): Etape[] {
+  const listes = listesAutour($from);
+  const dansUnBlocCode = $from.parent.type.name === BLOC_CODE;
+  switch (type.forme) {
+    case "code":
+      // Le bloc code ne sort jamais des listes : refusé dans le premier paragraphe d'un élément.
+      return [(chaine) => chaine.command(changerEn(BLOC_CODE))];
+    case "liste":
+      if (listes.at(-1) === type.noeud) {
+        // Déjà dans cette liste : un bloc code y redevient un paragraphe, rien d'autre ne change.
+        return dansUnBlocCode ? [(chaine) => chaine.command(changerEn(PARAGRAPHE))] : [];
+      }
+      // Un élément de liste commence par un paragraphe : un titre ou un bloc code le redevient.
+      return [
+        (chaine) => chaine.command(changerEn(PARAGRAPHE)),
+        (chaine) =>
+          type.noeud === "bulletList" ? chaine.toggleBulletList() : chaine.toggleOrderedList(),
+      ];
+    case "titre":
+    case "paragraphe":
+      // Le bloc sort de toutes les listes qui l'entourent avant de changer de type.
+      return [
+        ...listes.map((): Etape => (chaine) => chaine.liftListItem(ELEMENT_DE_LISTE)),
+        (chaine) =>
+          chaine.command(
+            type.forme === "titre" ? changerEn(TITRE, type.niveau) : changerEn(PARAGRAPHE),
+          ),
+      ];
+  }
+}
+
+interface Composition {
+  /** Les transactions de chaque étape, chacune partie de l'état que la précédente laisse. */
+  readonly transactions: readonly Transaction[];
+  readonly etatFinal: EditorState;
+}
+
+/**
+ * Compose le type, après le retrait de l'étendue, sur des états successifs : chaque étape part
+ * d'une transaction neuve, comme les commandes de ProseMirror le supposent (une commande qui
+ * suivrait une autre dans la même transaction lirait des positions décalées), et rien n'est envoyé.
+ * `undefined` si une étape est refusée : c'est le jugement à blanc de F-005-AC11.
+ */
+function composer(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): Composition | undefined {
+  let etat = editeur.state;
+  const transactions: Transaction[] = [];
+  const avancer = (etape: Etape): boolean => {
+    const tr = etat.tr;
+    const gestionnaire = new CommandManager({ editor: editeur, state: etat });
+    if (!etape(gestionnaire.createChain(tr, true)).run()) {
+      return false;
+    }
+    transactions.push(tr);
+    // Un état sans greffons : `apply` passerait la transaction aux greffons de l'éditeur (filtre
+    // et ajouts), dont l'élévation de version, qui écrit dans Yjs (F-005-AC20, AC25).
+    etat = EditorState.create({ schema: tr.doc.type.schema, doc: tr.doc, selection: tr.selection });
+    return true;
+  };
+  const retirer: Etape = (chaine) =>
+    chaine.command(({ tr }) => {
+      tr.delete(retrait?.from ?? 0, retrait?.to ?? 0);
+      return true;
+    });
+  if (retrait !== undefined && !avancer(retirer)) {
+    return undefined;
+  }
+  const etapes = etapesDuType(etat.selection.$from, type);
+  return etapes.every(avancer) ? { transactions, etatFinal: etat } : undefined;
+}
+
+/**
+ * Vrai si le schéma permet de donner ce type au bloc courant, après le retrait de l'étendue : jugé
+ * à blanc, sur des transactions jamais envoyées (F-005-AC11).
+ */
+export function typeDisponible(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): boolean {
+  return composer(editeur, type, retrait) !== undefined;
+}
+
+// Toute modification part dans une seule transaction de l'éditeur, sans transaction Yjs
+// englobante : elle entre ainsi dans l'historique d'annulation de la liaison (H9), et une autre
+// réplique ne voit jamais d'état intermédiaire (H10). Rien n'est envoyé pour une commande
+// indisponible, jugée de nouveau sur l'état de cet instant (F-005-AC11, AC16).
+export function donnerLeType(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): boolean {
+  const composition = composer(editeur, type, retrait);
+  if (composition === undefined) {
+    return false;
+  }
+  const tr = editeur.state.tr;
+  composition.transactions.forEach((etape) => etape.steps.forEach((pas) => tr.step(pas)));
+  tr.setSelection(Selection.fromJSON(tr.doc, composition.etatFinal.selection.toJSON()));
+  editeur.view.dispatch(tr.scrollIntoView());
+  return true;
 }

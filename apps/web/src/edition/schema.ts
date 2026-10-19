@@ -1,7 +1,7 @@
 // Schéma fermé du document de page, dernière ligne de la table des versions (F-003-AC22, H2 ;
-// F-028-AC19) : paquets unitaires, sans kit de départ, qui s'élargirait en silence. L'annulation est
+// F-028-AC19 ; F-005-AC23) : paquets unitaires, sans kit de départ, qui s'élargirait en silence. L'annulation est
 // celle de la liaison Yjs : elle ne défait que les modifications locales (H9).
-import { type Extensions, markInputRule } from "@tiptap/core";
+import { type Editor, type Extensions, markInputRule } from "@tiptap/core";
 import { Bold, underscoreInputRegex as SOULIGNES_DU_GRAS } from "@tiptap/extension-bold";
 import { Collaboration } from "@tiptap/extension-collaboration";
 import { Document } from "@tiptap/extension-document";
@@ -15,15 +15,14 @@ import type * as Y from "yjs";
 
 import { CLASSE_DU_CURSEUR_DE_DEPOT } from "../interface/composants/Edition.tsx";
 import { INVITE_DU_BLOC_VIDE } from "../interface/messages.ts";
+import { BlocCode } from "./bloc-code.ts";
 import { depotDeLEditeur, type OptionsDuDepot } from "./depot.ts";
 import { inviteDuBlocVide } from "./invite.ts";
 import { Lien } from "./lien.ts";
 import { marquesDeLEditeur, type OptionsDesMarques } from "./marques.ts";
+import { menuSlash, type OptionsDuMenu } from "./menu-slash.ts";
 import { selectionDuNavigateur } from "./selection-du-navigateur.ts";
-
-const NIVEAU_DE_TITRE_MAX = 3;
-export type NiveauDeTitre = 1 | 2 | typeof NIVEAU_DE_TITRE_MAX;
-export const NIVEAUX_DE_TITRE: readonly NiveauDeTitre[] = [1, 2, NIVEAU_DE_TITRE_MAX];
+import { BLOC_CODE, NIVEAUX_DE_TITRE } from "./types-de-bloc.ts";
 
 // `**texte**` et `*texte*` (F-028-AC3) : « texte » non vide, sans espace en tête ni en fin. Les
 // règles des extensions marquent aussi ` texte` et `texte ` : elles sont remplacées. Les variantes
@@ -52,6 +51,25 @@ const Italique = Italic.extend({
   },
 });
 
+function dansUnBlocCode(editeur: Editor): boolean {
+  return editeur.state.selection.$from.parent.type.name === BLOC_CODE;
+}
+
+// Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3) et Tab ne
+// modifie rien (F-005-AC5, H6) : les raccourcis de l'élément de liste n'y agissent pas.
+const ElementDeListe = ListItem.extend({
+  addKeyboardShortcuts() {
+    const raccourcis = this.parent?.() ?? {};
+    return Object.fromEntries(
+      Object.entries(raccourcis).map(([touche, action]) => [
+        touche,
+        (proprietes: Parameters<typeof action>[0]) =>
+          !dansUnBlocCode(proprietes.editor) && action(proprietes),
+      ]),
+    );
+  },
+});
+
 // Curseur de dépôt (F-006-AC15, AC37) : un trait de deux pixels, sans couleur propre ; sa couleur
 // vient de la classe de l'application, donc des jetons. Ni nœud, ni attribut, ni marque.
 const EPAISSEUR_DU_CURSEUR_DE_DEPOT = 2;
@@ -60,6 +78,7 @@ export function extensionsDeLEditeur(
   contenu: Y.XmlFragment,
   marques: OptionsDesMarques,
   depot: OptionsDuDepot,
+  menu: OptionsDuMenu,
 ): Extensions {
   return [
     Document,
@@ -68,7 +87,8 @@ export function extensionsDeLEditeur(
     Heading.configure({ levels: [...NIVEAUX_DE_TITRE] }),
     BulletList,
     OrderedList,
-    ListItem,
+    ElementDeListe,
+    BlocCode,
     Gras,
     Italique,
     Lien,
@@ -82,5 +102,6 @@ export function extensionsDeLEditeur(
       class: CLASSE_DU_CURSEUR_DE_DEPOT,
     }),
     depotDeLEditeur(depot),
+    menuSlash(menu),
   ];
 }

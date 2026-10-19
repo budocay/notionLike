@@ -55,9 +55,37 @@ export const EXPLICATION_VERSION_NON_PRISE_EN_CHARGE =
 
 /** Nom accessible de la zone de saisie de l'éditeur (F-003-AC16). */
 export const NOM_DE_LA_ZONE_DE_SAISIE = "Contenu de la page";
-/** Invite du bloc vide tant que le menu slash de F-005 n'est pas livré (F-003-AC40). */
-export const INVITE_DU_BLOC_VIDE = "Écris quelque chose…";
+/** Invite du bloc vide, menu slash de F-005 livré (F-003-AC40). */
+export const INVITE_DU_BLOC_VIDE = "Écris, ou tape / pour insérer un bloc";
 export const NOM_DE_LA_BARRE_DE_BLOCS = "Type de bloc";
+
+// Bloc code et menu slash (F-005-AC6, AC18, AC22).
+export const NOM_DU_MENU_SLASH = "Commandes de bloc";
+export const AUCUNE_COMMANDE = "Aucune commande";
+export const SELECTEUR_DE_LANGAGE = "Langage du bloc code";
+export const TEXTE_BRUT = "Texte brut";
+
+/** Le nombre de commandes que le menu slash liste, annoncé à chaque changement du filtre. */
+export function commandesListees(nombre: number): string {
+  if (nombre === 0) {
+    return AUCUNE_COMMANDE;
+  }
+  return nombre === 1 ? "1 commande" : `${nombre} commandes`;
+}
+
+/** Nom de chaque langage de la liste dans le sélecteur ; sa valeur reste son identifiant. */
+export const NOMS_DES_LANGAGES: Readonly<Record<string, string>> = {
+  bash: "Bash",
+  css: "CSS",
+  html: "HTML",
+  javascript: "JavaScript",
+  json: "JSON",
+  markdown: "Markdown",
+  python: "Python",
+  sql: "SQL",
+  typescript: "TypeScript",
+  yaml: "YAML",
+};
 
 /** Commandes de mise en forme de la barre de blocs et du panneau de lien (F-028-AC27). */
 export const COMMANDE_GRAS = "Gras";

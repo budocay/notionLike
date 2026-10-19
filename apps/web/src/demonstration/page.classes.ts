@@ -21,6 +21,8 @@ export const PAGE = {
   apercu: "hauteur-apercu overflow-hidden rounded-grand shadow-menu filet",
   apercuDuTiroir: "repere-des-fixes hauteur-apercu overflow-hidden rounded-grand filet",
   apercuDeBarre: "hauteur-apercu overflow-hidden rounded-grand filet",
+  apercuDuMenu:
+    "repere-des-fixes hauteur-apercu overflow-hidden rounded-grand bg-surface-application filet",
   entreeDePied:
     "flex min-h-cible items-center rounded-moyen px-petit text-interface text-texte-secondaire etroit:pointer-fine:min-h-rangee",
   filLarge: "extensible hidden etroit:flex",

@@ -109,7 +109,7 @@ function fichiersDuModule(): Map<string, string> {
 }
 
 describe("confinement de la bibliothèque de glisser-déposer et de la poignée", () => {
-  it("F-006-AC32 dnd-kit n'est importé que par src/glisser/, dont l'interface n'expose aucun type ; la poignée et le curseur de dépôt ne le sont que par le module d'édition ; @floating-ui/dom et aucune bibliothèque d'animation ne le sont nulle part", async () => {
+  it("F-006-AC32 dnd-kit n'est importé que par src/glisser/, dont l'interface n'expose aucun type ; la poignée et le curseur de dépôt ne le sont que par le module d'édition ; @floating-ui/dom ne l'est que par le menu slash (F-005-AC33), et aucune bibliothèque d'animation ne l'est nulle part", async () => {
     const aretes = await graphe();
 
     expect(importateursHorsDe(aretes, DND_KIT, MODULE_DE_GLISSER)).toEqual([]);
@@ -123,7 +123,8 @@ describe("confinement de la bibliothèque de glisser-déposer et de la poignée"
       "src/edition/schema.ts",
       "test/edition/aides-edition.tsx",
     ]);
-    expect(importateursHorsDe(aretes, FLOATING_UI, null)).toEqual([]);
+    // F-005-AC33 : @floating-ui/dom place le menu slash, dans le module d'édition seul.
+    expect(importateursHorsDe(aretes, FLOATING_UI, null)).toEqual(["src/edition/menu-slash.ts"]);
     expect(importateursHorsDe(aretes, ANIMATION, null)).toEqual([]);
     expect([...fichiersDuModule().keys()]).toEqual([
       "src/glisser/ListeGlissable.tsx",

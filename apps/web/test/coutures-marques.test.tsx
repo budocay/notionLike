@@ -121,11 +121,20 @@ const SANS_DECISION: Readonly<Record<string, string>> = {
   "src/edition/EditeurDePage.tsx": "src/edition/commandes-de-marque.ts",
 };
 
+/**
+ * F-005 : fichiers qui rendent ou collent un nœud qui ne porte aucune marque, donc aucun lien : le
+ * bloc code (`marks: ''`, F-005-AC29), dont le rendu et le collage n'ont pas d'adresse.
+ */
+const SANS_LIEN_POSSIBLE: Readonly<Record<string, string>> = {
+  "src/edition/bloc-code.ts": "bloc code : rendu, collage d'un éditeur de code, sans marque",
+};
+
 function fautesDeLaRegle(fichiers: ReadonlyMap<string, string>): string[] {
   const fautes: string[] = [];
   for (const [chemin, texte] of fichiers) {
     const ecrit = ECRIT_OU_REND_UN_LIEN.test(texte) && chemin !== "src/edition/adresses.ts";
-    if (ecrit && !(chemin in CHEMINS_D_UN_LIEN) && !(chemin in SANS_DECISION)) {
+    const inscrit = chemin in CHEMINS_D_UN_LIEN || chemin in SANS_DECISION;
+    if (ecrit && !inscrit && !(chemin in SANS_LIEN_POSSIBLE)) {
       fautes.push(`${chemin} : écrit ou rend un lien hors des chemins inscrits`);
     }
     if (

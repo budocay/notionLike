@@ -38,7 +38,7 @@ export interface OptionsDesMarques {
 // rien de local.
 const CLE_DE_LA_LIAISON = "y-sync$";
 
-function estAppliqueeDepuisYjs(transaction: Transaction): boolean {
+export function estAppliqueeDepuisYjs(transaction: Transaction): boolean {
   const meta: unknown = transaction.getMeta(CLE_DE_LA_LIAISON);
   return typeof meta === "object" && meta !== null && "isChangeOrigin" in meta
     ? meta.isChangeOrigin === true

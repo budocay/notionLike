@@ -213,6 +213,14 @@
   }
 }
 
+/* Menu slash (F-005-AC12, AC34) : posé dans la fenêtre aux coordonnées que la bibliothèque de
+   positionnement calcule pour le module d'édition, près du curseur et entier dans la fenêtre ; il
+   reçoit sa géométrie par les mêmes variables que la barre de blocs. */
+@utility menu-slash {
+  left: calc(var(--barre-gauche, 0) * 1px);
+  top: calc(var(--barre-haut, 0) * 1px);
+}
+
 /* Panneau de lien : sous la barre de blocs, à la même abscisse (F-028-AC6). */
 @utility panneau-de-lien {
   left: calc(var(--barre-gauche, 0) * 1px);
@@ -294,6 +302,19 @@
 
   & li > p {
     margin-block: var(--spacing-mince);
+  }
+
+  /* Bloc code (F-005-AC8) : police à chasse fixe de la feuille de base de Tailwind, espaces et
+     sauts de ligne conservés, sans coloration ; sur une surface en retrait. */
+  & pre {
+    margin-block: var(--spacing-petit);
+    padding: var(--spacing-moyen) var(--spacing-normal);
+    border-radius: var(--radius-moyen);
+    background-color: var(--color-surface-retrait);
+    color: var(--color-texte-principal);
+    font-size: var(--text-interface);
+    line-height: var(--text-courant--line-height);
+    white-space: pre-wrap;
   }
 
   /* Lien : souligné plein. Lien neutralisé : souligné tireté, sans cible ; il se distingue d'un
