@@ -126,6 +126,17 @@ function estUnObjet(valeur: unknown): boolean {
 }
 
 /**
+ * Vrai si le schéma admet un bloc code à la place des blocs que la sélection touche. Une sélection
+ * de tout le document (Mod+A) ou d'un bloc entier (poignée du curseur) commence à la profondeur 0 :
+ * le bloc code y remplace les blocs sélectionnés, comme tout collage remplace la sélection.
+ */
+function blocCodeAdmisALaPlaceDe({ $from, $to }: Selection, type: NodeType): boolean {
+  return $from.depth === 0
+    ? $from.parent.canReplaceWith($from.index(), $to.index(), type)
+    : $from.node(-1).canReplaceWith($from.index(-1), $from.indexAfter(-1), type);
+}
+
+/**
  * Un collage qui porte les données d'un éditeur de code devient un bloc code SANS langage, quel
  * que soit celui qu'elles annoncent ; des données malformées laissent le collage au chemin du
  * texte, sans exception. Rien dans un bloc code, où ProseMirror colle du texte brut (AC7), ni là où
@@ -142,7 +153,7 @@ function collerDUnEditeurDeCode(type: NodeType, vue: EditorView, evenement: Clip
   if (brutes === "" || texte === "" || !estUnObjet(lireLesDonnees(brutes))) {
     return false;
   }
-  if ($from.node(-1).canReplaceWith($from.index(-1), $from.indexAfter(-1), type) !== true) {
+  if (!blocCodeAdmisALaPlaceDe(vue.state.selection, type)) {
     return false;
   }
   const bloc = type.create(null, vue.state.schema.text(texte.replace(/\r\n?/g, "\n")));

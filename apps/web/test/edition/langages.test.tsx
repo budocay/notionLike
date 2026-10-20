@@ -19,7 +19,9 @@ import {
   recevoirDUneReplique,
   selecteurDeLangage,
   selectionnerLeBloc,
+  selectionnerLeBlocEntier,
   taper,
+  toutSelectionner,
   zoneDeSaisie,
 } from "./aides-edition.tsx";
 
@@ -316,4 +318,39 @@ describe("collage depuis un éditeur de code", () => {
 
     expect(fragmentBrut(doc).toString()).toBe("<codeblock>ab</codeblock>");
   });
+
+  // Le début de ces sélections est à la profondeur 0 : aucun bloc de texte ne le porte.
+  it.each([
+    [
+      "de tout le document (Mod+A)",
+      () => toutSelectionner(),
+      "<codeblock>def f():\n    return 1</codeblock>",
+    ],
+    [
+      "de nœud d'un bloc vide (poignée du curseur)",
+      () => selectionnerLeBlocEntier(1),
+      "<paragraph>un</paragraph><codeblock>def f():\n    return 1</codeblock>",
+    ],
+  ])(
+    "F-005-AC36 F-005-AC7 après une sélection %s, des données d'un éditeur de code valides remplacent la sélection par un bloc code sans langage qui porte le texte, sans exception",
+    (_cas, selectionner, attendu) => {
+      window.addEventListener("error", noter);
+      const consoleErreur = vi.spyOn(console, "error");
+      const { doc } = monterLEditeur();
+      entrerDansLEditeur();
+      taper("un");
+      presser("Enter");
+      selectionner();
+
+      collerLesDonnees({
+        "text/plain": "def f():\r\n    return 1",
+        "vscode-editor-data": JSON.stringify({ version: 1, mode: "python" }),
+      });
+
+      expect(fragmentBrut(doc).toString()).toBe(attendu);
+      expect(langagesLus(doc)).toEqual([undefined]);
+      expect(erreurs).toEqual([]);
+      expect(consoleErreur).not.toHaveBeenCalled();
+    },
+  );
 });
