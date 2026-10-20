@@ -19,6 +19,8 @@ export const TOUCHES_D_INTERACTION: Readonly<Record<string, readonly string[]>> 
   // Barre de blocs de l'éditeur : les flèches parcourent les commandes, Échap rend le focus.
   "src/interface/composants/Edition.tsx": ["ArrowLeft", "ArrowRight", "Escape"],
   "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],
+  // Menu slash (F-005-AC15, AC16) : les flèches parcourent les commandes, Entrée applique l'active.
+  "src/edition/menu-slash.ts": ["ArrowDown", "ArrowUp", "Enter"],
   // Menu et liste du fil d'Ariane : Échap ferme la surface.
   "src/interface/flottant.ts": ["Escape"],
   // Tiroir : Échap le ferme.

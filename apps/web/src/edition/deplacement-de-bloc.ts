@@ -5,7 +5,13 @@
 // donc une seule mise à jour Yjs ; aucun identifiant, aucune version élevée (F-006-AC31).
 import type { Editor } from "@tiptap/core";
 import type { Node as NoeudProseMirror } from "@tiptap/pm/model";
-import { type EditorState, Selection, TextSelection, type Transaction } from "@tiptap/pm/state";
+import {
+  type EditorState,
+  NodeSelection,
+  Selection,
+  TextSelection,
+  type Transaction,
+} from "@tiptap/pm/state";
 
 export type SensDuDeplacement = "monter" | "descendre";
 
@@ -42,13 +48,16 @@ function gestionnaireDAnnulation(etat: EditorState): GestionnaireDAnnulation | u
 
 /**
  * La sélection après le déplacement : celle qui était dans le bloc le suit, au même endroit de son
- * texte (F-006-AC18) ; une autre est seulement reportée par les pas de la transaction.
+ * texte, ou le bloc entier s'il était sélectionné (F-006-AC18) ; une autre est seulement reportée
+ * par les pas de la transaction.
  */
 function selectionApres(transaction: Transaction, avant: EditorState, ecart: number): void {
   const { selection } = avant;
   if (selection instanceof TextSelection) {
     const { anchor, head } = selection;
     transaction.setSelection(TextSelection.create(transaction.doc, anchor + ecart, head + ecart));
+  } else if (selection instanceof NodeSelection) {
+    transaction.setSelection(NodeSelection.create(transaction.doc, selection.from + ecart));
   }
 }
 
@@ -84,9 +93,17 @@ export function deplacerLeBloc(editeur: Editor, de: number, vers: number): boole
   return true;
 }
 
-/** Indice du bloc qui contient toute la sélection ; `undefined` si elle en couvre plusieurs. */
+/**
+ * Indice du bloc qui contient toute la sélection, ou que la sélection de nœud désigne entier (la
+ * poignée du curseur dans un bloc vide, `selectionnerLeBlocDuCurseur`) ; `undefined` si elle en
+ * couvre plusieurs.
+ */
 export function blocDeLaSelection(etat: EditorState): number | undefined {
-  const { $from, $to } = etat.selection;
+  const { selection } = etat;
+  const { $from, $to } = selection;
+  if (selection instanceof NodeSelection && $from.depth === 0) {
+    return $from.index(0);
+  }
   if ($from.depth === 0 || $to.depth === 0) {
     return undefined;
   }

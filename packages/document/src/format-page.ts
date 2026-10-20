@@ -48,6 +48,22 @@ export const TABLE_DES_VERSIONS_PAGE: readonly LigneDeVersionPage[] = [
     marques: ["bold", "italic", "link"],
     typesPartages: [],
   },
+  // F-005 : bloc code, avec le seul attribut `language` (F-005-AC23, AC28).
+  {
+    version: 3,
+    noeuds: {
+      bulletList: [],
+      codeBlock: ["language"],
+      doc: [],
+      heading: ["level"],
+      listItem: [],
+      orderedList: ["start", "type"],
+      paragraph: [],
+      text: [],
+    },
+    marques: ["bold", "italic", "link"],
+    typesPartages: [],
+  },
 ];
 
 /** Numéro de la dernière ligne de la table. */

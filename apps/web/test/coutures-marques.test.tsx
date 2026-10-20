@@ -121,11 +121,48 @@ const SANS_DECISION: Readonly<Record<string, string>> = {
   "src/edition/EditeurDePage.tsx": "src/edition/commandes-de-marque.ts",
 };
 
+/**
+ * F-005 : passages exacts qui rendent ou collent un nœud sans marque, donc sans lien : le bloc code
+ * (`marks: ''`, F-005-AC29), dont l'attribut de langage, le rendu et le collage n'ont pas
+ * d'adresse. Seuls ces passages sont exemptés, chacun présent une fois : le reste du fichier passe
+ * la couture comme les autres, et un passage qui change ou disparaît est nommé.
+ */
+const SANS_LIEN_POSSIBLE: Readonly<Record<string, readonly string[]>> = {
+  "src/edition/bloc-code.ts": [
+    "[ATTRIBUT_DU_LANGAGE]: { default: null, parseHTML: () => null, rendered: false },",
+    "renderHTML({ node }) {\n" +
+      '    return ["pre", {}, ["code", ' +
+      "{ class: classeDuLangage(node.attrs[ATTRIBUT_DU_LANGAGE]) }, 0]];\n" +
+      "  },",
+    "handlePaste: (vue, evenement) => collerDUnEditeurDeCode(type, vue, evenement),",
+  ],
+};
+
+/** Le texte sans ses passages exemptés, et les fautes des passages introuvables ou répétés. */
+function sansLesPassagesExemptes(chemin: string, texte: string): [string, string[]] {
+  const fautes: string[] = [];
+  let reste = texte;
+  for (const passage of SANS_LIEN_POSSIBLE[chemin] ?? []) {
+    const morceaux = reste.split(passage);
+    if (morceaux.length !== 2) {
+      const debut = passage.split("\n")[0];
+      fautes.push(
+        `${chemin} : passage exempté lu ${morceaux.length - 1} fois au lieu d'une : ${debut}`,
+      );
+    }
+    reste = morceaux.join("");
+  }
+  return [reste, fautes];
+}
+
 function fautesDeLaRegle(fichiers: ReadonlyMap<string, string>): string[] {
   const fautes: string[] = [];
   for (const [chemin, texte] of fichiers) {
-    const ecrit = ECRIT_OU_REND_UN_LIEN.test(texte) && chemin !== "src/edition/adresses.ts";
-    if (ecrit && !(chemin in CHEMINS_D_UN_LIEN) && !(chemin in SANS_DECISION)) {
+    const [reste, fautesDesPassages] = sansLesPassagesExemptes(chemin, texte);
+    fautes.push(...fautesDesPassages);
+    const ecrit = ECRIT_OU_REND_UN_LIEN.test(reste) && chemin !== "src/edition/adresses.ts";
+    const inscrit = chemin in CHEMINS_D_UN_LIEN || chemin in SANS_DECISION;
+    if (ecrit && !inscrit) {
       fautes.push(`${chemin} : écrit ou rend un lien hors des chemins inscrits`);
     }
     if (
@@ -162,9 +199,40 @@ describe("la règle des adresses sur chaque chemin", () => {
       "src/edition/lien.ts : n'appelle pas la règle des adresses",
     ]);
   });
+
+  it("F-028-AC18 F-005-AC29 cas fautifs : dans le bloc code, seuls les passages exemptés le sont ; un lien ajouté ailleurs, un passage qui change ou se répète, sont nommés", () => {
+    const BLOC_CODE = "src/edition/bloc-code.ts";
+    const reel = lire(BLOC_CODE);
+    const avecUnLien = `${reel}\nexport const lien = { href: saisie };\n`;
+    const rendu =
+      'return ["pre", {}, ["code", { class: classeDuLangage(node.attrs[ATTRIBUT_DU_LANGAGE]) }, 0]];';
+    const renduAvecUneAdresse = reel.replace(rendu, 'return ["pre", { href: adresse }, 0];');
+    const collage =
+      "handlePaste: (vue, evenement) => collerDUnEditeurDeCode(type, vue, evenement),";
+    const collageRepete = reel.replace(collage, `${collage}\n          ${collage}`);
+
+    expect(fautesDeLaRegle(new Map([[BLOC_CODE, reel]]))).toEqual([]);
+    expect(renduAvecUneAdresse).not.toBe(reel);
+    expect(collageRepete).not.toBe(reel);
+    expect(fautesDeLaRegle(new Map([[BLOC_CODE, avecUnLien]]))).toEqual([
+      `${BLOC_CODE} : écrit ou rend un lien hors des chemins inscrits`,
+    ]);
+    expect(fautesDeLaRegle(new Map([[BLOC_CODE, renduAvecUneAdresse]]))).toEqual([
+      expect.stringMatching(
+        /^src\/edition\/bloc-code\.ts : passage exempté lu 0 fois au lieu d'une : renderHTML/,
+      ),
+      `${BLOC_CODE} : écrit ou rend un lien hors des chemins inscrits`,
+    ]);
+    expect(fautesDeLaRegle(new Map([[BLOC_CODE, collageRepete]]))).toEqual([
+      expect.stringMatching(
+        /^src\/edition\/bloc-code\.ts : passage exempté lu 2 fois au lieu d'une : handlePaste/,
+      ),
+    ]);
+  });
 });
 
-// ——— F-028-AC24, AC28 : appelants du format et de la version ———
+// ——— F-028-AC24, AC28 : appelants du format et de la version ; F-005-AC28, AC32 : les mêmes
+// appelants, sur chaque ligne de la table, ligne 3 du bloc code comprise, et sur la version 4 ———
 
 const NOMS_DU_FORMAT = [
   "ouvrirDocumentPage",
@@ -398,7 +466,7 @@ function documentDe(version: number): Y.Doc {
 }
 
 describe("appelants du format et de la version du document de page", () => {
-  it("F-028-AC28 F-028-AC24 les fichiers de code du workspace qui lisent la version, la vérifient ou l'élèvent sont énumérés par leurs imports : chacun a son scénario, et aucun module du serveur n'en est", () => {
+  it("F-028-AC28 F-028-AC24 F-005-AC28 F-005-AC32 les fichiers de code du workspace qui lisent la version, la vérifient ou l'élèvent sont énumérés par leurs imports : chacun a son scénario, et aucun module du serveur n'en est", () => {
     const appelants = appelantsDuFormat(fichiersDuWorkspace);
 
     expect(appelants).toEqual([
@@ -426,7 +494,7 @@ describe("appelants du format et de la version du document de page", () => {
     expect("apps/web/src/nouveau.ts" in SCENARIOS).toBe(false);
   });
 
-  it("F-028-AC28 les fonctions qui enveloppent la lecture, la vérification ou l'élévation de la version sont suivies : chaque export des appelants du paquet est classé, et chaque fichier qui appelle une enveloppe ou se sert de la garde ou de l'élévation de l'état prêt a son scénario", () => {
+  it("F-028-AC28 F-005-AC32 les fonctions qui enveloppent la lecture, la vérification ou l'élévation de la version sont suivies : chaque export des appelants du paquet est classé, et chaque fichier qui appelle une enveloppe ou se sert de la garde ou de l'élévation de l'état prêt a son scénario", () => {
     const appelants = appelantsDuFormat(fichiersDuWorkspace);
     const desEnveloppes = appelantsDesEnveloppes(fichiersDuWorkspace);
 
@@ -473,7 +541,7 @@ describe("appelants du format et de la version du document de page", () => {
         ),
     ),
   )(
-    "F-028-AC28 F-028-AC24 %s, sur un document de %s : %s",
+    "F-028-AC28 F-028-AC24 F-005-AC28 F-005-AC32 %s, sur un document de %s : %s",
     async (_chemin, _cas, version, attendue, scenario) => {
       expect(await scenario(documentDe(version), version)).toBe(attendue);
     },

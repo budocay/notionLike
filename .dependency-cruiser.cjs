@@ -387,6 +387,21 @@ module.exports = {
       from: { path: "^(apps|packages)/", pathNot: "^apps/web/(src|test)/edition/" },
       to: { path: "(^|/)node_modules/(@tiptap|prosemirror-[^/]+|y-prosemirror)/" },
     },
+    // F-005-AC33, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "suggestion-et-positionnement-confines",
+      severity: "error",
+      comment:
+        "F-005-AC33, H9 : l'utilitaire de suggestion de Tiptap (@tiptap/suggestion) et la bibliothèque de positionnement (tout paquet @floating-ui/*) ne sont importés que par le module d'édition d'apps/web (src/edition/) : ni par ses tests, ni par un autre fichier d'apps/web, ni par un paquet, ni par le serveur.",
+      from: { pathNot: "^apps/web/src/edition/" },
+      to: {
+        path: [
+          "(^|/)node_modules/(@tiptap/suggestion|@floating-ui/[^/]+)/",
+          "^(@tiptap/suggestion|@floating-ui/[^/]+)(/|$)",
+        ],
+      },
+    },
     {
       name: "web-edition-par-son-interface",
       severity: "error",
@@ -399,7 +414,7 @@ module.exports = {
       name: "web-edition-liste-blanche",
       severity: "error",
       comment:
-        "F-003-AC27, F-006-AC32 : le module d'édition n'importe que lui-même, le composant de présentation de l'édition, les textes de l'interface, react, yjs et les paquets Tiptap qu'il emploie, poignée de bloc (drag-handle, drag-handle-react, node-range) et curseur de dépôt (@tiptap/extensions) compris ; ni @floating-ui/dom, ni @dnd-kit/*.",
+        "F-003-AC27, F-006-AC32, F-005-AC33 : le module d'édition n'importe que lui-même, le composant de présentation de l'édition, les textes de l'interface, react, yjs, les paquets Tiptap qu'il emploie, poignée de bloc (drag-handle, drag-handle-react, node-range), curseur de dépôt (@tiptap/extensions), bloc code (extension-code-block) et utilitaire de suggestion (suggestion) compris, et @floating-ui/dom (placement du menu slash) ; ni @floating-ui/core, ni @floating-ui/utils, ni @dnd-kit/*.",
       from: { path: "^apps/web/src/edition/" },
       to: {
         pathNot: [
@@ -407,7 +422,8 @@ module.exports = {
           "^apps/web/src/interface/composants/Edition\\.tsx$",
           "^apps/web/src/interface/messages\\.ts$",
           "(^|/)node_modules/(react|yjs)/",
-          "(^|/)node_modules/@tiptap/(core|pm|react|extensions|extension-(bold|collaboration|document|drag-handle|drag-handle-react|heading|italic|link|list|node-range|paragraph|text))/",
+          "(^|/)node_modules/@tiptap/(core|pm|react|extensions|suggestion|extension-(bold|code-block|collaboration|document|drag-handle|drag-handle-react|heading|italic|link|list|node-range|paragraph|text))/",
+          "(^|/)node_modules/@floating-ui/dom/",
         ],
       },
     },

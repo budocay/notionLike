@@ -658,6 +658,7 @@ describe("raccourcis : une seule source", () => {
     expect(sources.size).toBeGreaterThan(30);
     expect(fautesDeTouches(sources)).toEqual([]);
     expect(TOUCHES_D_INTERACTION).toEqual({
+      "src/edition/menu-slash.ts": ["ArrowDown", "ArrowUp", "Enter"],
       "src/interface/SaisieTitre.tsx": ["Enter", "Escape"],
       "src/interface/composants/Edition.tsx": ["ArrowLeft", "ArrowRight", "Escape"],
       "src/interface/composants/MenuActions.tsx": ["ArrowDown", "ArrowUp"],

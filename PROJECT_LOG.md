@@ -323,3 +323,15 @@
 - Tests: tests de documentation d'`infra` verts — état: verts — preuve: agent
 - Gates: aucun (trivial)
 - Mesures: coût non mesuré
+
+## [2026-10-19] F-005 Bloc code et commandes slash
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/edition/` (bloc code, langages, garde de langage, liste unique des commandes, disponibilité, barre, menu slash, liaison, lecture des sélections par `bornesLues`), `packages/document` (version 3 du document de page), jeton `--font-chasse-fixe`, `apps/web/package.json` et `pnpm-lock.yaml` (`@tiptap/extension-code-block`, `@tiptap/suggestion` 3.31.4, `@floating-ui/dom` 1.8.0, approuvés par le dev `6c7a073`) — agents: agent-veille, agent-architecte-conception, agent-planif, agent-frontend, orchestrateur ; règle de contrats par le dev (d39cd86) — commits: 52dc035..c50ca4f
+- Détail: bloc code à langage facultatif dans une liste fermée, sans langage tiré du presse-papiers ; commandes de bloc tirées d'une seule liste par la barre et par le menu `/` ; version 3 élevée paresseusement. Décisions du dev du 2026-10-19 : sauts de ligne remplacés par des espaces à la conversion (AC1), Entrée sans effet dans un menu sans commande (AC11, AC18), barre affichée dans un bloc code sans sélection (H11). La revue a trouvé : sélecteur de langage affiché sur une sélection débordante, collage après Mod+A qui levait, barre fausse sous Mod+A, règle « ``` » muette hors minuscules, poignée sans effet sur un bloc vide (régression de F-006-AC14 venue de H11).
+- Dette: introduite D-036 (reprise après trois rejets, levée), D-037 (bloc vide sur écran étroit au clavier seul) ; laissées D-003, D-007
+- ADR: ADR-0018 (acceptée) ; amendement F-005 d'ADR-0009 ; audit des ADR de main sorti dans la PR #8
+- Tests: 4237 tests sur 197 fichiers — état: verts — preuve: checks.txt (empreinte `d7e7ce6f3984`) ; bout en bout `bloc-code.spec.ts` et `glisser-deposer.spec.ts` verts en Chromium
+- Gates: passages 1 à 4 : SECURITY PASS et CRAFT PASS à chaque fois, reviewer-frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-036) ; passage 5 sur `d7e7ce6f3984` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
+- Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés 5 défauts réels et une vingtaine de points de structure · coût non mesuré

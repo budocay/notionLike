@@ -1,19 +1,28 @@
 // État de la barre de blocs flottante (F-003-AC41) : affichée tant que le focus est dans la zone
-// d'édition et que la sélection n'est pas vide, ou que le curseur est dans un bloc vide (tant que le
-// menu slash de F-005 n'est pas livré) ou dans un lien (F-028-AC7). Lire cet état n'écrit rien dans
-// le document.
+// d'édition et que la sélection n'est pas vide, ou que le curseur est dans un lien (F-028-AC7) ou
+// dans un bloc code, où elle porte le sélecteur de langage (F-005-AC1, AC6) ; depuis le menu slash
+// de F-005, plus dans un bloc vide (F-005 H11). Lire cet état n'écrit rien dans le document.
 import type { Editor } from "@tiptap/core";
 import { type FocusEvent, type RefObject, useEffect, useLayoutEffect, useState } from "react";
 
 import { type EtatDesMarques, etatDesMarques } from "./commandes-de-marque.ts";
+import { type Langage, langageAdmis } from "./langages.ts";
 import { lienCourant } from "./marques.ts";
 import { type Placement, placerLaBarre } from "./placement.ts";
-import { type TypeDeBloc, typeDuBlocCourant } from "./types-de-bloc.ts";
+import { BLOC_CODE, type TypeDeBloc } from "./commandes-de-bloc.ts";
+import { bornesLues, typeDuBlocCourant } from "./types-de-bloc.ts";
+
+/**
+ * Le langage du bloc code du curseur, comparé à la liste : `null` pour « Texte brut », valeur hors
+ * liste comprise (F-005-AC6, AC9) ; `undefined` hors d'un bloc code.
+ */
+export type LangageCourant = Langage | null | undefined;
 
 interface Lecture {
-  /** Vrai si la sélection appelle la barre : étendue, ou curseur dans un bloc vide ou un lien. */
+  /** Vrai si la sélection appelle la barre : étendue, ou curseur dans un lien ou un bloc code. */
   readonly appelee: boolean;
   readonly courant: TypeDeBloc | undefined;
+  readonly langage: LangageCourant;
   /** `undefined` tant qu'aucun éditeur n'est lu. */
   readonly marques: EtatDesMarques | undefined;
   /** Change à chaque transaction : la position se recalcule. */
@@ -25,6 +34,7 @@ export interface Barre {
   /** Vrai tant que le focus est dans la zone d'édition. */
   readonly focusDedans: boolean;
   readonly courant: TypeDeBloc | undefined;
+  readonly langage: LangageCourant;
   readonly marques: EtatDesMarques | undefined;
   readonly placement: Placement;
   readonly surFocus: () => void;
@@ -39,6 +49,7 @@ interface Reperes {
 const SANS_LECTURE: Lecture = {
   appelee: false,
   courant: undefined,
+  langage: undefined,
   marques: undefined,
   revision: 0,
 };
@@ -46,12 +57,15 @@ const A_L_ORIGINE: Placement = { gauche: 0, haut: 0 };
 const DEFILEMENTS = ["auto", "scroll"];
 
 function lire(editeur: Editor, revision: number): Lecture {
-  const { empty, $from } = editeur.state.selection;
-  const dansUnBlocVide = $from.parent.isTextblock && $from.parent.content.size === 0;
+  const { empty } = editeur.state.selection;
+  const { $from, $to } = bornesLues(editeur.state.selection);
   const dansUnLien = lienCourant(editeur.state) !== undefined;
+  // Toute la sélection, vide ou non, dans un même bloc code (F-005-AC6).
+  const dansUnBlocCode = $from.parent.type.name === BLOC_CODE && $from.sameParent($to);
   return {
-    appelee: !empty || dansUnBlocVide || dansUnLien,
+    appelee: !empty || dansUnLien || dansUnBlocCode,
     courant: typeDuBlocCourant(editeur),
+    langage: dansUnBlocCode ? langageAdmis($from.parent.attrs.language) : undefined,
     marques: etatDesMarques(editeur),
     revision,
   };
@@ -126,6 +140,7 @@ export function useBarre(editeur: Editor | null, reperes: Reperes): Barre {
     affichee,
     focusDedans,
     courant: lecture.courant,
+    langage: lecture.langage,
     marques: lecture.marques,
     placement,
     surFocus: () => setFocusDedans(true),

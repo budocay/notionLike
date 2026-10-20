@@ -4,11 +4,11 @@
 
 Dépôt distant : `git@github.com:budocay/notionLike.git`. Sur un clone neuf : `pnpm install --frozen-lockfile` et `git config core.hooksPath .githooks`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` porte dix-neuf features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028 (gras, italique, liens ; version 2 du document de page) et F-017 (modèle de table dans `packages/document`, ADR-0016 proposée ; fusion par la PR de la branche `F-017`). F-031 (pile Docker de travail en une commande : `pnpm -w pile preparer|demarrer|etat|arreter|accorder`, `pnpm -w fumee` à 17 constats, raisons des refus de configuration, ADR-0017 proposée) fusionnée (PR #6, `f6871c3`). F-006 (glisser-déposer des pages et des blocs, module `apps/web/src/glisser/` sur dnd-kit, ADR-0015 proposée) fusionnée par la PR de la branche `F-006`. En cours : F-005 (bloc code et commandes slash, version 3 du document de page, `../notionLike-F-005`) et F-018 (vue tableau, amendement d'ADR-0002 avant le code, `../notionLike-F-018`), veille et conception lancées. Depuis F-008, chaque feature est acceptée par dérogation du dev (D-014 à D-034) ; leurs restes sont dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` porte vingt features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006 et F-005 (bloc code et commandes slash, version 3 du document de page, ADR-0018 ; fusion par la PR de la branche `F-005`, gates tous verts au cinquième passage, sans dérogation). En cours : F-018 (vue tableau, `../notionLike-F-018`, blocs 1 et 2 commités, spec en brouillon après la retouche d'AC58) et F-032 (spec validée, `../notionLike-F-032`). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
 CI GitHub Actions en place depuis le 2026-10-16 (`.github/workflows/ci.yml`, PR #3) : `main` est protégée par un ruleset (PR obligatoire, merge commit seul, checks requis `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression, aucun contournement) ; squash, rebase et auto-merge désactivés. D-001 levée. Les hooks git restent la première barrière (règle 4) : les retirer demande l'accord du dev.
 
-ADR-0013 à 0019 et les amendements du 2026-10-16 (ADR-0001 à 0004, 0006, 0007 à 0009, 0012) sont au statut « proposé », à accepter par le dev.
+ADR acceptées le 2026-10-19 après correction de leurs écarts avec le code (PR #8 et F-005) : ADR-0013 à 0018 et les amendements du 2026-10-16. Restent « proposé » : ADR-0019 et l'amendement F-018 d'ADR-0002 (branche F-018), et l'amendement F-012 d'ADR-0002 (`meta` d'une autre nature, corrigé côté serveur dans F-018).
 
 Pour lancer l'application : `pnpm -w pile preparer` (une fois), `pnpm -w pile demarrer` (base, migration, serveur jusqu'à `/pret` 200), puis `pnpm --filter @notionlike/web dev` sur `http://127.0.0.1:5173` (Chromium ou Firefox ; Safari refuse le cookie `__Secure-` en http). Remise en accord du mot de passe d'un volume ancien : `pnpm -w pile accorder`, jamais `down -v`.
 
@@ -16,11 +16,10 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 
 ## Prochaine action prévue
 
-1. Le dev pousse la dérogation D-034 de F-006 (bloc donné, empreinte `35405d0fee2c`) ; l'orchestrateur ouvre la PR de `F-006` et la fusionne (merge commit, 4 checks verts).
-2. F-005 (`../notionLike-F-005`, veille `7d6dc96`, conception `52dc035`, ADR-0018 proposée) : intégrer `main` après F-006, puis le dev pose `.dependency-cruiser.cjs` (diff `dc-apres-F-006.diff` de la note) ; agent-frontend installe `@tiptap/extension-code-block@3.31.4 @tiptap/suggestion@3.31.4 @floating-ui/dom@1.8.0` et code par blocs (version 3 du document de page).
-3. F-018 (`../notionLike-F-018`, veille `55f1228`, conception `9f70f89`, ADR-0019 et amendement d'ADR-0002 proposés) : spec retouchée en brouillon (`f44d774`, AC57 et AC58 serveur et contrat, grille sans bibliothèque, saisie à la validation) ; le dev tranche `PageLue.type` absent pour une page (AC2) et la date effacée qui vide la cellule (AC30), puis revalide ; il commite `.dependency-cruiser.cjs` et `eslint.config.mjs` (annexe de la note). Intégrer `main` après F-006 avant le bloc 4.
-4. F-032 (part retirée de F-014, avant F-015, `../notionLike-F-032`, `10bae8f`) : spec en brouillon, 34 critères, lève D-009 ; le dev la valide (amendements de F-013, F-014, F-030, F-002 H1), tranche la confirmation au changement d'espace (H6), le stockage des noms d'espaces (H3) et l'ordre avec F-018 (par défaut après F-018). ROADMAP à jour sur cette branche.
-5. Puis F-015 (contrôle d'identité de présence, D-023), F-016. Décisions du dev en attente : ADR-0013 à 0019 et amendements du 2026-10-16 ; plancher de Compose (D-030) ; inscription réelle sur la pile (F-031-AC28, navigateur nommé) ; `hookTimeout` de 30 s dans `apps/web/vitest.config.ts` ; alléger le crochet `Stop` ; retrait des hooks git ; shellcheck dans `outils.env` (D-033) ; panneau d'administration.
+1. F-018 : le dev revalide la spec (retouche d'AC58 : aucune baisse de `meta.version`) ; intégrer `main` (avec F-005) dans `F-018` ; agent-frontend porte dans le paquet le refus symétrique des formes forgées (`meta` d'une autre nature, élément non compté dans `versions`, `lireFormeStockee` de `format-page.ts`), puis les blocs d'interface 3 à 8 de la note de conception.
+2. F-032 après F-018 (veille, conception, code) ; puis F-015 (contrôle d'identité de présence, D-023), F-016.
+3. Proposée par le dev le 2026-10-19, à spécifier sur son feu vert : F-033, coloration syntaxique et indentation du bloc code (lowlight, Tab et Maj+Tab, indentation reprise à Entrée), après F-005.
+4. Décisions du dev en attente : plancher de Compose (D-030) ; inscription réelle sur la pile (F-031-AC28, navigateur nommé) ; `hookTimeout` de 30 s dans `apps/web/vitest.config.ts` ; alléger le crochet `Stop` ; retrait des hooks git ; shellcheck dans `outils.env` (D-033) ; panneau d'administration ; déplacement d'un bloc vide sur écran étroit (D-037).
 
 ## Dettes ouvertes
 
@@ -39,6 +38,8 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 - D-025, D-026, D-029, D-034 F-028, F-017, F-031, F-006 acceptées par dérogation du dev après un tour de correctifs (relecteurs non rejoués, architecture non lancée) — restes dans `MEMORY/features/<F-id>.md`.
 - D-027 Clé (colonne, option, ligne) à unité UTF-16 isolée forgée par un pair non normalisée : la réplique d'origine lit la clé brute, les autres U+FFFD — depuis F-017 — même défaut sur les titres de page de F-001.
 - D-028 Erreur non gérée intermittente sous charge dans `apps/server/test/synchro-document.test.ts` (`fermerLesClients` ferme une WebSocket avant sa connexion) — constatée le 2026-10-16 par le crochet `Stop`, tests tous verts.
+- D-036 F-005 reprise par le dev après trois rejets de reviewer-frontend et d'agent-architecte (`42c640f`) ; levée : gates tous verts au passage suivant.
+- D-037 Sur écran étroit (pas de poignée), un bloc vide ne se déplace qu'au clavier — depuis F-006, constaté par F-005 — afficher la barre sans sélection contredirait F-005-AC6 : retouche de spec à décider.
 - D-035 dnd-kit, ancienne famille (`@dnd-kit/core` 6.3.1) sans publication depuis décembre 2024 — depuis F-006 — confinée dans `apps/web/src/glisser/` (ADR-0015).
 - D-030 Compose 2.24.0 à 2.24.3 admises par `pile.sh` sans preuve de `!reset` et `--progress quiet` (seule la 5.6.0 essayée) — depuis F-031 — garde du volume en place ; plancher à trancher par le dev.
 - D-031 `PGPASSWORD` dans l'environnement du client `docker` le temps de l'épreuve du mot de passe (CWE-214) — depuis F-031.
@@ -47,7 +48,7 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 
 ## État des contrôles / gates
 
-Les verdicts font foi dans `MEMORY/gates.log` ; le déroulé de chaque feature dans `PROJECT_LOG.md`. Dernières : F-028 (D-025), F-017 (D-026), F-031 (D-029), F-006 (D-034), chacune avec craft PASS sur son empreinte finale et `RESULTAT GATES: OK` avant fusion. CI verte sur chaque PR depuis la #3. Après F-006 : 173 fichiers, 3585 tests sur sa branche. Fumée Docker : OK sur `main` `07b2163` (constats 1 à 11), puis `FUMEE: OK (constats 1 à 17)` par le dev sur F-031. Bout en bout complet : seul F-004-AC50 (débordement à 360 px, D-020) échoue, déjà avant F-006.
+Les verdicts font foi dans `MEMORY/gates.log` ; le déroulé de chaque feature dans `PROJECT_LOG.md`. F-005 : cinq passages ; au dernier (`d7e7ce6f3984`) reviewer-frontend APPROVED, sécurité, architecture et craft PASS, sans dérogation ; 197 fichiers, 4237 tests ; bout en bout `bloc-code.spec.ts` et `glisser-deposer.spec.ts` verts en Chromium. Avant : F-028 (D-025), F-017 (D-026), F-031 (D-029), F-006 (D-034) par dérogation. CI verte sur chaque PR depuis la #3. Fumée Docker : `FUMEE: OK (constats 1 à 17)` par le dev sur F-031.
 
 ## Pièges actifs
 

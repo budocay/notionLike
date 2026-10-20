@@ -33,6 +33,7 @@ import {
 import {
   BarreDeBlocs,
   CorpsDePage,
+  MenuDeCommandes,
   NoteDePage,
   PanneauDeLien,
   PoigneeDeBloc,
@@ -54,6 +55,7 @@ import {
   AFFICHER_LES_PAGES_INTERMEDIAIRES,
   AJOUTER_UNE_SOUS_PAGE,
   AVERTISSEMENT_BASE_NON_RELUE,
+  AUCUNE_COMMANDE,
   AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   DEPLACER_LE_BLOC,
@@ -68,6 +70,7 @@ import {
   NOM_APPLICATION,
   NOM_BARRE_LATERALE,
   NOM_DE_LA_BARRE_DE_BLOCS,
+  NOM_DU_MENU_SLASH,
   NOM_DU_TIROIR,
   NOM_FIL_D_ARIANE,
   nomActionsDeLaPage,
@@ -98,6 +101,10 @@ import {
   type PageFictive,
   TITRE_LONG,
   COMMANDES_DE_BLOC_FICTIVES,
+  OPTIONS_DU_MENU_FICTIVES,
+  POSITION_DU_MENU_FICTIVE,
+  RANG_DU_SELECTEUR_FICTIF,
+  SELECTEUR_DE_LANGAGE_FICTIF,
   PANNEAU_DE_LIEN_FICTIF,
   POSITION_DE_BARRE_FICTIVE,
 } from "./donnees.ts";
@@ -461,6 +468,7 @@ function SectionEditeur(): ReactElement {
         </div>
       </Specimen>
       <SpecimenDuPanneauDeLien />
+      <SpecimenDuMenuSlash />
       <SpecimenDesPoignees />
       <Specimen etiquette="Page d'une version plus récente">
         <div className={PAGE.fondZone}>
@@ -492,6 +500,46 @@ function SpecimenDuPanneauDeLien(): ReactElement {
               surValidation={sansEffet}
               surRetrait={sansEffet}
               surAbandon={sansEffet}
+            />
+          </ZoneDEdition>
+        </CorpsDePage>
+      </div>
+    </Specimen>
+  );
+}
+
+// Bloc code, sélecteur de langage et menu slash ouvert après « /tit » (F-005-AC6, AC8, AC12). Le
+// menu, posé dans la fenêtre, l'est ici dans l'aperçu, qui lui sert de repère.
+function SpecimenDuMenuSlash(): ReactElement {
+  return (
+    <Specimen etiquette="Bloc code, sélecteur de langage et menu slash">
+      <div className={PAGE.apercuDuMenu}>
+        <CorpsDePage>
+          <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+            <ZoneDeSaisie>
+              <pre>
+                <code>{"def bonjour():\n    return 1"}</code>
+              </pre>
+              <p>/tit</p>
+            </ZoneDeSaisie>
+            <BarreDeBlocs
+              nom={NOM_DE_LA_BARRE_DE_BLOCS}
+              commandes={COMMANDES_DE_BLOC_FICTIVES.map((commande) => ({
+                ...commande,
+                surActivation: sansEffet,
+              }))}
+              selecteur={SELECTEUR_DE_LANGAGE_FICTIF}
+              rangDuSelecteur={RANG_DU_SELECTEUR_FICTIF}
+              position={POSITION_DE_BARRE_FICTIVE}
+              surAbandon={sansEffet}
+            />
+            <MenuDeCommandes
+              id="menu-slash-fictif"
+              nom={NOM_DU_MENU_SLASH}
+              vide={AUCUNE_COMMANDE}
+              options={OPTIONS_DU_MENU_FICTIVES}
+              position={POSITION_DU_MENU_FICTIVE}
+              surChoix={sansEffet}
             />
           </ZoneDEdition>
         </CorpsDePage>
