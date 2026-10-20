@@ -3,7 +3,7 @@
 // liste (F-005-AC9, AC35). Le langage n'est jamais tiré d'un HTML collé ou déposé, ni des données
 // d'un éditeur de code (F-005-AC7, AC36).
 import { type Editor, textblockTypeInputRule } from "@tiptap/core";
-import { backtickInputRegex, CodeBlock, tildeInputRegex } from "@tiptap/extension-code-block";
+import { CodeBlock } from "@tiptap/extension-code-block";
 import type { Node as NoeudProseMirror, NodeType } from "@tiptap/pm/model";
 import {
   type EditorState,
@@ -21,6 +21,9 @@ import { BLOC_CODE } from "./commandes-de-bloc.ts";
 import { estAppliqueeDepuisYjs } from "./liaison.ts";
 
 const ATTRIBUT_DU_LANGAGE = "language";
+// Trois accents graves ou tildes, un identifiant facultatif sans espace, puis l'espace (F-005-AC2) :
+// celles de l'extension n'admettent que `[a-z]+`, et « ```JS », « ```c++ » restaient du texte.
+const OUVERTURES_DU_BLOC_CODE = [/^```(\S+)?\s$/, /^~~~(\S+)?\s$/];
 const PREFIXE_DE_LA_CLASSE = "language-";
 const DONNEES_D_UN_EDITEUR_DE_CODE = "vscode-editor-data";
 
@@ -249,7 +252,7 @@ export const BlocCode = CodeBlock.extend({
 
   addInputRules() {
     // F-005-AC2, AC35 : un identifiant hors de la liste donne un bloc sans langage.
-    return [backtickInputRegex, tildeInputRegex].map((find) =>
+    return OUVERTURES_DU_BLOC_CODE.map((find) =>
       textblockTypeInputRule({
         find,
         type: this.type,

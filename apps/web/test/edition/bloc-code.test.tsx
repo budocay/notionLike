@@ -194,7 +194,12 @@ describe("règle de saisie du bloc code", () => {
     ["``` ", {}],
     ["```python ", { language: "python" }],
     ["```zz ", {}],
+    // Hors de la liste, majuscule, signe ou chiffre compris : un bloc sans langage.
+    ["```JS ", {}],
+    ["```c++ ", {}],
+    ["```py3 ", {}],
     ["~~~json ", { language: "json" }],
+    ["~~~C# ", {}],
   ])(
     "F-005-AC2 « %s » en tête d'un paragraphe vide donne un bloc code, sans la séquence, au langage de la liste ou sans langage",
     (sequence, attributs) => {
