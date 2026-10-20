@@ -10,7 +10,7 @@ import { type Langage, langageAdmis } from "./langages.ts";
 import { lienCourant } from "./marques.ts";
 import { type Placement, placerLaBarre } from "./placement.ts";
 import { BLOC_CODE, type TypeDeBloc } from "./commandes-de-bloc.ts";
-import { typeDuBlocCourant } from "./types-de-bloc.ts";
+import { bornesLues, typeDuBlocCourant } from "./types-de-bloc.ts";
 
 /**
  * Le langage du bloc code du curseur, comparé à la liste : `null` pour « Texte brut », valeur hors
@@ -57,7 +57,8 @@ const A_L_ORIGINE: Placement = { gauche: 0, haut: 0 };
 const DEFILEMENTS = ["auto", "scroll"];
 
 function lire(editeur: Editor, revision: number): Lecture {
-  const { empty, $from, $to } = editeur.state.selection;
+  const { empty } = editeur.state.selection;
+  const { $from, $to } = bornesLues(editeur.state.selection);
   const dansUnLien = lienCourant(editeur.state) !== undefined;
   // Toute la sélection, vide ou non, dans un même bloc code (F-005-AC6).
   const dansUnBlocCode = $from.parent.type.name === BLOC_CODE && $from.sameParent($to);

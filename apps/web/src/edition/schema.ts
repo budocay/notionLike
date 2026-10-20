@@ -23,6 +23,7 @@ import { marquesDeLEditeur, type OptionsDesMarques } from "./marques.ts";
 import { menuSlash, type OptionsDuMenu } from "./menu-slash.ts";
 import { selectionDuNavigateur } from "./selection-du-navigateur.ts";
 import { BLOC_CODE, NIVEAUX_DE_TITRE } from "./commandes-de-bloc.ts";
+import { bornesLues } from "./types-de-bloc.ts";
 
 // `**texte**` et `*texte*` (F-028-AC3) : « texte » non vide, sans espace en tête ni en fin. Les
 // règles des extensions marquent aussi ` texte` et `texte ` : elles sont remplacées. Les variantes
@@ -52,7 +53,7 @@ const Italique = Italic.extend({
 });
 
 function dansUnBlocCode(editeur: Editor): boolean {
-  return editeur.state.selection.$from.parent.type.name === BLOC_CODE;
+  return bornesLues(editeur.state.selection).$from.parent.type.name === BLOC_CODE;
 }
 
 // Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3) et Tab ne

@@ -3,7 +3,7 @@
 // aucune n'est appliquée sans avoir été jugée, à blanc, sur l'état courant (F-005-AC11).
 import { type ChainedCommands, CommandManager, type Editor } from "@tiptap/core";
 import type { Node as NoeudProseMirror, NodeType, ResolvedPos } from "@tiptap/pm/model";
-import { EditorState, Selection, type Transaction } from "@tiptap/pm/state";
+import { EditorState, Selection, TextSelection, type Transaction } from "@tiptap/pm/state";
 
 import {
   BLOC_CODE,
@@ -46,9 +46,31 @@ function typeA($from: ResolvedPos): TypeDeBloc | undefined {
   return estUnNiveauDeTitre(niveau) ? { forme: "titre", niveau } : undefined;
 }
 
+interface Bornes {
+  readonly $from: ResolvedPos;
+  readonly $to: ResolvedPos;
+}
+
+/**
+ * Les bornes que la barre, le menu et les commandes lisent : celles d'une sélection de texte, ou,
+ * pour une sélection de nœud (la poignée du curseur dans un bloc vide) ou de tout le document
+ * (Mod+A), qui commencent à la profondeur 0, celles du texte qu'elle couvre, du premier bloc de
+ * texte au dernier. Une sélection qui ne couvre aucun bloc de texte garde les siennes.
+ */
+export function bornesLues(selection: Selection): Bornes {
+  if (selection instanceof TextSelection) {
+    return selection;
+  }
+  const debut = Selection.findFrom(selection.$from, 1, true);
+  const fin = Selection.findFrom(selection.$to, -1, true);
+  return debut === null || fin === null || debut.from > selection.to || fin.to < selection.from
+    ? selection
+    : { $from: debut.$from, $to: fin.$to };
+}
+
 /** `undefined` : un bloc que la barre ne sait pas nommer (titre d'un niveau hors de 1 à 3). */
 export function typeDuBlocCourant(editeur: Editor): TypeDeBloc | undefined {
-  return typeA(editeur.state.selection.$from);
+  return typeA(bornesLues(editeur.state.selection).$from);
 }
 
 /** Les listes qui contiennent cette position, de la plus extérieure à la plus proche. */
@@ -190,13 +212,27 @@ interface Composition {
 }
 
 /**
+ * L'état d'où part la composition : une sélection de nœud ou de tout le document y devient la
+ * sélection du texte qu'elle couvre, que les commandes de liste savent lire ; le bloc changé, le
+ * curseur reste dans son texte, où l'on tape aussitôt.
+ */
+function etatDeDepart(etat: EditorState): EditorState {
+  const { $from, $to } = bornesLues(etat.selection);
+  if ($from === etat.selection.$from && $to === etat.selection.$to) {
+    return etat;
+  }
+  const selection = TextSelection.between($from, $to);
+  return EditorState.create({ schema: etat.schema, doc: etat.doc, selection });
+}
+
+/**
  * Compose le type, après le retrait de l'étendue, sur des états successifs : chaque étape part
  * d'une transaction neuve, comme les commandes de ProseMirror le supposent (une commande qui
  * suivrait une autre dans la même transaction lirait des positions décalées), et rien n'est envoyé.
  * `undefined` si une étape est refusée : c'est le jugement à blanc de F-005-AC11.
  */
 function composer(editeur: Editor, type: TypeDeBloc, retrait?: Retrait): Composition | undefined {
-  let etat = editeur.state;
+  let etat = etatDeDepart(editeur.state);
   const transactions: Transaction[] = [];
   const avancer = (etape: Etape): boolean => {
     const tr = etat.tr;
