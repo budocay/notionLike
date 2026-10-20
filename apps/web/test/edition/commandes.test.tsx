@@ -52,12 +52,14 @@ interface CommandeDonnee {
  * Le contrôle de F-005-AC21 : chaque type de bloc a une commande dans la barre et dans le menu, et
  * aucune commande ne donne un nœud absent du schéma. Rend une faute par écart, vide si tout tient.
  */
-function fautesDeLaListe(
-  types: readonly string[],
-  noeudsDuSchema: readonly string[],
-  liste: readonly CommandeDonnee[],
-  affichees: { readonly barre: readonly string[]; readonly menu: readonly string[] },
-): string[] {
+interface ListeAJuger {
+  readonly types: readonly string[];
+  readonly noeudsDuSchema: readonly string[];
+  readonly liste: readonly CommandeDonnee[];
+  readonly affichees: { readonly barre: readonly string[]; readonly menu: readonly string[] };
+}
+
+function fautesDeLaListe({ types, noeudsDuSchema, liste, affichees }: ListeAJuger): string[] {
   const sansCommande = types.flatMap((type) => {
     const noms = liste.filter((une) => une.noeud === type).map((une) => une.nom);
     if (noms.length === 0) {
@@ -111,7 +113,14 @@ describe("une seule liste de commandes", () => {
     const noms = LISTE_DES_COMMANDES.map((une) => une.nom);
     expect(barre).toEqual(noms);
     expect(menu).toEqual(noms);
-    expect(fautesDeLaListe(TYPES_DE_LA_TABLE, noeudsDuSchema, liste, { barre, menu })).toEqual([]);
+    expect(
+      fautesDeLaListe({
+        types: TYPES_DE_LA_TABLE,
+        noeudsDuSchema,
+        liste,
+        affichees: { barre, menu },
+      }),
+    ).toEqual([]);
     expect([...new Set(liste.map((une) => une.noeud))].sort()).toEqual(
       [...TYPES_DE_LA_TABLE].sort(),
     );
@@ -123,42 +132,47 @@ describe("une seule liste de commandes", () => {
       { nom: "Titre 1", noeud: "heading" },
       { nom: "Bloc code", noeud: "codeBlock" },
     ];
+    const TROIS = ["paragraph", "heading", "codeBlock"];
     const toutes = {
       barre: ["Paragraphe", "Titre 1", "Bloc code"],
       menu: ["Paragraphe", "Titre 1", "Bloc code"],
     };
 
     expect(
-      fautesDeLaListe(
-        ["paragraph", "heading", "codeBlock"],
-        ["paragraph", "heading", "codeBlock"],
-        liste,
-        toutes,
-      ),
+      fautesDeLaListe({ types: TROIS, noeudsDuSchema: TROIS, liste, affichees: toutes }),
     ).toEqual([]);
     expect(
-      fautesDeLaListe(
-        ["paragraph", "blocFutur"],
-        ["paragraph", "heading", "codeBlock"],
+      fautesDeLaListe({
+        types: ["paragraph", "blocFutur"],
+        noeudsDuSchema: TROIS,
         liste,
-        toutes,
-      ),
+        affichees: toutes,
+      }),
     ).toEqual(["blocFutur : aucune commande"]);
     expect(
-      fautesDeLaListe(["codeBlock"], ["paragraph", "heading", "codeBlock"], liste, {
-        barre: ["Paragraphe"],
-        menu: ["Bloc code"],
+      fautesDeLaListe({
+        types: ["codeBlock"],
+        noeudsDuSchema: TROIS,
+        liste,
+        affichees: { barre: ["Paragraphe"], menu: ["Bloc code"] },
       }),
     ).toEqual(["codeBlock : aucune commande dans la barre"]);
     expect(
-      fautesDeLaListe(["codeBlock"], ["paragraph", "heading", "codeBlock"], liste, {
-        barre: ["Bloc code"],
-        menu: [],
+      fautesDeLaListe({
+        types: ["codeBlock"],
+        noeudsDuSchema: TROIS,
+        liste,
+        affichees: { barre: ["Bloc code"], menu: [] },
       }),
     ).toEqual(["codeBlock : aucune commande dans le menu"]);
-    expect(fautesDeLaListe([], ["paragraph", "heading"], liste, toutes)).toEqual([
-      "Bloc code : codeBlock absent du schéma",
-    ]);
+    expect(
+      fautesDeLaListe({
+        types: [],
+        noeudsDuSchema: ["paragraph", "heading"],
+        liste,
+        affichees: toutes,
+      }),
+    ).toEqual(["Bloc code : codeBlock absent du schéma"]);
   });
 
   it("F-005-AC14 le filtre, fonction pure, garde l'ordre d'origine et ignore la casse et les accents", () => {

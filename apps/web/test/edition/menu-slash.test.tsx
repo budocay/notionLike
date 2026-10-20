@@ -5,7 +5,10 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
+import { lireVersionPage } from "@notionlike/document";
+
 import { bloc, contenuLu, documentForge, miseAJourDUneReplique } from "../aides-facade-page.ts";
+import { documentDeLaLigne } from "../aides-lignes.ts";
 import {
   attributDeLEditeur,
   blocDuCurseur,
@@ -257,6 +260,47 @@ describe("navigation et application", () => {
       "<bulletlist><listitem><paragraph>/</paragraph></listitem></bulletlist>",
     );
     expect(emises.length - avant).toBe(1);
+    expect(menuSlash()).toBeNull();
+  });
+  it("F-005-AC16 une Entrée qui valide une composition (méthode de saisie) n'est pas au menu : la commande active n'est pas appliquée", async () => {
+    const { doc } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("/ti");
+    await laisserLeMenuSuivre();
+
+    presser("Enter", { isComposing: true });
+    await laisserLeMenuSuivre();
+
+    expect(contenuLu(doc)).not.toContain("heading");
+    expect(contenuLu(doc)).toContain("/ti");
+  });
+
+  it("F-005-AC16 F-005-AC25 sur un document de version 2, « Bloc code » par le menu donne deux mises à jour Yjs : la version d'abord, puis le bloc code", async () => {
+    const { doc, emises } = monterLEditeur(documentDeLaLigne(2));
+    entrerDansLEditeur();
+    placerLeCurseurApres("gras de la ligne 2");
+    presser("Enter");
+    taper("/cod");
+    await laisserLeMenuSuivre();
+    const depart = Y.encodeStateAsUpdate(doc);
+    const avant = emises.length;
+
+    presser("Enter");
+    await laisserLeMenuSuivre();
+
+    const rejoue = new Y.Doc();
+    Y.applyUpdate(rejoue, depart);
+    const lectures = emises.slice(avant).map((miseAJour) => {
+      Y.applyUpdate(rejoue, miseAJour);
+      return {
+        blocCode: contenuLu(rejoue).includes("codeblock"),
+        version: lireVersionPage(rejoue),
+      };
+    });
+    expect(lectures).toEqual([
+      { blocCode: false, version: 3 },
+      { blocCode: true, version: 3 },
+    ]);
     expect(menuSlash()).toBeNull();
   });
 });

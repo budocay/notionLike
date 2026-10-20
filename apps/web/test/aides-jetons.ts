@@ -1,7 +1,8 @@
 // Contrôles statiques du fichier des jetons (F-004-AC1, AC2, AC4, AC5, AC7 à AC9, AC12, AC13, AC18,
-// AC41, AC46, AC47 ; police à chasse fixe de F-005 H15). Chaque contrôle reçoit le texte d'un fichier des jetons et rend la liste des fautes,
-// chacune nommant le jeton et la valeur en cause : une liste vide vaut conformité. Ils lisent les
-// sources, jamais la feuille compilée, qui réécrit les valeurs (H7).
+// AC41, AC46, AC47 ; police à chasse fixe de F-005 H15). Chaque contrôle reçoit le texte d'un
+// fichier des jetons et rend la liste des fautes, chacune nommant le jeton et la valeur en cause :
+// une liste vide vaut conformité. Ils lisent les sources, jamais la feuille compilée, qui réécrit
+// les valeurs (H7).
 import {
   contraste,
   couleurDe,

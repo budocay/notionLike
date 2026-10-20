@@ -38,6 +38,24 @@ interface Etendue {
   readonly a: number;
 }
 
+/**
+ * Reporte une position laissée par le pas `indice` de la transaction `rang` jusqu'au document
+ * final : par les pas qui le suivent, puis par les transactions suivantes.
+ */
+function versLeDocumentFinal(
+  transactions: readonly Transaction[],
+  rang: number,
+  indice: number,
+): (position: number, cote: number) => number {
+  const apres = transactions[rang]?.mapping.slice(indice + 1);
+  const suivantes = transactions.slice(rang + 1);
+  return (position, cote) =>
+    suivantes.reduce(
+      (ici, une) => une.mapping.map(ici, cote),
+      apres?.map(position, cote) ?? position,
+    );
+}
+
 /** Les étendues inscrites par ces transactions locales, et les positions des attributs posés. */
 function inscriptionsLocales(transactions: readonly Transaction[]): {
   readonly etendues: Etendue[];
@@ -49,11 +67,8 @@ function inscriptionsLocales(transactions: readonly Transaction[]): {
     if (estAppliqueeDepuisYjs(transaction) || !transaction.docChanged) {
       return;
     }
-    const suivantes = transactions.slice(rang + 1);
     transaction.steps.forEach((etape, indice) => {
-      const apres = transaction.mapping.slice(indice + 1);
-      const finale = (position: number, cote: number): number =>
-        suivantes.reduce((ici, une) => une.mapping.map(ici, cote), apres.map(position, cote));
+      const finale = versLeDocumentFinal(transactions, rang, indice);
       if (etape instanceof AttrStep && etape.attr === ATTRIBUT_DU_LANGAGE) {
         attributs.push(finale(etape.pos, 1));
       }

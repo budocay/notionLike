@@ -1,6 +1,6 @@
 // Schéma fermé du document de page, dernière ligne de la table des versions (F-003-AC22, H2 ;
-// F-028-AC19 ; F-005-AC23) : paquets unitaires, sans kit de départ, qui s'élargirait en silence. L'annulation est
-// celle de la liaison Yjs : elle ne défait que les modifications locales (H9).
+// F-028-AC19 ; F-005-AC23) : paquets unitaires, sans kit de départ, qui s'élargirait en silence.
+// L'annulation est celle de la liaison Yjs : elle ne défait que les modifications locales (H9).
 import { type Editor, type Extensions, markInputRule } from "@tiptap/core";
 import { Bold, underscoreInputRegex as SOULIGNES_DU_GRAS } from "@tiptap/extension-bold";
 import { Collaboration } from "@tiptap/extension-collaboration";

@@ -114,13 +114,17 @@ interface ReponseALaTouche {
  * Entrée applique la commande active ; avec « Aucune commande », Entrée ne fait rien : ni coupure,
  * ni mise à jour, le menu reste ouvert et la séquence dans le texte (AC11, AC18, H16). Menu ouvert,
  * ces touches sont les siennes, avec ou sans modificateur : le module d'édition ne lit aucun
- * modificateur d'une frappe (F-004-AC31).
+ * modificateur d'une frappe (F-004-AC31). Une frappe qui valide une composition (méthode de
+ * saisie) reste à la composition.
  */
 function reponseALaTouche(
   commandes: readonly CommandeDeType[],
   active: number,
   evenement: KeyboardEvent,
 ): ReponseALaTouche {
+  if (evenement.isComposing) {
+    return { traitee: false };
+  }
   const pas = PAS_DES_FLECHES[evenement.key];
   if (pas !== undefined) {
     const nombre = commandes.length;

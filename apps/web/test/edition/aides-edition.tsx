@@ -176,6 +176,8 @@ interface Modificateurs {
   readonly shiftKey?: boolean;
   readonly ctrlKey?: boolean;
   readonly altKey?: boolean;
+  /** La frappe valide une composition en cours (éditeur de méthode de saisie). */
+  readonly isComposing?: boolean;
 }
 
 /** Envoie une touche à l'élément qui a le focus ; rend vrai si elle a été traitée. */
@@ -744,9 +746,11 @@ const COMMANDES_DU_BLOC_CODE = {
 
 export function appelerUneCommandeDuBlocCode(
   nom: keyof typeof COMMANDES_DU_BLOC_CODE,
-  langage: unknown,
+  /** Une valeur forgée : une chaîne de la liste ou non, un nombre, ou aucun langage. */
+  langage: string | number | null,
 ): boolean {
   const { commands } = editeurMonte();
+  // La commande type le langage en chaîne : la valeur forgée passe outre, comme un appel direct.
   const attributs = { language: langage as string };
   let rendu = false;
   act(() => {
