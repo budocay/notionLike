@@ -230,7 +230,11 @@ export function TexteDeCellule({ texte }: { readonly texte: string }): ReactElem
   return <span className={TABLE.texte}>{texte}</span>;
 }
 
-/** Case d'une cellule `case` : cochée par Espace sur la cellule ou par un clic, sans mode édition. */
+/**
+ * Case d'une cellule `case` : cochée par Espace sur la cellule ou par un clic, sans mode édition. La
+ * case ne garde pas le focus qu'un clic lui donne : il revient à sa cellule, qui devient la cellule
+ * courante, et les flèches en partent (tabindex itinérant, AC33).
+ */
 export function CaseDeCellule(props: {
   readonly nom: string;
   readonly cochee: boolean;
@@ -246,6 +250,9 @@ export function CaseDeCellule(props: {
       checked={props.cochee}
       disabled={props.raison !== undefined}
       onChange={props.surBascule}
+      onFocus={(evenement) =>
+        evenement.currentTarget.closest<HTMLElement>('[role="gridcell"]')?.focus()
+      }
     />
   );
 }

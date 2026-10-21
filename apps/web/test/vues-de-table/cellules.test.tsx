@@ -145,6 +145,19 @@ describe("case à cocher (F-018-AC29)", () => {
     expect(valeurs(table)[2]).toBe(false);
     expect(emises).toHaveLength(2);
   });
+
+  it("F-018-AC29 F-018-AC33 un clic sur la case rend sa cellule courante : le focus est sur la cellule, les flèches en partent", async () => {
+    const { table, utilisateur } = rendreLaTable(uneDeChaque);
+    cellule(2, 2).focus();
+    await utilisateur.click(screen.getByRole("checkbox", { name: "Fait, ligne 1" }));
+
+    expect(valeurs(table)[2]).toBe(true);
+    expect(focus()).toBe(cellule(2, 4));
+    expect(cellule(2, 4).tabIndex).toBe(0);
+    expect(cellule(2, 2).tabIndex).toBe(-1);
+    await utilisateur.keyboard("{ArrowRight}");
+    expect(focus()).toBe(cellule(2, 5));
+  });
 });
 
 describe("saisie d'une date (F-018-AC30)", () => {
