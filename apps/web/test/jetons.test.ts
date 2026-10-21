@@ -168,7 +168,7 @@ describe("fichier des jetons : couleurs", () => {
 
   it("F-004-AC7 chaque texte réel tient 4,5 pour 1 sur chaque surface réelle", () => {
     const liste = couples(jetons, "texte");
-    expect(liste.length).toBe(5 * 7);
+    expect(liste.length).toBe(12 * 7);
     for (const { premier, surface, rapport } of liste) {
       expect(rapport, `${premier} sur ${surface}`).toBeGreaterThanOrEqual(CONTRASTE_TEXTE);
     }

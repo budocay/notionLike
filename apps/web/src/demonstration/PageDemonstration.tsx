@@ -51,6 +51,7 @@ import {
 } from "../interface/composants/Espaces.tsx";
 import {
   BarreDeBlocs,
+  CodeColore,
   CorpsDePage,
   MenuDeCommandes,
   NoteDePage,
@@ -74,7 +75,10 @@ import {
   AFFICHER_LES_PAGES_INTERMEDIAIRES,
   AJOUTER_UNE_SOUS_PAGE,
   AVERTISSEMENT_BASE_NON_RELUE,
+  AIDE_DU_BLOC_CODE,
   AUCUNE_COMMANDE,
+  COLORATION_DESACTIVEE_LIGNE,
+  NOMS_DES_LANGAGES,
   AVERTISSEMENT_NON_ENREGISTRE,
   CHARGEMENT,
   DEPLACER_LE_BLOC,
@@ -120,6 +124,7 @@ import {
   type PageFictive,
   TITRE_LONG,
   COMMANDES_DE_BLOC_FICTIVES,
+  ECHANTILLONS_DE_CODE,
   OPTIONS_DU_MENU_FICTIVES,
   POSITION_DU_MENU_FICTIVE,
   RANG_DU_SELECTEUR_FICTIF,
@@ -566,6 +571,50 @@ function SpecimenDuMenuSlash(): ReactElement {
         </CorpsDePage>
       </div>
     </Specimen>
+  );
+}
+
+// Coloration du bloc code (F-033-AC14) : un bloc de chacun des dix langages, les sept rôles portés
+// à eux tous, pour juger les couleurs ; puis la barre d'un bloc code, avec l'aide de la sortie au
+// clavier et la mention d'une ligne trop longue (F-033-AC9, AC23).
+function SectionColoration(): ReactElement {
+  return (
+    <Section titre="Coloration du bloc code">
+      {ECHANTILLONS_DE_CODE.map(({ langage, portions }) => (
+        <Specimen key={langage} etiquette={NOMS_DES_LANGAGES[langage]}>
+          <div className={PAGE.fondZone}>
+            <CorpsDePage>
+              <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+                <ZoneDeSaisie>
+                  <CodeColore portions={portions} />
+                </ZoneDeSaisie>
+              </ZoneDEdition>
+            </CorpsDePage>
+          </div>
+        </Specimen>
+      ))}
+      <Specimen etiquette="Barre de blocs d'un bloc code : aide et mention">
+        <div className={PAGE.fondZone}>
+          <CorpsDePage>
+            <ZoneDEdition surFocus={sansEffet} surPerteDeFocus={sansEffet} surTouche={sansEffet}>
+              <BarreDeBlocs
+                nom={NOM_DE_LA_BARRE_DE_BLOCS}
+                commandes={COMMANDES_DE_BLOC_FICTIVES.map((commande) => ({
+                  ...commande,
+                  surActivation: sansEffet,
+                }))}
+                selecteur={SELECTEUR_DE_LANGAGE_FICTIF}
+                rangDuSelecteur={RANG_DU_SELECTEUR_FICTIF}
+                aide={{ id: "aide-du-bloc-code-fictive", texte: AIDE_DU_BLOC_CODE }}
+                mention={COLORATION_DESACTIVEE_LIGNE}
+                position={POSITION_DE_BARRE_FICTIVE}
+                surAbandon={sansEffet}
+              />
+            </ZoneDEdition>
+          </CorpsDePage>
+        </div>
+      </Specimen>
+    </Section>
   );
 }
 
@@ -1114,6 +1163,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionBarreDuHaut />
       <SectionTiroir />
       <SectionEditeur />
+      <SectionColoration />
       <SectionEtats />
       <SectionReprise />
       <SectionCommandes />

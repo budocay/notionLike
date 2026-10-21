@@ -5,6 +5,7 @@
 import type { Editor } from "@tiptap/core";
 import { type FocusEvent, type RefObject, useEffect, useLayoutEffect, useState } from "react";
 
+import { type RaisonSansColoration, raisonSansColoration } from "./colorable.ts";
 import { type EtatDesMarques, etatDesMarques } from "./commandes-de-marque.ts";
 import { type Langage, langageAdmis } from "./langages.ts";
 import { lienCourant } from "./marques.ts";
@@ -23,6 +24,11 @@ interface Lecture {
   readonly appelee: boolean;
   readonly courant: TypeDeBloc | undefined;
   readonly langage: LangageCourant;
+  /**
+   * Pourquoi le bloc code de la sélection, d'un langage de la liste, n'est pas coloré (F-033-AC9) ;
+   * `undefined` s'il l'est, ou hors d'un tel bloc.
+   */
+  readonly sansColoration: RaisonSansColoration | undefined;
   /** `undefined` tant qu'aucun éditeur n'est lu. */
   readonly marques: EtatDesMarques | undefined;
   /** Change à chaque transaction : la position se recalcule. */
@@ -35,6 +41,7 @@ export interface Barre {
   readonly focusDedans: boolean;
   readonly courant: TypeDeBloc | undefined;
   readonly langage: LangageCourant;
+  readonly sansColoration: RaisonSansColoration | undefined;
   readonly marques: EtatDesMarques | undefined;
   readonly placement: Placement;
   readonly surFocus: () => void;
@@ -50,6 +57,7 @@ const SANS_LECTURE: Lecture = {
   appelee: false,
   courant: undefined,
   langage: undefined,
+  sansColoration: undefined,
   marques: undefined,
   revision: 0,
 };
@@ -62,10 +70,15 @@ function lire(editeur: Editor, revision: number): Lecture {
   const dansUnLien = lienCourant(editeur.state) !== undefined;
   // Toute la sélection, vide ou non, dans un même bloc code (F-005-AC6).
   const dansUnBlocCode = $from.parent.type.name === BLOC_CODE && $from.sameParent($to);
+  const langage = dansUnBlocCode ? langageAdmis($from.parent.attrs.language) : undefined;
   return {
     appelee: !empty || dansUnLien || dansUnBlocCode,
     courant: typeDuBlocCourant(editeur),
-    langage: dansUnBlocCode ? langageAdmis($from.parent.attrs.language) : undefined,
+    langage,
+    sansColoration:
+      langage === undefined || langage === null
+        ? undefined
+        : raisonSansColoration($from.parent.textContent),
     marques: etatDesMarques(editeur),
     revision,
   };
@@ -141,6 +154,7 @@ export function useBarre(editeur: Editor | null, reperes: Reperes): Barre {
     focusDedans,
     courant: lecture.courant,
     langage: lecture.langage,
+    sansColoration: lecture.sansColoration,
     marques: lecture.marques,
     placement,
     surFocus: () => setFocusDedans(true),

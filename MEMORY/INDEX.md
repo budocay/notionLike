@@ -20,3 +20,4 @@
 - F-031 Pile Docker de travail utilisable en une commande — 2026-10-16 — features/F-031.md
 - F-006 Glisser-déposer des blocs et des pages — 2026-10-16 — features/F-006.md
 - F-005 Bloc code et commandes slash — 2026-10-19 — features/F-005.md
+- F-033 Bloc code : coloration syntaxique et indentation au clavier — 2026-10-21 — features/F-033.md
