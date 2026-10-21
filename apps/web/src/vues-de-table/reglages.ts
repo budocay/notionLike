@@ -1,7 +1,8 @@
 // Sections des réglages de vue de cette feature (F-018-AC40 à AC44, ADR-0019) : `vue` (la vue active)
 // et `tableau` (la largeur des colonnes). L'enveloppe est au module de persistance ; ici, le contenu
-// de chaque section est validé, une section mal formée est lue seule à ses valeurs par défaut, et
-// une section égale à ses valeurs par défaut n'est pas écrite.
+// de chaque section est validé, une section mal formée est lue seule à ses valeurs par défaut, une
+// section égale à ses valeurs par défaut n'est pas écrite, et un changement ne réécrit que sa
+// section, en gardant les clés que cette version ne connaît pas (H4).
 import type { IdColonne } from "@notionlike/document";
 
 export const SECTION_VUE = "vue";
@@ -75,22 +76,41 @@ export function largeurDe(reglages: ReglagesDeLaTable, colonne: IdColonne): numb
   return reglages.largeurs.get(colonne) ?? LARGEUR_PAR_DEFAUT;
 }
 
-/** La section `vue` à écrire ; `undefined` (retirée) pour la vue par défaut (AC40). */
-export function sectionDeLaVue(active: string, parDefaut: string): unknown {
-  return active === parDefaut ? undefined : { active };
+/**
+ * La section lue, une clé de cette version remplacée par `valeur` (`undefined` la retire) ; les clés
+ * que cette version ne connaît pas sont gardées telles quelles (AC41, H4). `undefined` (section
+ * retirée) quand il ne reste aucune clé.
+ */
+function remplacerDansLaSection(sectionLue: unknown, cle: string, valeur: unknown): unknown {
+  const autres = estUnObjet(sectionLue)
+    ? Object.entries(sectionLue).filter(([nom]) => nom !== cle)
+    : [];
+  const section = Object.fromEntries(valeur === undefined ? autres : [...autres, [cle, valeur]]);
+  return Object.keys(section).length === 0 ? undefined : section;
+}
+
+/** La section `vue` à écrire ; la vue par défaut n'y est pas écrite (AC40). */
+export function sectionDeLaVue(active: string, parDefaut: string, sectionLue: unknown): unknown {
+  return remplacerDansLaSection(sectionLue, "active", active === parDefaut ? undefined : active);
 }
 
 /**
  * La section `tableau` à écrire : les largeurs des colonnes de la table lue qui s'écartent de la
- * largeur par défaut, celles des colonnes absentes retirées (AC43) ; `undefined` si aucune.
+ * largeur par défaut, celles des colonnes absentes retirées (AC43) ; aucune largeur n'est écrite si
+ * aucune ne s'en écarte.
  */
 export function sectionDuTableau(
   largeurs: ReadonlyMap<IdColonne, number>,
   colonnesLues: readonly IdColonne[],
+  sectionLue: unknown,
 ): unknown {
   const presentes = new Set(colonnesLues);
   const gardees = [...largeurs].filter(
     ([colonne, largeur]) => presentes.has(colonne) && largeur !== LARGEUR_PAR_DEFAUT,
   );
-  return gardees.length === 0 ? undefined : { largeurs: Object.fromEntries(gardees) };
+  return remplacerDansLaSection(
+    sectionLue,
+    "largeurs",
+    gardees.length === 0 ? undefined : Object.fromEntries(gardees),
+  );
 }

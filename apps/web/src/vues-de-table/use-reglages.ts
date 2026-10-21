@@ -42,14 +42,11 @@ export function useReglages(
   const [reglages, setReglages] = useState<ReglagesDeLaTable>(() =>
     lireLesReglages(lireReglagesDeVue(designationDe(designation)), IDS_DES_VUES),
   );
-  const changer = (suivants: ReglagesDeLaTable, enregistrer: boolean): void => {
-    setReglages(suivants);
-    if (enregistrer) {
-      ecrireReglagesDeVue(designationDe(designation), {
-        [SECTION_VUE]: sectionDeLaVue(suivants.vueActive, IDS_DES_VUES[0] ?? ""),
-        [SECTION_TABLEAU]: sectionDuTableau(suivants.largeurs, colonnesLues),
-      });
-    }
+  // Seule la section changée est écrite, à partir de celle enregistrée : une vue ou une clé que
+  // cette version ne connaît pas (écrite par un onglet plus récent) reste telle quelle (AC41, H4).
+  const ecrire = (nom: string, section: (lue: unknown) => unknown): void => {
+    const cle = designationDe(designation);
+    ecrireReglagesDeVue(cle, { [nom]: section(lireReglagesDeVue(cle)[nom]) });
   };
   return {
     vueActive: reglages.vueActive,
@@ -57,11 +54,15 @@ export function useReglages(
     reglerLargeur: (colonne, largeur, enregistrer) => {
       const largeurs = new Map(reglages.largeurs);
       largeurs.set(colonne, largeurBornee(largeur));
-      changer({ ...reglages, largeurs }, enregistrer);
+      setReglages({ ...reglages, largeurs });
+      if (enregistrer) {
+        ecrire(SECTION_TABLEAU, (lue) => sectionDuTableau(largeurs, colonnesLues, lue));
+      }
     },
     choisirLaVue: (vue) => {
       if (IDS_DES_VUES.includes(vue)) {
-        changer({ ...reglages, vueActive: vue }, true);
+        setReglages({ ...reglages, vueActive: vue });
+        ecrire(SECTION_VUE, (lue) => sectionDeLaVue(vue, IDS_DES_VUES[0] ?? "", lue));
       }
     },
   };

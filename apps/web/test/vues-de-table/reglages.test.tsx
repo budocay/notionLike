@@ -2,11 +2,16 @@
 // pointeur comme au clavier, conservée sur l'appareil par colonne, jamais dans un document ; vue
 // active lue « Tableau » quand l'enregistrée n'est pas livrée.
 import type { DocumentTable } from "@notionlike/document";
-import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, renderHook, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import { lireLesReglages } from "../../src/vues-de-table/reglages.ts";
+import {
+  lireLesReglages,
+  sectionDeLaVue,
+  sectionDuTableau,
+} from "../../src/vues-de-table/reglages.ts";
+import { useReglages } from "../../src/vues-de-table/use-reglages.ts";
 import { avecSelecteur } from "../../src/vues-de-table/vues.ts";
 import { ESPACE_A } from "../aides-persistance.ts";
 import { cleDesReglages } from "../aides-table.ts";
@@ -204,5 +209,72 @@ describe("vue active et sélecteur de vues (F-018-AC44)", () => {
     rendreLaTable(deuxColonnes);
     expect(screen.getByRole("grid")).toBeDefined();
     expect(localStorage.getItem(CLE)).toBe(texte);
+  });
+});
+
+describe("un changement n'écrit que sa section (F-018-AC41, F-018-AC44, H4)", () => {
+  it("F-018-AC41 F-018-AC44 une vue enregistrée inconnue de cette version reste telle quelle, et la section « tableau » garde ses clés inconnues, quand une largeur change", async () => {
+    localStorage.setItem(
+      CLE,
+      JSON.stringify({
+        version: 1,
+        sections: {
+          vue: { active: "kanban", tri: "f-020" },
+          tableau: { largeurs: {}, gelees: 2 },
+        },
+      }),
+    );
+    const { table, utilisateur } = rendreLaTable(deuxColonnes);
+    act(() => separateur("Nom").focus());
+    await utilisateur.keyboard("{ArrowRight}");
+    const nom = table.lire().colonnes[0]?.id ?? "";
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: {
+        vue: { active: "kanban", tri: "f-020" },
+        tableau: { largeurs: { [nom]: 196 }, gelees: 2 },
+      },
+    });
+    await utilisateur.keyboard("{ArrowLeft}");
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: { vue: { active: "kanban", tri: "f-020" }, tableau: { gelees: 2 } },
+    });
+  });
+});
+
+describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {
+  // Couture : `use-reglages.ts` est le seul appelant de `sectionDeLaVue` et `sectionDuTableau`
+  // (git grep), et leur passe la section enregistrée lue au moment de l'écriture.
+  it("F-018-AC40 F-018-AC41 chaque section garde les clés que cette version ne connaît pas et n'est retirée que vide", () => {
+    expect(sectionDeLaVue("tableau", "tableau", undefined)).toBeUndefined();
+    expect(sectionDeLaVue("kanban", "tableau", { active: "tableau" })).toEqual({
+      active: "kanban",
+    });
+    expect(sectionDeLaVue("tableau", "tableau", { active: "kanban", tri: 1 })).toEqual({ tri: 1 });
+    expect(sectionDeLaVue("tableau", "tableau", [1])).toBeUndefined();
+    expect(
+      sectionDuTableau(new Map([["a", 180]]), ["a"], { largeurs: { a: 300 } }),
+    ).toBeUndefined();
+    expect(
+      sectionDuTableau(new Map([["a", 300]]), ["a"], { largeurs: { x: "large" }, g: 2 }),
+    ).toEqual({ largeurs: { a: 300 }, g: 2 });
+    expect(sectionDuTableau(new Map([["b", 300]]), ["a"], "illisible")).toBeUndefined();
+  });
+
+  it("F-018-AC44 F-018-AC41 choisir une vue n'écrit que la section « vue » : la section « tableau » enregistrée, et ses clés inconnues, restent telles quelles", () => {
+    const tableau = { largeurs: { inconnue: 300 }, gelees: 2 };
+    localStorage.setItem(
+      CLE,
+      JSON.stringify({ version: 1, sections: { vue: { active: "kanban" }, tableau } }),
+    );
+    const { result } = renderHook(() =>
+      useReglages({ idEspace: ESPACE_A, idTable: TABLE_D_ESSAI }, []),
+    );
+    expect(result.current.vueActive).toBe("tableau");
+    act(() => result.current.choisirLaVue("tableau"));
+    expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
+    act(() => result.current.choisirLaVue("calendrier"));
+    expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
   });
 });
