@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type DOMAttributes,
   type FocusEvent,
   type KeyboardEvent,
   type ReactElement,
@@ -34,6 +35,22 @@ export interface BoutonDeRangee {
   readonly raison?: string | undefined;
 }
 
+/**
+ * Ce que le glisser-déposer pose sur la rangée (F-006) : la rangée est saisie au pointeur partout,
+ * au clavier par son lien seul ; elle suit le geste par `transform` seul et porte le repère de dépôt
+ * quand elle est la cible survolée.
+ */
+export interface GlisserDeRangee {
+  readonly ref: (element: HTMLElement | null) => void;
+  readonly ecouteursDuPointeur: Pick<DOMAttributes<HTMLElement>, "onPointerDown">;
+  readonly ecouteursDuClavier: Pick<DOMAttributes<HTMLElement>, "onKeyDown">;
+  /** Instructions du geste au clavier, jointes à la description du lien. */
+  readonly idDesInstructions: string;
+  readonly deplacement: string | undefined;
+  readonly enGlissement: boolean;
+  readonly zone: "avant" | "apres" | "dans" | undefined;
+}
+
 export interface ProprietesRangee {
   /** Profondeur de la page dans l'arbre, 1 à la racine. */
   readonly niveau: number;
@@ -58,6 +75,8 @@ export interface ProprietesRangee {
   readonly surDoubleClic?: (() => void) | undefined;
   /** Frappe dans la rangée, quel que soit celui de ses éléments qui a le focus. */
   readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
+  /** Absent : la rangée ne se glisse pas. */
+  readonly glisser?: GlisserDeRangee | undefined;
 }
 
 function CommandeDeRepli({ repli }: { readonly repli: RepliDeRangee | undefined }): ReactElement {
@@ -116,8 +135,17 @@ const AU_REPOS = { survol: false, focus: false };
 
 type ProprietesLien = Pick<
   ProprietesRangee,
-  "titre" | "adresse" | "courante" | "description" | "refLien" | "surDoubleClic"
+  "titre" | "adresse" | "courante" | "description" | "refLien" | "surDoubleClic" | "glisser"
 >;
+
+/** Identifiants des descriptions du lien : sa place dans l'arbre, puis les instructions du geste. */
+function descriptionsDuLien(
+  idDescription: string | undefined,
+  glisser: GlisserDeRangee | undefined,
+): string | undefined {
+  const ids = [idDescription, glisser?.idDesInstructions].filter((id) => id !== undefined);
+  return ids.length === 0 ? undefined : ids.join(" ");
+}
 
 const SANS_FOCUS = (avant: typeof AU_REPOS): typeof AU_REPOS => ({ ...avant, focus: false });
 
@@ -147,7 +175,7 @@ function garderJusquALaSortie(evenement: FocusEvent<HTMLElement>, retirer: () =>
 // Le titre tient sur une ligne. Coupé, il s'affiche en entier dans une infobulle au survol et au
 // focus ; elle reste hors de l'arbre d'accessibilité, le nom du lien étant déjà le titre complet.
 function LienDeRangee(props: ProprietesLien): ReactElement {
-  const { titre, description } = props;
+  const { titre, description, glisser } = props;
   const idDescription = useId();
   const [coupe, setCoupe] = useState(AU_REPOS);
   const mesurer = (lien: HTMLElement, cause: keyof typeof AU_REPOS): void =>
@@ -160,7 +188,13 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
         href={props.adresse}
         data-lien-de-page=""
         aria-current={props.courante ? "page" : undefined}
-        aria-describedby={description === undefined ? undefined : idDescription}
+        aria-describedby={descriptionsDuLien(
+          description === undefined ? undefined : idDescription,
+          glisser,
+        )}
+        // Le navigateur ne lance pas son propre glisser du lien : le geste est celui de la rangée.
+        draggable={false}
+        onKeyDown={glisser?.ecouteursDuClavier.onKeyDown}
         onMouseEnter={(evenement) => mesurer(evenement.currentTarget, "survol")}
         onMouseLeave={() => setCoupe((avant) => ({ ...avant, survol: false }))}
         onFocus={(evenement) => mesurer(evenement.currentTarget, "focus")}
@@ -183,14 +217,45 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
   );
 }
 
+const CLASSE_DE_L_ELEMENT = {
+  racine: { repos: RANGEE.element, glissee: RANGEE.elementGlisse },
+  sousPage: { repos: RANGEE.sousPage, glissee: RANGEE.sousPageGlissee },
+} as const;
+
+function classesDeLElement(niveau: number, glisser: GlisserDeRangee | undefined): string {
+  const classes = CLASSE_DE_L_ELEMENT[niveau > 1 ? "sousPage" : "racine"];
+  return glisser?.enGlissement === true ? classes.glissee : classes.repos;
+}
+
+const REPERE_DE_DEPOT = {
+  avant: RANGEE.depotAvant,
+  apres: RANGEE.depotApres,
+  dans: RANGEE.depotDans,
+} as const;
+
+// Le repère de dépôt est un trait au-dessus ou au-dessous de la rangée, ou un contour en tirets
+// autour d'elle : une forme, pas la couleur seule (F-006-AC28). Il est hors de l'arbre d'accessibilité,
+// les annonces du geste le disent.
+function RepereDeDepot({ glisser }: { readonly glisser: GlisserDeRangee | undefined }) {
+  const zone = glisser?.zone;
+  return zone === undefined ? null : (
+    <span className={REPERE_DE_DEPOT[zone]} data-repere-de-depot={zone} aria-hidden="true" />
+  );
+}
+
 // La liste est plate (F-002) : la rangée ne rend pas ses sous-pages, le retrait vient du niveau.
 export function Rangee(props: ProprietesRangee): ReactElement {
-  const { niveau, courante, menuOuvert } = props;
+  const { niveau, courante, menuOuvert, glisser } = props;
+  const classes = classesDeLElement(niveau, glisser);
+  // Le geste ne pose que `transform` : aucune transition, aucune durée (F-006-AC29).
+  const style = { "--niveau": niveau, transform: glisser?.deplacement } as CSSProperties;
   return (
     <li
-      className={niveau > 1 ? RANGEE.sousPage : RANGEE.element}
+      ref={glisser?.ref}
+      className={classes}
       aria-level={niveau}
-      style={{ "--niveau": niveau } as CSSProperties}
+      style={style}
+      onPointerDown={glisser?.ecouteursDuPointeur.onPointerDown}
     >
       <div
         className={courante ? RANGEE.courante : RANGEE.repos}
@@ -198,6 +263,7 @@ export function Rangee(props: ProprietesRangee): ReactElement {
         onKeyDown={props.surTouche}
       >
         {courante && <span className={RANGEE.repere} aria-hidden="true" />}
+        <RepereDeDepot glisser={glisser} />
         <CommandeDeRepli repli={props.repli} />
         {props.saisie ?? <LienDeRangee {...props} />}
         <ActionsDeRangee

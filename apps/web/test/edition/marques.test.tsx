@@ -7,13 +7,13 @@ import { describe, expect, it } from "vitest";
 import { RACCOURCIS } from "../../src/interface/raccourcis.ts";
 import { contenuLu } from "../aides-facade-page.ts";
 import {
+  barreDeBlocs,
   commande,
   entrerDansLEditeur,
   marquesSousLeCurseur,
   monterLEditeur,
   placerLeCurseurDans,
   presserAvecMod,
-  schemaDeLEditeur,
   selectionnerDansLeNavigateur,
   selectionnerDe,
   selectionnerLeTexte,
@@ -127,21 +127,23 @@ describe("gras et italique sans sélection", () => {
   );
 
   it.each(MARQUES)(
-    "F-028-AC2 la commande « $nom », dans un bloc vide où la barre est affichée, n'émet rien, puis s'applique au texte saisi ; dans le bloc suivant, qui hérite de la marque, elle cesse de l'appliquer",
+    "F-028-AC2 dans un bloc vide, où la barre n'est plus affichée depuis le menu slash (F-005 H11), $nom par Mod+$touche n'émet rien, puis s'applique au texte saisi ; dans le bloc suivant, qui hérite de la marque, il cesse de l'appliquer",
     (marque) => {
       const { doc, emises } = monterLEditeur();
       entrerDansLEditeur();
       taper("avant");
       presserEntree();
       const emisesAvant = emises.length;
+      const barreDansLeBlocVide = barreDeBlocs();
 
-      basculer("commande", marque);
+      basculer("raccourci", marque);
       const emisesParLActivation = emises.length - emisesAvant;
       taper("marqué");
       presserEntree();
-      basculer("commande", marque);
+      basculer("raccourci", marque);
       taper("simple");
 
+      expect(barreDansLeBlocVide).toBeNull();
       expect(emisesParLActivation).toBe(0);
       expect(contenuLu(doc)).toBe(
         `<paragraph>avant</paragraph><paragraph><${marque.marque}>marqué</${marque.marque}></paragraph><paragraph>simple</paragraph>`,
@@ -253,13 +255,28 @@ describe("marques cumulées et état de la barre", () => {
 });
 
 describe("bloc code", () => {
-  it("F-028-AC25 le schéma ne contient pas le bloc code (F-005 non livrée) : la condition de ce critère n'est pas remplie", () => {
-    monterLEditeur();
+  it("F-028-AC25 F-005-AC29 le bloc code livré n'accepte aucune marque : Gras, Italique et Lien y sont indisponibles, leurs raccourcis et les règles de saisie n'y posent rien", () => {
+    const { doc, emises } = monterLEditeur();
+    entrerDansLEditeur();
+    taper("``` mot");
+    const indisponibles = MARQUES.map(({ nom }) => commande(nom).getAttribute("aria-disabled"));
+    selectionnerLeTexte("mot");
+    const avant = emises.length;
 
-    expect(
-      Object.keys(schemaDeLEditeur().noeuds),
-      "Le bloc code est arrivé (F-005 livrée) : réécrire ce test pour prouver F-028-AC25 (aucune marque, commande, raccourci ni règle de saisie dans un bloc code).",
-    ).not.toContain("codeBlock");
+    MARQUES.forEach((marque) => {
+      basculer("commande", marque);
+      basculer("raccourci", marque);
+    });
+    act(() => commande("Lien").click());
+    presserAvecMod(RACCOURCIS.lien.touche);
+    placerLeCurseurDans("mot", 3);
+    taper(" **fort** *penche*");
+
+    expect(indisponibles).toEqual(["true", "true"]);
+    expect(commande("Lien").getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("textbox", { name: "Adresse du lien" })).toBeNull();
+    expect(emises.length - avant).toBe(" **fort** *penche*".length);
+    expect(contenuLu(doc).toLowerCase()).toBe("<codeblock>mot **fort** *penche*</codeblock>");
   });
 });
 
@@ -268,14 +285,17 @@ describe("accessibilité des commandes de mise en forme", () => {
     const utilisateur = userEvent.setup();
     const { doc } = monterLEditeur();
     entrerDansLEditeur();
-    // Bloc vide : la barre est affichée, « Lien » n'a rien à lier.
+    // Bloc code (F-005) : la barre est affichée, « Lien » y est indisponible.
+    taper("``` code");
     const lienSansSelection = commande("Lien").getAttribute("aria-disabled");
+    presserAvecMod("Enter");
     taper("mot");
     selectionnerLeTexte("mot");
     const selectionAvant = window.getSelection()?.toString();
 
     act(() => void zoneDeSaisie().dispatchEvent(altF10()));
-    await utilisateur.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    // F-006 : Descendre le bloc et Monter le bloc suivent Lien, en dernier.
+    await utilisateur.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}");
     const atteinte = document.activeElement;
     await utilisateur.keyboard("{Enter}");
 
@@ -283,7 +303,9 @@ describe("accessibilité des commandes de mise en forme", () => {
     expect(commande("Lien").getAttribute("aria-disabled")).toBeNull();
     expect(atteinte).toBe(commande("Gras"));
     expect(commande("Gras").getAttribute("aria-label")).toBe("Gras");
-    expect(contenuLu(doc)).toBe("<paragraph><bold>mot</bold></paragraph>");
+    expect(contenuLu(doc).toLowerCase()).toBe(
+      "<codeblock>code</codeblock><paragraph><bold>mot</bold></paragraph>",
+    );
     expect(commande("Gras").getAttribute("aria-pressed")).toBe("true");
     expect(document.activeElement).toBe(zoneDeSaisie());
     expect(window.getSelection()?.toString()).toBe(selectionAvant);

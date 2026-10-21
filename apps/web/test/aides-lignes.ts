@@ -1,5 +1,5 @@
 // Un document de page rempli selon chaque ligne de la table des versions, et un document de la
-// version prise en charge plus un (F-028-AC20, AC23, AC24, AC28). Écrits par `yjs` seul, comme une
+// version prise en charge plus un (F-028-AC20, AC23, AC24, AC28 ; F-005-AC24, AC27, AC28, AC32). Écrits par `yjs` seul, comme une
 // autre application les enregistrerait ; la version passe par l'opération de `@notionlike/document`.
 import { TABLE_DES_VERSIONS_PAGE, VERSION_PAGE_PRISE_EN_CHARGE } from "@notionlike/document";
 import * as Y from "yjs";
@@ -32,6 +32,8 @@ const TEXTES_PAR_LIGNE: Readonly<Record<number, readonly string[]>> = {
     "numéro de la ligne 1",
   ],
   2: ["gras de la ligne 2", "italique de la ligne 2", "lien de la ligne 2"],
+  // F-005 : un bloc code de plusieurs lignes avec langage, et un sans langage.
+  3: ["def ligne_3():\n    return 3", "code brut de la ligne 3"],
 };
 
 /** Les blocs qui exercent chaque élément de la ligne ; chaque ligne reprend la précédente. */
@@ -52,6 +54,14 @@ const BLOCS_PAR_LIGNE: Readonly<Record<number, () => Y.XmlElement[]>> = {
       marque(gras, { bold: {} }),
       marque(italique, { italic: {} }),
       marque(lien, { link: { href: "https://exemple.fr/" } }),
+    ];
+  },
+  3: () => {
+    const [avecLangage = "", sansLangage = ""] = TEXTES_PAR_LIGNE[3] ?? [];
+    return [
+      ...(BLOCS_PAR_LIGNE[2]?.() ?? []),
+      bloc("codeBlock", avecLangage, { language: "python" }),
+      bloc("codeBlock", sansLangage),
     ];
   },
 };

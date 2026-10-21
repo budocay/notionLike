@@ -10,6 +10,7 @@ import type { EtatSession } from "../src/espace/session-espace.ts";
 import {
   activerActionDeRangeeAuClavier,
   type CoquilleRendue,
+  descriptionDeLaPlace,
   nomAjouterSousPage,
   nomDuRepli,
   ouvrirCoquille,
@@ -380,10 +381,8 @@ describe("couture : appelants d'ancetresDe et de rangeesVisibles", () => {
       ["Dossier", lien("Dossier").getAttribute("href")],
       ["Chemise", lien("Chemise").getAttribute("href")],
     ]);
-    const description = (titre: string): string | null | undefined => {
-      const cible = lien(titre).getAttribute("aria-describedby");
-      return cible === null ? null : document.getElementById(cible)?.textContent;
-    };
+    // F-006 : les instructions du geste sont jointes à la description du lien, et en sont exclues.
+    const description = (titre: string): string | null => descriptionDeLaPlace(lien(titre));
     expect(["Dossier", "Chemise", "Feuille"].map(description)).toEqual([
       null,
       "Niveau 2, sous-page de « Dossier »",

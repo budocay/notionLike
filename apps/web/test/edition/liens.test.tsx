@@ -108,13 +108,14 @@ describe("panneau de lien", () => {
   it("F-028-AC6 sur une sélection vide hors d'un lien, Mod+K ne fait rien et laisse la combinaison à la palette ; « Lien » est indisponible", () => {
     const { doc, emises } = monterLEditeur();
     entrerDansLEditeur();
-    const lienDansUnBlocVide = commande("Lien").getAttribute("aria-disabled");
+    // F-005 : la barre ne s'affiche plus dans un bloc vide (F-005 H11) ; « Lien » n'y est pas offert.
+    const barreDansUnBlocVide = screen.queryByRole("toolbar", { name: "Type de bloc" });
     taper("texte");
     const avant = [contenuLu(doc), emises.length];
 
     const traitee = ouvrirParModK();
 
-    expect(lienDansUnBlocVide).toBe("true");
+    expect(barreDansUnBlocVide).toBeNull();
     expect(traitee).toBe(false);
     expect(panneau()).toBeNull();
     expect([contenuLu(doc), emises.length]).toEqual(avant);

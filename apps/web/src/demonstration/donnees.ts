@@ -9,8 +9,11 @@ import {
   COMMANDE_ITALIQUE,
   COMMANDE_LIEN,
   NOM_DU_PANNEAU_DE_LIEN,
+  NOMS_DES_LANGAGES,
   OUVRIR_LE_LIEN,
   RETIRER_LE_LIEN,
+  SELECTEUR_DE_LANGAGE,
+  TEXTE_BRUT,
 } from "../interface/messages.ts";
 
 export const ADRESSE_FICTIVE = "#apercu";
@@ -125,10 +128,36 @@ export const COMMANDES_DE_BLOC_FICTIVES = [
   { nom: "Titre 3", repere: "T3", active: false },
   { nom: "Liste à puces", repere: "•", active: false },
   { nom: "Liste numérotée", repere: "1.", active: false },
+  { nom: "Bloc code", repere: "</>", active: false },
   { nom: COMMANDE_GRAS, repere: "B", active: true },
   { nom: COMMANDE_ITALIQUE, repere: "I", active: false },
   { nom: COMMANDE_LIEN, repere: "↗", active: false, indisponible: true },
 ] as const;
+
+/** Le sélecteur de langage d'un bloc code en Python (F-005-AC6). */
+export const SELECTEUR_DE_LANGAGE_FICTIF = {
+  nom: SELECTEUR_DE_LANGAGE,
+  valeur: "python",
+  options: [
+    { valeur: "", nom: TEXTE_BRUT },
+    ...Object.entries(NOMS_DES_LANGAGES).map(([valeur, nom]) => ({ valeur, nom })),
+  ],
+  surChoix: () => undefined,
+} as const;
+
+/** Le menu slash après « /tit » : les trois titres, le deuxième actif (F-005-AC14, AC15). */
+export const OPTIONS_DU_MENU_FICTIVES = ["Titre 1", "Titre 2", "Titre 3"].map((nom, rang) => ({
+  id: `menu-slash-fictif-${rang}`,
+  nom,
+  active: nom === "Titre 2",
+}));
+
+/** Le sélecteur suit les commandes de type de bloc, avant celles de mise en forme. */
+export const RANG_DU_SELECTEUR_FICTIF = COMMANDES_DE_BLOC_FICTIVES.findIndex(
+  (commande) => commande.nom === COMMANDE_GRAS,
+);
+
+export const POSITION_DU_MENU_FICTIVE = { gauche: 24, haut: 120 } as const;
 
 /** Le panneau de lien d'un lien neutralisé, après une adresse refusée (F-028-AC12, AC17). */
 export const PANNEAU_DE_LIEN_FICTIF = {

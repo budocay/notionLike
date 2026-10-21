@@ -1,4 +1,6 @@
-// Barre de blocs flottante et invite du bloc vide (F-003-AC8, AC16, AC37, AC40 à AC43).
+// Barre de blocs flottante et invite du bloc vide (F-003-AC8, AC16, AC37, AC40 à AC43). Depuis
+// F-005, le menu slash est livré : la barre ne s'affiche plus dans un bloc vide, l'invite annonce le
+// menu, et un bloc vide reçoit son type par le menu (F-005 H11).
 import { TABLE_DES_VERSIONS_PAGE } from "@notionlike/document";
 import { act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,9 +13,12 @@ import {
   barreDeBlocs,
   commande,
   entrerDansLEditeur,
+  laisserLeMenuSuivre,
+  menuSlash,
   monterLEditeur,
   type NomDeCommande,
   NOMS_DES_COMMANDES,
+  NOMS_DES_COMMANDES_DE_DEPLACEMENT,
   NOMS_DES_COMMANDES_DE_MARQUE,
   placerLeCurseurApres,
   presser,
@@ -30,6 +35,7 @@ const CONTENU_PAR_COMMANDE: Readonly<Record<NomDeCommande, string>> = {
   "Liste à puces": "<bulletlist><listitem><paragraph>texte</paragraph></listitem></bulletlist>",
   "Liste numérotée":
     '<orderedlist start="1"><listitem><paragraph>texte</paragraph></listitem></orderedlist>',
+  "Bloc code": "<codeblock>texte</codeblock>",
 };
 
 function commandesMarquees(): string[] {
@@ -47,8 +53,19 @@ async function activerAuClavier(nom: NomDeCommande): Promise<void> {
   await utilisateur.keyboard("{Enter}");
 }
 
+/** Donne ce type au bloc vide du curseur par le menu slash, au clavier seul (F-005-AC12). */
+async function activerParLeMenu(nom: NomDeCommande): Promise<void> {
+  taper("/");
+  await laisserLeMenuSuivre();
+  for (let pas = 0; pas < NOMS_DES_COMMANDES.indexOf(nom); pas += 1) {
+    presser("ArrowDown");
+  }
+  presser("Enter");
+  await laisserLeMenuSuivre();
+}
+
 describe("barre de blocs flottante", () => {
-  it("F-003-AC41 F-003-AC37 la barre n'est affichée que tant que l'éditeur a le focus et que la sélection n'est pas vide, ou que le curseur est dans un bloc vide ; son apparition et sa disparition n'émettent rien et laissent le focus à l'éditeur", () => {
+  it("F-003-AC41 F-003-AC37 F-005-AC1 la barre n'est affichée que tant que l'éditeur a le focus et que la sélection n'est pas vide ; depuis le menu slash, plus dans un bloc vide ; son apparition et sa disparition n'émettent rien et laissent le focus à l'éditeur", () => {
     const { emises } = monterLEditeur();
     const sansFocus = barreDeBlocs();
 
@@ -67,8 +84,8 @@ describe("barre de blocs flottante", () => {
     act(() => zoneDeSaisie().blur());
 
     expect(sansFocus).toBeNull();
-    expect(dansUnBlocVide).not.toBeNull();
-    expect(dansUnBlocVide?.getAttribute("role")).toBe("toolbar");
+    expect(dansUnBlocVide).toBeNull();
+    expect(selectionEtendue?.getAttribute("role")).toBe("toolbar");
     expect(emisesParLaBarre).toBe(0);
     expect(focusPendantLAffichage).toBe(zoneDeSaisie());
     expect(curseurDansUnBlocRempli).toBeNull();
@@ -78,18 +95,26 @@ describe("barre de blocs flottante", () => {
     expect(emises.length).toBe(emisesParLaSaisie);
   });
 
-  it("F-003-AC41 F-003-AC16 F-028-AC27 la barre porte les six commandes de type, puis, depuis F-028, Gras, Italique et Lien, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
+  it("F-003-AC41 F-003-AC16 F-028-AC27 F-006-AC18 F-005-AC21 la barre porte les sept commandes de type, Bloc code compris, puis, depuis F-028, Gras, Italique et Lien, et depuis F-006 Monter le bloc et Descendre le bloc, chacune un bouton nommé en français avec un état « activé » lisible, hors de l'ordre de tabulation", () => {
     monterLEditeur();
     entrerDansLEditeur();
+    taper("texte");
+    selectionnerLeBloc();
 
     const boutons = [...(barreDeBlocs()?.querySelectorAll("button") ?? [])];
 
     expect(boutons.map((bouton) => bouton.getAttribute("aria-label"))).toEqual([
       ...NOMS_DES_COMMANDES,
       ...NOMS_DES_COMMANDES_DE_MARQUE,
+      ...NOMS_DES_COMMANDES_DE_DEPLACEMENT,
     ]);
     expect(boutons.map((bouton) => bouton.getAttribute("aria-pressed"))).toEqual([
       "true",
+      // F-005 : Bloc code.
+      "false",
+      // F-006 : Monter le bloc, Descendre le bloc.
+      "false",
+      "false",
       "false",
       "false",
       "false",
@@ -123,7 +148,11 @@ describe("barre de blocs flottante", () => {
     entrerDansLEditeur();
     taper("# Titre");
     presser("Enter");
+    taper("texte");
+    selectionnerLeBloc();
     const dansLeParagraphe = commandesMarquees();
+    placerLeCurseurApres("texte");
+    presser("Enter");
     taper("- puce");
     selectionnerLeBloc();
     const dansLaListe = commandesMarquees();
@@ -157,7 +186,8 @@ describe("barre de blocs au clavier", () => {
     expect(traitee).toBe(true);
     expect(premiere).toBe(commande("Paragraphe"));
     expect(suivante).toBe(commande("Titre 1"));
-    expect(enBoucle).toBe(commande("Lien"));
+    // F-006 : la dernière commande est « Descendre le bloc ».
+    expect(enBoucle).toBe(commande("Descendre le bloc"));
     expect(document.activeElement).toBe(zoneDeSaisie());
     expect(barreDeBlocs()).not.toBeNull();
     expect(window.getSelection()?.toString()).toBe(selectionAvant);
@@ -195,6 +225,8 @@ describe("barre de blocs au clavier", () => {
   it("F-003-AC42 F10 sans Alt, et Alt avec une autre touche, ne mènent pas à la barre", () => {
     monterLEditeur();
     entrerDansLEditeur();
+    taper("texte");
+    selectionnerLeBloc();
 
     presser("F10");
     const apresF10Seule = document.activeElement;
@@ -210,6 +242,8 @@ describe("barre de blocs au clavier", () => {
 // la table sans commande ici fait échouer l'énumération.
 const COMMANDES_PAR_TYPE_DE_BLOC: Readonly<Record<string, readonly NomDeCommande[]>> = {
   bulletList: ["Liste à puces"],
+  // F-005.
+  codeBlock: ["Bloc code"],
   heading: ["Titre 1", "Titre 2", "Titre 3"],
   orderedList: ["Liste numérotée"],
   paragraph: ["Paragraphe"],
@@ -231,7 +265,7 @@ describe("toujours un moyen de changer de type", () => {
   });
 
   it.each(Object.values(COMMANDES_PAR_TYPE_DE_BLOC).flat())(
-    "F-003-AC43 « %s » se donne au clavier seul à un bloc vide, puis à un bloc rempli, sans événement de pointeur",
+    "F-003-AC43 F-005-AC12 « %s » se donne au clavier seul à un bloc vide, par le menu slash, puis à un bloc rempli, par la barre, sans événement de pointeur",
     async (nom) => {
       const { doc } = monterLEditeur();
       const pointeurs: string[] = [];
@@ -240,7 +274,7 @@ describe("toujours un moyen de changer de type", () => {
       types.forEach((type) => document.addEventListener(type, noter, true));
       entrerDansLEditeur();
 
-      await activerAuClavier(nom);
+      await activerParLeMenu(nom);
       const depuisUnBlocVide = contenuLu(doc).toLowerCase();
       taper("texte");
       const rempli = contenuLu(doc).toLowerCase();
@@ -253,10 +287,8 @@ describe("toujours un moyen de changer de type", () => {
       const pointeursReels = pointeurs.filter((type) => type !== "click");
       types.forEach((type) => document.removeEventListener(type, noter, true));
 
-      // Un bloc vide est déjà un paragraphe, que rien n'inscrit dans le document (F-003-AC2).
-      expect(depuisUnBlocVide).toBe(
-        nom === "Paragraphe" ? "" : CONTENU_PAR_COMMANDE[nom].replace("texte", ""),
-      );
+      // Le `/` saisi a inscrit le paragraphe ; la commande le retire et donne le type (F-005-AC16).
+      expect(depuisUnBlocVide).toBe(CONTENU_PAR_COMMANDE[nom].replace("texte", ""));
       expect(rempli).toBe(CONTENU_PAR_COMMANDE[nom]);
       expect(contenuLu(doc).toLowerCase()).toBe(CONTENU_PAR_COMMANDE[nom]);
       expect(pointeursReels).toEqual([]);
@@ -265,7 +297,7 @@ describe("toujours un moyen de changer de type", () => {
 });
 
 describe("invite du bloc vide", () => {
-  it("F-003-AC40 l'invite « Écris quelque chose… » est affichée dans le bloc vide, hors du contenu lu, sans mise à jour, et disparaît au premier caractère saisi", () => {
+  it("F-003-AC40 l'invite « Écris, ou tape / pour insérer un bloc » est affichée dans le bloc vide, hors du contenu lu, sans mise à jour, et disparaît au premier caractère saisi", () => {
     const { doc, emises } = monterLEditeur();
     entrerDansLEditeur();
 
@@ -279,7 +311,7 @@ describe("invite du bloc vide", () => {
     const texteAvecLInvite = zoneDeSaisie().textContent;
     taper("a");
 
-    expect(INVITE_DU_BLOC_VIDE).toBe("Écris quelque chose…");
+    expect(INVITE_DU_BLOC_VIDE).toBe("Écris, ou tape / pour insérer un bloc");
     expect(dansLeDocumentVide).toEqual([INVITE_DU_BLOC_VIDE]);
     expect(emisesParLInvite).toBe(0);
     expect(luAvecLInvite).toBe("");
@@ -302,7 +334,14 @@ describe("invite du bloc vide", () => {
     expect(zoneDeSaisie().querySelectorAll("[data-invite]")).toHaveLength(0);
   });
 
-  it("F-003-AC40 l'invite n'annonce pas le menu slash, que F-005 n'a pas livré", () => {
-    expect(INVITE_DU_BLOC_VIDE).not.toContain("/");
+  it("F-003-AC40 F-005-AC12 l'invite annonce le menu slash, que F-005 livre : `/` en tête du bloc vide l'ouvre", async () => {
+    monterLEditeur();
+    entrerDansLEditeur();
+
+    taper("/");
+    await laisserLeMenuSuivre();
+
+    expect(INVITE_DU_BLOC_VIDE).toContain("/");
+    expect(menuSlash()).not.toBeNull();
   });
 });

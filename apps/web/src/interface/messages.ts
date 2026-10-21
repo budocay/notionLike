@@ -55,9 +55,40 @@ export const EXPLICATION_VERSION_NON_PRISE_EN_CHARGE =
 
 /** Nom accessible de la zone de saisie de l'éditeur (F-003-AC16). */
 export const NOM_DE_LA_ZONE_DE_SAISIE = "Contenu de la page";
-/** Invite du bloc vide tant que le menu slash de F-005 n'est pas livré (F-003-AC40). */
-export const INVITE_DU_BLOC_VIDE = "Écris quelque chose…";
+/** Invite du bloc vide, menu slash de F-005 livré (F-003-AC40). */
+export const INVITE_DU_BLOC_VIDE = "Écris, ou tape / pour insérer un bloc";
 export const NOM_DE_LA_BARRE_DE_BLOCS = "Type de bloc";
+
+// Bloc code et menu slash (F-005-AC6, AC18, AC22).
+export const NOM_DU_MENU_SLASH = "Commandes de bloc";
+export const AUCUNE_COMMANDE = "Aucune commande";
+export const SELECTEUR_DE_LANGAGE = "Langage du bloc code";
+export const TEXTE_BRUT = "Texte brut";
+
+/** Le nombre de commandes que le menu slash liste, annoncé à chaque changement du filtre. */
+export function commandesListees(nombre: number): string {
+  if (nombre === 0) {
+    return AUCUNE_COMMANDE;
+  }
+  return nombre === 1 ? "1 commande" : `${nombre} commandes`;
+}
+
+/**
+ * Nom de chaque langage de la liste dans le sélecteur ; sa valeur reste son identifiant. Le module
+ * d'édition le lit comme un nom par langage de sa liste : un oubli ne compile pas.
+ */
+export const NOMS_DES_LANGAGES = {
+  bash: "Bash",
+  css: "CSS",
+  html: "HTML",
+  javascript: "JavaScript",
+  json: "JSON",
+  markdown: "Markdown",
+  python: "Python",
+  sql: "SQL",
+  typescript: "TypeScript",
+  yaml: "YAML",
+} as const;
 
 /** Commandes de mise en forme de la barre de blocs et du panneau de lien (F-028-AC27). */
 export const COMMANDE_GRAS = "Gras";
@@ -185,3 +216,69 @@ export function titreDeLaConfirmation(titre: string): string {
 export function espaceRejoint(nom: string, libelleDuRole: string): string {
   return `Vous avez rejoint « ${titreCite(nom)} » en tant que ${libelleDuRole}.`;
 }
+
+// Déplacement d'une page (F-006) : commandes du menu « ⋯ », raisons d'une commande indisponible,
+// annonces aux technologies d'assistance, au clavier comme pendant un geste (F-006-AC12, AC36).
+export const MONTER = "Monter";
+export const DESCENDRE = "Descendre";
+export const METTRE_SOUS_LA_PAGE_PRECEDENTE = "Mettre sous la page précédente";
+export const SORTIR_D_UN_NIVEAU = "Sortir d'un niveau";
+export const DEJA_PREMIERE = "La page est déjà la première de son niveau.";
+export const DEJA_DERNIERE = "La page est déjà la dernière de son niveau.";
+export const AUCUNE_PAGE_PRECEDENTE = "Aucune page ne la précède à son niveau.";
+export const DEJA_A_LA_RACINE = "La page est déjà à la racine.";
+
+/** Annonce d'une page déplacée au clavier : son titre, sa nouvelle mère et sa place (F-006-AC12). */
+export function pageDeplacee(
+  titre: string,
+  mere: string | undefined,
+  rang: number,
+  total: number,
+): string {
+  const ou = mere === undefined ? "à la racine" : `sous « ${titreCite(mere)} »`;
+  return `« ${titreCite(titre)} » déplacée ${ou}, position ${rang} sur ${total}.`;
+}
+
+/**
+ * Annonce d'une commande de déplacement sans destination, appelée par son raccourci : son nom, et
+ * la raison quand elle est connue (F-006-AC11, AC18, AC28).
+ */
+export function commandeIndisponible(commande: string, raison?: string): string {
+  return raison === undefined
+    ? `${commande} : indisponible.`
+    : `${commande} : indisponible. ${raison}`;
+}
+
+export const INSTRUCTIONS_DU_GLISSER =
+  "Pour déplacer la page en la faisant glisser au clavier, appuyez sur Espace, déplacez-la avec les flèches, puis appuyez de nouveau sur Espace pour la déposer, ou sur Échap pour annuler. Le menu « Actions de la page » offre aussi Monter, Descendre, Mettre sous la page précédente et Sortir d'un niveau.";
+
+/** Où irait la page lâchée, dit en toutes lettres : jamais par la couleur seule (F-006-AC28). */
+export function lieuDuDepot(zone: "avant" | "apres" | "dans", cible: string): string {
+  const cite = `« ${titreCite(cible)} »`;
+  return zone === "dans" ? `dans ${cite}` : `${zone === "avant" ? "avant" : "après"} ${cite}`;
+}
+
+export function pageSaisie(titre: string): string {
+  return `Page « ${titreCite(titre)} » saisie.`;
+}
+
+export function pageAuDessus(titre: string, lieu: string | undefined): string {
+  return lieu === undefined
+    ? `« ${titreCite(titre)} » n'est au-dessus d'aucun emplacement possible.`
+    : `« ${titreCite(titre)} » irait ${lieu}.`;
+}
+
+export function pageDeposee(titre: string, lieu: string | undefined): string {
+  return lieu === undefined
+    ? `« ${titreCite(titre)} » relâchée sans être déplacée.`
+    : `« ${titreCite(titre)} » déposée ${lieu}.`;
+}
+
+export function deplacementAbandonne(titre: string): string {
+  return `Déplacement de « ${titreCite(titre)} » annulé.`;
+}
+
+// Déplacement d'un bloc (F-006-AC14, AC18) : poignée et commandes de la barre de blocs.
+export const DEPLACER_LE_BLOC = "Déplacer le bloc";
+export const MONTER_LE_BLOC = "Monter le bloc";
+export const DESCENDRE_LE_BLOC = "Descendre le bloc";

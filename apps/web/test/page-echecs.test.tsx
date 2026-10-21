@@ -1,6 +1,6 @@
 // Persistance d'une page en échec et reprise (F-003-AC18), couture du module de persistance
 // (F-003-AC25).
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
@@ -117,7 +117,10 @@ describe("persistance d'une page en échec", () => {
 
     expect(sansAvertissement).toBeNull();
     expect(zoneDeSaisie().textContent).toBe("avant après");
-    expect(screen.getByRole("status").textContent).toBe("Non enregistré sur cet appareil");
+    // F-006 : la barre latérale porte ses propres régions d'annonces ; l'état est dans la barre du haut.
+    expect(within(screen.getByRole("banner")).getByRole("status").textContent).toBe(
+      "Non enregistré sur cet appareil",
+    );
     expect(relever()).toEqual([]);
   });
 

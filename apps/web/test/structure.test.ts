@@ -90,22 +90,36 @@ describe("frontières du module de persistance", () => {
     // F-010 : contrats, et better-auth pour son seul sous-chemin `better-auth/client` (H9).
     // F-013 : @hocuspocus/provider, réservé au module de synchronisation (F-013-AC38).
     // F-028 : gras, italique et lien, réservés au module d'édition (F-028-AC29).
+    // F-006 : dnd-kit, réservé au module de glisser-déposer, et la poignée de bloc et le curseur de
+    // dépôt, réservés au module d'édition (F-006-AC32).
+    // F-005 : bloc code, utilitaire de suggestion et positionnement du menu slash, réservés au
+    // module d'édition (F-005-AC33).
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+      "@floating-ui/dom",
       "@hocuspocus/provider",
       "@notionlike/contrats",
       "@notionlike/document",
       "@tiptap/core",
       "@tiptap/extension-bold",
+      "@tiptap/extension-code-block",
       "@tiptap/extension-collaboration",
       "@tiptap/extension-document",
+      "@tiptap/extension-drag-handle",
+      "@tiptap/extension-drag-handle-react",
       "@tiptap/extension-heading",
       "@tiptap/extension-italic",
       "@tiptap/extension-link",
       "@tiptap/extension-list",
+      "@tiptap/extension-node-range",
       "@tiptap/extension-paragraph",
       "@tiptap/extension-text",
+      "@tiptap/extensions",
       "@tiptap/pm",
       "@tiptap/react",
+      "@tiptap/suggestion",
       "@tiptap/y-tiptap",
       "better-auth",
       "react",

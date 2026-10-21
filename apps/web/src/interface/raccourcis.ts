@@ -19,7 +19,30 @@ export const RACCOURCIS = {
    * la palette de commandes de F-024 sur une sélection vide hors d'un lien (F-028-AC6, H12).
    */
   lien: { touche: "k", modificateurs: ["Mod"] },
+  // Rangée de la barre latérale qui a le focus : les quatre commandes de déplacement d'une page
+  // (F-006-AC10, H5). Une rangée n'est pas une zone de texte : aucun conflit.
+  monterLaPage: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
+  descendreLaPage: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+  mettreSousLaPagePrecedente: { touche: "ArrowRight", modificateurs: ["Alt", "Maj"] },
+  sortirDUnNiveau: { touche: "ArrowLeft", modificateurs: ["Alt", "Maj"] },
+  /**
+   * Zone de saisie de l'éditeur : déplace le bloc du curseur (F-006-AC18). Sous macOS, ces deux
+   * combinaisons étendent la sélection par paragraphe ; l'éditeur les prend (H5, conflit déclaré).
+   */
+  monterLeBloc: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
+  descendreLeBloc: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
+
+/**
+ * Touches du geste de glisser-déposer au clavier dans la barre latérale (F-006-AC36, H5), en valeurs
+ * de la propriété `code` des événements clavier, que la bibliothèque compare : Espace saisit et dépose, Échap abandonne.
+ * Entrée reste au lien de la rangée.
+ */
+export const TOUCHES_DU_GLISSER = {
+  saisir: ["Space"],
+  deposer: ["Space"],
+  abandonner: ["Escape"],
+} as const;
 
 // Touches d'une boîte de dialogue et d'un formulaire des écrans des espaces (F-014-AC35, AC36) : ce
 // ne sont pas des raccourcis affichés, mais elles sont déclarées ici, seule source des noms de
@@ -35,6 +58,13 @@ const MODIFICATEUR_D_APPLE = { Mod: "⌘", Alt: "⌥", Maj: "⇧" } as const;
 const MODIFICATEUR_COURANT = { Mod: "Ctrl", Alt: "Alt", Maj: "Maj" } as const;
 const MODIFICATEUR_ARIA = { Mod: "Control", Alt: "Alt", Maj: "Shift" } as const;
 const MODIFICATEUR_ARIA_D_APPLE = { ...MODIFICATEUR_ARIA, Mod: "Meta" } as const;
+/** Une flèche s'affiche par son signe ; `aria-keyshortcuts` garde le nom de la touche. */
+const TOUCHE_AFFICHEE: Readonly<Record<string, string>> = {
+  ArrowUp: "↑",
+  ArrowDown: "↓",
+  ArrowLeft: "←",
+  ArrowRight: "→",
+};
 
 function plateformeCourante(): string {
   return typeof navigator === "undefined" ? "" : navigator.platform;
@@ -48,7 +78,7 @@ export function afficherTouches(
   const noms = PLATEFORME_D_APPLE.test(plateforme) ? MODIFICATEUR_D_APPLE : MODIFICATEUR_COURANT;
   return [
     ...combinaison.modificateurs.map((modificateur) => noms[modificateur]),
-    combinaison.touche,
+    TOUCHE_AFFICHEE[combinaison.touche] ?? combinaison.touche,
   ];
 }
 

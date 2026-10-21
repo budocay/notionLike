@@ -137,7 +137,33 @@ export async function tabulerJusqua(
 export type ActionDeRangeeVisee = "renommer" | "ajouter-une-sous-page" | "mettre-a-la-corbeille";
 
 /** Entrées du menu « ⋯ » d'une rangée, dans l'ordre où il les affiche (F-004-AC26). */
-export const ENTREES_DU_MENU = ["Renommer", "Ajouter une sous-page", "Mettre à la corbeille"];
+// F-006 : les quatre commandes de déplacement suivent, désactivées quand elles sont sans destination.
+export const ENTREES_DU_MENU = [
+  "Renommer",
+  "Ajouter une sous-page",
+  "Mettre à la corbeille",
+  "Monter",
+  "Descendre",
+  "Mettre sous la page précédente",
+  "Sortir d'un niveau",
+];
+
+/** Instructions du geste au clavier (F-006-AC36), jointes à la description du lien de chaque rangée. */
+export const INSTRUCTIONS_DU_GLISSER =
+  "Pour déplacer la page en la faisant glisser au clavier, appuyez sur Espace, déplacez-la avec les flèches, puis appuyez de nouveau sur Espace pour la déposer, ou sur Échap pour annuler. Le menu « Actions de la page » offre aussi Monter, Descendre, Mettre sous la page précédente et Sortir d'un niveau.";
+
+/**
+ * Description du lien d'une rangée, instructions du geste exclues (F-004-AC55) : `null` si le lien
+ * n'est décrit par rien d'autre.
+ */
+export function descriptionDeLaPlace(lien: Element): string | null {
+  const textes = (lien.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter((id) => id !== "")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .filter((texte) => texte !== INSTRUCTIONS_DU_GLISSER);
+  return textes.length === 0 ? null : textes.join(" ");
+}
 
 const ENTREE_DE_L_ACTION: Readonly<Record<ActionDeRangeeVisee, string>> = {
   renommer: "Renommer",

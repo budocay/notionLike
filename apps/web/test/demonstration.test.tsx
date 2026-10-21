@@ -177,10 +177,15 @@ describe("page de démonstration : ce qu'elle montre", () => {
       // F-007 : liste de l'écran de la corbeille.
       "ListeDeCorbeille",
       "MenuActions",
+      // F-005 : menu slash.
+      "MenuDeCommandes",
       "NoteDePage",
       "PanneauDeLien",
       "Partie",
       "Pictogramme",
+      // F-006 : poignées d'un bloc.
+      "PoigneeDeBloc",
+      "PoigneeDuCurseur",
       "Principale",
       "Raccourci",
       "Rangee",

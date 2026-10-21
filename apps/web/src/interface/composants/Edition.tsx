@@ -40,6 +40,11 @@ interface ProprietesZoneDEdition {
   readonly surTouche: (evenement: KeyboardEvent<HTMLDivElement>) => void;
   /** La zone de saisie, puis la barre de blocs quand elle est affichée. */
   readonly children: ReactNode;
+  /**
+   * Région d'état de l'éditeur, hors de la vue : ce que le clavier n'a pas pu faire (F-006-AC18,
+   * AC28). Absente : aucune région.
+   */
+  readonly annonce?: string | undefined;
 }
 
 /** Repère de position de la barre de blocs : ni cadre, ni surface propre (F-003-AC37). */
@@ -53,6 +58,11 @@ export function ZoneDEdition(props: ProprietesZoneDEdition): ReactElement {
       onKeyDown={props.surTouche}
     >
       {props.children}
+      {props.annonce !== undefined && (
+        <p role="status" className={EDITION.annonce}>
+          {props.annonce}
+        </p>
+      )}
     </div>
   );
 }
@@ -80,9 +90,29 @@ export interface PositionDeBarre {
   readonly haut: number;
 }
 
+/** Coin haut gauche du menu slash, en pixels depuis celui de la fenêtre. */
+export interface PositionDuMenu {
+  readonly gauche: number;
+  readonly haut: number;
+}
+
+/** Sélecteur de la barre de blocs : une valeur parmi des options, toutes nommées en français. */
+export interface SelecteurDeBarre {
+  /** Nom accessible du sélecteur. */
+  readonly nom: string;
+  /** La valeur montrée, celle d'une des options. */
+  readonly valeur: string;
+  readonly options: readonly { readonly valeur: string; readonly nom: string }[];
+  readonly surChoix: (valeur: string) => void;
+}
+
 interface ProprietesBarreDeBlocs {
   readonly nom: string;
   readonly commandes: readonly CommandeDeBloc[];
+  /** Après les commandes de type de bloc : le langage du bloc code (F-005-AC6). */
+  readonly selecteur?: SelecteurDeBarre | undefined;
+  /** Nombre de commandes avant le sélecteur. */
+  readonly rangDuSelecteur?: number | undefined;
   readonly position: PositionDeBarre;
   /** Échap dans la barre : le focus retourne d'où il vient. */
   readonly surAbandon: () => void;
@@ -108,7 +138,7 @@ function surToucheDeBarre(evenement: KeyboardEvent<HTMLDivElement>, surAbandon: 
     return;
   }
   evenement.preventDefault();
-  const commandes = [...evenement.currentTarget.querySelectorAll<HTMLElement>("button")];
+  const commandes = [...evenement.currentTarget.querySelectorAll<HTMLElement>("button, select")];
   const rang = commandes.findIndex((commande) => commande === evenement.target);
   commandes[(rang + pas + commandes.length) % commandes.length]?.focus();
 }
@@ -123,8 +153,9 @@ function garderLeFocus(evenement: MouseEvent<HTMLElement>): void {
  * raccourci de l'éditeur atteint. Elle ne porte aucune logique d'édition.
  */
 export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
-  const { nom, commandes, position, surAbandon, ref } = props;
+  const { nom, commandes, selecteur, position, surAbandon, ref } = props;
   const style = { "--barre-gauche": position.gauche, "--barre-haut": position.haut };
+  const rang = props.rangDuSelecteur ?? commandes.length;
   return (
     <div
       ref={ref}
@@ -134,23 +165,171 @@ export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
       aria-label={nom}
       onKeyDown={(evenement) => surToucheDeBarre(evenement, surAbandon)}
     >
-      {commandes.map((commande) => (
-        <button
-          key={commande.nom}
-          type="button"
-          className={commande.active ? EDITION.commandeActive : EDITION.commande}
-          aria-label={commande.nom}
-          aria-pressed={commande.active}
-          aria-disabled={commande.indisponible === true ? true : undefined}
-          title={commande.nom}
-          tabIndex={-1}
-          onMouseDown={garderLeFocus}
-          onClick={commande.indisponible === true ? undefined : commande.surActivation}
-        >
-          <span aria-hidden="true">{commande.repere}</span>
-        </button>
-      ))}
+      {commandes.slice(0, rang).map(boutonDeCommande)}
+      {selecteur !== undefined && <SelecteurDeLaBarre {...selecteur} />}
+      {commandes.slice(rang).map(boutonDeCommande)}
     </div>
+  );
+}
+
+function boutonDeCommande(commande: CommandeDeBloc): ReactElement {
+  return (
+    <button
+      key={commande.nom}
+      type="button"
+      className={commande.active ? EDITION.commandeActive : EDITION.commande}
+      aria-label={commande.nom}
+      aria-pressed={commande.active}
+      aria-disabled={commande.indisponible === true ? true : undefined}
+      title={commande.nom}
+      tabIndex={-1}
+      onMouseDown={garderLeFocus}
+      onClick={commande.indisponible === true ? undefined : commande.surActivation}
+    >
+      <span aria-hidden="true">{commande.repere}</span>
+    </button>
+  );
+}
+
+/**
+ * Sélecteur natif de la barre (F-005-AC6, AC22) : atteint par les flèches de la barre comme ses
+ * boutons, il change de valeur au clavier comme tout sélecteur ; Échap rend le focus à l'éditeur.
+ */
+function SelecteurDeLaBarre(props: SelecteurDeBarre): ReactElement {
+  return (
+    <select
+      className={EDITION.selecteur}
+      aria-label={props.nom}
+      title={props.nom}
+      tabIndex={-1}
+      value={props.valeur}
+      onChange={(evenement) => props.surChoix(evenement.target.value)}
+    >
+      {props.options.map((option) => (
+        <option key={option.valeur} value={option.valeur}>
+          {option.nom}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Une commande du menu slash : son identifiant, son nom, et si elle est la commande active. */
+export interface OptionDuMenu {
+  readonly id: string;
+  readonly nom: string;
+  readonly active: boolean;
+}
+
+export interface ProprietesMenuDeCommandes {
+  readonly ref?: Ref<HTMLDivElement> | undefined;
+  /** Identifiant de la liste d'options, que l'éditeur désigne par `aria-controls`. */
+  readonly id: string;
+  /** Nom accessible de la liste : « Commandes de bloc ». */
+  readonly nom: string;
+  readonly options: readonly OptionDuMenu[];
+  /** Ce que le menu affiche quand aucune commande n'est listée. */
+  readonly vide: string;
+  /** Coin haut gauche, dans la fenêtre ; `undefined` tant qu'il n'est pas mesuré. */
+  readonly position: PositionDuMenu | undefined;
+  readonly surChoix: (rang: number) => void;
+}
+
+/**
+ * Menu slash (F-005-AC12, AC22) : une liste d'options près du curseur. Le focus reste dans
+ * l'éditeur, qui désigne la liste et l'option active ; un clic choisit sans retirer le focus. Il ne
+ * porte aucune logique d'édition.
+ */
+export function MenuDeCommandes(props: ProprietesMenuDeCommandes): ReactElement {
+  const { position } = props;
+  const style = { "--menu-x": position?.gauche ?? 0, "--menu-y": position?.haut ?? 0 };
+  return (
+    <div
+      ref={props.ref}
+      className={position === undefined ? EDITION.menuEnMesure : EDITION.menu}
+      style={style as CSSProperties}
+    >
+      <ul id={props.id} role="listbox" aria-label={props.nom} className={EDITION.listeDuMenu}>
+        {props.options.map((option, rang) => (
+          <li
+            key={option.id}
+            id={option.id}
+            role="option"
+            aria-selected={option.active}
+            className={option.active ? EDITION.optionActive : EDITION.option}
+            onMouseDown={garderLeFocus}
+            onClick={() => props.surChoix(rang)}
+          >
+            {option.nom}
+          </li>
+        ))}
+      </ul>
+      {props.options.length === 0 && <p className={EDITION.menuVide}>{props.vide}</p>}
+    </div>
+  );
+}
+
+/** Classe du curseur de dépôt de l'éditeur : sa couleur vient des jetons (F-006-AC37). */
+export const CLASSE_DU_CURSEUR_DE_DEPOT = EDITION.curseurDeDepot;
+
+interface ProprietesPoignee {
+  /** Nom accessible, « Déplacer le bloc ». */
+  readonly nom: string;
+  /** Les raccourcis qui déplacent le bloc, pour `aria-keyshortcuts`. */
+  readonly raccourcis?: string | undefined;
+}
+
+const SIGNE_DE_LA_POIGNEE = "⋮⋮";
+
+/**
+ * Poignée d'un bloc (F-006-AC14, AC28), que la poignée de l'éditeur place au survol : on la saisit
+ * pour faire glisser le bloc. Hors de l'ordre de tabulation : au clavier, les raccourcis et la barre
+ * de blocs déplacent le bloc.
+ */
+export function PoigneeDeBloc({ nom, raccourcis }: ProprietesPoignee): ReactElement {
+  return (
+    <button
+      type="button"
+      className={EDITION.poignee}
+      aria-label={nom}
+      aria-keyshortcuts={raccourcis}
+      title={nom}
+      tabIndex={-1}
+      data-poignee-de-bloc=""
+    >
+      <span aria-hidden="true">{SIGNE_DE_LA_POIGNEE}</span>
+    </button>
+  );
+}
+
+/**
+ * La même poignée, au bloc où se trouve le curseur, quand le pointeur n'en montre aucune
+ * (F-006-AC14) : elle ne se glisse pas ; activée, elle mène aux commandes de déplacement du bloc,
+ * sans que la pression du pointeur ôte le focus à la zone de saisie.
+ */
+export function PoigneeDuCurseur(
+  props: ProprietesPoignee & {
+    readonly haut: number;
+    /** Ce que l'activation fait : sans elle, la poignée n'est que montrée (démonstration). */
+    readonly surActivation?: (() => void) | undefined;
+  },
+): ReactElement {
+  return (
+    <button
+      type="button"
+      className={EDITION.poigneeDuCurseur}
+      // Géométrie seule, mesurée par le module d'édition (F-006-AC37).
+      style={{ top: props.haut }}
+      aria-label={props.nom}
+      aria-keyshortcuts={props.raccourcis}
+      title={props.nom}
+      tabIndex={-1}
+      data-poignee-du-curseur=""
+      onMouseDown={garderLeFocus}
+      onClick={props.surActivation}
+    >
+      <span aria-hidden="true">{SIGNE_DE_LA_POIGNEE}</span>
+    </button>
   );
 }
 

@@ -8,7 +8,12 @@ import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 
 type OperationsEspace = Pick<
   DocumentEspace,
-  "creerPage" | "renommerPage" | "mettreALaCorbeille" | "restaurerPage" | "supprimerDefinitivement"
+  | "creerPage"
+  | "renommerPage"
+  | "deplacerPage"
+  | "mettreALaCorbeille"
+  | "restaurerPage"
+  | "supprimerDefinitivement"
 >;
 
 export type EtatSession =
@@ -225,6 +230,8 @@ function operationsDe(facade: DocumentEspace): OperationsEspace {
   return {
     creerPage: facade.creerPage,
     renommerPage: facade.renommerPage,
+    // F-006 : premier appelant de `deplacerPage` depuis un écran (H4).
+    deplacerPage: facade.deplacerPage,
     mettreALaCorbeille: facade.mettreALaCorbeille,
     restaurerPage: facade.restaurerPage,
     supprimerDefinitivement: facade.supprimerDefinitivement,

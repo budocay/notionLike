@@ -2,10 +2,12 @@
 // AC7, AC17). Toute modification part par les commandes de l'éditeur, sans transaction englobante :
 // elle entre ainsi dans l'historique d'annulation de la liaison (F-028-AC21, H3).
 import type { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 
 import { adresseAcceptee, adresseDUneSaisie } from "./adresses.ts";
 import { NOM_DE_LA_MARQUE_DE_LIEN } from "./lien.ts";
 import { lienCourant, selectionDansUnBloc } from "./marques.ts";
+import { bornesLues } from "./types-de-bloc.ts";
 
 export interface EtatDuLien {
   /** Faux : la commande « Lien » est indisponible, et Mod+K n'ouvre rien. */
@@ -22,6 +24,11 @@ export interface EtatDuLien {
 export interface EtatDesMarques {
   readonly gras: boolean;
   readonly italique: boolean;
+  /**
+   * Faux dans un bloc qui n'admet aucune marque, le bloc code : Gras, Italique et Lien y sont
+   * indisponibles (F-028-AC25, F-005-AC29).
+   */
+  readonly permises: boolean;
   readonly lien: EtatDuLien;
 }
 
@@ -47,11 +54,22 @@ export function etatDesMarques(editeur: Editor): EtatDesMarques {
   const lien = lienCourant(state);
   const enregistree: unknown = lien?.adresse;
   const actif = lien !== undefined || editeur.isActive(NOM_DE_LA_MARQUE_DE_LIEN);
+  const gras = state.schema.marks[GRAS];
+  const { selection } = state;
+  // Sélection de nœud ou de tout le document sans texte (poignée dans un bloc vide) : rien à marquer.
+  const sansTexte =
+    !(selection instanceof TextSelection) &&
+    state.doc.textBetween(selection.from, selection.to) === "";
+  const permises =
+    gras !== undefined &&
+    !sansTexte &&
+    bornesLues(selection).$from.parent.type.allowsMarkType(gras);
   return {
     gras: editeur.isActive(GRAS),
     italique: editeur.isActive(ITALIQUE),
+    permises,
     lien: {
-      disponible: editeur.isEditable && lienVise(editeur) !== undefined,
+      disponible: permises && editeur.isEditable && lienVise(editeur) !== undefined,
       actif,
       adresse: typeof enregistree === "string" ? enregistree : "",
       ouvrable: adresseAcceptee(enregistree),
