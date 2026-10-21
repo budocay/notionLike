@@ -236,3 +236,9 @@
 2026-10-20T07:13:49Z | agent-securite | F-005 | SECURITY GATE: PASS | d7e7ce6f3984
 2026-10-20T07:14:15Z | reviewer-frontend | F-005 | APPROVED | d7e7ce6f3984
 2026-10-20T07:14:51Z | agent-architecte | F-005 | ARCHITECTURE GATE: PASS | d7e7ce6f3984
+2026-10-21T16:40:36Z | agent-craft | F-018 | CRAFT GATE: PASS | 3b39a36e5edf
+2026-10-21T16:41:58Z | reviewer-api | F-018 | APPROVED | 3b39a36e5edf
+2026-10-21T16:42:00Z | agent-securite | F-018 | SECURITY GATE: PASS | 3b39a36e5edf
+2026-10-21T16:42:01Z | agent-architecte | F-018 | ARCHITECTURE GATE: FAIL | 3b39a36e5edf
+2026-10-21T16:42:22Z | reviewer-backend | F-018 | APPROVED | 3b39a36e5edf
+2026-10-21T16:42:49Z | reviewer-frontend | F-018 | CHANGES_REQUESTED | 3b39a36e5edf
