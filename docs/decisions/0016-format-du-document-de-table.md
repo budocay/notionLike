@@ -1,7 +1,7 @@
 # ADR-0016 — Format du document de table : types racine, drapeaux, rangs, version à maximum
 
-Statut : accepté (décision du dev du 2026-10-19, après correction des écarts)
-Date : 2026-10-16 ; normalisation des chaînes à unité UTF-16 isolée reprise le même jour d'après le code de F-017 (`2d8c51a`), sur décision de l'orchestrateur après revue ; écarts au code corrigés le 2026-10-19
+Statut : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : proposée, à accepter par le dev avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019
+Date : 2026-10-16 ; normalisation des chaînes à unité UTF-16 isolée reprise le même jour d'après le code de F-017 (`2d8c51a`), sur décision de l'orchestrateur après revue ; écarts au code corrigés le 2026-10-19 ; amendement F-018 du 2026-10-21
 
 ## Contexte et problème
 
@@ -60,6 +60,13 @@ Format, version 1. `packages/document/src/format-table.ts` est le seul fichier q
 - Écritures : la lecture n'écrit jamais. Le module n'écrit que les champs qu'il nomme, et ne retire jamais rien d'autre qu'une clé de cellule. `creerDocumentTable` construit son `Y.Doc` par `new Y.Doc({ gc: true })` ; `ouvrirDocumentTable(doc)` ne règle rien.
 - Règle d'élévation, pour toute feature future : une version N+1 est nécessaire dès qu'un document qu'elle écrit serait lu autrement par le code de la version N (nouveau type racine, nouveau champ porteur de sens, nouveau type de colonne, règle de lecture changée). Elle ajoute N+1 à `versions` dans la transaction même qui écrit le premier élément nouveau, n'en retire jamais rien, et la liste blanche suit. Ajouter un type racine sans élever la version fait refuser le document par les répliques de la version N, avec le code `pas-un-document-de-table`.
 
+### Amendement F-018 (2026-10-21) : élément non compté dans `versions`
+
+Statut : proposé, à accepter par le dev avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : la lecture de `versions` vient de `lireFormeStockee` (`packages/document/src/format-page.ts`), que F-018 change (`60258d0`) et qu'elle fait lire aussi au document d'espace ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la table.
+
+- **Règle de lecture complétée** (puce « Type racine `versions` » ci-dessus) : outre une entrée qui n'est pas un entier supérieur ou égal à 1 et une entrée nommée, un élément non compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom, que `forEach` et `toArray` passaient sous silence) rend le document non pris en charge. `ouvrirDocumentTable` lève `version-non-prise-en-charge`, avant la liste blanche, sans rien écrire. Le reste de la reconnaissance est inchangé.
+- **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `format-table.ts` (F-018-AC58).
+
 ## Conséquences
 
 - Un document de table ne rétrécit jamais par une suppression de colonne, d'option ou de ligne : elles gardent tout leur poids (constat 8). L'effacement réel est à F-025, comme pour une page supprimée ; le ramasse-miettes actif borne au moins l'historique des cellules réécrites.
@@ -71,3 +78,4 @@ Format, version 1. `packages/document/src/format-table.ts` est le seul fichier q
 - La liste blanche rend tout ajout de type racine incompatible avec les versions antérieures : c'est voulu, la règle d'élévation l'accompagne.
 - Le serveur ne lit pas le document de table et ne contrôle pas sa version (ADR-0013) : il relaie et stocke ce qu'un `editeur` écrit. Un pair qui contourne le module peut rendre une table illisible (version forgée, type racine étranger) pour tous ses membres, sans perte de contenu.
 - Revenir sur cette forme (passer les lignes en `Y.Array`, retirer les drapeaux, déplacer la version) demanderait une migration de chaque document de table sur chaque appareil et sur le serveur.
+- Amendement F-018 : un document de table qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la table) s'ouvrait avant F-018 et est désormais refusé, sans rien en retirer. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue. La forme de `versions` est désormais partagée par trois formats (ADR-0002, amendement F-018) : la changer change celle des trois.
