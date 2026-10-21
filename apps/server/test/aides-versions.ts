@@ -63,11 +63,10 @@ export const CAS_DE_VERSION_FORGEE: readonly CasDeVersionForgee[] = [
   },
   {
     // Des attributs de mise en forme autour du 2 : éléments non comptés, invisibles pour `toArray`.
-    // Décision du dev du 2026-10-19 ; le paquet, qui lit `versions` par `forEach`, lit encore ce
-    // document en version 2.
+    // Décision du dev du 2026-10-19.
     cas: "versions défini sous un Y.Text qui ne porte que des attributs de mise en forme",
     forger: (doc) => doc.getText("versions").format(0, 1, { bold: true }),
-    refuseParLePaquet: false,
+    refuseParLePaquet: true,
   },
   {
     cas: "meta.version à 3",
@@ -98,16 +97,15 @@ export const CAS_DE_VERSION_FORGEE: readonly CasDeVersionForgee[] = [
     refuseParLePaquet: false,
   },
   {
-    // Décision du dev du 2026-10-19 : `meta` n'a qu'une nature, `Y.Map`. Le paquet, qui lit `meta`
-    // par `getMap` et ignore le contenu de liste, lit encore ce document en version 2.
+    // Décision du dev du 2026-10-19 : `meta` n'a qu'une nature, `Y.Map`.
     cas: "meta défini sous un Y.Array",
     forger: (doc) => doc.getArray<unknown>("meta").push([1]),
-    refuseParLePaquet: false,
+    refuseParLePaquet: true,
   },
   {
     cas: "meta défini sous un Y.Text",
     forger: (doc) => doc.getText("meta").insert(0, "1"),
-    refuseParLePaquet: false,
+    refuseParLePaquet: true,
   },
 ];
 
