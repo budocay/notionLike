@@ -22,7 +22,7 @@ import { createLowlight } from "lowlight";
 import { CLASSES_DE_ROLE, type RoleSyntaxique } from "../interface/composants/Edition.tsx";
 import { raisonSansColoration } from "./colorable.ts";
 import { BLOC_CODE } from "./commandes-de-bloc.ts";
-import { langageAdmis } from "./langages.ts";
+import { type Langage, langageAdmis } from "./langages.ts";
 
 // Une grammaire par identifiant de la liste, importée une à une (H1, H7) : `html` est un alias de
 // la grammaire `xml`. Aucune détection automatique n'est jamais appelée (F-033-AC2).
@@ -184,7 +184,15 @@ function colorer(langage: string, texte: string): Coloration {
 class MemoireDeColoration {
   readonly #entrees = new Map<string, Coloration>();
 
-  lire(langage: string, texte: string, lues: Set<string>): Coloration {
+  /**
+   * La coloration d'un texte d'un langage admis. Un texte hors des bornes (H6) n'est ni cherché ni
+   * retenu : la mémoire ne garde que des textes colorables, de 10 000 unités au plus, sans quoi un
+   * bloc d'un million d'unités y laisserait une clé de cette taille à chaque frappe.
+   */
+  lire(langage: Langage, texte: string, lues: Set<string>): Coloration {
+    if (raisonSansColoration(texte) !== undefined) {
+      return SANS_COLORATION;
+    }
     const cle = `${langage}\0${texte}`;
     lues.add(cle);
     const connue = this.#entrees.get(cle);
@@ -193,8 +201,7 @@ class MemoireDeColoration {
       this.#entrees.set(cle, connue);
       return connue;
     }
-    const nouvelle =
-      raisonSansColoration(texte) === undefined ? colorer(langage, texte) : SANS_COLORATION;
+    const nouvelle = colorer(langage, texte);
     this.#entrees.set(cle, nouvelle);
     return nouvelle;
   }

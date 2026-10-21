@@ -213,6 +213,76 @@ function documentDeVingtBlocs(): Y.Doc {
   );
 }
 
+/**
+ * Les clés de la mémoire de coloration écrites pendant `agir` : toute clé `langage\0texte` passée à
+ * `Map.prototype.set`. La mémoire est un `Map` privé du greffon ; on l'observe par son écriture.
+ */
+function clesDeColorationEcrites(agir: () => void): string[] {
+  const ecrites: string[] = [];
+  const ecrire = Map.prototype.set;
+  const espion = vi.spyOn(Map.prototype, "set").mockImplementation(function (
+    this: Map<unknown, unknown>,
+    cle: unknown,
+    valeur: unknown,
+  ) {
+    if (typeof cle === "string" && cle.includes("\0")) {
+      ecrites.push(cle);
+    }
+    return ecrire.call(this, cle, valeur);
+  });
+  try {
+    agir();
+  } finally {
+    espion.mockRestore();
+  }
+  return ecrites;
+}
+
+describe("mémoire bornée aux textes colorables", () => {
+  it("F-033-AC9 F-033-AC11 H6 un bloc de 10 001 unités, puis un bloc d'une ligne de 501, modifiés par des frappes et des mises à jour reçues : aucune de leurs clés n'entre en mémoire, la bibliothèque n'est pas appelée ; seul un bloc colorable y entre", () => {
+    const long = texteDeLongueur(10_001);
+    const ligne = `const a = "x";\n${"b".repeat(501)}`;
+    const { doc } = monterLEditeur(
+      documentForge(
+        bloc("codeBlock", long, { language: "javascript" }),
+        bloc("codeBlock", ligne, { language: "javascript" }),
+        bloc("codeBlock", "let court = 1;", { language: "javascript" }),
+      ),
+    );
+    entrerDansLEditeur();
+    const appelsAvant = doublure.appels;
+
+    const horsBornes = clesDeColorationEcrites(() => {
+      placerLeCurseurALaFinDe('const a = "x";');
+      taper("abcde");
+      for (let rang = 0; rang < 3; rang += 1) {
+        recevoirDUneReplique(doc, (replique) => {
+          for (const unBloc of blocsCodeDuFragment(replique.contenu).slice(0, 2)) {
+            texteDuBloc(unBloc).insert(0, "/");
+          }
+        });
+      }
+    });
+    const appelsHorsBornes = doublure.appels - appelsAvant;
+    const colorable = clesDeColorationEcrites(() => {
+      placerLeCurseurALaFinDe("let court = 1;");
+      taper("2");
+    });
+
+    // Seule la clé du bloc colorable est récrite (relue, remise en tête) ; aucune des deux autres.
+    expect([...new Set(horsBornes)]).toEqual(["javascript\0let court = 1;"]);
+    expect(horsBornes.filter((cle) => cle.length > 10_000 + "javascript\0".length)).toEqual([]);
+    expect(appelsHorsBornes).toBe(0);
+    expect(colorable).toContain("javascript\0let court = 1;2");
+    expect(colorable.every((cle) => cle.length <= 10_000 + "javascript\0".length)).toBe(true);
+    expect(textesDesBlocsCode(doc).map((texte) => texte.length)).toEqual([
+      10_001 + 5 + 3,
+      ligne.length + 3,
+      15,
+    ]);
+  });
+});
+
 describe("recalcul borné", () => {
   it("F-033-AC10 vingt blocs colorés à l'ouverture ; une frappe dans l'un, puis une mise à jour reçue qui en modifie un autre, puis une qui ne touche qu'un paragraphe : un appel, un appel, aucun", () => {
     const { doc } = monterLEditeur(documentDeVingtBlocs());
