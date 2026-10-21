@@ -78,10 +78,10 @@ export interface ProprietesRangee {
   /** Absent : la rangée ne se glisse pas. */
   readonly glisser?: GlisserDeRangee | undefined;
   /**
-   * Sorte de page marquée (F-018-AC11 : « Table ») : un pictogramme devant le titre, et ce mot au
-   * début du nom accessible du lien. Absente pour une page.
+   * Le mot qui marque une table (F-018-AC11 : « Table ») : le pictogramme de table devant le titre,
+   * et ce mot au début du nom accessible du lien. Absent pour une page.
    */
-  readonly marque?: string | undefined;
+  readonly marqueDeTable?: string | undefined;
 }
 
 function CommandeDeRepli({ repli }: { readonly repli: RepliDeRangee | undefined }): ReactElement {
@@ -147,7 +147,7 @@ type ProprietesLien = Pick<
   | "refLien"
   | "surDoubleClic"
   | "glisser"
-  | "marque"
+  | "marqueDeTable"
 >;
 
 /** Pictogramme et début du nom accessible d'une page marquée (F-018-AC11). */
@@ -225,7 +225,7 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
         onBlur={(evenement) => garderJusquALaSortie(evenement, () => setCoupe(SANS_FOCUS))}
         onDoubleClick={props.surDoubleClic}
       >
-        {props.marque !== undefined && <MarqueDeTable nom={props.marque} />}
+        {props.marqueDeTable !== undefined && <MarqueDeTable nom={props.marqueDeTable} />}
         {titre}
       </a>
       {description !== undefined && (

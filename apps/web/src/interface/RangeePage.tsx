@@ -130,7 +130,7 @@ export function RangeePage(props: Proprietes): ReactElement {
       surDoubleClic={renommer}
       surTouche={surTouche}
       glisser={glisser}
-      marque={page.type === "table" ? MARQUE_DE_TABLE : undefined}
+      marqueDeTable={page.type === "table" ? MARQUE_DE_TABLE : undefined}
       saisie={enSaisie ? <SaisieDeRangee {...props} /> : undefined}
       menu={
         menu.ouvert ? (

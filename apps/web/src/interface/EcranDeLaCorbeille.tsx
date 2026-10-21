@@ -98,7 +98,7 @@ function ligneDe(page: PageLue, niveau: number, commandes: Commandes): LigneDeCo
     titre,
     detail: nombreDeSousPages(compterLaDescendance(page)),
     niveau,
-    marque: page.type === "table" ? MARQUE_DE_TABLE : undefined,
+    marqueDeTable: page.type === "table" ? MARQUE_DE_TABLE : undefined,
     commandes: (
       <>
         {niveau === NIVEAU_D_UNE_RACINE && (

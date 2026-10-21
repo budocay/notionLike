@@ -14,8 +14,8 @@ export interface LigneDeCorbeille {
   /** 1 pour une racine ; sa descendance compte à partir de 2. */
   readonly niveau: number;
   readonly commandes: ReactNode;
-  /** Sorte de page marquée (F-018-AC11 : « Table »), comme dans la barre latérale. */
-  readonly marque?: string | undefined;
+  /** Le mot qui marque une table (F-018-AC11 : « Table »), comme dans la barre latérale. */
+  readonly marqueDeTable?: string | undefined;
 }
 
 export interface RacineDeCorbeille extends LigneDeCorbeille {
@@ -36,7 +36,7 @@ function Ligne({ ligne }: { readonly ligne: LigneDeCorbeille }): ReactElement {
   return (
     <div className={CORBEILLE.ligne}>
       <span className={CORBEILLE.titre}>
-        {ligne.marque !== undefined && <MarqueDeTable nom={ligne.marque} />}
+        {ligne.marqueDeTable !== undefined && <MarqueDeTable nom={ligne.marqueDeTable} />}
         {ligne.titre}
       </span>
       <span className={CORBEILLE.detail}>{ligne.detail}</span>
