@@ -4,6 +4,8 @@
 import { creerDocumentTable, ErreurDocument } from "@notionlike/document";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { lireJetons } from "../../src/styles/lecture-jetons.ts";
+import { HAUTEUR_DE_RANGEE } from "../../src/vues-de-table/grille.ts";
 import * as interfaceDuModule from "../../src/vues-de-table/index.ts";
 import {
   LONGUEUR_MAX_LIBELLE,
@@ -136,5 +138,23 @@ describe("limites du document (F-018-AC19, AC22, AC27)", () => {
     expect(refus(() => table.ecrireCellule(ligne, texte, "t".repeat(LONGUEUR_MAX_TEXTE + 1)))).toBe(
       "valeur-non-conforme",
     );
+  });
+});
+
+// La fenêtre place chaque rangée à `HAUTEUR_DE_RANGEE` pixels (`transform`), les classes de la
+// grille s'appuient sur le jeton `--spacing-rangee` : les deux ne doivent pas diverger. L'application
+// ne change pas la taille de la police racine, 1rem vaut donc 16 pixels.
+describe("géométrie de la grille et jetons (F-018-AC46)", () => {
+  it("F-018-AC46 HAUTEUR_DE_RANGEE vaut le jeton --spacing-rangee, converti à 16 pixels par rem", () => {
+    const jeton = lireJetons(lire("src/styles/jetons.css")).theme.find(
+      ({ nom }) => nom === "--spacing-rangee",
+    );
+    const rem = /^(\d+(?:\.\d+)?)rem$/.exec(jeton?.valeur ?? "")?.[1];
+
+    expect(rem, jeton?.valeur).toBeDefined();
+    expect(HAUTEUR_DE_RANGEE).toBe(Number(rem) * 16);
+    for (const feuille of ["src/styles/entree.css", "src/styles/jetons.css"]) {
+      expect(lire(feuille), feuille).not.toMatch(/(?:^|[\s{;])(?:html|:root)\s*\{[^}]*font-size/);
+    }
   });
 });
