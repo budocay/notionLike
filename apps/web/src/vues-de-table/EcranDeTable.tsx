@@ -6,14 +6,17 @@ import { type ReactElement, useSyncExternalStore } from "react";
 
 import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
+import { SelecteurDeVues } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
 import { lignesAffichees } from "./lignes-affichees.ts";
-import { LARGEUR_PAR_DEFAUT } from "./reglages.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
+  SELECTEUR_DE_VUES,
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { useReglages } from "./use-reglages.ts";
+import { avecSelecteur, VUES } from "./vues.ts";
 import { VueTableau } from "./VueTableau.tsx";
 
 export interface ProprietesEcranDeTable {
@@ -39,9 +42,11 @@ function lectureDe(table: DocumentTable): TableLue | undefined {
 function TableAffichee(props: ProprietesEcranDeTable & { readonly table: DocumentTable }) {
   const { table } = props;
   const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
+  const reglages = useReglages(props, lue?.colonnes.map(({ id }) => id) ?? []);
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
+  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
   return (
     <VueTableau
       table={table}
@@ -49,7 +54,18 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
       lignes={lignesAffichees(lue)}
       titre={props.titre}
       lectureSeule={props.lectureSeule}
-      largeurDe={() => LARGEUR_PAR_DEFAUT}
+      largeurDe={reglages.largeurDe}
+      reglerLargeur={reglages.reglerLargeur}
+      selecteur={
+        avecSelecteur() ? (
+          <SelecteurDeVues
+            nom={SELECTEUR_DE_VUES}
+            vues={VUES}
+            active={reglages.vueActive}
+            surChoix={reglages.choisirLaVue}
+          />
+        ) : undefined
+      }
     />
   );
 }

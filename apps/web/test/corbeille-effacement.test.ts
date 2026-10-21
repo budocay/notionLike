@@ -342,6 +342,8 @@ const APPELANTS_DE_LA_PERSISTANCE = [
   // F-018 : la session de table et les tables ouvertes (F-018-AC50).
   "src/table/session-table.ts",
   "src/table/tables-ouvertes.ts",
+  // F-018-AC40 : les réglages de vue de la table affichée.
+  "src/vues-de-table/use-reglages.ts",
 ];
 
 describe("appelants du module de persistance", () => {

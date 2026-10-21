@@ -1,6 +1,6 @@
 // Barre latérale, ouverture, corbeille et suppression d'une table dans l'application (F-018-AC10 à
 // AC12, AC15, AC17, AC48, AC49), rendue par le point d'entrée de l'interface sur fake-indexeddb.
-import type { PageLue } from "@notionlike/document";
+import { ouvrirDocumentTable, type PageLue } from "@notionlike/document";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -10,6 +10,7 @@ import {
   activerActionDeRangee,
   activerActionDeRangeeAuClavier,
   boutonNouvellePage,
+  docDe,
   ouvrirCoquille,
   recevoir,
   saisirTitre,
@@ -237,6 +238,34 @@ describe("table dont la persistance échoue (F-018-AC14)", () => {
     );
     expect(screen.getByText(/aucune colonne/)).toBeDefined();
     expect(relevees()).toEqual([]);
+  });
+});
+
+describe("réglages de vue hors des documents (F-018-AC42)", () => {
+  it("F-018-AC42 élargir une colonne n'écrit ni dans le document d'espace ni dans le document de table : états encodés et base inchangés", async () => {
+    const { session, utilisateur } = await ouvrirCoquille();
+    const id = recevoirUneTable(session, "Budget");
+    const table = designation(session, id);
+    await enregistrerDansLaBaseDeTable(table, (doc) => {
+      const facade = ouvrirDocumentTable(doc);
+      facade.creerColonne("Nom", "texte");
+      facade.fermer();
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    const separateur = await screen.findByRole("separator", { name: "Largeur de la colonne Nom" });
+    await act(() => laisserIndexedDbTravailler());
+    const espaceAvant = Y.encodeStateAsUpdate(docDe(session));
+    const baseAvant = await enregistrements(nomDeLaBaseDeTable(table));
+
+    act(() => separateur.focus());
+    await utilisateur.keyboard("{ArrowRight}{ArrowRight}");
+    await act(() => laisserIndexedDbTravailler());
+
+    expect(separateur.getAttribute("aria-valuenow")).toBe("212");
+    expect(localStorage.getItem(cleDesReglages(table))).not.toBeNull();
+    expect(Y.encodeStateAsUpdate(docDe(session))).toEqual(espaceAvant);
+    expect(await enregistrements(nomDeLaBaseDeTable(table))).toEqual(baseAvant);
+    localStorage.clear();
   });
 });
 

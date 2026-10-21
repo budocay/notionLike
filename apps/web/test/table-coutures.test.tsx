@@ -145,6 +145,8 @@ const AUTRES_IMPORTATEURS: Readonly<Record<string, string>> = {
   "src/vues-de-table/use-edition.ts": LIT_LA_TABLE,
   "src/vues-de-table/use-vue-tableau.ts": LIT_LA_TABLE,
   "src/vues-de-table/valider.ts": LIT_LA_TABLE,
+  "src/vues-de-table/Separateur.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/use-reglages.ts": LIT_LA_TABLE,
 };
 
 function importateursDuDocument(): string[] {

@@ -900,6 +900,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/vues-de-table/use-edition.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
   "apps/web/src/vues-de-table/use-vue-tableau.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
   "apps/web/src/vues-de-table/valider.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Separateur.tsx": "apps/web/test/vues-de-table/reglages.test.tsx",
+  "apps/web/src/vues-de-table/use-reglages.ts": "apps/web/test/vues-de-table/reglages.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {

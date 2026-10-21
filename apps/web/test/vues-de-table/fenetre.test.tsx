@@ -83,6 +83,7 @@ function rendre() {
       lignes={TABLE.lignes}
       titre="Grande"
       largeurDe={() => 180}
+      reglerLargeur={() => undefined}
     />,
   );
   return userEvent.setup();

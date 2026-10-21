@@ -19,6 +19,7 @@ import { RangeeDesEnTetes } from "./EnTetes.tsx";
 import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, LARGEUR_DES_ACTIONS } from "./grille.ts";
 import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
+import { cleDuSeparateur } from "./Separateur.tsx";
 import {
   AJOUTER_UNE_COLONNE,
   INVITATION_SANS_COLONNE,
@@ -39,6 +40,7 @@ function commandesDe(vue: Vue): Commandes {
     fermer: vue.menu.fermer,
     renommer: vue.edition.renommer,
     ouvrirBoite: vue.ouvrirBoite,
+    reglerLaLargeur: (colonne) => vue.courante.elementDe(cleDuSeparateur(colonne.id))?.focus(),
   };
 }
 
@@ -104,10 +106,11 @@ function GrilleDeLaTable({ vue }: { readonly vue: Vue }): ReactElement {
 function Outils({ vue }: { readonly vue: Vue }): ReactElement | undefined {
   const raison = vue.proprietes.lectureSeule;
   if (vue.colonnes.length === 0) {
-    return undefined;
+    return vue.proprietes.selecteur === undefined ? undefined : <>{vue.proprietes.selecteur}</>;
   }
   return (
     <>
+      {vue.proprietes.selecteur}
       <Bouton
         libelle={AJOUTER_UNE_COLONNE}
         raison={raison}

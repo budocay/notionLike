@@ -207,6 +207,8 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
   "src/vues-de-table/use-edition.ts": lectureDesVues,
   "src/vues-de-table/use-vue-tableau.ts": lectureDesVues,
   "src/vues-de-table/valider.ts": lectureDesVues,
+  "src/vues-de-table/Separateur.tsx": lectureDesVues,
+  "src/vues-de-table/use-reglages.ts": lectureDesVues,
 };
 
 function importateursDuDocument(): string[] {

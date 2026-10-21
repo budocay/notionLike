@@ -21,6 +21,7 @@ import {
   GERER_LES_OPTIONS,
   MONTER_LA_LIGNE,
   nomAffiche,
+  REGLER_LA_LARGEUR,
   RENOMMER_LA_COLONNE,
   SUPPRIMER_LA_COLONNE,
   SUPPRIMER_LA_LIGNE,
@@ -32,6 +33,8 @@ export interface Commandes {
   readonly fermer: () => void;
   readonly renommer: (colonne: ColonneLue) => void;
   readonly ouvrirBoite: (boite: Boite) => void;
+  /** Porte le focus sur le séparateur de largeur de la colonne (AC43), au clavier seul. */
+  readonly reglerLaLargeur: (colonne: ColonneLue) => void;
 }
 
 function citer(commande: string, nom: string): string {
@@ -89,6 +92,12 @@ export function entreesDeColonne(
           },
         ]
       : []),
+    // Un réglage de vue, permis en lecture seule (F-018-AC52).
+    {
+      libelle: REGLER_LA_LARGEUR,
+      nom: citer(`${REGLER_LA_LARGEUR} de la colonne`, colonne.nom),
+      surActivation: agir(() => commandes.reglerLaLargeur(colonne)),
+    },
     {
       libelle: SUPPRIMER_LA_COLONNE,
       nom: citer(SUPPRIMER_LA_COLONNE, colonne.nom),

@@ -91,6 +91,8 @@ describe("ajouter une colonne (F-018-AC18)", () => {
       "Renommer la colonne",
       "Déplacer à gauche",
       "Déplacer à droite",
+      // F-018-AC43 : un réglage de vue, au clavier seul.
+      "Régler la largeur",
       "Supprimer la colonne",
     ]);
     expect(libelles.join(" ")).not.toMatch(/type/i);

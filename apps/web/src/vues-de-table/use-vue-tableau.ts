@@ -8,7 +8,15 @@ import type {
   LigneLue,
   TableLue,
 } from "@notionlike/document";
-import { type RefObject, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { Moyens } from "./actions.ts";
 import type { Boite, Suite } from "./grille.ts";
@@ -27,6 +35,10 @@ export interface ProprietesVueTableau {
   readonly titre: string;
   readonly lectureSeule?: string | undefined;
   readonly largeurDe: (colonne: IdColonne) => number;
+  /** Règle la largeur d'une colonne (AC43) ; `enregistrer` faux pendant un glissement. */
+  readonly reglerLargeur: (colonne: IdColonne, largeur: number, enregistrer: boolean) => void;
+  /** Sélecteur de vues, rendu dans la barre d'outils quand la liste des vues en compte deux (AC44). */
+  readonly selecteur?: ReactNode | undefined;
 }
 
 export interface VueTableau {

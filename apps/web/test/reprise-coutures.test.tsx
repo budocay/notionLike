@@ -59,6 +59,8 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "ouvre la persistance d'une table, la tient tant qu'une modification n'est pas écrite, la ferme, efface sa base et ses réglages",
   [SESSION_DE_TABLE]:
     "lit l'état de la persistance d'une table, s'y abonne, lui soumet l'état relu, la ferme sur un refus",
+  // F-018-AC40 : lit et écrit les réglages de vue, sans persistance de document.
+  "src/vues-de-table/use-reglages.ts": "lit et écrit les réglages de vue de la table affichée",
 };
 const AIDES_DE_TEST = [
   // F-028 : documents de chaque ligne de la table des versions, enregistrés puis relus (AC24, AC28).
@@ -279,6 +281,7 @@ describe("appelants de l'interface de persistance", () => {
         "reessayer",
         "soumettreLEtatRelu",
       ],
+      "src/vues-de-table/use-reglages.ts": [],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
