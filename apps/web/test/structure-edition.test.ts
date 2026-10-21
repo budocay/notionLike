@@ -41,6 +41,9 @@ describe("aucun HTML brut", () => {
       "src/edition/barre.ts",
       // F-005 : bloc code, liste des langages, filtre et menu slash (F-005-AC10).
       "src/edition/bloc-code.ts",
+      // F-033 : bornes d'un bloc colorable et coloration du bloc code (F-033-AC6).
+      "src/edition/colorable.ts",
+      "src/edition/coloration.ts",
       "src/edition/commandes-de-bloc.ts",
       "src/edition/commandes-de-marque.ts",
       // F-006 : déplacement d'un bloc, lâcher et raccourcis, poignée du curseur.
@@ -126,6 +129,8 @@ describe("confinement de la bibliothèque d'édition", () => {
       "src/edition/barre.ts",
       // F-005 : bloc code et menu slash (F-005-AC33).
       "src/edition/bloc-code.ts",
+      // F-033 : greffon de coloration du bloc code.
+      "src/edition/coloration.ts",
       "src/edition/commandes-de-marque.ts",
       // F-006 : poignée de bloc, curseur de dépôt, déplacement d'un bloc (F-006-AC32).
       "src/edition/deplacement-de-bloc.ts",
@@ -333,8 +338,9 @@ describe("coutures avec F-004", () => {
     // 13 fichiers à F-003, 19 depuis F-028 (six fichiers du module d'édition, dont la relecture de
     // la sélection du navigateur, F-028-AC30), 22 depuis F-006 (déplacement d'un bloc, lâcher,
     // poignée du curseur), 29 depuis F-005 (bloc code, langages, filtre, menu slash et son
-    // affichage, commandes de bloc, origine de la liaison).
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(29);
+    // affichage, commandes de bloc, origine de la liaison), 31 depuis F-033 (bornes et coloration
+    // du bloc code).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(31);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

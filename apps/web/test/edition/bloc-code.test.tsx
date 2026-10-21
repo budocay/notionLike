@@ -534,19 +534,34 @@ describe("collage et bloc code", () => {
 });
 
 describe("rendu du bloc code", () => {
-  it("F-005-AC8 un bloc code est rendu par un `pre` qui contient un `code`, son texte tel quel, sans coloration", () => {
+  // Amendé par F-033 (H10) : « sans coloration » vaut pour un bloc qui n'est pas colorable.
+  it("F-005-AC8 F-033-AC2 un bloc code est rendu par un `pre` qui contient un `code`, son texte tel quel ; sans langage de la liste, sans coloration ; avec un langage de la liste, coloré, le texte inchangé", () => {
     monterLEditeur();
     entrerDansLEditeur();
-    taperUnBlocCode(["  a  b", "c"], "```python ");
+    taperUnBlocCode(["  a  b", 'c = "d"']);
+    presserAvecMod("Enter");
+    taperUnBlocCode(["  a  b", 'c = "d"'], "```python ");
 
-    const pre = zoneDeSaisie().querySelector("pre");
-    const code = pre?.firstElementChild;
+    const rendus = [...zoneDeSaisie().querySelectorAll("pre")].map((pre) => ({
+      attributsDuPre: pre.attributes.length,
+      balise: pre.firstElementChild?.tagName,
+      texte: pre.firstElementChild?.textContent,
+      classe: pre.firstElementChild?.getAttribute("class"),
+      colore: [...(pre.firstElementChild?.querySelectorAll("span") ?? [])].map(
+        (s) => s.textContent,
+      ),
+    }));
 
-    expect(code?.tagName).toBe("CODE");
-    expect(code?.textContent).toBe("  a  b\nc");
-    expect(code?.getAttribute("class")).toBe("language-python");
-    expect(code?.children).toHaveLength(0);
-    expect(pre?.attributes).toHaveLength(0);
+    expect(rendus).toEqual([
+      { attributsDuPre: 0, balise: "CODE", texte: '  a  b\nc = "d"', classe: null, colore: [] },
+      {
+        attributsDuPre: 0,
+        balise: "CODE",
+        texte: '  a  b\nc = "d"',
+        classe: "language-python",
+        colore: ['"d"'],
+      },
+    ]);
   });
 
   it("F-005-AC10 un bloc code qui contient du balisage HTML ou un script l'affiche comme du texte, sans l'interpréter", () => {

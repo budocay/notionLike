@@ -94,6 +94,8 @@ describe("frontières du module de persistance", () => {
     // dépôt, réservés au module d'édition (F-006-AC32).
     // F-005 : bloc code, utilitaire de suggestion et positionnement du menu slash, réservés au
     // module d'édition (F-005-AC33).
+    // F-033 : bibliothèque de coloration et grammaires, réservées à src/edition/coloration.ts
+    // (F-033-AC25).
     expect(Object.keys(manifesteWeb.dependencies).sort()).toEqual([
       "@dnd-kit/core",
       "@dnd-kit/sortable",
@@ -122,6 +124,8 @@ describe("frontières du module de persistance", () => {
       "@tiptap/suggestion",
       "@tiptap/y-tiptap",
       "better-auth",
+      "highlight.js",
+      "lowlight",
       "react",
       "react-dom",
       "y-indexeddb",
