@@ -72,7 +72,7 @@ import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { ZoneDeCompte } from "./ZoneDeCompte.tsx";
 import { ZoneDesEspaces } from "./ZoneDesEspaces.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
-import { idsDesPages } from "../synchronisation/index.ts";
+import { idsDesPages, typesDesPages } from "../synchronisation/index.ts";
 import {
   type FabriqueDeSynchronisation,
   type SynchronisationDeLEspace,
@@ -167,8 +167,15 @@ function useEspacePret(props: ProprietesEspacePret) {
       doc: props.session.doc,
       idPage: table === undefined ? page?.id : undefined,
       page: etatDeLaPage,
+      idTable: table?.id,
+      table: etatDeLaTable,
       lirePages: () => pagesDeLaSession(props.session),
-      fermerLesPages: (idPages) => void pages.effacer(undefined, idPages),
+      typeDe: (id) => typeDansLaSession(props.session, id),
+      // F-018-AC53 : les documents de page et de table des identifiants supprimés ailleurs.
+      fermerLesPages: (idPages) => {
+        void pages.effacer(undefined, idPages);
+        void tables.effacer(undefined, idPages);
+      },
       toutFermer: () => toutFermer({ pages, tables }, props.session),
     },
     LECTURE_SEULE,
@@ -246,6 +253,12 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
 function pagesDeLaSession(session: SessionEspace): ReadonlySet<string> | undefined {
   const lu = session.lireEtat();
   return lu.phase === "pret" ? idsDesPages(lu.arborescence) : undefined;
+}
+
+// Le type lu d'un identifiant de l'arborescence ou de la corbeille (F-018-AC51).
+function typeDansLaSession(session: SessionEspace, id: string): TypeDePage | undefined {
+  const lu = session.lireEtat();
+  return lu.phase === "pret" ? typesDesPages(lu.arborescence).get(id) : undefined;
 }
 
 // Avant l'effacement de la copie locale, plus rien de l'onglet ne tient une base (AC24).

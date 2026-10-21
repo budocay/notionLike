@@ -206,3 +206,65 @@ describe("noms de base tirés d'un identifiant de page (F-018-AC9)", () => {
     ).toEqual([coquille.table, coquille.sousTable].sort());
   });
 });
+
+// Les modules d'apps/web qui tirent d'un identifiant un nom de base ou un nom de document, chacun
+// avec le type qu'il nomme et le test qui prouve qu'une table n'a jamais de document de page, ni une
+// page de document de table.
+const NOMMEURS_DE_DOCUMENTS: Readonly<
+  Record<string, { readonly regle: string; readonly test: string }>
+> = {
+  "src/page/pages-ouvertes.ts": {
+    regle: "document de page, ouvert par l'éditeur pour une page seulement (F-003)",
+    test: "test/table-coutures.test.tsx",
+  },
+  "src/table/tables-ouvertes.ts": {
+    regle: "document de table, ouvert par l'écran de table pour une table seulement",
+    test: "test/table-coutures.test.tsx",
+  },
+  "src/synchronisation/noms.ts": {
+    regle: "correspondance d'un type donné par l'appelant",
+    test: "test/synchronisation/tables.test.ts",
+  },
+  "src/synchronisation/page-affichee.ts": {
+    regle: "document de page de la page affichée par l'éditeur",
+    test: "test/synchronisation/tables.test.ts",
+  },
+  "src/synchronisation/table-affichee.ts": {
+    regle: "document de table de la table affichée",
+    test: "test/synchronisation/tables.test.ts",
+  },
+  "src/synchronisation/passe-de-fond.ts": {
+    regle: "le type lu de chaque identifiant (typeDe)",
+    test: "test/synchronisation/tables.test.ts",
+  },
+  "src/synchronisation/synchronisation.ts": {
+    regle: "le type lu de chaque identifiant, pour les documents suspects d'une fermeture 1009",
+    test: "test/synchronisation/tables.test.ts",
+  },
+  "src/synchronisation/stockage.ts": {
+    regle:
+      "effacement des deux bases d'un identifiant retiré, dont le type n'est plus lisible (H11)",
+    test: "test/synchronisation/tables.test.ts",
+  },
+};
+
+describe("modules qui nomment un document d'après un identifiant (F-018-AC9)", () => {
+  it("F-018-AC9 la liste des modules qui tirent d'un identifiant un nom de base ou de document est exacte, et chacun est couvert", () => {
+    const nommeurs = lister("src")
+      .filter((chemin) => /\.tsx?$/.test(chemin) && !chemin.startsWith("src/persistance/"))
+      .filter((chemin) =>
+        /correspondance\(|ouvrirPersistance\(|effacerBaseDePage\(|effacerBaseDeDocument\(|ouvrirLaBase\(/.test(
+          lire(chemin),
+        ),
+      );
+    expect(nommeurs).toEqual(Object.keys(NOMMEURS_DE_DOCUMENTS).sort());
+    for (const { test } of Object.values(NOMMEURS_DE_DOCUMENTS)) {
+      expect(lire(test), test).toMatch(/F-018-AC9/);
+    }
+    expect(lire("src/synchronisation/passe-de-fond.ts")).toMatch(
+      /correspondance\(this\.#options\.typeDe\(idPage\)/,
+    );
+    expect(lire("src/synchronisation/page-affichee.ts")).toMatch(/correspondance\("page"/);
+    expect(lire("src/synchronisation/table-affichee.ts")).toMatch(/correspondance\("table"/);
+  });
+});

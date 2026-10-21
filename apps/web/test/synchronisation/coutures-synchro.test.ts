@@ -272,6 +272,8 @@ describe("F-013-AC40 couture avec F-002, F-007 et F-010", () => {
         "abonner",
         "adopter",
         "afficherPage",
+        // F-018-AC51 : la table affichée.
+        "afficherTable",
         "effacerLaCopieLocale",
         "estAcquitte",
         "fermer",

@@ -1,5 +1,5 @@
-// Passe de fond (F-013-AC5, AC6, H6) : chaque page de l'arborescence et de la corbeille qui n'est
-// pas affichée est échangée avec le serveur, base locale ouverte, puis refermée avec son ouverture.
+// Passe de fond (F-013-AC5, AC6, H6, F-018-AC51) : chaque page et chaque table de l'arborescence et de
+// la corbeille qui n'est pas affichée est échangée avec le serveur, base locale ouverte, puis refermée avec son ouverture.
 // Rien n'est retenu d'une passe à l'autre que les documents eux-mêmes : une passe interrompue est
 // reprise en entier. Au plus quatre documents à la fois, et jamais plus de la fraction donnée du
 // débit publié ; aucun éditeur ni aucune liaison n'est créé sur un document traité.
@@ -9,6 +9,7 @@ import * as Y from "yjs";
 import { ouvrirLaBase, type Persistance } from "./stockage.ts";
 import type { Horloge } from "./environnement.ts";
 import { correspondance } from "./noms.ts";
+import type { TypeDeDocumentDePage as TypeDePage } from "./pages-de-l-espace.ts";
 import { type IssueDOuverture, ouvrir, type Ouverture } from "./ouverture.ts";
 
 export const DOCUMENTS_A_LA_FOIS = 4;
@@ -30,6 +31,8 @@ export interface IssueDUnePage {
 
 export interface OptionsDeLaPasse {
   readonly idEspace: string;
+  /** Le type lu de chaque identifiant : une table est échangée sous son document de table (F-018-AC51). */
+  readonly typeDe: (id: string) => TypeDePage;
   readonly prise: HocuspocusProviderWebsocket;
   readonly horloge: Horloge;
   /** Documents traités à la fois ; quatre par défaut, un après une fermeture 1009 (AC28). */
@@ -154,7 +157,7 @@ class PasseDeFond implements Passe {
     let persistance: Persistance;
     const doc = new Y.Doc();
     try {
-      const lien = correspondance("page", this.#options.idEspace, idPage);
+      const lien = correspondance(this.#options.typeDe(idPage), this.#options.idEspace, idPage);
       nom = lien.nomDeDocument;
       persistance = ouvrirLaBase(doc, lien.designation);
     } catch {

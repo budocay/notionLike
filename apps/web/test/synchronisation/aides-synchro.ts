@@ -38,6 +38,7 @@ import {
   type SourceDuCompte,
   type StatutDuCompte,
   type Synchronisation,
+  typesDesPages,
 } from "../../src/synchronisation/index.ts";
 import type { CanalEntreOnglets, Signal } from "../../src/synchronisation/environnement.ts";
 import { creerFacade, ouvrirFacade } from "../aides-facade.ts";
@@ -396,6 +397,7 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
     lireEtat: brute.lireEtat,
     abonner: brute.abonner,
     afficherPage: (page) => appareil.sur(() => brute.afficherPage(page)),
+    afficherTable: (table) => appareil.sur(() => brute.afficherTable(table)),
     adopter: (nom) => appareil.sur(() => brute.adopter(nom)),
     reessayer: () => appareil.sur(() => brute.reessayer()),
     reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
@@ -444,6 +446,14 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
       lirePages: () => {
         try {
           return idsDesPages(facade.lire());
+        } catch {
+          return undefined;
+        }
+      },
+      // F-018-AC51 : le type lu de chaque identifiant, comme l'interface le donne.
+      typeDe: (id) => {
+        try {
+          return typesDesPages(facade.lire()).get(id);
         } catch {
           return undefined;
         }

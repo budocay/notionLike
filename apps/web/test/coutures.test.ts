@@ -966,6 +966,8 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       "apps/web/src/synchronisation/passe-de-fond.ts",
       "apps/web/src/synchronisation/stockage.ts",
       "apps/web/src/synchronisation/synchronisation.ts",
+      // F-018-AC51 : la table affichée, échangée sur son document de table.
+      "apps/web/src/synchronisation/table-affichee.ts",
       // F-018 : la session de table et les tables ouvertes, dont yjs est une dépendance permise
       // (web-table-liste-blanche) ; aucun type partagé n'y est lu ni écrit.
       "apps/web/src/table/session-table.ts",

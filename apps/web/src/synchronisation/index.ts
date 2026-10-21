@@ -19,12 +19,13 @@ export {
 } from "./etat.ts";
 export type { IssueDEffacement as IssueDeLEffacement } from "./stockage.ts";
 export { versionAdmise } from "./miroir.ts";
-export { idsDesPages } from "./pages-de-l-espace.ts";
+export { idsDesPages, typesDesPages } from "./pages-de-l-espace.ts";
 export { environnementDuNavigateur } from "./reseau.ts";
 export {
   demarrerSynchronisation,
   type OptionsDeSynchronisation,
   type PageAffichee,
   type SourceDuCompte,
+  type TableAffichee,
   type Synchronisation,
 } from "./synchronisation.ts";

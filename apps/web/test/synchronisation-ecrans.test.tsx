@@ -67,6 +67,7 @@ import {
   type IssueDeLEffacement,
   type PageAffichee,
   type Synchronisation,
+  type TableAffichee,
 } from "../src/synchronisation/index.ts";
 import { compteSimule, jamais, moi200, ROUTES, serveurSimule } from "./aides-compte.tsx";
 import { boutonNouvellePage, fermerLOnglet } from "./aides-coquille.tsx";
@@ -108,6 +109,8 @@ interface Simulee {
   readonly adoptions: string[];
   readonly documentsReessayes: (string | undefined)[];
   readonly pages: (PageAffichee | undefined)[];
+  /** F-018 : les tables affichées. */
+  readonly tables: TableAffichee[];
   readonly compteurs: { reessais: number; effacements: number };
   espace(): EspaceASynchroniser | undefined;
 }
@@ -124,6 +127,7 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
     adoptions: [],
     documentsReessayes: [],
     pages: [],
+    tables: [],
     compteurs: { reessais: 0, effacements: 0 },
     espace: () => dernier,
     poser: (partiel) => {
@@ -140,6 +144,8 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
           return () => abonnes.delete(rappel);
         },
         afficherPage: (page) => simulee.pages.push(page),
+        // F-018 : la table affichée.
+        afficherTable: (table) => simulee.tables.push(table),
         adopter: (nom) => {
           simulee.adoptions.push(nom);
           return simulee.reponseDAdoption();
@@ -851,5 +857,90 @@ describe("F-013-AC31 F-013-AC32 F-013-AC48 les textes de la zone", () => {
     poser(simulee, { affiche: "en-cours" });
     expect(tenterDeQuitter().defaultPrevented).toBe(true);
     expect(local()).toContain("Non enregistré sur cet appareil");
+  });
+});
+
+describe("une table en lecture seule (F-018-AC52)", () => {
+  it("F-018-AC52 en lecture seule, « Nouvelle table », « Ajouter une table » et chaque action qui écrit dans la table sont désactivées avec la raison ; navigation et réglages restent ; documents d'espace et de table identiques octet pour octet", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await utilisateur.click(await screen.findByRole("button", { name: "Ajouter une colonne" }));
+    await utilisateur.type(screen.getByRole("textbox", { name: "Nom de la colonne" }), "Fait");
+    await utilisateur.selectOptions(
+      screen.getByRole("combobox", { name: "Type de la colonne" }),
+      "case",
+    );
+    await utilisateur.click(screen.getByRole("button", { name: "Créer la colonne" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Nouvelle ligne" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const docDeTable = (simulee.tables.at(-1) as TableAffichee).doc;
+
+    poser(simulee, { affiche: "synchronise", rattachement: "adopte", droit: "lecture" });
+    const docs = [session.doc as Y.Doc, docDeTable];
+    const avant = docs.map((doc) => Y.encodeStateAsUpdate(doc));
+    let mises = 0;
+    const compter = (): void => {
+      mises += 1;
+    };
+    docs.forEach((doc) => doc.on("update", compter));
+
+    expect(
+      (screen.getByRole("button", { name: "Nouvelle table" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    for (const nom of ["Ajouter une colonne", "Nouvelle ligne"]) {
+      const bouton = screen.getByRole<HTMLButtonElement>("button", { name: nom });
+      expect(bouton.disabled, nom).toBe(true);
+      expect(descriptionDe(bouton), nom).toBe(LECTURE_SEULE);
+    }
+    expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "Fait, ligne 1" }).disabled).toBe(
+      true,
+    );
+    const casePremiere = screen.getAllByRole("gridcell")[0] as HTMLElement;
+    casePremiere.focus();
+    await utilisateur.keyboard(" {Enter}{F2}{Delete}x");
+    fireEvent.doubleClick(casePremiere);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await utilisateur.click(screen.getByRole("button", { name: "Actions de la ligne 1" }));
+    for (const entree of within(screen.getByRole("menu")).getAllByRole("menuitem")) {
+      expect(entree.hasAttribute("disabled"), entree.textContent ?? "").toBe(true);
+    }
+    await utilisateur.keyboard("{Escape}");
+    await utilisateur.click(screen.getByRole("button", { name: "Actions de la colonne Fait" }));
+    const ouvertes = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem")
+      .filter((entree) => !entree.hasAttribute("disabled"))
+      .map((entree) => entree.firstChild?.textContent);
+    expect(ouvertes).toEqual(["Régler la largeur"]);
+    await utilisateur.keyboard("{Escape}");
+    await utilisateur.click(screen.getByRole("button", { name: nomActionsDeLaPage("Budget") }));
+    expect(
+      screen.getByRole("menuitem", { name: "Ajouter une table" }).hasAttribute("disabled"),
+    ).toBe(true);
+    await utilisateur.keyboard("{Escape}");
+
+    // Navigation au clavier et réglages de vue restent utilisables.
+    casePremiere.focus();
+    await utilisateur.keyboard("{ArrowLeft}");
+    expect(document.activeElement?.getAttribute("role")).toBe("rowheader");
+    const separateur = screen.getByRole("separator", { name: "Largeur de la colonne Fait" });
+    act(() => separateur.focus());
+    await utilisateur.keyboard("{ArrowRight}");
+    expect(separateur.getAttribute("aria-valuenow")).toBe("196");
+    await act(() => laisserIndexedDbTravailler());
+
+    docs.forEach((doc) => doc.off("update", compter));
+    expect(docs.map((doc) => Y.encodeStateAsUpdate(doc))).toEqual(avant);
+    expect(mises).toBe(0);
+    localStorage.clear();
   });
 });

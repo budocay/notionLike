@@ -1,6 +1,6 @@
 // Les pages d'un espace que la synchronisation traite : celles de l'arborescence et de la
 // corbeille, descendances comprises (F-013-AC5), lues par qui tient la façade du document.
-import type { Arborescence, PageLue } from "@notionlike/document";
+import type { Arborescence, PageLue, TypeDePage } from "@notionlike/document";
 
 // Parcours itératif : une arborescence reçue n'a pas de profondeur bornée.
 function ajouter(pages: readonly PageLue[], ids: Set<string>): void {
@@ -18,6 +18,26 @@ export function idsDesPages({ racines, corbeille }: Arborescence): ReadonlySet<s
   ajouter(corbeille, ids);
   return ids;
 }
+
+/**
+ * Le type de chaque page lue (F-018-AC51, ADR-0019), arborescence et corbeille : une table ouvre
+ * son document de table, jamais un document de page (F-018-AC9).
+ */
+export function typesDesPages({
+  racines,
+  corbeille,
+}: Arborescence): ReadonlyMap<string, TypeDePage> {
+  const types = new Map<string, TypeDePage>();
+  const aVoir = [...racines, ...corbeille];
+  for (const page of aVoir) {
+    types.set(page.id, page.type ?? "page");
+    aVoir.push(...page.enfants);
+  }
+  return types;
+}
+
+/** Le type d'un document d'une entrée de l'arborescence : celui de la page lue (F-018-AC51). */
+export type TypeDeDocumentDePage = TypeDePage;
 
 export interface Ecart {
   readonly ajoutees: readonly string[];
