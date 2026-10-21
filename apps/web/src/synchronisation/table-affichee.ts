@@ -22,14 +22,14 @@ export interface CreationDeLaTable {
 }
 
 export class TableSynchronisee {
-  /** L'identifiant de la table, sous le nom que l'orchestre donne au document affiché. */
-  readonly idPage: string;
+  /** L'identifiant de la table : celui du document affiché. */
+  readonly idDocument: string;
   readonly lie: Y.Doc;
   readonly suivi: DocumentSuivi;
   readonly #fermerLeCanal: () => void;
 
   private constructor(table: TableAffichee, suivi: DocumentSuivi, fermerLeCanal: () => void) {
-    this.idPage = table.idTable;
+    this.idDocument = table.idTable;
     this.lie = table.doc;
     this.suivi = suivi;
     this.#fermerLeCanal = fermerLeCanal;

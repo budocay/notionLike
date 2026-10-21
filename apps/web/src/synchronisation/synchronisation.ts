@@ -583,8 +583,8 @@ class Orchestre {
     }
     const exclues = new Set([
       ...this.#bloques.keys(),
-      ...(this.#page === undefined ? [] : [this.#page.idPage]),
-      ...[...this.#partantes].map((partante) => partante.idPage),
+      ...(this.#page === undefined ? [] : [this.#page.idDocument]),
+      ...[...this.#partantes].map((partante) => partante.idDocument),
     ]);
     this.#erreursDePasse.clear();
     this.#reprisesDePasse.clear();
@@ -670,7 +670,7 @@ class Orchestre {
 
   #effacerLesPagesSupprimees(idPages: readonly string[]): void {
     this.#passe?.oublier(idPages);
-    if (this.#page !== undefined && idPages.includes(this.#page.idPage)) {
+    if (this.#page !== undefined && idPages.includes(this.#page.idDocument)) {
       this.#page.fermer();
       this.#page = undefined;
     }
@@ -716,7 +716,7 @@ class Orchestre {
     creer: () => DocumentAffiche | undefined,
   ): void {
     const courante = this.#page;
-    if (this.#fermee || (courante?.idPage === affiche?.id && courante?.lie === affiche?.doc)) {
+    if (this.#fermee || (courante?.idDocument === affiche?.id && courante?.lie === affiche?.doc)) {
       return;
     }
     this.#page = undefined;
@@ -799,7 +799,7 @@ class Orchestre {
   readonly reessayerLeDocument = (idPage: string | undefined): void => {
     if (idPage === undefined) {
       this.#espace.reessayer();
-    } else if (this.#page?.idPage === idPage) {
+    } else if (this.#page?.idDocument === idPage) {
       this.#page.suivi.reessayer();
     } else {
       this.#bloques.delete(idPage);
@@ -903,7 +903,7 @@ class Orchestre {
     );
     // Les pages bloquées qui ne sont pas affichées, puis les erreurs de la dernière passe.
     for (const [idPage, cause] of this.#bloques) {
-      if (idPage !== ESPACE && idPage !== this.#page?.idPage) {
+      if (idPage !== ESPACE && idPage !== this.#page?.idDocument) {
         erreurs.push({ idPage, cause, reessayable: true });
       }
     }
@@ -919,7 +919,7 @@ class Orchestre {
       divergentes.unshift(undefined);
     }
     if (this.#page?.suivi.estDivergent() === true) {
-      divergentes.push(this.#page.idPage);
+      divergentes.push(this.#page.idDocument);
     }
     return divergentes;
   }

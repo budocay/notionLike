@@ -26,7 +26,8 @@ export interface CreationDeLaPage {
 }
 
 export class PageSynchronisee {
-  readonly idPage: string;
+  /** L'identifiant de la page : celui du document affiché. */
+  readonly idDocument: string;
   readonly lie: Y.Doc;
   readonly suivi: DocumentSuivi;
   readonly #miroir: Miroir;
@@ -39,7 +40,7 @@ export class PageSynchronisee {
     suivi: DocumentSuivi,
     fermerLeCanal: () => void,
   ) {
-    this.idPage = page.idPage;
+    this.idDocument = page.idPage;
     this.lie = page.doc;
     this.#miroir = miroir;
     this.suivi = suivi;
