@@ -62,7 +62,7 @@ Format, version 1. `packages/document/src/format-table.ts` est le seul fichier q
 
 ### Amendement F-018 (2026-10-21) : élément non compté dans `versions`
 
-Statut : proposé, à accepter par le dev avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : la lecture de `versions` vient de `lireFormeStockee` (`packages/document/src/format-page.ts`), que F-018 change (`60258d0`) et qu'elle fait lire aussi au document d'espace ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la table.
+Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : la lecture de `versions` vient de `lireFormeStockee` (`packages/document/src/format-page.ts`), que F-018 change (`60258d0`) et qu'elle fait lire aussi au document d'espace ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la table.
 
 - **Règle de lecture complétée** (puce « Type racine `versions` » ci-dessus) : outre une entrée qui n'est pas un entier supérieur ou égal à 1 et une entrée nommée, un élément non compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom, que `forEach` et `toArray` passaient sous silence) rend le document non pris en charge. `ouvrirDocumentTable` lève `version-non-prise-en-charge`, avant la liste blanche, sans rien écrire. Le reste de la reconnaissance est inchangé.
 - **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `format-table.ts` (F-018-AC58).

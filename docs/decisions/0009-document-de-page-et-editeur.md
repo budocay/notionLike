@@ -58,7 +58,7 @@ Contexte : F-005 (ADR-0018) ajoute au module d'édition le bloc code et le menu 
 
 ### Amendement F-018 (2026-10-21) : élément non compté dans `versions`
 
-Statut : proposé, à accepter par le dev avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : F-018 change `lireFormeStockee` (`packages/document/src/format-page.ts`, `60258d0`), fonction commune aux documents de page, d'espace et de table ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la page.
+Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : F-018 change `lireFormeStockee` (`packages/document/src/format-page.ts`, `60258d0`), fonction commune aux documents de page, d'espace et de table ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la page.
 
 - **Règle de lecture complétée** : la fonction parcourt les éléments du type `versions`, supprimés exceptés. Un élément non compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom, que `forEach` et `toArray` passaient sous silence) rend la forme non admise, comme une entrée non entière ou nommée : `ouvrirDocumentPage` lève `version-non-prise-en-charge`, et la garde de version relit par la même fonction.
 - **Seconde barrière inchangée** : la réplique de la page affichée (`apps/web/src/synchronisation/miroir.ts`, `lireVersionPage`) ne juge que le numéro ; un tel élément la passe, comme une entrée mal formée (amendement F-012 et F-013), et c'est la façade qui le refuse.
