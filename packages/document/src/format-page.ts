@@ -98,17 +98,29 @@ export function typeDesVersions(doc: Y.Doc): Y.Array<unknown> | undefined {
 }
 
 // Rien n'est inscrit pour la version 1 : un type vide vaut 1, règle permanente du format (H4). Des
-// entrées nommées, qu'un tableau ne porte jamais, sont l'écriture d'un autre type sous ce nom.
+// entrées nommées, qu'un tableau ne porte jamais, sont l'écriture d'un autre type sous ce nom ; un
+// élément de liste non compté (attribut de mise en forme d'un texte), que `forEach` passerait sous
+// silence, aussi (F-018, même règle que le serveur, décision du dev du 2026-10-19). Lue par les
+// trois formats : document de page, document d'espace et document de table.
 export function lireFormeStockee(versions: Y.Array<unknown>): FormeStockee {
   let version = PREMIERE_VERSION;
   let admise = versions._map.size === 0;
-  versions.forEach((valeur) => {
-    if (estUneVersion(valeur)) {
-      version = Math.max(version, valeur);
-    } else {
-      admise = false;
+  for (let element = versions._start; element !== null; element = element.right) {
+    if (element.deleted) {
+      continue;
     }
-  });
+    if (!element.countable) {
+      admise = false;
+      continue;
+    }
+    for (const valeur of element.content.getContent() as unknown[]) {
+      if (estUneVersion(valeur)) {
+        version = Math.max(version, valeur);
+      } else {
+        admise = false;
+      }
+    }
+  }
   return { version, admise };
 }
 

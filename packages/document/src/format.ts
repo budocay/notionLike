@@ -119,19 +119,44 @@ export function retirerEntree(doc: Y.Doc, id: IdPage): void {
 /**
  * Lecture, étape 1 (amendement F-018) : le plus grand de `meta.version` et des entrées de
  * `versions`, chacun valant 1 en son absence (règle permanente du format). `admise` est faux si
- * `meta.version` est présente sans être un entier supérieur ou égal à 1, ou si `versions` a été
- * défini sous un autre type partagé ou porte autre chose que de tels entiers. Rien n'est écrit :
- * le type racine `versions` n'est pas créé s'il est absent.
+ * `meta.version` est présente sans être un entier supérieur ou égal à 1, si `meta` est d'une autre
+ * nature qu'un `Y.Map` (déjà lu sous un autre type partagé, ou porteur d'un contenu de liste : un
+ * tableau, un texte ou un fragment écrit sous ce nom), ou si `versions` a été défini sous un autre
+ * type partagé ou porte autre chose que de tels entiers (même règle que le serveur, décision du dev
+ * du 2026-10-19). Rien n'est écrit : ni `meta` ni `versions` ne sont créés s'ils sont absents.
  */
 export function lireLaVersion(doc: Y.Doc): FormeStockee {
-  const meta = doc.getMap(TYPE_META);
-  const parMeta: unknown = meta.has(CLE_VERSION) ? meta.get(CLE_VERSION) : VERSION_INITIALE;
-  const metaAdmise = estUneVersionEntiere(parMeta);
+  const parMeta = formeDeMeta(doc);
   const parVersions = formeDesVersions(doc);
   return {
-    version: Math.max(metaAdmise ? parMeta : VERSION_INITIALE, parVersions.version),
-    admise: metaAdmise && parVersions.admise,
+    version: Math.max(parMeta.version, parVersions.version),
+    admise: parMeta.admise && parVersions.admise,
   };
+}
+
+// Un type racine absent vaut la version 1 et n'est pas créé. `meta` n'a qu'une nature, `Y.Map` :
+// un contenu de liste sous ce nom (`_start`) ou un type déjà lu sous un autre type partagé (Yjs
+// lève) n'est pas admis.
+function formeDeMeta(doc: Y.Doc): FormeStockee {
+  if (!doc.share.has(TYPE_META)) {
+    return { version: VERSION_INITIALE, admise: true };
+  }
+  const meta = mapRacine(doc, TYPE_META);
+  if (meta === undefined || meta._start !== null) {
+    return { version: VERSION_INITIALE, admise: false };
+  }
+  const valeur: unknown = meta.has(CLE_VERSION) ? meta.get(CLE_VERSION) : VERSION_INITIALE;
+  return estUneVersionEntiere(valeur)
+    ? { version: valeur, admise: true }
+    : { version: VERSION_INITIALE, admise: false };
+}
+
+function mapRacine(doc: Y.Doc, nom: string): Y.Map<unknown> | undefined {
+  try {
+    return doc.getMap<unknown>(nom);
+  } catch {
+    return undefined;
+  }
 }
 
 export function estDeVersionPriseEnCharge(doc: Y.Doc): boolean {
