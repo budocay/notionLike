@@ -93,6 +93,30 @@ export const TABLE_FICTIVE = {
   invitation: "Cette table n'a encore aucune colonne. Ajoutez-en une pour commencer à la remplir.",
   ajouter: "Ajouter une colonne",
   nouvelleTable: "Nouvelle table",
+  grille: "Lignes de la table Suivi des achats",
+  actions: "Actions des lignes",
+  colonnes: ["Article", "Prix", "Reçu"],
+  lignes: [
+    ["Papier", "12,5"],
+    ["Encre, cartouche noire de grande capacité pour l'imprimante du bureau", "39"],
+  ],
+  vues: [
+    { id: "tableau", libelle: "Tableau" },
+    { id: "kanban", libelle: "Kanban" },
+  ],
+  nomDesVues: "Vue de la table",
+  largeur: "Largeur de la colonne Article",
+  champ: "Article, ligne 1",
+  choix: [
+    { cle: "aucune", libelle: "Aucune", courant: false },
+    { cle: "attente", libelle: "En attente", courant: true },
+    { cle: "recu", libelle: "Reçu", courant: false },
+  ],
+  nomDuChoix: "Choix pour la colonne État",
+  options: "Options de la colonne État",
+  aucuneOption: "Cette colonne n'a encore aucune option.",
+  nouvelleOption: "Nouvelle option",
+  faute: "Le libellé d'une option compte au plus 100 caractères.",
 } as const;
 
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un

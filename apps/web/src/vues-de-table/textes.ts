@@ -43,6 +43,9 @@ export function placeDeLaLigne(rang: number, total: number): string {
 export function nomActionsDeLaColonne(nom: string): string {
   return `Actions de la colonne ${nomAffiche(nom)}`;
 }
+export function nomDeLaLigne(rang: number): string {
+  return `Ligne ${String(rang)}`;
+}
 export function nomActionsDeLaLigne(rang: number): string {
   return `Actions de la ligne ${String(rang)}`;
 }

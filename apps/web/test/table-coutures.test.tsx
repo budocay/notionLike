@@ -117,13 +117,34 @@ const LECTEURS_DE_L_ARBORESCENCE: Readonly<Record<string, Lecture>> = {
     [...idsDesPages(arborescence(coquille))].sort(),
 };
 
+const LIT_LA_TABLE = "lit la table par la façade du document de table (module des vues de table)";
+
 // Les importateurs qui ne lisent ni l'arborescence ni la corbeille, et ce qu'ils lisent à la place.
 const AUTRES_IMPORTATEURS: Readonly<Record<string, string>> = {
   "src/interface/messages.ts": "traduit les codes d'erreur",
   "src/page/session-page.ts": "lit le document d'une page",
   "src/synchronisation/miroir.ts": "lit la version d'un document de page",
   "src/table/session-table.ts": "lit le document d'une table",
-  "src/vues-de-table/EcranDeTable.tsx": "lit la table par la façade du document de table",
+  "src/vues-de-table/EcranDeTable.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/actions.ts": LIT_LA_TABLE,
+  "src/vues-de-table/affichage.ts": LIT_LA_TABLE,
+  "src/vues-de-table/Boites.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/ChoixDeCellule.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/courante.ts": LIT_LA_TABLE,
+  "src/vues-de-table/ecritures.ts": LIT_LA_TABLE,
+  "src/vues-de-table/EnTetes.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/grille.ts": LIT_LA_TABLE,
+  "src/vues-de-table/lignes-affichees.ts": LIT_LA_TABLE,
+  "src/vues-de-table/menu-de-grille.ts": LIT_LA_TABLE,
+  "src/vues-de-table/menus.ts": LIT_LA_TABLE,
+  "src/vues-de-table/PanneauDesOptions.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/Rangees.tsx": LIT_LA_TABLE,
+  "src/vues-de-table/reglages.ts": LIT_LA_TABLE,
+  "src/vues-de-table/saisie.ts": LIT_LA_TABLE,
+  "src/vues-de-table/use-courante.ts": LIT_LA_TABLE,
+  "src/vues-de-table/use-edition.ts": LIT_LA_TABLE,
+  "src/vues-de-table/use-vue-tableau.ts": LIT_LA_TABLE,
+  "src/vues-de-table/valider.ts": LIT_LA_TABLE,
 };
 
 function importateursDuDocument(): string[] {

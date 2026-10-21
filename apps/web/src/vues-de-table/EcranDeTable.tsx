@@ -6,14 +6,15 @@ import { type ReactElement, useSyncExternalStore } from "react";
 
 import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
-import { EcranDeTableCadre, InvitationDeTable } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
+import { lignesAffichees } from "./lignes-affichees.ts";
+import { LARGEUR_PAR_DEFAUT } from "./reglages.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
-  INVITATION_SANS_COLONNE,
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { VueTableau } from "./VueTableau.tsx";
 
 export interface ProprietesEcranDeTable {
   readonly etat: EtatSessionTable;
@@ -35,17 +36,21 @@ function lectureDe(table: DocumentTable): TableLue | undefined {
   }
 }
 
-function TableAffichee({ table }: { readonly table: DocumentTable }): ReactElement {
+function TableAffichee(props: ProprietesEcranDeTable & { readonly table: DocumentTable }) {
+  const { table } = props;
   const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
   return (
-    <EcranDeTableCadre annonce="">
-      {lue.colonnes.length === 0 && (
-        <InvitationDeTable texte={INVITATION_SANS_COLONNE}>{null}</InvitationDeTable>
-      )}
-    </EcranDeTableCadre>
+    <VueTableau
+      table={table}
+      lue={lue}
+      lignes={lignesAffichees(lue)}
+      titre={props.titre}
+      lectureSeule={props.lectureSeule}
+      largeurDe={() => LARGEUR_PAR_DEFAUT}
+    />
   );
 }
 
@@ -61,6 +66,6 @@ export function EcranDeTable(props: ProprietesEcranDeTable): ReactElement | null
     case "illisible":
       return <NoteDePage texte={TABLE_ILLISIBLE} />;
     case "pret":
-      return <TableAffichee table={etat.table} />;
+      return <TableAffichee {...props} table={etat.table} />;
   }
 }

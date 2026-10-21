@@ -150,6 +150,8 @@ const DISTINGUENT_UN_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/page/session-page.ts": CE_FICHIER,
   // F-018 : la session de table ne distingue que les deux refus du document de table.
   "apps/web/src/table/session-table.ts": CE_FICHIER,
+  // F-018-AC37 : l'écran de table ne distingue que le refus d'une date.
+  "apps/web/src/vues-de-table/ecritures.ts": CE_FICHIER,
 };
 const OUVRANTS_A_BORNE: Readonly<Record<string, string>> = {
   [FACADE]: "packages/document/test/borne-contrat.test.ts",
@@ -326,6 +328,11 @@ describe("coutures du rang borné dans le workspace", () => {
         ...texteDe("apps/web/src/table/session-table.ts").matchAll(/erreur\.code === "([^"]+)"/g),
       ].map(([, code]) => code),
     ).toEqual(["version-non-prise-en-charge", "pas-un-document-de-table"]);
+    expect(
+      [...texteDe("apps/web/src/vues-de-table/ecritures.ts").matchAll(/code === "([^"]+)"/g)].map(
+        ([, code]) => code,
+      ),
+    ).toEqual(["valeur-non-conforme"]);
     const code: CodeErreurDocument = "rang-indisponible";
     expect(new ErreurDocument(code, "x").code).toBe(code);
   });

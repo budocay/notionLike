@@ -60,8 +60,13 @@ const COMPOSANTS_CHANGES: Readonly<
       "src/demonstration/PageDemonstration.tsx",
       "src/interface/RangeePage.tsx",
       "test/composants.test.tsx",
+      // F-018-AC52 : les menus d'en-tête et de ligne de la grille ; leurs entrées portent la raison.
+      "src/vues-de-table/VueTableau.tsx",
     ],
-    production: { "src/interface/RangeePage.tsx": "raison," },
+    production: {
+      "src/interface/RangeePage.tsx": "raison,",
+      "src/vues-de-table/menus.ts": "raison,",
+    },
   },
   Rangee: {
     appelants: [
@@ -76,7 +81,12 @@ const COMPOSANTS_CHANGES: Readonly<
 
 /** Types de données changés (une raison facultative) → les fichiers qui les nomment. */
 const TYPES_CHANGES: Readonly<Record<string, readonly string[]>> = {
-  EntreeDeMenu: ["src/interface/RangeePage.tsx", "src/interface/composants/MenuActions.tsx"],
+  EntreeDeMenu: [
+    "src/interface/RangeePage.tsx",
+    "src/interface/composants/MenuActions.tsx",
+    // F-018 : les menus de la grille d'une table.
+    "src/vues-de-table/menus.ts",
+  ],
   BoutonDeRangee: ["src/interface/composants/Rangee.tsx"],
   EcranBarre: [
     "src/interface/Application.tsx",

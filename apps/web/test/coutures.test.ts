@@ -643,6 +643,9 @@ const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
   // F-018 : refus du document de table, à l'ouverture et à la réception.
   "apps/web/src/table/session-table.ts":
     "ne lit que « version-non-prise-en-charge » et « pas-un-document-de-table »",
+  // F-018-AC37 : l'écran de table passe le code à messages.ts, et dit lui-même la date refusée.
+  "apps/web/src/vues-de-table/ecritures.ts":
+    "passe le code à messages.ts ; ne distingue que « valeur-non-conforme » d'une date",
 };
 const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
@@ -876,6 +879,27 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/table/session-table.ts": "apps/web/test/table-session.test.ts",
   // F-018 : l'écran de table, rendu par la zone principale.
   "apps/web/src/vues-de-table/EcranDeTable.tsx": "apps/web/test/table-ecran.test.tsx",
+  // F-018 : le module des vues de table, atteint par l'écran de table rendu par ses tests.
+  "apps/web/src/vues-de-table/actions.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/affichage.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Boites.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/ChoixDeCellule.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/courante.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/ecritures.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/EnTetes.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/grille.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/lignes-affichees.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/menu-de-grille.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/menus.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/PanneauDesOptions.tsx":
+    "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Rangees.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/reglages.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/saisie.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-courante.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-edition.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-vue-tableau.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/valider.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {

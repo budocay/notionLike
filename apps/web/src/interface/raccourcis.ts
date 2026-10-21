@@ -156,16 +156,12 @@ interface Frappe {
 
 /**
  * Le caractère frappé seul, sans Mod ni Alt (Maj admis), ou `undefined` : sur une cellule texte ou
- * nombre, il entre en mode édition et remplace son contenu (F-018-AC33). Espace n'en est pas un :
- * elle coche une case.
+ * nombre, il entre en mode édition et remplace son contenu (F-018-AC33). Sur une case, Espace la
+ * coche : la grille le lit avant.
  */
 export function caractereSeul(frappe: Frappe): string | undefined {
   const seul = !frappe.ctrlKey && !frappe.metaKey && !frappe.altKey;
-  return seul &&
-    [...frappe.key].length === 1 &&
-    frappe.key !== TOUCHES_DE_LA_CELLULE.basculer.touche
-    ? frappe.key
-    : undefined;
+  return seul && [...frappe.key].length === 1 ? frappe.key : undefined;
 }
 
 /** Vrai si la frappe est exactement la combinaison déclarée. */

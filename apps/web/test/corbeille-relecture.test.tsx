@@ -90,6 +90,13 @@ async function espaceAuxEntreesRetirees(): Promise<CoquilleRendue & Identifiants
 /** Ce que le module donne à lire, sur l'espace courant ; l'identifiant retiré y est introuvable. */
 type Lecture = (coquille: CoquilleRendue, ids: Identifiants) => Promise<unknown> | unknown;
 
+// Le module des vues de table : l'adresse d'une entrée retirée n'affiche aucun écran de table.
+const lectureDesVues: Lecture = (_coquille, { retiree }) => {
+  aller(`#/page/${retiree}`);
+  expect(titrePrincipal()).toBe("Page introuvable");
+  return [screen.queryByRole("grid"), screen.queryByText("Chargement de la table…")];
+};
+
 const LECTURES: Readonly<Record<string, Lecture>> = {
   "src/espace/garde-version.ts": (coquille) => {
     const facade = ouvrirFacade(docDe(coquille.session));
@@ -178,12 +185,28 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
     expect(bases).toEqual([]);
     return bases;
   },
-  // F-018 : l'écran de table ne paraît que pour une table de l'arborescence lue.
-  "src/vues-de-table/EcranDeTable.tsx": (_coquille, { retiree }) => {
-    aller(`#/page/${retiree}`);
-    expect(titrePrincipal()).toBe("Page introuvable");
-    return screen.queryByText("Chargement de la table…");
-  },
+  // F-018 : l'écran de table ne paraît que pour une table de l'arborescence lue ; le module des vues
+  // de table ne lit que le document d'une table.
+  "src/vues-de-table/EcranDeTable.tsx": lectureDesVues,
+  "src/vues-de-table/actions.ts": lectureDesVues,
+  "src/vues-de-table/affichage.ts": lectureDesVues,
+  "src/vues-de-table/Boites.tsx": lectureDesVues,
+  "src/vues-de-table/ChoixDeCellule.tsx": lectureDesVues,
+  "src/vues-de-table/courante.ts": lectureDesVues,
+  "src/vues-de-table/ecritures.ts": lectureDesVues,
+  "src/vues-de-table/EnTetes.tsx": lectureDesVues,
+  "src/vues-de-table/grille.ts": lectureDesVues,
+  "src/vues-de-table/lignes-affichees.ts": lectureDesVues,
+  "src/vues-de-table/menu-de-grille.ts": lectureDesVues,
+  "src/vues-de-table/menus.ts": lectureDesVues,
+  "src/vues-de-table/PanneauDesOptions.tsx": lectureDesVues,
+  "src/vues-de-table/Rangees.tsx": lectureDesVues,
+  "src/vues-de-table/reglages.ts": lectureDesVues,
+  "src/vues-de-table/saisie.ts": lectureDesVues,
+  "src/vues-de-table/use-courante.ts": lectureDesVues,
+  "src/vues-de-table/use-edition.ts": lectureDesVues,
+  "src/vues-de-table/use-vue-tableau.ts": lectureDesVues,
+  "src/vues-de-table/valider.ts": lectureDesVues,
 };
 
 function importateursDuDocument(): string[] {
