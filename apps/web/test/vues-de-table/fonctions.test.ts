@@ -112,8 +112,12 @@ describe("analyse des saisies (F-018-AC27, AC28, AC30)", () => {
     }
   });
 
-  it("F-018-AC28 une suite de 400 chiffres est refusée parce que son nombre n'est pas fini", () => {
-    expect(Number("9".repeat(400))).toBe(Number.POSITIVE_INFINITY);
+  it("F-018-AC28 une suite de chiffres bien formée est refusée seulement quand son nombre n'est pas fini", () => {
+    expect(analyserNombre(`1${"0".repeat(300)}`)).toEqual({ sorte: "valeur", valeur: 1e300 });
+    expect(analyserNombre(`1${"0".repeat(400)}`)).toEqual({
+      sorte: "refus",
+      refus: "nombre-invalide",
+    });
   });
 
   it("F-018-AC27 un texte est écrit tel que saisi, sans rognage ; vidé, il vide la cellule ; au-delà de 2 000 caractères, refusé", () => {
