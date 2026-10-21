@@ -335,3 +335,15 @@
 - Tests: 4237 tests sur 197 fichiers — état: verts — preuve: checks.txt (empreinte `d7e7ce6f3984`) ; bout en bout `bloc-code.spec.ts` et `glisser-deposer.spec.ts` verts en Chromium
 - Gates: passages 1 à 4 : SECURITY PASS et CRAFT PASS à chaque fois, reviewer-frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-036) ; passage 5 sur `d7e7ce6f3984` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
 - Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés 5 défauts réels et une vingtaine de points de structure · coût non mesuré
+
+## [2026-10-21] F-033 Bloc code : coloration syntaxique et indentation au clavier
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/edition/` (`coloration.ts`, `colorable.ts`, `indentation.ts`, `bloc-code.ts`, `barre.ts`, `schema.ts`), jetons et classes de rôle, page de démonstration, `.dependency-cruiser.cjs` (deux règles), `apps/web/package.json` et `pnpm-lock.yaml` (lowlight 3.3.0, highlight.js 11.11.2) — agents: agent-planif, agent-veille, agent-architecte-conception, agent-frontend, orchestrateur — commits: 9fcde30..b9f511e
+- Détail: coloration par décorations des dix langages, bornée (10 000 unités, lignes de 500 au plus) ; Tab, Maj+Tab, Entrée indentent ; sortie par Échap puis Tab. Demande du dev du 2026-10-19 ; spec validée puis retouchée trois fois le 2026-10-21 (veille, conception, code). Correctif avant gates : la mémoire de coloration ne retient plus de texte hors bornes.
+- Dette: aucune nouvelle ; part manuelle d'AC26 au dev
+- ADR: aucune (rien de difficile à défaire, note de conception)
+- Tests: 4349 tests — état: verts — preuve: checks.txt (empreinte `74e77aea2c7a`) ; bout en bout `bloc-code-coloration.spec.ts` 2 sur 2 en Chromium
+- Gates: passage 1 sur `74e77aea2c7a` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
+- Mesures: boucles 1 passage, 0 tour de correctifs après gates (1 défaut relevé par l'architecte avant) · coût non mesuré
