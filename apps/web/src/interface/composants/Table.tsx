@@ -142,7 +142,12 @@ export function RangeeDEnTetes(props: {
   readonly children: ReactNode;
 }): ReactElement {
   return (
-    <div role="row" aria-rowindex={1} style={{ height: props.hauteur }} className={TABLE.cadre}>
+    <div
+      role="row"
+      aria-rowindex={1}
+      style={{ height: props.hauteur }}
+      className={TABLE.enTetesRangee}
+    >
       {props.children}
     </div>
   );

@@ -9,7 +9,8 @@ const CHAMP =
   "contour-interieur h-full w-full rounded-petit bg-surface-retrait px-mince text-interface text-texte-principal";
 
 export const TABLE = {
-  ecran: "flex flex-col gap-moyen px-normal pb-immense etroit:px-vaste",
+  // Bornée à la zone principale : une grille plus large défile dans sa propre zone (min-w-nul).
+  ecran: "flex min-w-nul flex-col gap-moyen px-normal pb-immense etroit:px-vaste",
   outils: "flex flex-wrap items-center gap-petit",
   annonce: "sr-only",
   alerte: "text-interface text-texte-erreur",
@@ -21,11 +22,13 @@ export const TABLE = {
   vue: `${CIBLE} cursor-pointer rounded-moyen px-petit text-interface text-texte-secondaire hover:bg-surface-survol`,
   vueActive: `${CIBLE} cursor-pointer rounded-moyen px-petit text-interface font-fort text-texte-principal underline`,
   // Grille : le cadre porte la couche des surfaces flottantes, que la zone défilante ne coupe pas.
-  cadre: "relative",
+  cadre: "relative min-w-nul",
   grille: "rounded-grand bg-surface-relief filet",
   defilement: "relative overflow-auto",
   enTetes:
     "sticky top-nul plan-barre-haut flex bg-surface-relief text-petit font-fort text-texte-secondaire filet-bas",
+  // Les en-têtes, en ligne comme les cellules d'une rangée.
+  enTetesRangee: "flex",
   corps: "relative",
   rangee: "absolute left-nul top-nul flex text-interface text-texte-principal filet-bas",
   enTete: CELLULE,

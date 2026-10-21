@@ -483,8 +483,9 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
   await montrerLaBarre(page);
   await constaterLesCibles(page, "(j)", 60);
   await ouvrirLeMenu(page, TITRE_DU_NIVEAU_12);
-  // F-006 : trois entrées, puis les quatre commandes de déplacement de la page.
-  await expect(page.getByRole("menuitem")).toHaveCount(7);
+  // F-006 : trois entrées, puis les quatre commandes de déplacement de la page ; F-018 : « Ajouter
+  // une table ».
+  await expect(page.getByRole("menuitem")).toHaveCount(8);
   await constaterLesCibles(page, "(d)", 63);
   await toutRefermer(page);
   await montrerLaBarre(page);

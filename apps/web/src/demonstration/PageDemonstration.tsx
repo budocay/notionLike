@@ -855,7 +855,8 @@ function SectionCorbeille(): ReactElement {
   );
 }
 
-const LARGEUR_FICTIVE = 180;
+// La grille fictive tient dans un aperçu de 360 pixels : aucun conteneur n'y défile (F-004-AC45).
+const LARGEUR_FICTIVE = 72;
 const HAUTEUR_FICTIVE = 32;
 const ACTIONS_FICTIVES = 72;
 const LARGEUR_FICTIVE_MIN = 60;
@@ -946,9 +947,9 @@ function RangeeFictiveDeTable(props: {
 function ChoixFictif(): ReactElement {
   return (
     <SurfaceFlottante
-      x={ACTIONS_FICTIVES + LARGEUR_FICTIVE}
+      x={0}
       y={HAUTEUR_FICTIVE * 2}
-      largeur={LARGEUR_FICTIVE}
+      largeur={ACTIONS_FICTIVES + TABLE_FICTIVE.colonnes.length * LARGEUR_FICTIVE}
       hauteur={HAUTEUR_FICTIVE}
     >
       <ListeDeChoix

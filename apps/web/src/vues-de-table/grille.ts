@@ -7,9 +7,13 @@ import type { IdColonne, IdLigne } from "@notionlike/document";
 export const HAUTEUR_DE_RANGEE = 32;
 /** Largeur de la colonne des actions de ligne, en pixels. */
 export const LARGEUR_DES_ACTIONS = 72;
-/** Hauteur de la zone défilante : celle du contenu, bornée sous la fenêtre du navigateur. */
+/**
+ * Hauteur de la zone défilante : celle du contenu, plus la place d'une barre de défilement
+ * horizontale qui ne doit pas recouvrir la dernière rangée, bornée sous la fenêtre du navigateur.
+ */
 export function hauteurDeLaZone(nombreDeRangees: number): string {
-  return `min(${String(nombreDeRangees * HAUTEUR_DE_RANGEE)}px, calc(100dvh - var(--spacing-halo)))`;
+  const contenu = `${String(nombreDeRangees * HAUTEUR_DE_RANGEE)}px + var(--spacing-normal)`;
+  return `min(calc(${contenu}), calc(100dvh - var(--spacing-halo)))`;
 }
 
 /** Le mode édition : une cellule (texte, nombre, date), une liste de choix, ou un nom de colonne. */
