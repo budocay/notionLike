@@ -4,11 +4,17 @@
 // lecteurs de `meta` sont énumérés dans les sources, et chacun est éprouvé.
 import { readdirSync, readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import { ouvrirDocumentEspace, ouvrirDocumentPage, ouvrirDocumentTable } from "../src/index.ts";
-import { codeDuRefusDe } from "./aides-page.ts";
+import { ouvrirDocumentTable } from "../src/index.ts";
+import { fermerLesSuivies, ouvrirSuivie } from "./aides-corbeille.ts";
+import { codeDuRefusDe, ouvrirPageSuivie } from "./aides-page.ts";
+
+// Les façades d'espace et de page passent par les aides suivies (F-002-AC31, F-003-AC35).
+afterEach(() => {
+  expect(fermerLesSuivies()).toBe(0);
+});
 
 const SOURCES = new URL("../src/", import.meta.url);
 
@@ -56,9 +62,9 @@ type Ouverture = (doc: Y.Doc) => unknown;
 
 // Chaque appelant de `lireFormeStockee`, par l'ouverture de la façade qui le traverse.
 const OUVERTURES_PAR_APPELANT: Record<string, Ouverture> = {
-  "document-page.ts": (doc) => ouvrirDocumentPage(doc),
+  "document-page.ts": (doc) => ouvrirPageSuivie(doc),
   "format-table.ts": (doc) => ouvrirDocumentTable(doc).lire(),
-  "format.ts": (doc) => ouvrirDocumentEspace(doc).lire(),
+  "format.ts": (doc) => ouvrirSuivie(doc).lire(),
 };
 
 describe("élément non compté dans le type racine versions", () => {
@@ -130,8 +136,8 @@ describe("type racine meta d'une autre nature", () => {
     const enVersionDeux = docRecu(
       ecrireSurUneCopie(BASE, (doc) => doc.getMap<unknown>("meta").set("version", 2)),
     );
-    expect(codeDuRefusDe(() => ouvrirDocumentEspace(enVersionDeux).lire())).toBeUndefined();
-    expect(codeDuRefusDe(() => ouvrirDocumentEspace(docRecu(BASE)).lire())).toBeUndefined();
+    expect(codeDuRefusDe(() => ouvrirSuivie(enVersionDeux).lire())).toBeUndefined();
+    expect(codeDuRefusDe(() => ouvrirSuivie(docRecu(BASE)).lire())).toBeUndefined();
   });
 
   it.each(META_FORGES)(
@@ -139,7 +145,7 @@ describe("type racine meta d'une autre nature", () => {
     (_cas, forger) => {
       const doc = forger();
       const avant = Y.encodeStateAsUpdate(doc);
-      const espace = ouvrirDocumentEspace(doc);
+      const espace = ouvrirSuivie(doc);
       const operations = [
         () => espace.lire(),
         () => espace.creerPage("p"),
@@ -150,7 +156,6 @@ describe("type racine meta d'une autre nature", () => {
         operations.map(() => "version-non-prise-en-charge"),
       );
       expect(Y.encodeStateAsUpdate(doc)).toEqual(avant);
-      espace.fermer();
     },
   );
 });
