@@ -78,6 +78,9 @@ export function useCourante({ lignes, colonnes, grille, amener }: Options): Cour
   const place = placeDe(tenue, lignes, colonnes);
   const courante = couranteA(place, lignes, colonnes);
   const disparue = !memeCellule(courante, tenue);
+  // Effet sans dépendances : il corrige, après chaque rendu, une cellule tenue que la table lue n'a
+  // plus. Il ne boucle pas : l'état ne change que si `disparue` est vrai, et le rendu suivant tient
+  // alors la cellule recalculée, pour laquelle `memeCellule` est vrai.
   useEffect(() => {
     if (disparue) {
       if (focusPerduOuDans(grille.current)) {

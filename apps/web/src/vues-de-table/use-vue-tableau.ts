@@ -85,7 +85,11 @@ function useFocusDeLInvitation(nombreDeColonnes: number) {
 }
 
 // L'origine d'une boîte est l'élément qui a le focus, ou la cellule qui a ouvert le menu quand la
-// boîte est ouverte depuis l'une de ses entrées, qui disparaît avec lui (AC21).
+// boîte est ouverte depuis l'une de ses entrées, qui disparaît avec lui (AC21). Ouverte depuis le
+// menu d'une colonne, la boîte rend donc le focus à la cellule d'en-tête, pas au bouton « Actions de
+// la colonne … » : ce bouton est hors de l'ordre de tabulation (tabindex itinérant, AC33), et la
+// cellule est le seul arrêt de la grille d'où le clavier repart. C'est la « commande d'origine » de
+// la spec, lue à travers le tabindex itinérant.
 function useBoiteOuverte(menu: MenuDeGrille) {
   const [boite, setBoite] = useState<Boite | undefined>(undefined);
   const origine = useRef<HTMLElement | null>(null);
