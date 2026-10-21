@@ -2,11 +2,11 @@
 
 ## Où on en est
 
-Dépôt distant : `git@github.com:budocay/notionLike.git`. Sur un clone neuf : `pnpm install --frozen-lockfile` et `git config core.hooksPath .githooks`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
+Dépôt distant : `git@github.com:budocay/notionLike.git`. Sur un clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
 `main` porte vingt features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006 et F-005 (bloc code et commandes slash, version 3 du document de page, ADR-0018 ; fusion par la PR de la branche `F-005`, gates tous verts au cinquième passage, sans dérogation). En cours : F-018 (vue tableau, `../notionLike-F-018`, blocs 1 et 2 commités, spec en brouillon après la retouche d'AC58) et F-032 (spec validée, `../notionLike-F-032`). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
-CI GitHub Actions en place depuis le 2026-10-16 (`.github/workflows/ci.yml`, PR #3) : `main` est protégée par un ruleset (PR obligatoire, merge commit seul, checks requis `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression, aucun contournement) ; squash, rebase et auto-merge désactivés. D-001 levée. Les hooks git restent la première barrière (règle 4) : les retirer demande l'accord du dev.
+CI GitHub Actions en place depuis le 2026-10-16 (`.github/workflows/ci.yml`, PR #3) : `main` est protégée par un ruleset (PR obligatoire, merge commit seul, checks requis `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression, aucun contournement) ; squash, rebase et auto-merge désactivés. D-001 levée. Hooks git débranchés le 2026-10-21 sur décision du dev (`core.hooksPath` retiré) : la CI est la seule barrière ; l'orchestrateur passe lui-même les commandes git, commits `Agent: dev` compris, sur instruction du dev.
 
 ADR acceptées le 2026-10-19 après correction de leurs écarts avec le code (PR #8 et F-005) : ADR-0013 à 0018 et les amendements du 2026-10-16. Restent « proposé » : ADR-0019 et l'amendement F-018 d'ADR-0002 (branche F-018), et l'amendement F-012 d'ADR-0002 (`meta` d'une autre nature, corrigé côté serveur dans F-018).
 
@@ -19,7 +19,7 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 1. F-018 : le dev revalide la spec (retouche d'AC58 : aucune baisse de `meta.version`) ; intégrer `main` (avec F-005) dans `F-018` ; agent-frontend porte dans le paquet le refus symétrique des formes forgées (`meta` d'une autre nature, élément non compté dans `versions`, `lireFormeStockee` de `format-page.ts`), puis les blocs d'interface 3 à 8 de la note de conception.
 2. F-032 après F-018 (veille, conception, code) ; puis F-015 (contrôle d'identité de présence, D-023), F-016.
 3. Proposée par le dev le 2026-10-19, à spécifier sur son feu vert : F-033, coloration syntaxique et indentation du bloc code (lowlight, Tab et Maj+Tab, indentation reprise à Entrée), après F-005.
-4. Décisions du dev en attente : plancher de Compose (D-030) ; inscription réelle sur la pile (F-031-AC28, navigateur nommé) ; `hookTimeout` de 30 s dans `apps/web/vitest.config.ts` ; alléger le crochet `Stop` ; retrait des hooks git ; shellcheck dans `outils.env` (D-033) ; panneau d'administration ; déplacement d'un bloc vide sur écran étroit (D-037).
+4. Décisions du dev en attente : plancher de Compose (D-030) ; inscription réelle sur la pile (F-031-AC28, navigateur nommé) ; `hookTimeout` de 30 s dans `apps/web/vitest.config.ts` ; alléger le crochet `Stop` ; shellcheck dans `outils.env` (D-033) ; panneau d'administration ; déplacement d'un bloc vide sur écran étroit (D-037).
 
 ## Dettes ouvertes
 

@@ -24,10 +24,9 @@ pnpm refuse tout paquet publié depuis moins de 7 jours (`minimumReleaseAge` de 
 git clone git@github.com:budocay/notionLike.git
 cd notionLike
 pnpm install --frozen-lockfile
-git config core.hooksPath .githooks
 ```
 
-La dernière ligne branche les hooks du dépôt (`.githooks/pre-commit`, `commit-msg`, `pre-push`). La CI GitHub Actions tourne depuis le 2026-10-16 (`.github/workflows/ci.yml`, checks requis sur `main`) ; les hooks restent la première barrière (format, lint, secrets, périmètre, tests). Ne les contournez pas (`--no-verify` est proscrit).
+La CI GitHub Actions (`.github/workflows/ci.yml`, checks requis sur `main`) porte tous les contrôles : format, lint, secrets, périmètre et trailers, tests, typecheck, gates. Les hooks git (`.githooks/`) ne sont plus branchés depuis le 2026-10-21 ; pour vérifier une branche avant de la pousser : `.agents/checks/controles.sh main`.
 
 ## Lancer le client seul (local d'abord)
 
