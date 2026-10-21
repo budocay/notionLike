@@ -118,6 +118,8 @@ const LECTEURS_DE_L_ETAT_DE_LA_SESSION_DANS_LES_TESTS: readonly string[] = [
   "test/reprise-coutures.test.tsx",
   "test/reprise-ecran.test.tsx",
   "test/session-fermeture.test.tsx",
+  // F-018 : l'écran de table lit l'arborescence et l'espace dans l'état de la session.
+  "test/table-ecran.test.tsx",
   "test/titre-affiche.test.tsx",
 ];
 
@@ -446,6 +448,8 @@ describe("chaque appelant de production traite la reprise", () => {
       basesNonRattachees: false,
       operations: {
         creerPage: vi.fn(),
+        // F-018 : création d'une table.
+        creerTable: vi.fn(),
         renommerPage: vi.fn(),
         // F-006 : déplacement d'une page.
         deplacerPage: vi.fn(),

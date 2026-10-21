@@ -874,6 +874,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/synchronisation/pages-de-l-espace.ts": "apps/web/test/corbeille-relecture.test.tsx",
   // F-018 : la session de table ouvre la façade du document de table.
   "apps/web/src/table/session-table.ts": "apps/web/test/table-session.test.ts",
+  // F-018 : l'écran de table, rendu par la zone principale.
+  "apps/web/src/vues-de-table/EcranDeTable.tsx": "apps/web/test/table-ecran.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {

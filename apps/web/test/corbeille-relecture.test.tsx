@@ -178,6 +178,12 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
     expect(bases).toEqual([]);
     return bases;
   },
+  // F-018 : l'écran de table ne paraît que pour une table de l'arborescence lue.
+  "src/vues-de-table/EcranDeTable.tsx": (_coquille, { retiree }) => {
+    aller(`#/page/${retiree}`);
+    expect(titrePrincipal()).toBe("Page introuvable");
+    return screen.queryByText("Chargement de la table…");
+  },
 };
 
 function importateursDuDocument(): string[] {

@@ -31,6 +31,58 @@ export const RACCOURCIS = {
    */
   monterLeBloc: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
   descendreLeBloc: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+  /**
+   * Cellule courante de la grille d'une table, hors mode édition : la ligne monte ou descend d'une
+   * place (F-018-AC24, convention de F-006 H5). Une cellule n'est pas une zone de texte : aucun
+   * conflit.
+   */
+  monterLaLigne: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
+  descendreLaLigne: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
+/**
+ * Grille d'une table, hors mode édition (F-018-AC33) : les touches qui déplacent la cellule
+ * courante, chacune sous le nom de son déplacement. Mod+Début et Mod+Fin vont aux coins.
+ */
+export const TOUCHES_DE_LA_GRILLE = {
+  haut: { touche: "ArrowUp", modificateurs: [] },
+  bas: { touche: "ArrowDown", modificateurs: [] },
+  gauche: { touche: "ArrowLeft", modificateurs: [] },
+  droite: { touche: "ArrowRight", modificateurs: [] },
+  debutDeLigne: { touche: "Home", modificateurs: [] },
+  finDeLigne: { touche: "End", modificateurs: [] },
+  premiereCellule: { touche: "Home", modificateurs: ["Mod"] },
+  derniereCellule: { touche: "End", modificateurs: ["Mod"] },
+  pagePrecedente: { touche: "PageUp", modificateurs: [] },
+  pageSuivante: { touche: "PageDown", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
+/**
+ * Cellule courante de la grille, hors mode édition (F-018-AC29, AC33) : Entrée ou F2 entrent en
+ * mode édition (ou ouvrent le menu d'un en-tête), Suppr ou Retour arrière vident, Espace coche.
+ */
+export const TOUCHES_DE_LA_CELLULE = {
+  editer: { touche: "Enter", modificateurs: [] },
+  editerAutrement: { touche: "F2", modificateurs: [] },
+  vider: { touche: "Delete", modificateurs: [] },
+  viderAutrement: { touche: "Backspace", modificateurs: [] },
+  basculer: { touche: " ", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
+/**
+ * Mode édition d'une cellule (F-018-AC32, AC33) : Entrée valide et descend, Tab et Maj+Tab valident
+ * et passent à la cellule suivante ou précédente, Échap abandonne. Les flèches parcourent une liste
+ * de choix ; dans le séparateur de largeur, Flèche gauche et droite règlent (AC43).
+ */
+export const TOUCHES_DE_L_EDITION = {
+  validerEtDescendre: { touche: "Enter", modificateurs: [] },
+  validerEtSuivante: { touche: "Tab", modificateurs: [] },
+  validerEtPrecedente: { touche: "Tab", modificateurs: ["Maj"] },
+  abandonner: { touche: "Escape", modificateurs: [] },
+  choixPrecedent: { touche: "ArrowUp", modificateurs: [] },
+  choixSuivant: { touche: "ArrowDown", modificateurs: [] },
+  retrecir: { touche: "ArrowLeft", modificateurs: [] },
+  elargir: { touche: "ArrowRight", modificateurs: [] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
 /**
@@ -100,6 +152,20 @@ interface Frappe {
   readonly metaKey: boolean;
   readonly altKey: boolean;
   readonly shiftKey: boolean;
+}
+
+/**
+ * Le caractère frappé seul, sans Mod ni Alt (Maj admis), ou `undefined` : sur une cellule texte ou
+ * nombre, il entre en mode édition et remplace son contenu (F-018-AC33). Espace n'en est pas un :
+ * elle coche une case.
+ */
+export function caractereSeul(frappe: Frappe): string | undefined {
+  const seul = !frappe.ctrlKey && !frappe.metaKey && !frappe.altKey;
+  return seul &&
+    [...frappe.key].length === 1 &&
+    frappe.key !== TOUCHES_DE_LA_CELLULE.basculer.touche
+    ? frappe.key
+    : undefined;
 }
 
 /** Vrai si la frappe est exactement la combinaison déclarée. */

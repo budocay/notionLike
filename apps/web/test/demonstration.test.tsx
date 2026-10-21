@@ -168,14 +168,19 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "CorpsDePage",
       "EcranBloquant",
       "EcranDEspaces",
+      // F-018 : écran de table.
+      "EcranDeTableCadre",
       "EcranPlein",
       "EntetePage",
       "Formulaire",
       "FormulaireDeCompte",
+      "InvitationDeTable",
       "Lien",
       "LienEnLecture",
       // F-007 : liste de l'écran de la corbeille.
       "ListeDeCorbeille",
+      // F-018 : marque d'une table, dans la barre latérale et la corbeille.
+      "MarqueDeTable",
       "MenuActions",
       // F-005 : menu slash.
       "MenuDeCommandes",

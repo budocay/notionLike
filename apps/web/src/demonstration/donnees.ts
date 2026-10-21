@@ -86,6 +86,15 @@ export const CORBEILLE_FICTIVE = {
   uneSousPage: "1 sous-page",
 } as const;
 
+// Écran de table (F-018) : une table sans colonne, sa marque dans une rangée et dans la corbeille.
+export const TABLE_FICTIVE = {
+  titre: "Suivi des achats",
+  marque: "Table",
+  invitation: "Cette table n'a encore aucune colonne. Ajoutez-en une pour commencer à la remplir.",
+  ajouter: "Ajouter une colonne",
+  nouvelleTable: "Nouvelle table",
+} as const;
+
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
 export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";

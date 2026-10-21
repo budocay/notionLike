@@ -13,13 +13,24 @@ export function Sceau(): ReactElement {
   );
 }
 
+/** Seconde création de la tête (F-018-AC10 : « Nouvelle table »), sous le même aspect. */
+export interface CreationDeTete {
+  readonly libelle: string;
+  readonly surActivation: () => void;
+}
+
 interface ProprietesTete {
   readonly nomEspace: string;
   readonly libelleNouvellePage: string;
   readonly surNouvellePage: () => void;
   readonly boutonNouvellePage?: Ref<HTMLButtonElement> | undefined;
-  /** Raison d'une création momentanément impossible : le bouton est désactivé (F-013-AC25). */
+  /**
+   * Raison d'une création momentanément impossible : le bouton est désactivé (F-013-AC25), et la
+   * seconde création avec lui.
+   */
   readonly raisonNouvellePage?: string | undefined;
+  /** Absente : la tête n'offre que « Nouvelle page ». */
+  readonly autreCreation?: CreationDeTete | undefined;
   /** Bouton de fermeture du tiroir, sur écran étroit seulement. */
   readonly fermeture?: ReactNode | undefined;
 }
@@ -45,6 +56,18 @@ export function TeteDeBarre(props: ProprietesTete): ReactElement {
         <Pictogramme nom="plus" />
         <span className={BARRE.nouvellePageLibelle}>{props.libelleNouvellePage}</span>
       </button>
+      {props.autreCreation !== undefined && (
+        <button
+          type="button"
+          className={BARRE.nouvellePage}
+          disabled={raison !== undefined}
+          aria-describedby={raison === undefined ? undefined : idRaison}
+          onClick={props.autreCreation.surActivation}
+        >
+          <Pictogramme nom="table" />
+          <span className={BARRE.nouvellePageLibelle}>{props.autreCreation.libelle}</span>
+        </button>
+      )}
       {raison !== undefined && (
         <span id={idRaison} hidden>
           {raison}

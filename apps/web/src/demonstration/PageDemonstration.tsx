@@ -7,6 +7,8 @@ import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/Bar
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
 import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
+import { MarqueDeTable } from "../interface/composants/Rangee.tsx";
+import { EcranDeTableCadre, InvitationDeTable } from "../interface/composants/Table.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
 import {
   ActionDeCompte,
@@ -107,6 +109,7 @@ import {
   SELECTEUR_DE_LANGAGE_FICTIF,
   PANNEAU_DE_LIEN_FICTIF,
   POSITION_DE_BARRE_FICTIVE,
+  TABLE_FICTIVE,
 } from "./donnees.ts";
 import { echantillonsDe } from "./Echantillons.tsx";
 import { MARQUEUR_DE_DEMONSTRATION } from "./marqueur.ts";
@@ -190,6 +193,7 @@ function Tete({ fermeture }: { readonly fermeture?: ReactNode }): ReactElement {
       nomEspace={NOM_DE_L_ESPACE_FICTIF}
       libelleNouvellePage={NOUVELLE_PAGE}
       surNouvellePage={sansEffet}
+      autreCreation={{ libelle: TABLE_FICTIVE.nouvelleTable, surActivation: sansEffet }}
       fermeture={fermeture}
     />
   );
@@ -834,6 +838,32 @@ function SectionCorbeille(): ReactElement {
   );
 }
 
+// Écran de table (F-018) : la marque d'une table, l'écran d'une table sans colonne et son invitation.
+function SectionTables(): ReactElement {
+  const T = TABLE_FICTIVE;
+  return (
+    <Section titre="Tables">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="Marque d'une table">
+          <div className={PAGE.fondZone}>
+            <MarqueDeTable nom={T.marque} />
+            {T.titre}
+          </div>
+        </Specimen>
+        <Specimen etiquette="Table sans colonne">
+          <div className={PAGE.fondZone}>
+            <EcranDeTableCadre annonce="">
+              <InvitationDeTable texte={T.invitation}>
+                <Bouton libelle={T.ajouter} surActivation={sansEffet} />
+              </InvitationDeTable>
+            </EcranDeTableCadre>
+          </div>
+        </Specimen>
+      </div>
+    </Section>
+  );
+}
+
 function SpecimenDeFormulaire(): ReactElement {
   return (
     <Specimen etiquette="Formulaire de connexion, envoi refusé">
@@ -891,6 +921,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionCompte />
       <SectionEspaces />
       <SectionCorbeille />
+      <SectionTables />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>
           {contenu}

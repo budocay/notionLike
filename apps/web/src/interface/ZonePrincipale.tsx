@@ -3,6 +3,8 @@ import type { ReactElement, Ref } from "react";
 
 import { EditeurDePage } from "../edition/index.ts";
 import type { EtatSessionPage } from "../page/session-page.ts";
+import type { EtatSessionTable } from "../table/session-table.ts";
+import { EcranDeTable } from "../vues-de-table/index.ts";
 import { Principale } from "./composants/Coquille.tsx";
 import { CorpsDePage, NoteDePage } from "./composants/Edition.tsx";
 import { Chargement, EntetePage } from "./composants/Etats.tsx";
@@ -37,6 +39,15 @@ interface Proprietes {
   readonly lectureSeule?: boolean | undefined;
   /** Faux sur écran étroit : les poignées de bloc ne sont pas rendues (F-006, hors périmètre). */
   readonly poignees?: boolean | undefined;
+  /**
+   * État de la session de la table sélectionnée (F-018-AC12) ; `undefined` quand la page
+   * sélectionnée n'est pas une table. Une table n'a ni éditeur ni document de page.
+   */
+  readonly table?: EtatSessionTable | undefined;
+  /** Espace ouvert : il désigne les réglages de vue d'une table (F-018-AC40). */
+  readonly idEspace?: string | undefined;
+  /** Raison de la lecture seule (F-013-AC25), donnée telle quelle à l'écran de table (F-018-AC52). */
+  readonly raisonDeLectureSeule?: string | undefined;
 }
 
 const PAGE_REFUSEE = (
@@ -44,8 +55,9 @@ const PAGE_REFUSEE = (
 );
 
 // La clé rejoue l'apparition du contenu quand la page sélectionnée change (F-004-AC14).
-function entete({ selection, espaceVide, page }: Proprietes): ReactElement {
-  if (selection.type === "page" && page?.phase !== "introuvable") {
+function entete({ selection, espaceVide, page, table }: Proprietes): ReactElement {
+  const ouverte = selection.type === "page" && selection.page.type === "table" ? table : page;
+  if (selection.type === "page" && ouverte?.phase !== "introuvable") {
     return (
       <EntetePage
         key={selection.page.id}
@@ -122,7 +134,24 @@ function corps(
 }
 
 export function ZonePrincipale(props: Proprietes): ReactElement {
-  const { selection, page } = props;
+  const { selection, page, table } = props;
+  if (selection.type === "page" && selection.page.type === "table") {
+    return (
+      <Principale ref={props.ref}>
+        {entete(props)}
+        {table !== undefined && (
+          <EcranDeTable
+            key={selection.page.id}
+            etat={table}
+            idEspace={props.idEspace}
+            idTable={selection.page.id}
+            titre={titreAffiche(selection.page.titre)}
+            lectureSeule={props.raisonDeLectureSeule}
+          />
+        )}
+      </Principale>
+    );
+  }
   const contenu =
     selection.type === "page" && page !== undefined ? corps(selection.page.id, page, props) : null;
   return (

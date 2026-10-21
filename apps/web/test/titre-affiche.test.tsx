@@ -23,6 +23,8 @@ const MENU_DE_SANS_TITRE = [
   "Actions de la page « Sans titre »",
   "Renommer",
   "Ajouter une sous-page",
+  // F-018-AC10 : une table sous la page.
+  "Ajouter une table",
   "Mettre à la corbeille",
   // F-006 : les quatre commandes de déplacement d'une page.
   "Monter",
@@ -191,6 +193,8 @@ describe("titre affiché : lectures du titre dans le code", () => {
         "../src/interface/FilDAriane.tsx : courante={titreAffiche(page.titre)}",
         "../src/interface/RangeePage.tsx : const titre = titreAffiche(page.titre);",
         "../src/interface/ZonePrincipale.tsx : titre={titreAffiche(selection.page.titre)}",
+        // F-018 : le titre affiché d'une table nomme sa grille.
+        "../src/interface/ZonePrincipale.tsx : titre={titreAffiche(selection.page.titre)}",
         "../src/interface/ZonePrincipale.tsx : vide={titreEstVide(selection.page.titre)}",
       ],
       brutes: ["../src/interface/RangeePage.tsx : titreInitial={page.titre}"],
@@ -251,8 +255,10 @@ describe("titre affiché : barre latérale, zone principale, onglet", () => {
 
       expect(elementsSansNom()).toEqual([]);
       expect(premierLien().textContent).toBe(SANS_TITRE);
-      expect(nomsDesCommandes().slice(0, 4)).toEqual([
+      expect(nomsDesCommandes().slice(0, 5)).toEqual([
         "Nouvelle page",
+        // F-018-AC10 : création d'une table à la racine.
+        "Nouvelle table",
         "Sous-pages de « Sans titre »",
         "Ajouter une sous-page à « Sans titre »",
         "Actions de la page « Sans titre »",

@@ -61,6 +61,8 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/synchronisation/pages-de-l-espace.ts",
   // F-018 : la session de table ouvre la façade du document de table.
   "src/table/session-table.ts",
+  // F-018 : l'écran de table lit la table par la façade que la session lui donne.
+  "src/vues-de-table/EcranDeTable.tsx",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin

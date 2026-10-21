@@ -40,6 +40,7 @@ import {
   estLaFrappe,
   RACCOURCIS,
 } from "./raccourcis.ts";
+import { AJOUTER_UNE_TABLE, MARQUE_DE_TABLE } from "./messages-tables.ts";
 import { SaisieTitre } from "./SaisieTitre.tsx";
 
 /** État d'écran de la barre latérale : pages repliées (`repli.ts`) et saisie ouverte
@@ -57,6 +58,8 @@ export interface EcranBarre {
 
 export interface ActionsBarre {
   readonly creerPage: (parent: IdPage | null) => void;
+  /** Crée une table au titre vide en dernière position sous ce parent (F-018-AC10). */
+  readonly creerTable: (parent: IdPage | null) => void;
   readonly ouvrirSaisie: (id: IdPage) => void;
   readonly validerTitre: (id: IdPage, titre: string) => boolean;
   readonly annulerSaisie: () => void;
@@ -127,6 +130,7 @@ export function RangeePage(props: Proprietes): ReactElement {
       surDoubleClic={renommer}
       surTouche={surTouche}
       glisser={glisser}
+      marque={page.type === "table" ? MARQUE_DE_TABLE : undefined}
       saisie={enSaisie ? <SaisieDeRangee {...props} /> : undefined}
       menu={
         menu.ouvert ? (
@@ -161,6 +165,7 @@ function useMenuDeRangee(props: Proprietes, deplacement: DeplacementAuClavier) {
         ...entreesDuMenu({
           renommer,
           ajouter: depuisLeMenu(() => actions.creerPage(page.id)),
+          ajouterUneTable: depuisLeMenu(() => actions.creerTable(page.id)),
           jeter: depuisLeMenu(() => actions.mettreALaCorbeille(page)),
           raison,
         }),
@@ -317,6 +322,7 @@ function repliDe(
 interface EffetsDuMenu {
   readonly renommer: () => void;
   readonly ajouter: () => void;
+  readonly ajouterUneTable: () => void;
   readonly jeter: () => void;
   /** Lecture seule : chaque entrée qui écrit est désactivée avec cette raison (F-013-AC25). */
   readonly raison: string | undefined;
@@ -334,6 +340,8 @@ function entreesDuMenu(effets: EffetsDuMenu): readonly EntreeDeMenu[] {
       raison: effets.raison,
     },
     { libelle: AJOUTER_UNE_SOUS_PAGE, surActivation: effets.ajouter, raison: effets.raison },
+    // F-018-AC10 : une table sous cette page, comme une sous-page.
+    { libelle: AJOUTER_UNE_TABLE, surActivation: effets.ajouterUneTable, raison: effets.raison },
     { libelle: METTRE_A_LA_CORBEILLE, surActivation: effets.jeter, raison: effets.raison },
   ];
 }

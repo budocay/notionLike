@@ -24,6 +24,7 @@ import {
   titreAffiche,
 } from "./messages.ts";
 import { ENTREE_CORBEILLE } from "./messages-corbeille.ts";
+import { NOUVELLE_TABLE } from "./messages-tables.ts";
 import { rangeesVisibles, trouverPage } from "./pages.ts";
 import { TOUCHES_DU_GLISSER } from "./raccourcis.ts";
 import { type ActionsBarre, type EcranBarre, RangeePage } from "./RangeePage.tsx";
@@ -59,6 +60,7 @@ export function BarreLaterale(props: Proprietes): ReactElement {
         surNouvellePage={() => actions.creerPage(null)}
         boutonNouvellePage={props.boutonNouvellePage}
         raisonNouvellePage={ecran.lectureSeule}
+        autreCreation={{ libelle: NOUVELLE_TABLE, surActivation: () => actions.creerTable(null) }}
         fermeture={props.fermeture}
       />
       {props.compte}
