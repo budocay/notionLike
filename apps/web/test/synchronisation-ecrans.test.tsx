@@ -83,6 +83,10 @@ import { simulerLHorloge, tenterDeQuitter } from "./aides-reprise.ts";
 import { attendreLaZoneDeSaisie } from "./edition/aides-edition.tsx";
 
 type SessionEspace = ReturnType<typeof demarrerSession>;
+type OperationsDeLEspace = Extract<
+  ReturnType<SessionEspace["lireEtat"]>,
+  { readonly phase: "pret" }
+>["operations"];
 
 // ---------------------------------------------------------------------------------------------
 // Une synchronisation simulée : l'interface du module, un état posé par le test.
@@ -946,6 +950,14 @@ describe("une table en lecture seule (F-018-AC52)", () => {
   });
 });
 
+function creerTable(ops: OperationsDeLEspace, titre: string): string {
+  let id = "";
+  act(() => {
+    id = ops.creerTable(titre);
+  });
+  return id;
+}
+
 // Couture de l'application et de la fabrique de synchronisation (F-018-AC51, AC53) : le type que
 // l'application lit dans sa session est celui que la synchronisation reçoit, sans quoi une table
 // serait synchronisée sous `page:` (F-018-AC9) ; une table supprimée ailleurs voit son document
@@ -975,6 +987,27 @@ describe("l'application et la synchronisation d'une table (F-018-AC51, AC53)", (
       "page",
       undefined,
     ]);
+  });
+
+  it("F-018-AC51 le type donné suit l'arborescence lue : une table créée ou retirée après une première lecture est vue telle qu'elle est", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    const ops = etat.operations;
+    const espace = simulee.espace();
+    const premiere = creerTable(ops, "Budget");
+    expect(espace?.typeDe?.(premiere)).toBe("table");
+
+    const seconde = creerTable(ops, "Suivi");
+    expect([premiere, seconde].map((id) => espace?.typeDe?.(id))).toEqual(["table", "table"]);
+    act(() => {
+      ops.mettreALaCorbeille(seconde);
+      ops.supprimerDefinitivement(seconde);
+    });
+    expect(espace?.typeDe?.(seconde)).toBeUndefined();
   });
 
   it("F-018-AC53 une table supprimée ailleurs : l'application ferme son document dans l'onglet, sans effacer sa base faute d'espace désigné", async () => {

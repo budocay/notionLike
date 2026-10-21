@@ -255,10 +255,22 @@ function pagesDeLaSession(session: SessionEspace): ReadonlySet<string> | undefin
   return lu.phase === "pret" ? idsDesPages(lu.arborescence) : undefined;
 }
 
+// Les types des pages, calculés une fois par arborescence lue : la passe de fond demande le type de
+// chaque document, et l'état de la session garde la même arborescence tant que rien ne change.
+const TYPES_PAR_ARBORESCENCE = new WeakMap<Arborescence, ReadonlyMap<string, TypeDePage>>();
+
 // Le type lu d'un identifiant de l'arborescence ou de la corbeille (F-018-AC51).
 function typeDansLaSession(session: SessionEspace, id: string): TypeDePage | undefined {
   const lu = session.lireEtat();
-  return lu.phase === "pret" ? typesDesPages(lu.arborescence).get(id) : undefined;
+  if (lu.phase !== "pret") {
+    return undefined;
+  }
+  let types = TYPES_PAR_ARBORESCENCE.get(lu.arborescence);
+  if (types === undefined) {
+    types = typesDesPages(lu.arborescence);
+    TYPES_PAR_ARBORESCENCE.set(lu.arborescence, types);
+  }
+  return types.get(id);
 }
 
 // Avant l'effacement de la copie locale, plus rien de l'onglet ne tient une base (AC24).
