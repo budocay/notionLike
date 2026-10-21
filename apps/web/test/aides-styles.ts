@@ -258,7 +258,9 @@ function fautesCss(chemin: string, source: string, contexte: Contexte): string[]
   const inconnus = [...texte.matchAll(/var\(\s*(--[\w-]+)/g)]
     .map(([, nom = ""]) => nom)
     .filter(
-      (nom) => !contexte.jetons.has(nom) && !/^--(tw-|niveau$|barre-gauche$|barre-haut$)/.test(nom),
+      (nom) =>
+        !contexte.jetons.has(nom) &&
+        !/^--(tw-|niveau$|barre-gauche$|barre-haut$|menu-x$|menu-y$)/.test(nom),
     )
     .map((nom) => `${chemin} : jeton non déclaré : « ${nom} »`);
   return [

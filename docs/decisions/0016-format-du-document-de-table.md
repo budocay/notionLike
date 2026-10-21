@@ -1,7 +1,7 @@
 # ADR-0016 — Format du document de table : types racine, drapeaux, rangs, version à maximum
 
-Statut : proposé
-Date : 2026-10-16 ; normalisation des chaînes à unité UTF-16 isolée reprise le même jour d'après le code de F-017 (`2d8c51a`), sur décision de l'orchestrateur après revue
+Statut : accepté (décision du dev du 2026-10-19, après correction des écarts)
+Date : 2026-10-16 ; normalisation des chaînes à unité UTF-16 isolée reprise le même jour d'après le code de F-017 (`2d8c51a`), sur décision de l'orchestrateur après revue ; écarts au code corrigés le 2026-10-19
 
 ## Contexte et problème
 
@@ -22,7 +22,7 @@ Faits établis par la veille du 2026-10-16 (`MEMORY/VEILLE.md`, « Yjs 13.6.33 �
 Contenant des lignes et de leur ordre :
 
 1. `Y.Array` des lignes, ordre natif de Yjs. Écarté : un déplacement y est un retrait suivi d'une insertion ; deux déplacements concurrents de la même ligne la dupliquent, un déplacement concurrent à une écriture perd l'écriture.
-2. **Type racine `Y.Map` par identifiant, ordre par un rang, puis l'identifiant** (retenue), comme les pages sœurs (ADR-0002, F-029). Un déplacement est l'écriture d'un seul champ.
+2. **Type racine `Y.Map` par identifiant, ordre par un rang, puis l'identifiant** (retenue), comme les pages sœurs (ADR-0002, F-029). Un déplacement n'écrit que des champs `rang` : celui de l'élément, et ceux des voisins à réattribuer quand aucun rang n'est libre (F-029), sans retrait ni insertion.
 
 Cellules :
 
@@ -48,15 +48,15 @@ Reconnaissance d'un document qui n'est pas une table (F-017-AC23) :
 
 ## Décision
 
-Format, version 1. `packages/document/src/format-table.ts` est le seul fichier qui en connaît les noms.
+Format, version 1. `packages/document/src/format-table.ts` est le seul fichier qui en connaît les noms, hors `versions`, dont l'accès et la lecture viennent de `format-page.ts` (`typeDesVersions`, `lireFormeStockee`).
 
 - Type racine `colonnes`, une `Y.Map` : clé, l'identifiant de la colonne (UUID) ; valeur, une `Y.Map` à champs `nom` (chaîne), `type` (`texte`, `nombre`, `case`, `date` ou `selection`), `rang` (rang de F-029), `supprimee` (booléen) ; pour une colonne `selection` seulement, `options`, une `Y.Map` créée dans la transaction qui crée la colonne : clé, l'identifiant de l'option ; valeur, une `Y.Map` à champs `libelle`, `rang`, `supprimee`.
-- Type racine `lignes`, une `Y.Map` : clé, l'identifiant de la ligne ; valeur, une `Y.Map` à champs `rang`, `supprimee`, `cellules`, une `Y.Map` créée dans la transaction qui crée la ligne : clé, l'identifiant de la colonne ; valeur, une valeur simple. Une cellule vide est une clé absente : vider une cellule retire sa clé.
+- Type racine `lignes`, une `Y.Map` : clé, l'identifiant de la ligne ; valeur, une `Y.Map` à champs `rang`, `supprimee`, `cellules`, une `Y.Map` créée dans la transaction qui crée la ligne : clé, l'identifiant de la colonne ; valeur, une valeur simple. Une cellule vide s'écrit comme une clé absente : vider une cellule qui se lit non vide retire sa clé ; une cellule qui se lit déjà vide (clé absente, ou valeur non conforme) n'est pas réécrite.
 - Valeur d'une cellule selon le type de sa colonne : `texte`, une chaîne de 2 000 unités au plus, écrite et lue sous sa forme normalisée (plus bas) ; `nombre`, un nombre fini, `-0` écrit et lu `0` ; `case`, un booléen ; `date`, une chaîne `AAAA-MM-JJ` du calendrier grégorien étendu, du `0001-01-01` au `9999-12-31` (F-017 H13) ; `selection`, l'identifiant d'une option lue de la colonne.
 - Type racine `versions`, un `Y.Array` : rien n'est inscrit pour la version 1. Lecture par la fonction du document de page (`lireFormeStockee`, `format-page.ts`) : le plus grand entier supérieur ou égal à 1, 1 si le tableau est vide ; une entrée qui n'est pas un tel entier, ou une entrée nommée, rend le document non pris en charge. Version prise en charge : 1, constante interne, non exportée ; pas de table des versions.
 - Reconnaissance : avant toute lecture, la version (refus `version-non-prise-en-charge`), puis la liste blanche des types racine de `doc.share` (refus `pas-un-document-de-table`, nouveau code). Un type racine du format déjà défini sous une autre nature est lu dans un `try` et vaut aussi `pas-un-document-de-table`. Un document refusé ne reçoit aucun type racine de la part du module. Un document vierge est une table sans colonne ni ligne.
 - Lecture tolérante (F-017-AC20, AC21) : une colonne, une option ou une ligne mal formée (valeur qui n'est pas une `Y.Map`, champ manquant ou de mauvais type, type inconnu, nom de plus de 200 unités ou libellé de plus de 100, rang non admis par F-029) est ignorée ; une cellule non conforme au type de sa colonne, qui désigne une option absente, supprimée ou ignorée, se lit vide. Un champ en plus est toléré. L'ordre lu est le rang, puis l'identifiant, comparés par unités de code.
-- Normalisation des chaînes : un nom, un libellé ou un texte de cellule est écrit et lu sous sa forme normalisée, où chaque unité UTF-16 isolée devient U+FFFD, longueur inchangée : ce que lit toute réplique qui reçoit la chaîne par l'encodage V1 (constat 6). Aucune chaîne n'est refusée pour cela ; les limites se mesurent sur la chaîne reçue. Fonction `formeNormalisee`, `packages/document/src/table.ts`, appelée par `nomAdmis`, `libelleAdmis` et le contrôle du type `texte`.
+- Normalisation des chaînes : un nom, un libellé ou un texte de cellule est écrit et lu sous sa forme normalisée, où chaque unité UTF-16 isolée devient U+FFFD, longueur inchangée : ce que lit toute réplique qui reçoit la chaîne par l'encodage V1 (constat 6). Aucune chaîne n'est refusée pour cela ; les limites se mesurent sur la chaîne reçue. Fonction `formeNormalisee`, `packages/document/src/table.ts`, appelée par `texteAdmis`, qui sert `nomAdmis`, `libelleAdmis` et le contrôle du type `texte`.
 - Écritures : la lecture n'écrit jamais. Le module n'écrit que les champs qu'il nomme, et ne retire jamais rien d'autre qu'une clé de cellule. `creerDocumentTable` construit son `Y.Doc` par `new Y.Doc({ gc: true })` ; `ouvrirDocumentTable(doc)` ne règle rien.
 - Règle d'élévation, pour toute feature future : une version N+1 est nécessaire dès qu'un document qu'elle écrit serait lu autrement par le code de la version N (nouveau type racine, nouveau champ porteur de sens, nouveau type de colonne, règle de lecture changée). Elle ajoute N+1 à `versions` dans la transaction même qui écrit le premier élément nouveau, n'en retire jamais rien, et la liste blanche suit. Ajouter un type racine sans élever la version fait refuser le document par les répliques de la version N, avec le code `pas-un-document-de-table`.
 

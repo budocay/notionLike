@@ -5,6 +5,8 @@
 import type { DocumentPage } from "@notionlike/document";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
+import { NodeRangeSelection } from "@tiptap/extension-node-range";
+import { NodeSelection } from "@tiptap/pm/state";
 import { StrictMode } from "react";
 import { afterEach, vi } from "vitest";
 import * as Y from "yjs";
@@ -45,8 +47,16 @@ export interface Montage {
   readonly emises: Uint8Array[];
 }
 
+export interface OptionsDuMontage {
+  /** L'éditeur monté en lecture seule, comme l'application le fait sans droit d'écriture. */
+  readonly lectureSeule?: boolean;
+}
+
 /** Monte l'éditeur seul, comme l'application le fait : sous `StrictMode`, sur une façade de page. */
-export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
+export function monterLEditeur(
+  doc: Y.Doc = new Y.Doc(),
+  { lectureSeule = false }: OptionsDuMontage = {},
+): Montage {
   const emises = ecouterLesMisesAJour(doc);
   const page = ouvrirFacadeDePage(doc);
   render(
@@ -58,6 +68,14 @@ export function monterLEditeur(doc: Y.Doc = new Y.Doc()): Montage {
         meneALaBarre={(frappe) => estLaFrappe(frappe, RACCOURCIS.barreDeBlocs)}
         ouvreLePanneauDeLien={(frappe) => estLaFrappe(frappe, RACCOURCIS.lien)}
         ouvreLAdresse={estUnClicAvecMod}
+        lectureSeule={lectureSeule}
+        // F-006 : Alt+Maj+Flèche haut et bas déplacent le bloc du curseur (F-006-AC18).
+        deplacementDuBloc={(frappe) => {
+          if (estLaFrappe(frappe, RACCOURCIS.monterLeBloc)) {
+            return "monter";
+          }
+          return estLaFrappe(frappe, RACCOURCIS.descendreLeBloc) ? "descendre" : undefined;
+        }}
       />
     </StrictMode>,
   );
@@ -100,11 +118,16 @@ export const NOMS_DES_COMMANDES = [
   "Titre 3",
   "Liste à puces",
   "Liste numérotée",
+  // F-005 : la septième commande de bloc (F-005-AC21).
+  "Bloc code",
 ] as const;
 export type NomDeCommande = (typeof NOMS_DES_COMMANDES)[number];
 /** Les commandes de mise en forme, après celles des types de bloc (F-028-AC4). */
 export const NOMS_DES_COMMANDES_DE_MARQUE = ["Gras", "Italique", "Lien"] as const;
 export type NomDeCommandeDeMarque = (typeof NOMS_DES_COMMANDES_DE_MARQUE)[number];
+/** Les commandes de déplacement du bloc courant, en dernier (F-006-AC18). */
+export const NOMS_DES_COMMANDES_DE_DEPLACEMENT = ["Monter le bloc", "Descendre le bloc"] as const;
+export type NomDeCommandeDeDeplacement = (typeof NOMS_DES_COMMANDES_DE_DEPLACEMENT)[number];
 
 export function zoneDeSaisie(): HTMLElement {
   return screen.getByRole("textbox", { name: NOM_DE_L_EDITEUR });
@@ -153,6 +176,8 @@ interface Modificateurs {
   readonly shiftKey?: boolean;
   readonly ctrlKey?: boolean;
   readonly altKey?: boolean;
+  /** La frappe valide une composition en cours (éditeur de méthode de saisie). */
+  readonly isComposing?: boolean;
 }
 
 /** Envoie une touche à l'élément qui a le focus ; rend vrai si elle a été traitée. */
@@ -241,7 +266,9 @@ export function barreDeBlocs(): HTMLElement | null {
   return screen.queryByRole("toolbar", { name: "Type de bloc" });
 }
 
-export function commande(nom: NomDeCommande | NomDeCommandeDeMarque): HTMLElement {
+export function commande(
+  nom: NomDeCommande | NomDeCommandeDeMarque | NomDeCommandeDeDeplacement,
+): HTMLElement {
   return screen.getByRole("button", { name: nom });
 }
 
@@ -381,10 +408,28 @@ export function deplacerLeTexte(texte: string, surLeTexte: string): void {
   deposer(surLeTexte, { getData: () => "", types: [], files: [], dropEffect: "move" });
 }
 
-function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
+function deposer(
+  surLeTexte: string,
+  transfert: Record<string, unknown>,
+  type: TypeDuGeste = "drop",
+): boolean {
+  return deposerA(positionDuTexte(surLeTexte), transfert, type);
+}
+
+/** L'entrée (`dragenter`) et le survol (`dragover`), qui font la cible d'un dépôt, ou le lâcher. */
+type TypeDuGeste = "dragenter" | "dragover" | "drop";
+
+/**
+ * Lâcher construit par le test (F-006 H11) : jsdom n'a ni `DragEvent`, ni `DataTransfer`, ni mise en
+ * page ; la position du pointeur est donnée à la vue. Rend vrai si l'action par défaut est empêchée.
+ */
+function deposerA(
+  position: number,
+  transfert: Record<string, unknown>,
+  type: TypeDuGeste = "drop",
+): boolean {
   const { view } = editeurMonte();
-  const position = positionDuTexte(surLeTexte);
-  const depot = new Event("drop", { bubbles: true, cancelable: true });
+  const depot = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(depot, "dataTransfer", { value: transfert });
   Object.assign(depot, { clientX: 0, clientY: 0 });
   const viaLaVue = view as typeof view & { posAtCoords: typeof view.posAtCoords };
@@ -395,6 +440,119 @@ function deposer(surLeTexte: string, transfert: Record<string, unknown>): void {
   } finally {
     viaLaVue.posAtCoords = avant;
   }
+  return depot.defaultPrevented;
+}
+
+// ——— Déplacement d'un bloc (F-006) ———
+
+/** Position du début du bloc de premier niveau d'indice donné, ou de la fin du document. */
+function debutDuBlocMonte(indice: number): number {
+  const { doc } = editeurMonte().state;
+  let position = 0;
+  for (let rang = 0; rang < indice && rang < doc.childCount; rang += 1) {
+    position += doc.child(rang).nodeSize;
+  }
+  return position;
+}
+
+/** L'élément glissable de la poignée de l'éditeur, qui porte la poignée de l'application. */
+function elementDeLaPoignee(): HTMLElement {
+  const element = document.querySelector("[data-poignee-de-bloc]")?.parentElement;
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("La poignée de bloc n'est pas rendue.");
+  }
+  return element;
+}
+
+/**
+ * Début d'un geste de la poignée sur le bloc d'indice `de`, comme elle le fait : jsdom n'ayant pas
+ * de `DataTransfer`, le test pose lui-même la sélection du bloc et l'état de glissement de la vue.
+ */
+export function saisirLeBlocParSaPoignee(de: number): void {
+  const { view } = editeurMonte();
+  act(() => void elementDeLaPoignee().dispatchEvent(new Event("dragstart", { bubbles: true })));
+  act(() => {
+    const debut = debutDuBlocMonte(de);
+    const fin = debutDuBlocMonte(de + 1);
+    const selection = NodeRangeSelection.create(view.state.doc, debut, fin);
+    view.dispatch(view.state.tr.setSelection(selection));
+    Object.assign(view, { dragging: { slice: selection.content(), move: true } });
+  });
+}
+
+/** Sélectionne comme nœud le bloc de premier niveau d'indice donné, entier. */
+export function selectionnerLeBlocEntier(indice: number): void {
+  const { view } = editeurMonte();
+  act(() => {
+    const selection = NodeSelection.create(view.state.doc, debutDuBlocMonte(indice));
+    view.dispatch(view.state.tr.setSelection(selection));
+  });
+}
+
+/** Fin du geste de la poignée, après un lâcher ou un abandon (Échap, lâcher hors de l'éditeur). */
+export function finirLeGesteDeLaPoignee(): void {
+  const { view } = editeurMonte();
+  Object.assign(view, { dragging: null });
+  act(() => void elementDeLaPoignee().dispatchEvent(new Event("dragend", { bubbles: true })));
+}
+
+/**
+ * Glisse le bloc d'indice `de` par sa poignée et le lâche dans l'intervalle d'indice `intervalle`
+ * entre deux blocs (0 : avant le premier). Rend vrai si l'action par défaut est empêchée.
+ */
+export function glisserLeBlocParSaPoignee(de: number, intervalle: number): boolean {
+  saisirLeBlocParSaPoignee(de);
+  const transfert = { getData: () => "", types: [], files: [], dropEffect: "move" };
+  const empeche = deposerA(debutDuBlocMonte(intervalle), transfert);
+  finirLeGesteDeLaPoignee();
+  return empeche;
+}
+
+/**
+ * Lâche des fichiers dans l'éditeur, sur ce texte, seuls ou avec du texte : un fichier HTML nommé
+ * `image.png`, qui n'est pas une image conforme (F-006-AC35). Avec `dragenter` ou `dragover`, seul
+ * ce geste qui précède le lâcher est envoyé. Rend vrai si l'action par défaut est empêchée.
+ */
+export function deposerUnFichier(
+  surLeTexte: string,
+  avecDuTexte: boolean,
+  type: TypeDuGeste = "drop",
+): boolean {
+  const fichier = new File(["<p>contenu du fichier</p>"], "image.png", { type: "text/html" });
+  const texte = avecDuTexte ? "texte joint au fichier" : "";
+  return deposer(
+    surLeTexte,
+    {
+      getData: (format: string) => (format === "text/plain" ? texte : ""),
+      types: avecDuTexte ? ["Files", "text/plain"] : ["Files"],
+      files: [fichier],
+      dropEffect: "copy",
+    },
+    type,
+  );
+}
+
+/** Les options du curseur de dépôt, telles que le module d'édition a créé l'éditeur. */
+export function optionsDuCurseurDeDepot(): Record<string, unknown> | undefined {
+  const extension = editeurMonte().extensionManager.extensions.find(
+    (une) => une.name === "dropCursor",
+  );
+  return extension?.options as Record<string, unknown> | undefined;
+}
+
+/** Texte de chaque bloc de premier niveau, dans l'ordre. */
+export function textesDesBlocs(): string[] {
+  const { doc } = editeurMonte().state;
+  const textes: string[] = [];
+  doc.forEach((noeud) => textes.push(noeud.textContent));
+  return textes;
+}
+
+/** Le bloc de premier niveau du curseur, et la position du curseur dans son texte. */
+export function curseurDansLeBloc(): { readonly bloc: number; readonly decalage: number } {
+  const { selection } = editeurMonte().state;
+  const bloc = selection.$from.index(0);
+  return { bloc, decalage: selection.from - debutDuBlocMonte(bloc) };
 }
 
 /**
@@ -423,4 +581,192 @@ export function appelerLaCommandeDeLien(
 export function marquesSousLeCurseur(): string[] {
   const { state } = editeurMonte();
   return (state.storedMarks ?? state.selection.$from.marks()).map((marque) => marque.type.name);
+}
+
+// ——— Bloc code et menu slash (F-005) ———
+
+export const NOM_DU_SELECTEUR_DE_LANGAGE = "Langage du bloc code";
+export const NOM_DU_MENU_SLASH = "Commandes de bloc";
+
+/** Le sélecteur de langage de la barre de blocs ; `null` s'il n'est pas proposé. */
+export function selecteurDeLangage(): HTMLSelectElement | null {
+  return screen.queryByRole<HTMLSelectElement>("combobox", { name: NOM_DU_SELECTEUR_DE_LANGAGE });
+}
+
+/** Choisit un langage dans le sélecteur, comme le clavier ou la souris le font. */
+export function choisirLeLangage(valeur: string): void {
+  const selecteur = selecteurDeLangage();
+  if (selecteur === null) {
+    throw new Error("Le sélecteur de langage n'est pas proposé.");
+  }
+  act(() => {
+    selecteur.value = valeur;
+    selecteur.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+// Borne du parcours : bien plus de pas que la barre n'a d'éléments.
+const PAS_MAX_DANS_LA_BARRE = 32;
+
+/**
+ * Depuis l'élément de la barre qui a le focus, Flèche droite jusqu'au sélecteur de langage
+ * (F-005-AC22) : rend le sélecteur dès qu'il a le focus, `null` si le parcours revient à son point
+ * de départ, ou s'épuise, sans l'avoir atteint.
+ */
+export function atteindreLeSelecteurParLesFleches(): HTMLSelectElement | null {
+  const depart = document.activeElement;
+  for (let pas = 0; pas < PAS_MAX_DANS_LA_BARRE; pas += 1) {
+    presser("ArrowRight");
+    const cible = document.activeElement;
+    const selecteur = selecteurDeLangage();
+    if (selecteur !== null && cible === selecteur) {
+      return selecteur;
+    }
+    if (cible === depart) {
+      return null;
+    }
+  }
+  return null;
+}
+
+const PAS_DU_SELECTEUR = { ArrowDown: 1, ArrowUp: -1 } as const;
+
+/**
+ * Flèche bas ou haut sur le sélecteur qui a le focus. Ni jsdom ni user-event 14.6.7 ne jouent
+ * l'action par défaut d'un `select` fermé : l'aide la joue comme un navigateur (option voisine,
+ * puis `input` et `change`), et seulement si personne n'a annulé la frappe en chemin ; une barre ou
+ * un éditeur qui avaleraient la flèche laissent donc la valeur inchangée.
+ */
+export function presserDansLeSelecteur(touche: keyof typeof PAS_DU_SELECTEUR): void {
+  const selecteur = document.activeElement;
+  if (!(selecteur instanceof HTMLSelectElement)) {
+    throw new Error("Aucun sélecteur n'a le focus.");
+  }
+  if (presser(touche)) {
+    return;
+  }
+  const rang = selecteur.selectedIndex + PAS_DU_SELECTEUR[touche];
+  if (rang < 0 || rang >= selecteur.options.length) {
+    return;
+  }
+  act(() => {
+    selecteur.selectedIndex = rang;
+    selecteur.dispatchEvent(new Event("input", { bubbles: true }));
+    selecteur.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+/** La liste d'options du menu slash ; `null` si le menu est fermé. */
+export function menuSlash(): HTMLElement | null {
+  return screen.queryByRole("listbox", { name: NOM_DU_MENU_SLASH });
+}
+
+/** Les commandes que le menu slash liste, dans l'ordre, et l'état de chacune. */
+export function optionsDuMenu(): { readonly nom: string; readonly active: boolean }[] {
+  return [...(menuSlash()?.querySelectorAll("[role=option]") ?? [])].map((option) => ({
+    nom: option.textContent,
+    active: option.getAttribute("aria-selected") === "true",
+  }));
+}
+
+/** Les noms des commandes que le menu slash liste ; vide s'il est fermé. */
+export function nomsDuMenu(): string[] {
+  return optionsDuMenu().map((option) => option.nom);
+}
+
+/** L'option du menu slash qui porte ce nom. */
+export function optionDuMenu(nom: string): HTMLElement {
+  return screen.getByRole("option", { name: nom });
+}
+
+/** Laisse passer les tâches que l'utilitaire de suggestion attend (éléments asynchrones). */
+export async function laisserLeMenuSuivre(): Promise<void> {
+  await act(() => new Promise<void>((suite) => setTimeout(suite, 0)));
+}
+
+/** Colle ces données, type par type, par un événement `paste` envoyé à la zone de saisie. */
+export function collerLesDonnees(donnees: Readonly<Record<string, string>>): void {
+  const collage = new Event("paste", { bubbles: true, cancelable: true });
+  const presse = { getData: (type: string) => donnees[type] ?? "", types: Object.keys(donnees) };
+  Object.defineProperty(collage, "clipboardData", { value: presse });
+  act(() => void zoneDeSaisie().dispatchEvent(collage));
+}
+
+/** Le bloc de texte où se trouve le curseur : son nœud et son texte. */
+export function blocDuCurseur(): { readonly noeud: string; readonly texte: string } {
+  const { $from } = editeurMonte().state.selection;
+  return { noeud: $from.parent.type.name, texte: $from.parent.textContent };
+}
+
+/** Place le curseur au début du bloc de texte qui contient ce texte. */
+export function placerLeCurseurAuDebutDe(texte: string): void {
+  const editeur = editeurMonte();
+  const position = positionDuTexte(texte);
+  const debut = editeur.state.doc.resolve(position).start();
+  act(() => void editeur.commands.setTextSelection(debut));
+}
+
+/** Place le curseur à la fin du bloc de texte qui contient ce texte. */
+export function placerLeCurseurALaFinDe(texte: string): void {
+  const editeur = editeurMonte();
+  const position = positionDuTexte(texte);
+  const fin = editeur.state.doc.resolve(position).end();
+  act(() => void editeur.commands.setTextSelection(fin));
+}
+
+/** Les attributs que porte l'élément de l'éditeur, par leur nom. */
+export function attributDeLEditeur(nom: string): string | null {
+  return zoneDeSaisie().getAttribute(nom);
+}
+
+/** Place le curseur au début du dernier bloc de texte du document, vide ou non. */
+export function placerLeCurseurDansLeDernierBloc(): void {
+  const editeur = editeurMonte();
+  let debut = -1;
+  editeur.state.doc.descendants((noeud, position) => {
+    if (noeud.isTextblock) {
+      debut = position + 1;
+    }
+  });
+  act(() => void editeur.commands.setTextSelection(debut));
+}
+
+/**
+ * Une commande du bloc code de l'éditeur tel que le module d'édition le crée, appelée directement
+ * avec ce langage, sans passer par la barre ni le sélecteur (F-005-AC35) ; rend ce qu'elle rend.
+ */
+type AppelDuBlocCode = (commandes: Editor["commands"], attributs: { language: string }) => boolean;
+
+const COMMANDES_DU_BLOC_CODE = {
+  setCodeBlock: (commandes, attributs) => commandes.setCodeBlock(attributs),
+  toggleCodeBlock: (commandes, attributs) => commandes.toggleCodeBlock(attributs),
+  setNode: (commandes, attributs) => commandes.setNode("codeBlock", attributs),
+  updateAttributes: (commandes, attributs) => commandes.updateAttributes("codeBlock", attributs),
+} satisfies Record<string, AppelDuBlocCode>;
+
+export function appelerUneCommandeDuBlocCode(
+  nom: keyof typeof COMMANDES_DU_BLOC_CODE,
+  /** Une valeur forgée : une chaîne de la liste ou non, un nombre, ou aucun langage. */
+  langage: string | number | null,
+): boolean {
+  const { commands } = editeurMonte();
+  // La commande type le langage en chaîne : la valeur forgée passe outre, comme un appel direct.
+  const attributs = { language: langage as string };
+  let rendu = false;
+  act(() => {
+    rendu = COMMANDES_DU_BLOC_CODE[nom](commands, attributs);
+  });
+  return rendu;
+}
+
+/**
+ * Efface le caractère avant le curseur, comme Retour arrière dans un texte : jsdom n'a pas l'action
+ * par défaut du navigateur, que ProseMirror relit d'ordinaire.
+ */
+export function effacerAvantLeCurseur(): void {
+  const { view } = editeurMonte();
+  act(() => {
+    const { from } = view.state.selection;
+    view.dispatch(view.state.tr.delete(from - 1, from));
+  });
 }

@@ -299,3 +299,39 @@
 - Tests: 3656 tests sur 176 fichiers — état: verts — preuve: checks.txt ; fumée d'agent `FUMEE: OK (constats 1 à 17)` sur `ec898f0` ; `test-blocage.sh` : tous les blocages effectifs ; shellcheck 0.11.0 sans constat ; fumée officielle et inscription réelle à verser par le dev
 - Gates: sur `ebda9c44b1db` : CRAFT PASS · reviewer-devops, reviewer-backend CHANGES_REQUESTED (12 points, corrigés) · SECURITY UNVERIFIED (shellcheck, fumée du dev ; aucun constat élevé) ; sur l'empreinte finale : CRAFT PASS · relecteurs, sécurité et architecture par DEROGATION D-029
 - Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 12, dont 2 simulacres qui se testaient eux-mêmes et 1 défaut de création exclusive trouvé par les tests · coût non mesuré
+
+## [2026-10-16] F-006 Glisser-déposer des blocs et des pages
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/glisser/` (nouveau, seul importateur de dnd-kit), `apps/web/src/interface/` (barre latérale, `destination-de-page.ts`, menu « ⋯ », raccourcis, annonces), `apps/web/src/edition/` (`deplacement-de-bloc.ts`, `depot.ts`, `poignee.ts`), `apps/web/package.json` et `pnpm-lock.yaml` (dnd-kit 6.3.1, poignée et curseur de dépôt Tiptap 3.31.4) — agents: agent-veille, agent-architecte-conception, agent-frontend, orchestrateur ; règles de contrats par le dev (f9a5d63) — commits: 0c2bb24..ec8b4a5
+- Détail: pages réordonnées et imbriquées à la souris et au clavier (Alt+Maj+Flèche, quatre commandes du menu), premier appelant de `deplacerPage` ; blocs déplacés par la poignée, la barre de blocs et le clavier, en une transaction annulable seule ; fichiers lâchés refusés, lecture seule comprise ; pas de poignée sur écran étroit ni sous pointeur imprécis. Le bout en bout a trouvé une cible de 24 px sur écran étroit ; la revue a trouvé un fichier lâché en lecture seule ouvert par le navigateur.
+- Dette: introduite D-034 (dérogation), D-035 (dnd-kit sans publication depuis décembre 2024) ; D-018 confirmée antérieure (GHSA-67mh-4wv8-2f99) ; laissées D-003, D-007
+- ADR: ADR-0015 (proposée) ; amendement d'ADR-0007 (proposé)
+- Tests: 3585 tests sur 173 fichiers — état: verts — preuve: checks.txt ; bout en bout `glisser-deposer.spec.ts` 3 sur 3 en Chromium
+- Gates: sur `8e8746a30214` : SECURITY PASS · CRAFT PASS · reviewer-frontend CHANGES_REQUESTED (2 points et 9 suggestions, traités) ; sur l'empreinte finale : CRAFT PASS · reviewer-frontend, sécurité et architecture par DEROGATION D-034
+- Mesures: boucles 1 passage, 1 tour de correctifs · constats confirmés 2, dont 1 défaut réel en lecture seule · coût non mesuré
+
+## [2026-10-19] ADR de main alignées sur le code et acceptées
+
+- TYPE: REFACTOR
+- Tier: trivial
+- Scope: `docs/decisions/` (ADR-0001 à 0004, 0006 à 0009, 0012 à 0017), commentaire de `apps/web/src/synchronisation/synchronisation.ts` — agents: agent-architecte-conception, agent-frontend, orchestrateur — commits: 34db427, 1d2d81e
+- Détail: décision du dev du 2026-10-19 : les ADR « proposées » ne sont acceptées qu'après correction de leurs écarts avec le code. Audit fait pendant F-005, sorti de sa branche à la demande du gate d'architecture. Écarts de description corrigés ; ADR-0014 réécrite selon le code (la dernière lecture réussie du registre est gardée, décision du dev). Restent « proposé » : l'amendement F-012 d'ADR-0002 (`meta` d'une autre nature, corrigé dans F-018) et ADR-0015 (acceptée avec F-005).
+- Dette: aucune
+- ADR: ADR-0013, 0014, 0016, 0017 et les amendements du 2026-10-16 acceptés
+- Tests: tests de documentation d'`infra` verts — état: verts — preuve: agent
+- Gates: aucun (trivial)
+- Mesures: coût non mesuré
+
+## [2026-10-19] F-005 Bloc code et commandes slash
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/edition/` (bloc code, langages, garde de langage, liste unique des commandes, disponibilité, barre, menu slash, liaison, lecture des sélections par `bornesLues`), `packages/document` (version 3 du document de page), jeton `--font-chasse-fixe`, `apps/web/package.json` et `pnpm-lock.yaml` (`@tiptap/extension-code-block`, `@tiptap/suggestion` 3.31.4, `@floating-ui/dom` 1.8.0, approuvés par le dev `6c7a073`) — agents: agent-veille, agent-architecte-conception, agent-planif, agent-frontend, orchestrateur ; règle de contrats par le dev (d39cd86) — commits: 52dc035..c50ca4f
+- Détail: bloc code à langage facultatif dans une liste fermée, sans langage tiré du presse-papiers ; commandes de bloc tirées d'une seule liste par la barre et par le menu `/` ; version 3 élevée paresseusement. Décisions du dev du 2026-10-19 : sauts de ligne remplacés par des espaces à la conversion (AC1), Entrée sans effet dans un menu sans commande (AC11, AC18), barre affichée dans un bloc code sans sélection (H11). La revue a trouvé : sélecteur de langage affiché sur une sélection débordante, collage après Mod+A qui levait, barre fausse sous Mod+A, règle « ``` » muette hors minuscules, poignée sans effet sur un bloc vide (régression de F-006-AC14 venue de H11).
+- Dette: introduite D-036 (reprise après trois rejets, levée), D-037 (bloc vide sur écran étroit au clavier seul) ; laissées D-003, D-007
+- ADR: ADR-0018 (acceptée) ; amendement F-005 d'ADR-0009 ; audit des ADR de main sorti dans la PR #8
+- Tests: 4237 tests sur 197 fichiers — état: verts — preuve: checks.txt (empreinte `d7e7ce6f3984`) ; bout en bout `bloc-code.spec.ts` et `glisser-deposer.spec.ts` verts en Chromium
+- Gates: passages 1 à 4 : SECURITY PASS et CRAFT PASS à chaque fois, reviewer-frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-036) ; passage 5 sur `d7e7ce6f3984` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
+- Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés 5 défauts réels et une vingtaine de points de structure · coût non mesuré

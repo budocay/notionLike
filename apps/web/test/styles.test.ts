@@ -548,6 +548,18 @@ describe("feuilles CSS : cas conformes et cas fautifs", () => {
     ]);
   });
 
+  it("F-004-AC21 F-004-AC3 F-005-AC34 la géométrie posée en ligne : celle de la barre de blocs et celle du menu slash sont admises, et elles seules", () => {
+    const geometrie =
+      ".a { left: calc(var(--barre-gauche, 0) * 1px); top: calc(var(--barre-haut, 0) * 1px); } .b { left: calc(var(--menu-x, 0) * 1px); top: calc(var(--menu-y, 0) * 1px); }";
+    expect(fautesDe("src/a.css", geometrie)).toEqual([]);
+    expect(fautesDe("src/a.css", ".a { left: calc(var(--menu-z, 0) * 1px); }")).toEqual([
+      "src/a.css : jeton non déclaré : « --menu-z »",
+    ]);
+    expect(fautesDe("src/a.css", ".a { left: calc(var(--menu-xy, 0) * 1px); }")).toEqual([
+      "src/a.css : jeton non déclaré : « --menu-xy »",
+    ]);
+  });
+
   it("F-004-AC21 F-004-AC11 une transition n'anime que transform et opacity, avec une durée en jeton", () => {
     const bonne =
       ".a { transition: opacity var(--duree-rapide) var(--ease-sortie), transform var(--duree-rapide) var(--ease-sortie); }";

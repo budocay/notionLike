@@ -161,6 +161,13 @@
   position: relative;
 }
 
+/* Repère de dépôt « dans » une rangée (F-006-AC28) : un contour en tirets, qui ne repose pas sur la
+   couleur seule et ne se confond pas avec le contour de focus, plein. */
+@utility contour-de-depot {
+  outline: var(--epaisseur-contour) dashed var(--color-repere-focus);
+  outline-offset: calc(var(--epaisseur-contour) * -1);
+}
+
 @utility chevron {
   transition: transform var(--duree-rapide) var(--ease-sortie);
 }
@@ -206,10 +213,35 @@
   }
 }
 
+/* Menu slash (F-005-AC12, AC34) : posé dans la fenêtre aux coordonnées que la bibliothèque de
+   positionnement calcule pour le module d'édition, près du curseur et entier dans la fenêtre ; il
+   reçoit sa géométrie par ses propres variables. */
+@utility menu-slash {
+  left: calc(var(--menu-x, 0) * 1px);
+  top: calc(var(--menu-y, 0) * 1px);
+}
+
 /* Panneau de lien : sous la barre de blocs, à la même abscisse (F-028-AC6). */
 @utility panneau-de-lien {
   left: calc(var(--barre-gauche, 0) * 1px);
   top: calc(var(--barre-haut, 0) * 1px + var(--spacing-cible) + var(--spacing-petit));
+}
+
+/* Curseur de dépôt de l'éditeur (F-006-AC37) : l'extension pose sa géométrie en ligne, sans couleur ;
+   la couleur vient d'ici. */
+@utility curseur-de-depot {
+  background-color: var(--color-repere-focus);
+}
+
+/* Poignée d'un bloc (F-006-AC14) : elle se saisit pour faire glisser le bloc. */
+@utility poignee-de-bloc {
+  cursor: grab;
+}
+
+/* Poignée du bloc où se trouve le curseur (F-006-AC14) : à gauche de la colonne ; sa hauteur, celle
+   du bloc que le module d'édition mesure, est posée en ligne. */
+@utility poignee-du-curseur {
+  right: 100%;
 }
 
 /* Zone de saisie de l'éditeur : ni cadre ni contour, le curseur dit seul où l'on écrit. C'est la
@@ -270,6 +302,25 @@
 
   & li > p {
     margin-block: var(--spacing-mince);
+  }
+
+  /* Bloc code (F-005-AC8, H15) : police à chasse fixe du jeton, posée aussi sur le `code`, que la
+     feuille de base de Tailwind habille à part ; espaces et sauts de ligne conservés, sans
+     coloration ; sur une surface en retrait. */
+  & pre,
+  & pre code {
+    font-family: var(--font-chasse-fixe);
+  }
+
+  & pre {
+    margin-block: var(--spacing-petit);
+    padding: var(--spacing-moyen) var(--spacing-normal);
+    border-radius: var(--radius-moyen);
+    background-color: var(--color-surface-retrait);
+    color: var(--color-texte-principal);
+    font-size: var(--text-interface);
+    line-height: var(--text-courant--line-height);
+    white-space: pre-wrap;
   }
 
   /* Lien : souligné plein. Lien neutralisé : souligné tireté, sans cible ; il se distingue d'un

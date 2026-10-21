@@ -15,6 +15,7 @@ import { type EditorState, Plugin, PluginKey, type Transaction } from "@tiptap/p
 import { AddMarkStep, AddNodeMarkStep, ReplaceAroundStep, ReplaceStep } from "@tiptap/pm/transform";
 
 import { adresseAcceptee, estUneAdresseNormalisee, estUneAdresseWeb } from "./adresses.ts";
+import { estAppliqueeDepuisYjs } from "./liaison.ts";
 import { ATTRIBUTS_IMPOSES, NOM_DE_LA_MARQUE_DE_LIEN } from "./lien.ts";
 
 /** Noms des nœuds et des marques qu'une modification s'apprête à inscrire dans le document. */
@@ -31,18 +32,6 @@ export interface OptionsDesMarques {
   readonly preparerLaVersion: (elements: ElementsInscrits) => boolean;
   /** Vrai pour un clic qui ouvre l'adresse d'un lien : Mod enfoncé (F-028-AC10). */
   readonly ouvreLAdresse: (clic: MouseEvent) => boolean;
-}
-
-// Clé de la liaison Yjs (`new PluginKey("y-sync")`) : une transaction qui la porte avec
-// `isChangeOrigin` applique au document de l'éditeur ce que Yjs a reçu ou annulé ; elle n'inscrit
-// rien de local.
-const CLE_DE_LA_LIAISON = "y-sync$";
-
-function estAppliqueeDepuisYjs(transaction: Transaction): boolean {
-  const meta: unknown = transaction.getMeta(CLE_DE_LA_LIAISON);
-  return typeof meta === "object" && meta !== null && "isChangeOrigin" in meta
-    ? meta.isChangeOrigin === true
-    : false;
 }
 
 function estUnLien(marque: Mark): boolean {

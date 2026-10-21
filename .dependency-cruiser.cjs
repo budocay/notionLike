@@ -306,11 +306,11 @@ module.exports = {
       name: "web-src-liste-blanche",
       severity: "error",
       comment:
-        "ADR-0007, F-003-AC27, F-010, F-013 : hors persistance, espace, navigation, identifiants, édition, page, compte et synchronisation, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
+        "ADR-0007, F-003-AC27, F-010, F-013, F-006 : hors persistance, espace, navigation, identifiants, édition, page, compte, synchronisation et glisser-déposer, le code d'apps/web n'importe que src/ (persistance et identifiants exceptés), les exports de @notionlike/document, react et react-dom : ni yjs, ni y-indexeddb, ni dépendance de test, ni module de Node.",
       from: {
         path: "^apps/web/src/",
         pathNot:
-          "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte|synchronisation)/",
+          "^apps/web/src/(persistance|espace|navigation|identifiants|edition|page|compte|synchronisation|glisser)/",
       },
       to: {
         pathNot: [
@@ -387,6 +387,21 @@ module.exports = {
       from: { path: "^(apps|packages)/", pathNot: "^apps/web/(src|test)/edition/" },
       to: { path: "(^|/)node_modules/(@tiptap|prosemirror-[^/]+|y-prosemirror)/" },
     },
+    // F-005-AC33, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "suggestion-et-positionnement-confines",
+      severity: "error",
+      comment:
+        "F-005-AC33, H9 : l'utilitaire de suggestion de Tiptap (@tiptap/suggestion) et la bibliothèque de positionnement (tout paquet @floating-ui/*) ne sont importés que par le module d'édition d'apps/web (src/edition/) : ni par ses tests, ni par un autre fichier d'apps/web, ni par un paquet, ni par le serveur.",
+      from: { pathNot: "^apps/web/src/edition/" },
+      to: {
+        path: [
+          "(^|/)node_modules/(@tiptap/suggestion|@floating-ui/[^/]+)/",
+          "^(@tiptap/suggestion|@floating-ui/[^/]+)(/|$)",
+        ],
+      },
+    },
     {
       name: "web-edition-par-son-interface",
       severity: "error",
@@ -399,7 +414,7 @@ module.exports = {
       name: "web-edition-liste-blanche",
       severity: "error",
       comment:
-        "F-003-AC27 : le module d'édition n'importe que lui-même, le composant de présentation de l'édition, les textes de l'interface, react, yjs et les paquets Tiptap qu'il emploie.",
+        "F-003-AC27, F-006-AC32, F-005-AC33 : le module d'édition n'importe que lui-même, le composant de présentation de l'édition, les textes de l'interface, react, yjs, les paquets Tiptap qu'il emploie, poignée de bloc (drag-handle, drag-handle-react, node-range), curseur de dépôt (@tiptap/extensions), bloc code (extension-code-block) et utilitaire de suggestion (suggestion) compris, et @floating-ui/dom (placement du menu slash) ; ni @floating-ui/core, ni @floating-ui/utils, ni @dnd-kit/*.",
       from: { path: "^apps/web/src/edition/" },
       to: {
         pathNot: [
@@ -407,8 +422,51 @@ module.exports = {
           "^apps/web/src/interface/composants/Edition\\.tsx$",
           "^apps/web/src/interface/messages\\.ts$",
           "(^|/)node_modules/(react|yjs)/",
-          "(^|/)node_modules/@tiptap/(core|pm|react|extension-(bold|collaboration|document|heading|italic|link|list|paragraph|text))/",
+          "(^|/)node_modules/@tiptap/(core|pm|react|extensions|suggestion|extension-(bold|code-block|collaboration|document|drag-handle|drag-handle-react|heading|italic|link|list|node-range|paragraph|text))/",
+          "(^|/)node_modules/@floating-ui/dom/",
         ],
+      },
+    },
+    // F-006-AC32, par paquet. Deux expressions par cible, comme pour better-auth : le fichier installé
+    // et le nom tel qu'il est écrit, gardé quand le paquet n'est pas installé chez l'importateur.
+    {
+      name: "dnd-kit-confine",
+      severity: "error",
+      comment:
+        "F-006-AC32, H6 : la bibliothèque de glisser-déposer (tout paquet @dnd-kit/*) n'est importée que par le module de glisser-déposer d'apps/web (src/glisser/) : ni par un autre fichier d'apps/web (tests compris), ni par un paquet, ni par le serveur.",
+      from: { pathNot: "^apps/web/src/glisser/" },
+      to: { path: ["(^|/)node_modules/@dnd-kit/", "^@dnd-kit/"] },
+    },
+    {
+      name: "web-glisser-liste-blanche",
+      severity: "error",
+      comment:
+        "F-006-AC32, ADR-0015 : le module de glisser-déposer n'importe que lui-même, react et les trois paquets de l'ancienne famille dnd-kit (core, sortable, utilities) : ni react-dom, ni le document, ni l'interface, ni bibliothèque d'animation.",
+      from: { path: "^apps/web/src/glisser/" },
+      to: {
+        pathNot: [
+          "^apps/web/src/glisser/",
+          "(^|/)node_modules/react/",
+          "(^|/)node_modules/@dnd-kit/(core|sortable|utilities)/",
+        ],
+      },
+    },
+    {
+      name: "web-glisser-par-son-interface",
+      severity: "error",
+      comment:
+        "F-006-AC32 : hors du module de glisser-déposer et de ses tests (test/glisser/), seul son index.ts est importable ; c'est l'interface qui n'expose aucun type de dnd-kit.",
+      from: { path: "^apps/web/", pathNot: "^apps/web/(src|test)/glisser/" },
+      to: { path: "^apps/web/src/glisser/", pathNot: "^apps/web/src/glisser/index\\.ts$" },
+    },
+    {
+      name: "web-destination-pure",
+      severity: "error",
+      comment:
+        "F-006-AC4 : le calcul de la destination d'un déplacement de page est sans DOM ni bibliothèque ; il n'importe que les exports de @notionlike/document et les parcours purs de l'arborescence (interface/pages.ts).",
+      from: { path: "^apps/web/src/interface/destination-de-page\\.ts$" },
+      to: {
+        pathNot: ["^packages/document/src/index\\.ts$", "^apps/web/src/interface/pages\\.ts$"],
       },
     },
     {
