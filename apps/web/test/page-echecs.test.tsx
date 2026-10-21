@@ -313,7 +313,12 @@ describe("couture du module de persistance", () => {
     expect(quiAppellent("ouvrirPersistance").filter((module) => module.startsWith("src/"))).toEqual(
       // F-013-AC40 : la passe de fond et la réplique d'une page de version refusée, par le seul
       // fichier de stockage du module de synchronisation.
-      ["src/page/pages-ouvertes.ts", "src/synchronisation/stockage.ts"],
+      // F-018-AC50 : les tables ouvertes, pour la base d'une table.
+      [
+        "src/page/pages-ouvertes.ts",
+        "src/synchronisation/stockage.ts",
+        "src/table/tables-ouvertes.ts",
+      ],
     );
     expect(quiAppellent("ouvrirPersistance")).toContain("test/aides-session-page.tsx");
     expect(lire("src/espace/session-espace.ts")).toMatch(/\.idEspace\(\)/);

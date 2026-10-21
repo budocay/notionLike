@@ -169,6 +169,15 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
   },
   // La réplique ne lit que le document d'une page : rien de ce que l'espace a retiré n'y entre.
   "src/synchronisation/miroir.ts": () => versionAdmise(new Y.Doc()),
+  // F-018 : la session de table lit le document d'une table, pas celui de l'espace : l'adresse
+  // d'une entrée retirée n'ouvre aucune session, donc aucune base de table.
+  "src/table/session-table.ts": async (_coquille, { retiree }) => {
+    aller(`#/page/${retiree}`);
+    await act(() => laisserIndexedDbTravailler());
+    const bases = (await nomsDesBases()).filter((nom) => nom.includes(`:table:`));
+    expect(bases).toEqual([]);
+    return bases;
+  },
 };
 
 function importateursDuDocument(): string[] {

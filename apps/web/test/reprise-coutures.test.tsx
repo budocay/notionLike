@@ -39,6 +39,8 @@ const GARDE_D_ONGLET = "src/espace/garde-onglet.ts";
 const PAGES_OUVERTES = "src/page/pages-ouvertes.ts";
 const SESSION_DE_PAGE = "src/page/session-page.ts";
 const ECRAN_D_ENREGISTREMENT = "src/interface/Enregistrement.tsx";
+const TABLES_OUVERTES = "src/table/tables-ouvertes.ts";
+const SESSION_DE_TABLE = "src/table/session-table.ts";
 
 // Les sortes d'appelants de l'interface de persistance. Tout fichier d'apps/web qui l'importe doit
 // être inscrit dans l'une d'elles.
@@ -52,6 +54,11 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
   // F-013-AC40 : passe de fond, réplique d'une page de version refusée, registre, effacements.
   "src/synchronisation/stockage.ts":
     "ouvre la base d'un document hors de l'écran, lit et inscrit le registre, efface des bases",
+  // F-018-AC14, AC50 : la base d'une table, ses réglages de vue.
+  [TABLES_OUVERTES]:
+    "ouvre la persistance d'une table, la tient tant qu'une modification n'est pas écrite, la ferme, efface sa base et ses réglages",
+  [SESSION_DE_TABLE]:
+    "lit l'état de la persistance d'une table, s'y abonne, lui soumet l'état relu, la ferme sur un refus",
 };
 const AIDES_DE_TEST = [
   // F-028 : documents de chaque ligne de la table des versions, enregistrés puis relus (AC24, AC28).
@@ -60,6 +67,8 @@ const AIDES_DE_TEST = [
   "test/aides-persistance.ts",
   "test/aides-reprise.ts",
   "test/aides-session-page.tsx",
+  // F-018 : bases de table écrites et relues.
+  "test/aides-table.ts",
   // F-013 : onglets synchronisés sur le serveur réel.
   "test/synchronisation/aides-synchro.ts",
 ];
@@ -82,6 +91,8 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/reprise-tentatives.test.ts",
   "test/reprise-version.test.tsx",
   "test/structure.test.ts",
+  // F-018 : réglages de vue, ouverture et persistance d'une table.
+  "test/table-reglages.test.ts",
   // F-013 : registre de l'appareil, bases de page écrites et relues contre le serveur réel.
   "test/synchronisation/adoption.test.ts",
   "test/synchronisation/convergence.test.ts",
@@ -256,6 +267,16 @@ describe("appelants de l'interface de persistance", () => {
       // F-013 : le stockage de la synchronisation ouvre ; la passe de fond et la réplique d'une page
       // de version refusée lisent, suivent et ferment ce qu'il ouvre (synchronisation/*.test.ts).
       "src/synchronisation/stockage.ts": [],
+      // F-018 : comme les pages ouvertes et la session de page, pour une table.
+      [TABLES_OUVERTES]: ["aDesModificationsNonEnregistrees", "abonner", "fermer", "lireEtat"],
+      [SESSION_DE_TABLE]: [
+        "aReluLaBase",
+        "abonner",
+        "fermer",
+        "lireEtat",
+        "reessayer",
+        "soumettreLEtatRelu",
+      ],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
@@ -538,10 +559,13 @@ describe("documents de page", () => {
       Object.keys(APPELANTS_DE_PRODUCTION).filter((chemin) => motif.test(lire(chemin)));
     // F-013-AC40 : la passe de fond et la réplique d'une page de version refusée ouvrent aussi la
     // base d'une page, par le stockage de la synchronisation.
+    // F-018-AC14 : les tables ouvertes ouvrent la base d'une table, jamais celle d'une page.
     expect(quiAppellent(/\bouvrirPersistance\(/)).toEqual([
       PAGES_OUVERTES,
       "src/synchronisation/stockage.ts",
+      TABLES_OUVERTES,
     ]);
+    expect(lire(TABLES_OUVERTES)).not.toMatch(/type: "page"/);
     expect(quiAppellent(/\bouvrirEspaceLocal\(/)).toEqual([SESSION]);
     expect([...aretes.keys()].filter((module) => /^src\/page\//.test(module)).sort()).toEqual([
       PAGES_OUVERTES,

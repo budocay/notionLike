@@ -128,6 +128,8 @@ const APPELS_DE_LA_GARDE: Readonly<Record<string, Readonly<Record<string, string
   suivreLOnglet: {
     "src/espace/session-espace.ts": "suivreLOnglet(persistance, doc)",
     "src/page/pages-ouvertes.ts": "suivreLOnglet(persistance, tenue.doc)",
+    // F-018 : les tables ouvertes donnent aussi le document de leur persistance.
+    "src/table/tables-ouvertes.ts": "suivreLOnglet(persistance, tenue.doc)",
     "test/reprise-coutures.test.tsx": "suivreLOnglet(",
   },
   brancherLAcquittement: {

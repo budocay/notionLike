@@ -640,6 +640,9 @@ const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
   "apps/web/src/interface/messages.ts": "traduit chaque code",
   "apps/web/src/page/session-page.ts": "ne lit que « version-non-prise-en-charge »",
+  // F-018 : refus du document de table, à l'ouverture et à la réception.
+  "apps/web/src/table/session-table.ts":
+    "ne lit que « version-non-prise-en-charge » et « pas-un-document-de-table »",
 };
 const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
@@ -869,6 +872,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   // F-013 : la réplique de la page affichée lit sa version ; la synchronisation, les pages lues.
   "apps/web/src/synchronisation/miroir.ts": "apps/web/test/corbeille-relecture.test.tsx",
   "apps/web/src/synchronisation/pages-de-l-espace.ts": "apps/web/test/corbeille-relecture.test.tsx",
+  // F-018 : la session de table ouvre la façade du document de table.
+  "apps/web/src/table/session-table.ts": "apps/web/test/table-session.test.ts",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {
@@ -933,6 +938,10 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       "apps/web/src/synchronisation/passe-de-fond.ts",
       "apps/web/src/synchronisation/stockage.ts",
       "apps/web/src/synchronisation/synchronisation.ts",
+      // F-018 : la session de table et les tables ouvertes, dont yjs est une dépendance permise
+      // (web-table-liste-blanche) ; aucun type partagé n'y est lu ni écrit.
+      "apps/web/src/table/session-table.ts",
+      "apps/web/src/table/tables-ouvertes.ts",
     ]);
     expect(importeLePaquet(statique("import", "type * as Y", "yjs"), "yjs")).toBe(true);
     for (const [chemin, texte] of sourcesDeLApplication()) {

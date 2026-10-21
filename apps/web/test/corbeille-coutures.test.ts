@@ -59,6 +59,8 @@ const IMPORTATEURS_DU_DOCUMENT = [
   // F-013 : la réplique lit la version d'une page, la synchronisation les pages de l'arborescence.
   "src/synchronisation/miroir.ts",
   "src/synchronisation/pages-de-l-espace.ts",
+  // F-018 : la session de table ouvre la façade du document de table.
+  "src/table/session-table.ts",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin
@@ -70,6 +72,8 @@ const CONSTRUCTEURS_DE_Y_DOC = [
   // F-013 : la réplique de la page affichée (H8), le document d'une page de la passe de fond.
   "src/synchronisation/miroir.ts",
   "src/synchronisation/passe-de-fond.ts",
+  // F-018 : les tables ouvertes portent des documents de table, ramasse-miettes posé (H13).
+  "src/table/tables-ouvertes.ts",
 ];
 
 function sources(): string[] {
@@ -178,5 +182,6 @@ describe("ramasse-miettes des documents d'espace", () => {
     expect(constructeurs).toEqual(CONSTRUCTEURS_DE_Y_DOC);
     expect(sources().filter((chemin) => coupeLeRamasseMiettes(lire(chemin)))).toEqual([]);
     expect(lire("src/espace/session-espace.ts")).toMatch(/new Y\.Doc\(\{ gc: true \}\)/);
+    expect(lire("src/table/tables-ouvertes.ts")).toMatch(/new Y\.Doc\(\{ gc: true \}\)/);
   });
 });
