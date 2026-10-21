@@ -78,7 +78,7 @@ export function useEtatDeSynchronisation(
  * de son éditeur se lit sur le fragment du contenu que sa façade expose. Une table affichée prend sa
  * place (F-018-AC51) : son document de table est donné tel que sa session le tient.
  */
-export function useAffichageDeLaPage(
+export function useAffichageDuDocument(
   synchro: Synchronisation | undefined,
   idPage: string | undefined,
   page: EtatSessionPage | undefined,
@@ -126,8 +126,11 @@ export interface EspaceOuvert {
   readonly table?: EtatSessionTable | undefined;
   readonly typeDe?: OptionsDeSynchronisation["typeDe"];
   readonly lirePages: OptionsDeSynchronisation["lirePages"];
-  /** Ferme les documents des pages supprimées ailleurs, sans effacer leurs bases (AC37). */
-  readonly fermerLesPages: (idPages: readonly string[]) => void;
+  /**
+   * Ferme les documents de page et de table des identifiants supprimés ailleurs, sans effacer leurs
+   * bases (AC37, F-018-AC53).
+   */
+  readonly fermerLesDocuments: (idPages: readonly string[]) => void;
   /** Ferme la session d'espace et les pages de l'onglet (AC24). */
   readonly toutFermer: () => void;
 }
@@ -140,7 +143,7 @@ export function useSynchronisationDeLEspace(
   const synchro = useSynchronisation(espace.fabrique, espace.idEspace, espace.doc, {
     lirePages: espace.lirePages,
     typeDe: espace.typeDe,
-    surPagesSupprimees: espace.fermerLesPages,
+    surPagesSupprimees: espace.fermerLesDocuments,
     surEffacement: (etape) => {
       if (etape === "demande") {
         espace.toutFermer();
@@ -151,7 +154,7 @@ export function useSynchronisationDeLEspace(
     },
   });
   const etat = useEtatDeSynchronisation(synchro);
-  useAffichageDeLaPage(synchro, espace.idPage, espace.page, {
+  useAffichageDuDocument(synchro, espace.idPage, espace.page, {
     idTable: espace.idTable,
     etat: espace.table,
   });

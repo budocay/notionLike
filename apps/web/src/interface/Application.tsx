@@ -38,7 +38,7 @@ import {
 import { EcranDuCompte } from "./EcranDuCompte.tsx";
 import { placeApres } from "./destination-de-page.ts";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
-import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
+import { etatAvecLeDocumentOuvert } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
   CHARGEMENT,
@@ -172,7 +172,7 @@ function useEspacePret(props: ProprietesEspacePret) {
       lirePages: () => pagesDeLaSession(props.session),
       typeDe: (id) => typeDansLaSession(props.session, id),
       // F-018-AC53 : les documents de page et de table des identifiants supprimés ailleurs.
-      fermerLesPages: (idPages) => {
+      fermerLesDocuments: (idPages) => {
         void pages.effacer(undefined, idPages);
         void tables.effacer(undefined, idPages);
       },
@@ -207,7 +207,10 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
   const { navigation, selection, page, documents, synchronisation, barre } = espace;
   const tiroir = useTiroir();
   const idBarre = useId();
-  const enregistrement = etatAvecLaPage(etat, espace.etatDeLaPage ?? espace.etatDeLaTable);
+  const enregistrement = etatAvecLeDocumentOuvert(
+    etat,
+    espace.etatDeLaPage ?? espace.etatDeLaTable,
+  );
   if (synchronisation.effaceeAilleurs) {
     return <EffaceeAilleurs />;
   }
@@ -373,7 +376,6 @@ function ZoneAffichee(props: {
       page={props.page}
       table={props.table}
       idEspace={etat.idEspace}
-      raisonDeLectureSeule={props.lectureSeule}
       lectureSeule={props.lectureSeule !== undefined}
       poignees={!props.etroit}
     />
@@ -623,13 +625,13 @@ function actionsDeLaBarre(
   return {
     creerPage: (parent) => {
       if (ecrit) {
-        creerPage(moyens, parent, "page");
+        creerPageOuTable(moyens, parent, "page");
       }
     },
     // F-018-AC10 : comme une page, au titre vide, en dernière position sous le parent visé.
     creerTable: (parent) => {
       if (ecrit) {
-        creerPage(moyens, parent, "table");
+        creerPageOuTable(moyens, parent, "table");
       }
     },
     ouvrirSaisie: (idPage) => {
@@ -689,7 +691,7 @@ function deplacerLaPage(
   return true;
 }
 
-function creerPage(moyens: Moyens, parent: IdPage | null, type: TypeDePage): void {
+function creerPageOuTable(moyens: Moyens, parent: IdPage | null, type: TypeDePage): void {
   const creer = type === "table" ? moyens.operations.creerTable : moyens.operations.creerPage;
   const resultat = essayer(() => creer("", { parent }));
   if (resultat.refus !== undefined) {

@@ -9,7 +9,10 @@ import type { EtatSessionTable } from "../table/session-table.ts";
 export type EtatDuDocumentOuvert = EtatSessionPage | EtatSessionTable;
 
 /** L'état de l'espace, où l'enregistrement n'est affirmé que si le document ouvert l'est aussi. */
-export function etatAvecLaPage(etat: EtatPret, ouvert: EtatDuDocumentOuvert | undefined): EtatPret {
+export function etatAvecLeDocumentOuvert(
+  etat: EtatPret,
+  ouvert: EtatDuDocumentOuvert | undefined,
+): EtatPret {
   if (ouvert?.phase !== "pret") {
     return etat;
   }
