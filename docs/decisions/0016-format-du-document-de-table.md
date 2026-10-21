@@ -1,6 +1,6 @@
 # ADR-0016 — Format du document de table : types racine, drapeaux, rangs, version à maximum
 
-Statut : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : proposée, à accepter par le dev avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019
+Statut : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : acceptée par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019
 Date : 2026-10-16 ; normalisation des chaînes à unité UTF-16 isolée reprise le même jour d'après le code de F-017 (`2d8c51a`), sur décision de l'orchestrateur après revue ; écarts au code corrigés le 2026-10-19 ; amendement F-018 du 2026-10-21
 
 ## Contexte et problème

@@ -1,6 +1,6 @@
 # ADR-0019 — Écran de table : session, module des vues et réglages de vue sur l'appareil
 
-Statut : proposé
+Statut : accepté (décision du dev du 2026-10-21, addendum des écarts au code compris)
 Date : 2026-10-16 ; écarts au code relevés le 2026-10-21 (addendum à la fin de « Décision »)
 
 ## Contexte et problème
