@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  Fragment,
   type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -113,6 +114,10 @@ interface ProprietesBarreDeBlocs {
   readonly selecteur?: SelecteurDeBarre | undefined;
   /** Nombre de commandes avant le sélecteur. */
   readonly rangDuSelecteur?: number | undefined;
+  /** Aide, sous les commandes, que l'éditeur désigne par son identifiant (F-033-AC23). */
+  readonly aide?: { readonly id: string; readonly texte: string } | undefined;
+  /** Mention, sous les commandes : pourquoi le bloc n'est pas coloré (F-033-AC9). */
+  readonly mention?: string | undefined;
   readonly position: PositionDeBarre;
   /** Échap dans la barre : le focus retourne d'où il vient. */
   readonly surAbandon: () => void;
@@ -153,13 +158,14 @@ function garderLeFocus(evenement: MouseEvent<HTMLElement>): void {
  * raccourci de l'éditeur atteint. Elle ne porte aucune logique d'édition.
  */
 export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
-  const { nom, commandes, selecteur, position, surAbandon, ref } = props;
+  const { nom, commandes, selecteur, position, surAbandon, ref, aide, mention } = props;
   const style = { "--barre-gauche": position.gauche, "--barre-haut": position.haut };
   const rang = props.rangDuSelecteur ?? commandes.length;
+  const avecAide = aide !== undefined || mention !== undefined;
   return (
     <div
       ref={ref}
-      className={EDITION.barre}
+      className={avecAide ? EDITION.barreAvecAide : EDITION.barre}
       style={style as CSSProperties}
       role="toolbar"
       aria-label={nom}
@@ -168,6 +174,12 @@ export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
       {commandes.slice(0, rang).map(boutonDeCommande)}
       {selecteur !== undefined && <SelecteurDeLaBarre {...selecteur} />}
       {commandes.slice(rang).map(boutonDeCommande)}
+      {mention !== undefined && <p className={EDITION.aideDeBarre}>{mention}</p>}
+      {aide !== undefined && (
+        <p id={aide.id} className={EDITION.aideDeBarre}>
+          {aide.texte}
+        </p>
+      )}
     </div>
   );
 }
@@ -271,6 +283,56 @@ export function MenuDeCommandes(props: ProprietesMenuDeCommandes): ReactElement 
 
 /** Classe du curseur de dépôt de l'éditeur : sa couleur vient des jetons (F-006-AC37). */
 export const CLASSE_DU_CURSEUR_DE_DEPOT = EDITION.curseurDeDepot;
+
+/**
+ * Classes de rôle du bloc code (F-033-AC6, AC13, H5) : la liste fermée des sept rôles syntaxiques,
+ * chacun vers la seule classe que la coloration pose pour lui. Le module d'édition, la page de
+ * démonstration et les tests la lisent ici.
+ */
+export const CLASSES_DE_ROLE = {
+  motCle: EDITION.syntaxeMotCle,
+  chaine: EDITION.syntaxeChaine,
+  nombre: EDITION.syntaxeNombre,
+  commentaire: EDITION.syntaxeCommentaire,
+  fonction: EDITION.syntaxeFonction,
+  type: EDITION.syntaxeType,
+  propriete: EDITION.syntaxePropriete,
+} as const;
+
+/** Un rôle syntaxique de la liste fermée (F-033 H5). */
+export type RoleSyntaxique = keyof typeof CLASSES_DE_ROLE;
+
+/** Une portion d'un texte de code : son texte, et son rôle s'il en a un. */
+export interface PortionDeCode {
+  readonly texte: string;
+  readonly role?: RoleSyntaxique | undefined;
+}
+
+/**
+ * Un bloc code coloré, tel que l'éditeur le rend (`pre` > `code`, une portion colorée par élément à
+ * la classe de son rôle), pour la page de démonstration (F-033-AC14) : sans logique d'édition.
+ */
+export function CodeColore({
+  portions,
+}: {
+  readonly portions: readonly PortionDeCode[];
+}): ReactElement {
+  return (
+    <pre>
+      <code>
+        {portions.map((portion, rang) => (
+          <Fragment key={rang}>
+            {portion.role === undefined ? (
+              portion.texte
+            ) : (
+              <span className={CLASSES_DE_ROLE[portion.role]}>{portion.texte}</span>
+            )}
+          </Fragment>
+        ))}
+      </code>
+    </pre>
+  );
+}
 
 interface ProprietesPoignee {
   /** Nom accessible, « Déplacer le bloc ». */

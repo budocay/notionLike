@@ -1,6 +1,7 @@
 // Données fictives de la page de démonstration : aucun document, aucune persistance. Seul ce qui
 // est propre à la page est ici ; les textes de l'interface viennent de `interface/messages.ts`, les
 // combinaisons de touches de `interface/raccourcis.ts`.
+import type { PortionDeCode } from "../interface/composants/Edition.tsx";
 import {
   ADRESSE_DU_LIEN_REFUSEE,
   APPLIQUER_LE_LIEN,
@@ -175,3 +176,174 @@ export const PANNEAU_DE_LIEN_FICTIF = {
 
 /** La barre de blocs est posée sous le bloc vide de l'aperçu, sans le recouvrir. */
 export const POSITION_DE_BARRE_FICTIVE = { gauche: 0, haut: 44 } as const;
+
+// Coloration du bloc code (F-033-AC14) : un échantillon par langage de la liste, écrit à la main en
+// portions ; à eux tous, ils portent les sept rôles. La page sert à juger les couleurs : la justesse
+// de la coloration est prouvée par les tests du module d'édition (F-033-AC1).
+type Portions = readonly PortionDeCode[];
+const mot = (texte: string): PortionDeCode => ({ texte, role: "motCle" });
+const chaine = (texte: string): PortionDeCode => ({ texte, role: "chaine" });
+const nombre = (texte: string): PortionDeCode => ({ texte, role: "nombre" });
+const commentaire = (texte: string): PortionDeCode => ({ texte, role: "commentaire" });
+const fonction = (texte: string): PortionDeCode => ({ texte, role: "fonction" });
+const type = (texte: string): PortionDeCode => ({ texte, role: "type" });
+const propriete = (texte: string): PortionDeCode => ({ texte, role: "propriete" });
+const brut = (texte: string): PortionDeCode => ({ texte });
+
+export const ECHANTILLONS_DE_CODE: readonly {
+  readonly langage: keyof typeof NOMS_DES_LANGAGES;
+  readonly portions: Portions;
+}[] = [
+  {
+    langage: "bash",
+    portions: [
+      mot("if"),
+      brut(" [ -n "),
+      chaine('"$1"'),
+      brut(" ]; "),
+      mot("then"),
+      brut(" "),
+      mot("echo"),
+      brut(" "),
+      chaine('"ok"'),
+      brut("; "),
+      mot("fi"),
+    ],
+  },
+  {
+    langage: "css",
+    portions: [
+      mot("@media"),
+      brut(" screen {\n  "),
+      propriete(".titre"),
+      brut(" { "),
+      propriete("margin"),
+      brut(": "),
+      nombre("2rem"),
+      brut("; }\n}"),
+    ],
+  },
+  {
+    langage: "html",
+    portions: [
+      brut("<"),
+      mot("a"),
+      brut(" "),
+      propriete("href"),
+      brut("="),
+      chaine('"/aide"'),
+      brut(">Aide</"),
+      mot("a"),
+      brut(">"),
+    ],
+  },
+  {
+    langage: "javascript",
+    portions: [
+      commentaire("// Salutation"),
+      brut("\n"),
+      mot("function"),
+      brut(" "),
+      fonction("saluer"),
+      brut("(nom) {\n  "),
+      mot("return"),
+      brut(" "),
+      chaine('"Bonjour "'),
+      brut(" + nom;\n}"),
+    ],
+  },
+  {
+    langage: "json",
+    portions: [
+      brut("{ "),
+      propriete('"nom"'),
+      brut(": "),
+      chaine('"Atlas"'),
+      brut(", "),
+      propriete('"titres"'),
+      brut(": "),
+      nombre("42"),
+      brut(", "),
+      propriete('"public"'),
+      brut(": "),
+      nombre("false"),
+      brut(" }"),
+    ],
+  },
+  {
+    langage: "markdown",
+    portions: [
+      mot("# Notes"),
+      brut("\n"),
+      mot("-"),
+      brut(" un point "),
+      type("*important*"),
+      brut("\n"),
+      mot("-"),
+      brut(" voir "),
+      chaine("`atlas`"),
+    ],
+  },
+  {
+    langage: "python",
+    portions: [
+      mot("def"),
+      brut(" "),
+      fonction("aire"),
+      brut("(r):\n    "),
+      mot("return"),
+      brut(" "),
+      nombre("3.14"),
+      brut(" * r * r  "),
+      commentaire("# en cm²"),
+    ],
+  },
+  {
+    langage: "sql",
+    portions: [
+      mot("SELECT"),
+      brut(" titre "),
+      mot("FROM"),
+      brut(" pages "),
+      mot("WHERE"),
+      brut(" id = "),
+      nombre("7"),
+      brut(" "),
+      mot("AND"),
+      brut(" etat = "),
+      chaine("'publie'"),
+      brut(";"),
+    ],
+  },
+  {
+    langage: "typescript",
+    portions: [
+      mot("interface"),
+      brut(" "),
+      type("Page"),
+      brut(" {\n  "),
+      propriete("titre"),
+      brut(": "),
+      mot("string"),
+      brut(";\n  "),
+      propriete("version"),
+      brut(": "),
+      nombre("3"),
+      brut(";\n}"),
+    ],
+  },
+  {
+    langage: "yaml",
+    portions: [
+      propriete("nom:"),
+      brut(" "),
+      chaine('"Atlas"'),
+      brut("\n"),
+      propriete("version:"),
+      brut(" "),
+      nombre("3"),
+      brut("  "),
+      commentaire("# brouillon"),
+    ],
+  },
+];

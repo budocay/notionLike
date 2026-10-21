@@ -4,7 +4,7 @@
 
 Dépôt distant : `git@github.com:budocay/notionLike.git`. Sur un clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` porte vingt features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006 et F-005 (bloc code et commandes slash, version 3 du document de page, ADR-0018 ; fusion par la PR de la branche `F-005`, gates tous verts au cinquième passage, sans dérogation). En cours : F-018 (vue tableau, `../notionLike-F-018`, blocs 1 et 2 commités, spec en brouillon après la retouche d'AC58) et F-032 (spec validée, `../notionLike-F-032`). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` porte vingt et une features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005 (bloc code et commandes slash, version 3 du document de page, ADR-0018) et F-033 (coloration et indentation du bloc code, lowlight et highlight.js confinés à `edition/coloration.ts`, gates verts au premier passage). En cours : F-018 (vue tableau, `../notionLike-F-018`, blocs 0 à 8 commités, contrôles OK, alignement puis gates) et F-032 (veille, conception, spec retouchée et revalidée le 2026-10-21, `../notionLike-F-032`, code après la fusion de F-018). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
 CI GitHub Actions en place depuis le 2026-10-16 (`.github/workflows/ci.yml`, PR #3) : `main` est protégée par un ruleset (PR obligatoire, merge commit seul, checks requis `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression, aucun contournement) ; squash, rebase et auto-merge désactivés. D-001 levée. Hooks git débranchés le 2026-10-21 sur décision du dev (`core.hooksPath` retiré) : la CI est la seule barrière ; l'orchestrateur passe lui-même les commandes git, commits `Agent: dev` compris, sur instruction du dev.
 
@@ -16,9 +16,9 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 
 ## Prochaine action prévue
 
-1. F-018 : le dev revalide la spec (retouche d'AC58 : aucune baisse de `meta.version`) ; intégrer `main` (avec F-005) dans `F-018` ; agent-frontend porte dans le paquet le refus symétrique des formes forgées (`meta` d'une autre nature, élément non compté dans `versions`, `lireFormeStockee` de `format-page.ts`), puis les blocs d'interface 3 à 8 de la note de conception.
-2. F-032 après F-018 (veille, conception, code) ; puis F-015 (contrôle d'identité de présence, D-023), F-016.
-3. Proposée par le dev le 2026-10-19, à spécifier sur son feu vert : F-033, coloration syntaxique et indentation du bloc code (lowlight, Tab et Maj+Tab, indentation reprise à Entrée), après F-005.
+1. F-018 : alignement de la note et d'`ARCHITECTURE.md` (agent-architecte-conception), dossier de revue, gates, traçabilité, PR. Au dev : mesure d'une table de 5 000 lignes en navigateur réel (H9).
+2. F-032 après la fusion de F-018 (intégrer `main`, puis blocs 1 à 8 de sa note) ; puis F-015 (contrôle d'identité de présence, D-023), F-016.
+3. F-033 : part manuelle d'AC26 au dev (Entrée au clavier virtuel Android et iPhone, IME).
 4. Décisions du dev en attente : plancher de Compose (D-030) ; inscription réelle sur la pile (F-031-AC28, navigateur nommé) ; `hookTimeout` de 30 s dans `apps/web/vitest.config.ts` ; alléger le crochet `Stop` ; shellcheck dans `outils.env` (D-033) ; panneau d'administration ; déplacement d'un bloc vide sur écran étroit (D-037).
 
 ## Dettes ouvertes
@@ -39,6 +39,7 @@ Décisions du dev en vigueur (2026-10-16) : mode économe levé ; plusieurs feat
 - D-027 Clé (colonne, option, ligne) à unité UTF-16 isolée forgée par un pair non normalisée : la réplique d'origine lit la clé brute, les autres U+FFFD — depuis F-017 — même défaut sur les titres de page de F-001.
 - D-028 Erreur non gérée intermittente sous charge dans `apps/server/test/synchro-document.test.ts` (`fermerLesClients` ferme une WebSocket avant sa connexion) — constatée le 2026-10-16 par le crochet `Stop`, tests tous verts.
 - D-036 F-005 reprise par le dev après trois rejets de reviewer-frontend et d'agent-architecte (`42c640f`) ; levée : gates tous verts au passage suivant.
+- D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) échoue sur `main` : deux conteneurs de démonstration débordent (479 et 589 px pour 326) — constaté par F-018 le 2026-10-21.
 - D-037 Sur écran étroit (pas de poignée), un bloc vide ne se déplace qu'au clavier — depuis F-006, constaté par F-005 — afficher la barre sans sélection contredirait F-005-AC6 : retouche de spec à décider.
 - D-035 dnd-kit, ancienne famille (`@dnd-kit/core` 6.3.1) sans publication depuis décembre 2024 — depuis F-006 — confinée dans `apps/web/src/glisser/` (ADR-0015).
 - D-030 Compose 2.24.0 à 2.24.3 admises par `pile.sh` sans preuve de `!reset` et `--progress quiet` (seule la 5.6.0 essayée) — depuis F-031 — garde du volume en place ; plancher à trancher par le dev.

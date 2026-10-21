@@ -321,39 +321,46 @@ describe("clavier dans un bloc code", () => {
     );
   });
 
-  it("F-005-AC5 dans un bloc code, les règles de saisie ne se déclenchent pas, `/` n'ouvre pas le menu, et Tab ne modifie rien", () => {
+  // Amendés par F-033 (H10) : dans un bloc code d'un éditeur modifiable, Tab et Maj+Tab indentent
+  // et désindentent (F-033-AC15, AC17) ; le reste de F-005-AC5 est inchangé.
+  it("F-005-AC5 F-033-AC15 F-033-AC17 dans un bloc code, les règles de saisie ne se déclenchent pas, `/` n'ouvre pas le menu ; Tab insère un cran au curseur et Maj+Tab le retire, touches prises", () => {
     const { doc, emises } = monterLEditeur();
     entrerDansLEditeur();
-    taperUnBlocCode(["# - 1. > **x** *y* _z_ ``` https://exemple.fr / /tit"]);
-    const avantTab = [contenuLu(doc), emises.length] as const;
+    const texte = "# - 1. > **x** *y* _z_ ``` https://exemple.fr / /tit";
+    taperUnBlocCode([texte]);
+    placerLeCurseurAuDebutDe(texte);
+    const avantTab = emises.length;
 
     const tabTraitee = presser("Tab");
+    const apresTab = blocsCodeLus(doc);
     const majTabTraitee = presser("Tab", { shiftKey: true });
 
-    expect(blocsCodeLus(doc)).toEqual([
-      { texte: "# - 1. > **x** *y* _z_ ``` https://exemple.fr / /tit", attributs: {} },
-    ]);
+    expect(apresTab).toEqual([{ texte: `  ${texte}`, attributs: {} }]);
+    expect(blocsCodeLus(doc)).toEqual([{ texte, attributs: {} }]);
     expect(inventaireDuContenu(doc).marques).toEqual([]);
     expect(menuSlash()).toBeNull();
-    expect([tabTraitee, majTabTraitee]).toEqual([false, false]);
-    expect([contenuLu(doc), emises.length]).toEqual(avantTab);
+    expect([tabTraitee, majTabTraitee]).toEqual([true, true]);
+    expect(emises.length - avantTab).toBe(2);
   });
 
-  it("F-005-AC5 dans un bloc code d'un élément de liste, Tab et Maj+Tab ne déplacent pas l'élément", () => {
-    const { doc, emises } = monterLEditeur(
-      documentAvecUneListe(
-        () => [bloc("paragraph", "un")],
-        () => [bloc("paragraph", "deux"), bloc("codeBlock", "code")],
-      ),
+  it("F-005-AC5 F-033-AC15 dans un bloc code d'un élément de liste, Tab et Maj+Tab indentent le texte du bloc sans imbriquer ni remonter l'élément", () => {
+    const doc = documentAvecUneListe(
+      () => [bloc("paragraph", "un")],
+      () => [bloc("paragraph", "deux"), bloc("codeBlock", "code")],
     );
+    const { emises } = monterLEditeur(doc);
     entrerDansLEditeur();
-    placerLeCurseurALaFinDe("code");
-    const avant = [contenuLu(doc), emises.length] as const;
+    placerLeCurseurAuDebutDe("code");
+    const avant = contenuLu(doc);
 
-    const traitees = [presser("Tab"), presser("Tab", { shiftKey: true })];
+    const tab = presser("Tab");
+    const apresTab = contenuLu(doc);
+    const majTab = presser("Tab", { shiftKey: true });
 
-    expect(traitees).toEqual([false, false]);
-    expect([contenuLu(doc), emises.length]).toEqual(avant);
+    expect([tab, majTab]).toEqual([true, true]);
+    expect(apresTab).toBe(avant.replace(">code<", ">  code<"));
+    expect(contenuLu(doc)).toBe(avant);
+    expect(emises).toHaveLength(2);
   });
 });
 
@@ -534,19 +541,36 @@ describe("collage et bloc code", () => {
 });
 
 describe("rendu du bloc code", () => {
-  it("F-005-AC8 un bloc code est rendu par un `pre` qui contient un `code`, son texte tel quel, sans coloration", () => {
+  // Amendé par F-033 (H10) : « sans coloration » vaut pour un bloc qui n'est pas colorable.
+  it("F-005-AC8 F-033-AC2 un bloc code est rendu par un `pre` qui contient un `code`, son texte tel quel ; sans langage de la liste, sans coloration ; avec un langage de la liste, coloré, le texte inchangé", () => {
     monterLEditeur();
     entrerDansLEditeur();
-    taperUnBlocCode(["  a  b", "c"], "```python ");
+    // Entrée reprend l'indentation de la ligne (F-033-AC18) : la seconde ligne s'ouvre de deux
+    // espaces.
+    taperUnBlocCode(["  a  b", 'c = "d"']);
+    presserAvecMod("Enter");
+    taperUnBlocCode(["  a  b", 'c = "d"'], "```python ");
 
-    const pre = zoneDeSaisie().querySelector("pre");
-    const code = pre?.firstElementChild;
+    const rendus = [...zoneDeSaisie().querySelectorAll("pre")].map((pre) => ({
+      attributsDuPre: pre.attributes.length,
+      balise: pre.firstElementChild?.tagName,
+      texte: pre.firstElementChild?.textContent,
+      classe: pre.firstElementChild?.getAttribute("class"),
+      colore: [...(pre.firstElementChild?.querySelectorAll("span") ?? [])].map(
+        (s) => s.textContent,
+      ),
+    }));
 
-    expect(code?.tagName).toBe("CODE");
-    expect(code?.textContent).toBe("  a  b\nc");
-    expect(code?.getAttribute("class")).toBe("language-python");
-    expect(code?.children).toHaveLength(0);
-    expect(pre?.attributes).toHaveLength(0);
+    expect(rendus).toEqual([
+      { attributsDuPre: 0, balise: "CODE", texte: '  a  b\n  c = "d"', classe: null, colore: [] },
+      {
+        attributsDuPre: 0,
+        balise: "CODE",
+        texte: '  a  b\n  c = "d"',
+        classe: "language-python",
+        colore: ['"d"'],
+      },
+    ]);
   });
 
   it("F-005-AC10 un bloc code qui contient du balisage HTML ou un script l'affiche comme du texte, sans l'interpréter", () => {

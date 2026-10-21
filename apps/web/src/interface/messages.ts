@@ -64,6 +64,12 @@ export const NOM_DU_MENU_SLASH = "Commandes de bloc";
 export const AUCUNE_COMMANDE = "Aucune commande";
 export const SELECTEUR_DE_LANGAGE = "Langage du bloc code";
 export const TEXTE_BRUT = "Texte brut";
+// Bloc code (F-033-AC9, AC23) : l'aide de la sortie au clavier, et pourquoi un bloc n'est pas coloré.
+export const AIDE_DU_BLOC_CODE = "Tab indente. Échap puis Tab : quitter l'éditeur.";
+export const COLORATION_DESACTIVEE_BLOC =
+  "Coloration désactivée : bloc de plus de 10 000 caractères.";
+export const COLORATION_DESACTIVEE_LIGNE =
+  "Coloration désactivée : ligne de plus de 500 caractères.";
 
 /** Le nombre de commandes que le menu slash liste, annoncé à chaque changement du filtre. */
 export function commandesListees(nombre: number): string {
