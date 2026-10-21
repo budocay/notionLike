@@ -141,6 +141,10 @@ describe("passe de fond des tables (F-018-AC51)", () => {
     chez.appareil.sur(() => remplir(table));
     await attendreLEtat(chez, "synchronise");
     await attendreQue(() => chez.synchro.estAcquitte(doc), 10_000);
+    // F-018-AC9 : la table affichée n'est jamais prise pour une page affichée.
+    const noms = messagesDe(chez.reseau.emis).map(({ nom }) => nom);
+    expect(noms).toContain(correspondance("table", idEspace, idTable).nomDeDocument);
+    expect(noms).not.toContain(correspondance("page", idEspace, idTable).nomDeDocument);
     const attendue = table.lire();
     table.fermer();
 

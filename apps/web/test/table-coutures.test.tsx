@@ -12,6 +12,7 @@ import { rangeesVisibles, trouverPage } from "../src/interface/pages.ts";
 import { idsDesPages } from "../src/synchronisation/index.ts";
 import { type CoquilleRendue, docDe, ouvrirCoquille, recharger } from "./aides-coquille.tsx";
 import { lire, lister } from "./aides-disque.ts";
+import { atteintsDepuis, graphe } from "./aides-graphe.ts";
 import { ouvrirFacade } from "./aides-facade.ts";
 import { laisserIndexedDbTravailler, nomsDesBases } from "./aides-persistance.ts";
 
@@ -208,48 +209,64 @@ describe("noms de base tirés d'un identifiant de page (F-018-AC9)", () => {
 });
 
 // Les modules d'apps/web qui tirent d'un identifiant un nom de base ou un nom de document, chacun
-// avec le type qu'il nomme et le test qui prouve qu'une table n'a jamais de document de page, ni une
-// page de document de table.
+// avec ce qu'il nomme et le cas qui l'exerce sur une table et une page : le fichier de ce cas
+// l'atteint par ses imports (graphe de dependency-cruiser, comme F-002-AC20), et le cas constate les
+// bases ou les documents nommés, jamais un document de page pour une table.
+const EDITEUR_ET_ECRAN_DE_TABLE = {
+  test: "test/table-coutures.test.tsx",
+  cas: "F-018-AC9 l'éditeur de F-003 n'ouvre ni base ni document de page pour une table, l'écran de table aucune base de table pour une page",
+};
+const PASSE_DE_FOND = {
+  test: "test/synchronisation/tables.test.ts",
+  cas: "F-018-AC51 F-018-AC9 une table créée et remplie hors ligne se lit identique sur un second appareil après la passe de fond, sans qu'il l'ait affichée ; aucun document de page n'existe pour elle",
+};
+const TABLE_AFFICHEE = {
+  test: "test/synchronisation/tables.test.ts",
+  cas: "F-018-AC51 la table affichée est échangée sur son document, sans réplique : ce qui y est écrit atteint le serveur et l'autre appareil, et le document est dit acquitté",
+};
 const NOMMEURS_DE_DOCUMENTS: Readonly<
-  Record<string, { readonly regle: string; readonly test: string }>
+  Record<string, { readonly regle: string; readonly test: string; readonly cas: string }>
 > = {
   "src/page/pages-ouvertes.ts": {
     regle: "document de page, ouvert par l'éditeur pour une page seulement (F-003)",
-    test: "test/table-coutures.test.tsx",
+    ...EDITEUR_ET_ECRAN_DE_TABLE,
   },
   "src/table/tables-ouvertes.ts": {
     regle: "document de table, ouvert par l'écran de table pour une table seulement",
-    test: "test/table-coutures.test.tsx",
+    ...EDITEUR_ET_ECRAN_DE_TABLE,
   },
   "src/synchronisation/noms.ts": {
     regle: "correspondance d'un type donné par l'appelant",
-    test: "test/synchronisation/tables.test.ts",
+    ...PASSE_DE_FOND,
   },
   "src/synchronisation/page-affichee.ts": {
-    regle: "document de page de la page affichée par l'éditeur",
-    test: "test/synchronisation/tables.test.ts",
+    regle:
+      "document de page de la page affichée par l'éditeur, jamais pris pour une table affichée",
+    ...TABLE_AFFICHEE,
   },
   "src/synchronisation/table-affichee.ts": {
     regle: "document de table de la table affichée",
-    test: "test/synchronisation/tables.test.ts",
+    ...TABLE_AFFICHEE,
   },
   "src/synchronisation/passe-de-fond.ts": {
     regle: "le type lu de chaque identifiant (typeDe)",
-    test: "test/synchronisation/tables.test.ts",
+    ...PASSE_DE_FOND,
   },
   "src/synchronisation/synchronisation.ts": {
-    regle: "le type lu de chaque identifiant, pour les documents suspects d'une fermeture 1009",
-    test: "test/synchronisation/tables.test.ts",
+    regle:
+      "le type lu de chaque identifiant, donné à la passe de fond et aux documents suspects d'une fermeture 1009",
+    ...PASSE_DE_FOND,
   },
   "src/synchronisation/stockage.ts": {
     regle:
       "effacement des deux bases d'un identifiant retiré, dont le type n'est plus lisible (H11)",
     test: "test/synchronisation/tables.test.ts",
+    cas: "F-018-AC53 une table supprimée définitivement sur un appareil : l'autre n'a plus, après sa reconnexion, ni sa base de table ni de base de page",
   },
 };
 
 describe("modules qui nomment un document d'après un identifiant (F-018-AC9)", () => {
-  it("F-018-AC9 la liste des modules qui tirent d'un identifiant un nom de base ou de document est exacte, et chacun est couvert", () => {
+  it("F-018-AC9 la liste des modules qui tirent d'un identifiant un nom de base ou de document est exacte, et chacun est atteint par le fichier du cas qui l'exerce", async () => {
     const nommeurs = lister("src")
       .filter((chemin) => /\.tsx?$/.test(chemin) && !chemin.startsWith("src/persistance/"))
       .filter((chemin) =>
@@ -258,8 +275,10 @@ describe("modules qui nomment un document d'après un identifiant (F-018-AC9)", 
         ),
       );
     expect(nommeurs).toEqual(Object.keys(NOMMEURS_DE_DOCUMENTS).sort());
-    for (const { test } of Object.values(NOMMEURS_DE_DOCUMENTS)) {
-      expect(lire(test), test).toMatch(/F-018-AC9/);
+    const aretes = await graphe();
+    for (const [module, { test, cas }] of Object.entries(NOMMEURS_DE_DOCUMENTS)) {
+      expect(lire(test), `${test} : ${cas}`).toContain(`it("${cas}"`);
+      expect(atteintsDepuis(aretes, test).has(module), `${test} atteint ${module}`).toBe(true);
     }
     expect(lire("src/synchronisation/passe-de-fond.ts")).toMatch(
       /correspondance\(this\.#options\.typeDe\(idPage\)/,
