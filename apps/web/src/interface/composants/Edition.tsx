@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  Fragment,
   type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -300,6 +301,38 @@ export const CLASSES_DE_ROLE = {
 
 /** Un rôle syntaxique de la liste fermée (F-033 H5). */
 export type RoleSyntaxique = keyof typeof CLASSES_DE_ROLE;
+
+/** Une portion d'un texte de code : son texte, et son rôle s'il en a un. */
+export interface PortionDeCode {
+  readonly texte: string;
+  readonly role?: RoleSyntaxique | undefined;
+}
+
+/**
+ * Un bloc code coloré, tel que l'éditeur le rend (`pre` > `code`, une portion colorée par élément à
+ * la classe de son rôle), pour la page de démonstration (F-033-AC14) : sans logique d'édition.
+ */
+export function CodeColore({
+  portions,
+}: {
+  readonly portions: readonly PortionDeCode[];
+}): ReactElement {
+  return (
+    <pre>
+      <code>
+        {portions.map((portion, rang) => (
+          <Fragment key={rang}>
+            {portion.role === undefined ? (
+              portion.texte
+            ) : (
+              <span className={CLASSES_DE_ROLE[portion.role]}>{portion.texte}</span>
+            )}
+          </Fragment>
+        ))}
+      </code>
+    </pre>
+  );
+}
 
 interface ProprietesPoignee {
   /** Nom accessible, « Déplacer le bloc ». */
