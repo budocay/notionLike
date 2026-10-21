@@ -35,7 +35,7 @@ import {
 import { effacerLaCopie, type IssueDEffacement as IssueDeLEffacement } from "./stockage.ts";
 import { PageSynchronisee, type PageAffichee } from "./page-affichee.ts";
 import { type TableAffichee, TableSynchronisee } from "./table-affichee.ts";
-import { ecart, type TypeDeDocumentDePage as TypeDePage } from "./pages-de-l-espace.ts";
+import { ecart, type TypeDePage } from "./pages-de-l-espace.ts";
 import { lancerLaPasse, type Passe, type Suite } from "./passe-de-fond.ts";
 import { ATTENTE_APRES_TROP_DE_REQUETES_MS, creerReprise, type Reprise } from "./reprise.ts";
 import { correspondance } from "./noms.ts";

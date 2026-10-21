@@ -9,7 +9,7 @@ import * as Y from "yjs";
 import { ouvrirLaBase, type Persistance } from "./stockage.ts";
 import type { Horloge } from "./environnement.ts";
 import { correspondance } from "./noms.ts";
-import type { TypeDeDocumentDePage as TypeDePage } from "./pages-de-l-espace.ts";
+import type { TypeDePage } from "./pages-de-l-espace.ts";
 import { type IssueDOuverture, ouvrir, type Ouverture } from "./ouverture.ts";
 
 export const DOCUMENTS_A_LA_FOIS = 4;

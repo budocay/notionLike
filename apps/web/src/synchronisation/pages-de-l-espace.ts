@@ -36,8 +36,9 @@ export function typesDesPages({
   return types;
 }
 
-/** Le type d'un document d'une entrée de l'arborescence : celui de la page lue (F-018-AC51). */
-export type TypeDeDocumentDePage = TypeDePage;
+// Repris sous son nom pour l'orchestre et la passe de fond : l'orchestre, qui porte ses propres
+// codes d'erreur, n'importe pas @notionlike/document (F-002-AC31, `PORTEURS_D_UN_AUTRE_CODE`).
+export type { TypeDePage };
 
 export interface Ecart {
   readonly ajoutees: readonly string[];
