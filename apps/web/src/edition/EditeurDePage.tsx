@@ -7,6 +7,7 @@ import {
   type ReactElement,
   type RefObject,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -25,9 +26,12 @@ import {
 } from "../interface/composants/Edition.tsx";
 import {
   ADRESSE_DU_LIEN_REFUSEE,
+  AIDE_DU_BLOC_CODE,
   APPLIQUER_LE_LIEN,
   AUCUNE_COMMANDE,
   CHAMP_ADRESSE_DU_LIEN,
+  COLORATION_DESACTIVEE_BLOC,
+  COLORATION_DESACTIVEE_LIGNE,
   COMMANDE_GRAS,
   COMMANDE_ITALIQUE,
   COMMANDE_LIEN,
@@ -119,6 +123,7 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
   const panneau = usePanneauDeLien(editeur);
   const poignees = avecPoignees(props, lectureSeule);
   const poignee = usePoigneeAuCurseur(editeur, zone, barre.focusDedans && poignees, geste);
+  const idDeLAide = useAideDuBlocCode(editeur, barre, lectureSeule);
   const surTouche = (frappe: KeyboardEvent<HTMLElement>): void => {
     if (editeur !== null && !lectureSeule) {
       surToucheDeLaZone(frappe, { editeur, props, barre, panneau, refBarre });
@@ -145,7 +150,13 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
         refBarre={refBarre}
       />
       {editeur !== null && barre.affichee && !lectureSeule && (
-        <BarreEtPanneau editeur={editeur} barre={barre} panneau={panneau} refBarre={refBarre} />
+        <BarreEtPanneau
+          editeur={editeur}
+          barre={barre}
+          panneau={panneau}
+          refBarre={refBarre}
+          idDeLAide={idDeLAide}
+        />
       )}
     </ZoneDEdition>
   );
@@ -157,6 +168,8 @@ function BarreEtPanneau(props: {
   readonly barre: Barre;
   readonly panneau: EtatDuPanneau;
   readonly refBarre: RefObject<HTMLDivElement | null>;
+  /** L'identifiant de l'aide du bloc code, que l'éditeur désigne (F-033-AC23). */
+  readonly idDeLAide: string;
 }): ReactElement {
   const { editeur, barre, panneau, refBarre } = props;
   const lien = barre.marques?.lien;
@@ -168,6 +181,12 @@ function BarreEtPanneau(props: {
         commandes={commandesDe(editeur, barre, () => panneau.ouvrir(lien?.disponible === true))}
         selecteur={selecteurDeLangage(editeur, barre)}
         rangDuSelecteur={LISTE_DES_COMMANDES.length}
+        aide={
+          barre.langage === undefined
+            ? undefined
+            : { id: props.idDeLAide, texte: AIDE_DU_BLOC_CODE }
+        }
+        mention={barre.sansColoration === undefined ? undefined : MENTIONS[barre.sansColoration]}
         position={barre.placement}
         surAbandon={() => editeur.view.focus()}
       />
@@ -266,6 +285,30 @@ function selecteurDeLangage(editeur: Editor, barre: Barre) {
     ],
     surChoix: (valeur: string) => choisirLeLangage(editeur, valeur),
   } as const;
+}
+
+const MENTIONS = {
+  bloc: COLORATION_DESACTIVEE_BLOC,
+  ligne: COLORATION_DESACTIVEE_LIGNE,
+} as const;
+
+/**
+ * L'aide du bloc code (F-033-AC23, H8) : tant que la barre est affichée, la sélection dans un bloc
+ * code et l'éditeur modifiable, l'éditeur la désigne par `aria-describedby`, retiré sinon. Rend son
+ * identifiant.
+ */
+function useAideDuBlocCode(editeur: Editor | null, barre: Barre, lectureSeule: boolean): string {
+  const id = useId();
+  const designee = barre.affichee && barre.langage !== undefined && !lectureSeule;
+  useEffect(() => {
+    if (editeur === null || editeur.isDestroyed || !designee) {
+      return undefined;
+    }
+    const element = editeur.view.dom;
+    element.setAttribute("aria-describedby", id);
+    return () => element.removeAttribute("aria-describedby");
+  }, [editeur, designee, id]);
+  return id;
 }
 
 /** Rend `lectureSeule`, appliquée à l'éditeur (F-013-AC25). */

@@ -9,6 +9,11 @@ export const EDITION = {
   note: "text-courant text-texte-secondaire",
   barre:
     "barre-flottante plan-menu absolute flex max-w-full items-center gap-infime rounded-grand bg-surface-relief p-mince shadow-menu filet",
+  // La même barre, quand elle porte une aide ou une mention : elles passent à la ligne, sous les
+  // commandes (F-033-AC9, AC23).
+  barreAvecAide:
+    "barre-flottante plan-menu absolute flex max-w-full flex-wrap items-center gap-infime rounded-grand bg-surface-relief p-mince shadow-menu filet",
+  aideDeBarre: "basis-full px-petit pb-infime text-petit text-texte-secondaire",
   commande:
     "contour-interieur inline-flex min-h-cible min-w-cible flex-none cursor-pointer items-center justify-center rounded-moyen px-petit text-interface font-moyen text-texte-secondaire hover:bg-surface-active hover:text-texte-principal aria-disabled:text-texte-discret aria-disabled:hover:bg-transparent etroit:pointer-fine:min-h-rangee etroit:pointer-fine:min-w-rangee",
   commandeActive:

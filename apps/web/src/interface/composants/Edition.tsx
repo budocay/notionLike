@@ -113,6 +113,10 @@ interface ProprietesBarreDeBlocs {
   readonly selecteur?: SelecteurDeBarre | undefined;
   /** Nombre de commandes avant le sélecteur. */
   readonly rangDuSelecteur?: number | undefined;
+  /** Aide, sous les commandes, que l'éditeur désigne par son identifiant (F-033-AC23). */
+  readonly aide?: { readonly id: string; readonly texte: string } | undefined;
+  /** Mention, sous les commandes : pourquoi le bloc n'est pas coloré (F-033-AC9). */
+  readonly mention?: string | undefined;
   readonly position: PositionDeBarre;
   /** Échap dans la barre : le focus retourne d'où il vient. */
   readonly surAbandon: () => void;
@@ -153,13 +157,14 @@ function garderLeFocus(evenement: MouseEvent<HTMLElement>): void {
  * raccourci de l'éditeur atteint. Elle ne porte aucune logique d'édition.
  */
 export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
-  const { nom, commandes, selecteur, position, surAbandon, ref } = props;
+  const { nom, commandes, selecteur, position, surAbandon, ref, aide, mention } = props;
   const style = { "--barre-gauche": position.gauche, "--barre-haut": position.haut };
   const rang = props.rangDuSelecteur ?? commandes.length;
+  const avecAide = aide !== undefined || mention !== undefined;
   return (
     <div
       ref={ref}
-      className={EDITION.barre}
+      className={avecAide ? EDITION.barreAvecAide : EDITION.barre}
       style={style as CSSProperties}
       role="toolbar"
       aria-label={nom}
@@ -168,6 +173,12 @@ export function BarreDeBlocs(props: ProprietesBarreDeBlocs): ReactElement {
       {commandes.slice(0, rang).map(boutonDeCommande)}
       {selecteur !== undefined && <SelecteurDeLaBarre {...selecteur} />}
       {commandes.slice(rang).map(boutonDeCommande)}
+      {mention !== undefined && <p className={EDITION.aideDeBarre}>{mention}</p>}
+      {aide !== undefined && (
+        <p id={aide.id} className={EDITION.aideDeBarre}>
+          {aide.texte}
+        </p>
+      )}
     </div>
   );
 }
