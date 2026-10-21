@@ -190,3 +190,50 @@ Non touchés : `packages/**`, `apps/server/**` (AC24, « Hors périmètre ») ; 
 
 - Aucun autre fichier protégé : ni `eslint.config.mjs` (`no-console` admet déjà `error`), ni `vitest.config.*`, ni paquet de workspace nouveau, ni `packages/document/package.json`.
 - Partagés, par agent-frontend au bloc 2, à signaler au dev : `apps/web/package.json` (deux dépendances d'exécution exactes, `"highlight.js": "11.11.2"` et `"lowlight": "3.3.0"`) et `pnpm-lock.yaml`, par la seule commande `pnpm --filter @notionlike/web add --save-exact lowlight@3.3.0 highlight.js@11.11.2`. Après l'ajout : une seule version de `highlight.js`, de `lowlight` et de `yjs` au verrou, `prosemirror-view` à 1.42.3 au moins (AC25). L'arbre de `F-033` n'a pas encore été réinstallé après la fusion de `main` (vite 8.3.2 dans `node_modules`, 8.3.4 au verrou) : `pnpm install --frozen-lockfile` avant le bloc 1.
+
+## Addendum du 2026-10-21 : écarts au code
+
+Écrit après le code d'agent-frontend, relu sur `af95b0b` (blocs 1 à 7 : `9fcde30`, `07b9c0a`, `1dd37dd`, `4488618`, `2c4742e`, `c03feb5`, `af95b0b`), et après la troisième retouche de la spec (`564d728`, revalidée par le dev à `c3a0253`). Là où il les contredit, il remplace les sections ci-dessus, gardées comme trace de la conception d'avant le code. Le format ne change pas (H2, ADR-0018) : toujours aucune ADR. L'annexe A est appliquée telle quelle (`f1cb8b9`) : quarante-neuf règles, `pnpm contrats` sur `af95b0b` : `✔ no dependency violations found (587 modules, 2459 dependencies cruised)`. `ARCHITECTURE.md` est aligné sur `af95b0b` (bloc 8).
+
+### Coloration
+
+Complète « Coloration ».
+
+- `colorationDuBlocCode` est une **constante** d'extension (`Extension.create`), pas une fonction : `extensionsDeLEditeur` l'ajoute telle quelle, juste après `BlocCode`.
+- Les nœuds de l'arbre de lowlight sont lus par leur forme (`NoeudDeLArbre` : `type`, `value`, `properties.className`, `children`), déclarée dans `coloration.ts` : aucun type n'est tiré de lowlight ni de `hast`.
+- **Mémoire** (décision du dev, spec retouchée à `564d728`, AC11, H6) : classe `MemoireDeColoration`, une par éditeur, créée dans `addProseMirrorPlugins`. Elle garde au plus 200 entrées **en plus de celles que le passage en cours a lues**, qui ne sont jamais retirées : chaque parcours (`decorationsDe`) note ses clés dans un ensemble `lues`, puis `borner` retire, de la moins récemment lue à la plus récente, les entrées qui dépassent la borne, sans toucher aux clés lues. Elle est donc bornée par le nombre de blocs colorables du document plus 200. Raison : bornée à 200 entrées tout court, une page de plus de 200 blocs colorables serait recolorée entière à chaque transaction (contraire à AC10). « Trop long » et « échec » y sont retenus sous la même valeur, une liste de portions vide.
+- **Échec** (AC11) : le message (`console.error`, fixe, suivi du seul identifiant du langage) est consigné à l'inscription de l'échec en mémoire, donc une fois par texte et **par éditeur**. Sous `StrictMode`, que l'application emploie, l'effet d'`EditeurDePage` crée un éditeur, le détruit et en crée un second : chacun a sa mémoire, et un texte en échec est consigné deux fois à l'ouverture en développement. Le test d'AC11 compte les consignations après l'ouverture.
+- Composition : le repli (report de l'ensemble précédent sous la méta `composition`) n'est pas écrit ; il ne l'est que si le scénario à la main d'AC26 (IME japonais) constate une composition interrompue dans un bloc coloré.
+
+### Indentation et sortie armée
+
+Remplace « Sortie armée (AC22) » pour l'état et le désarmement, et complète « Indentation ».
+
+- **État** : la sortie armée est l'état du greffon `blocCodeDeLaPage` (`CLE_DE_LA_PAGE`, `PluginKey<boolean>`, `bloc-code.ts`), et non `addStorage()`. Elle est armée et désarmée par une méta posée sur une transaction sans pas, envoyée seulement si l'état change (aucune mise à jour Yjs). `apply` la garde tant que la sélection lue par `selectionDuBlocCode` n'a pas bougé (`memeSelection` : même début de bloc, même ancre, même tête) : un changement de sélection, la sortie du bloc ou un déplacement du bloc la désarment, sans `view().update`.
+- **Désarmement** : par `handleDOMEvents` (`keydown`, `mousedown`, `blur`), et non par `handleKeyDown`. ProseMirror appelle `handleDOMEvents.keydown` **avant** les liaisons de l'éditeur : Tab et Maj+Tab y sont donc reconnues pour ne pas désarmer avant qu'`indenter` ne lise l'état, par `keydownHandler` de `@tiptap/pm/keymap` sur les noms de liaison `Tab` et `Shift-Tab` (aucune comparaison de `event.key`, F-004-AC31) ; une touche de modification seule l'est par `event.location` (1 ou 2, gauche ou droite). Échap, sortie armée, passe d'abord par ce désarmement puis réarme. Les passages exemptés de `coutures-marques.test.tsx` sont intacts.
+- **Entrée** : après `appliquer`, le curseur est posé explicitement après le texte inséré (saut de ligne et reprise de l'indentation), puis `scrollIntoView`.
+- Le reste est conforme : gardes communes (`selectionPrise` : `isEditable`, `view.composing`, `selectionDuBlocCode`), une transaction par touche, Maj+Tab sans rien à retirer prise sans transaction, Tab ou Maj+Tab sortie armée qui désarme et rend `false`.
+
+### Barre de blocs
+
+Remplace le premier et le quatrième point de « Barre de blocs : aide et mention ».
+
+- `lire` (`barre.ts`) n'a pas de champ `modifiable` : seul `sansColoration` s'ajoute, et `LECTEURS` garde `"barre.ts › lire": 2`. L'aide dépend de la lecture seule que l'éditeur reçoit en propriété (`lectureSeule`, F-013-AC25) : la barre n'est pas rendue en lecture seule, et `useAideDuBlocCode` (`EditeurDePage.tsx`) pose `aria-describedby` tant que la barre est affichée, que la sélection est entière dans un même bloc code (`barre.langage !== undefined`) et que `lectureSeule` est faux.
+- `BarreDeBlocs` prend la classe `barreAvecAide` (celle de la barre, plus `flex-wrap`) seulement quand elle porte une aide ou une mention, et `barre` sinon ; aide et mention sont des paragraphes `aideDeBarre` (`basis-full`), la mention avant l'aide.
+
+### Page de démonstration
+
+Complète « Page de démonstration (AC14) ».
+
+- La section « Coloration du bloc code » porte les dix spécimens `CodeColore` (`ECHANTILLONS_DE_CODE`, `donnees.ts`, qui importe en type `PortionDeCode` d'`Edition.tsx`) et un spécimen de `BarreDeBlocs` d'un bloc code, avec l'aide et la mention d'une ligne trop longue. `CodeColore` est ajouté à la liste des composants de `demonstration.test.tsx`.
+
+### Couture d'AC24 et tests
+
+Remplace le bloc 6 du plan pour la forme du test.
+
+- `test/edition/coutures-coloration.test.tsx` énumère dans les sources les appelants et consommateurs de `BlocCode`, de `BLOC_CODE`, de la coloration et des classes de rôle (liste fermée), et **exerce chacun dans le test lui-même**, sur un bloc coloré, coloration et indentation actives, au lieu de nommer le fichier de test qui le couvre.
+- Tests ajoutés hors de la liste de « Fichiers » : `test/edition/barre-du-bloc-code.test.tsx` (AC9, AC23) et l'aide `test/edition/aides-coloration.ts`. Tests modifiés hors de R1, accordés par la retouche `564d728` : `test/structure.test.ts` (F-002-AC22, `highlight.js` et `lowlight` au manifeste), les énumérations de `test/structure-edition.test.ts` (F-003-AC20, AC27, AC44 ; trente-deux fichiers) et `test/edition/aides-edition.tsx`.
+
+### Point ouvert, remonté à l'orchestrateur
+
+- **La mémoire garde le texte entier des blocs trop longs.** La clé est `langage + "\0" + texte` et elle est cherchée avant `raisonSansColoration` (ordre de la note, étapes 2 et 3) : un bloc d'un langage de la liste de plus de 10 000 unités est mis en mémoire comme un autre. Chaque frappe dans un bloc de 1 000 000 d'unités, ou chaque mise à jour reçue qui le change, ajoute une entrée d'environ un million d'unités, et 200 en restent : de l'ordre de 200 à 400 Mo par éditeur, et le texte est recopié et haché à chaque transaction. Défaut de la note, que le code suit. Correction proposée, sans retouche de spec (AC9 à AC11 ne demandent pas de retenir les blocs trop longs) : juger `raisonSansColoration` avant la mémoire et n'y garder que les textes colorables, soit des clés de 10 000 unités au plus.
