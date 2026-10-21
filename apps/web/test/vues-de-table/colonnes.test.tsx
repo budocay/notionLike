@@ -308,7 +308,7 @@ describe("options d'une colonne « Sélection » (F-018-AC22)", () => {
     expect(textesDesLignes()).toEqual([[""]]);
   });
 
-  it("F-018-AC22 un libellé vide s'affiche « Sans libellé » ; au-delà de 100 caractères, il est refusé et le message cite la limite", async () => {
+  it("F-018-AC22 un libellé vide s'affiche « Sans libellé », visible dans son champ ; au-delà de 100 caractères, il est refusé et le message cite la limite", async () => {
     const { table, utilisateur } = rendreLaTable(avecSelection);
     const panneau = await ouvrirLesOptions(utilisateur);
     const champ = within(panneau).getByRole("textbox", { name: "Nouvelle option" });
@@ -320,8 +320,9 @@ describe("options d'une colonne « Sélection » (F-018-AC22)", () => {
 
     await utilisateur.clear(champ);
     await utilisateur.click(within(panneau).getByRole("button", { name: "Ajouter l'option" }));
-    expect(
-      within(panneau).getByRole("textbox", { name: "Libellé de l'option Sans libellé" }),
-    ).toBeDefined();
+    const vide = within(panneau).getByRole<HTMLInputElement>("textbox", {
+      name: "Libellé de l'option Sans libellé",
+    });
+    expect([vide.value, vide.placeholder]).toEqual(["", "Sans libellé"]);
   });
 });

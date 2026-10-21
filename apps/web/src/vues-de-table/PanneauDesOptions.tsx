@@ -36,6 +36,7 @@ import {
   RETIRER,
   RETIRER_L_OPTION,
   retirerLOption,
+  SANS_LIBELLE,
   TEXTE_DU_RETRAIT_D_OPTION,
   titreDesOptions,
   titreDuRetraitDOption,
@@ -74,6 +75,7 @@ function LigneDeLOption(props: Moyens & { readonly option: OptionLue; readonly r
       <ChampDeCellule
         nom={nomDuLibelle(option.libelle)}
         value={texte}
+        placeholder={SANS_LIBELLE}
         disabled={lectureSeule !== undefined}
         onChange={(evenement) => setTexte(evenement.target.value)}
         onBlur={renommer}

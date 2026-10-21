@@ -5,8 +5,10 @@
 const CIBLE = "min-h-cible etroit:pointer-fine:min-h-rangee";
 const CELLULE =
   "contour-interieur relative flex h-full flex-none items-center gap-mince px-petit filet-droit";
+// L'invite d'un champ vide (« Sans libellé », AC22) prend un jeton de texte réel : 4,5 pour 1 sur
+// chaque surface (F-004-AC7).
 const CHAMP =
-  "contour-interieur h-full w-full rounded-petit bg-surface-retrait px-mince text-interface text-texte-principal";
+  "contour-interieur h-full w-full rounded-petit bg-surface-retrait px-mince text-interface text-texte-principal placeholder:text-texte-discret";
 
 export const TABLE = {
   // Bornée à la zone principale : une grille plus large défile dans sa propre zone (min-w-nul).
