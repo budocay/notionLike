@@ -75,6 +75,7 @@ import { demarrerSession } from "./aides-facade.ts";
 import {
   fermerDeForce,
   laisserIndexedDbTravailler,
+  nomsDesBases,
   suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import { ouvrirUnePage, poserLeRattachement } from "./aides-page.tsx";
@@ -942,5 +943,61 @@ describe("une table en lecture seule (F-018-AC52)", () => {
     expect(docs.map((doc) => Y.encodeStateAsUpdate(doc))).toEqual(avant);
     expect(mises).toBe(0);
     localStorage.clear();
+  });
+});
+
+// Couture de l'application et de la fabrique de synchronisation (F-018-AC51, AC53) : le type que
+// l'application lit dans sa session est celui que la synchronisation reçoit, sans quoi une table
+// serait synchronisée sous `page:` (F-018-AC9) ; une table supprimée ailleurs voit son document
+// fermé dans l'onglet.
+describe("l'application et la synchronisation d'une table (F-018-AC51, AC53)", () => {
+  it("F-018-AC51 F-018-AC9 la synchronisation reçoit de l'application le type lu de chaque identifiant : table, page, rien pour un inconnu", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    const ops = etat.operations;
+    let ids: string[] = [];
+    act(() => {
+      const page = ops.creerPage("Projets");
+      const archive = ops.creerTable("Archive");
+      ops.mettreALaCorbeille(archive);
+      ids = [ops.creerTable("Budget"), ops.creerTable("Suivi", { parent: page }), archive, page];
+    });
+    const espace = simulee.espace();
+
+    expect([...ids, crypto.randomUUID()].map((id) => espace?.typeDe?.(id))).toEqual([
+      "table",
+      "table",
+      "table",
+      "page",
+      undefined,
+    ]);
+  });
+
+  it("F-018-AC53 une table supprimée ailleurs : l'application ferme son document dans l'onglet, sans effacer sa base faute d'espace désigné", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const docDeTable = (simulee.tables.at(-1) as TableAffichee).doc;
+    expect(docDeTable.isDestroyed).toBe(false);
+
+    act(() => simulee.espace()?.surPagesSupprimees?.([idTable]));
+
+    expect(docDeTable.isDestroyed).toBe(true);
+    await act(() => laisserIndexedDbTravailler());
+    expect(await nomsDesBases()).toContain(`notionlike:table:${etat.idEspace}:${idTable}`);
   });
 });
