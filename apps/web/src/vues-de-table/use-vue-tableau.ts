@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type RefObject,
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -20,6 +21,7 @@ import {
 
 import type { Moyens } from "./actions.ts";
 import type { Boite, Suite } from "./grille.ts";
+import { cleDeCellule } from "./courante.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "./menu-de-grille.ts";
 import { deplacer, type Position } from "./navigation-grille.ts";
 import { CELLULE_SUPPRIMEE } from "./textes.ts";
@@ -139,6 +141,45 @@ function useEditionOrpheline(
   });
 }
 
+// Menu et liste de choix sont posés sur la cellule qui les ouvre, à sa place au moment de
+// l'ouverture (F-018-AC20, AC31) : la grille défilée, ils resteraient loin d'elle. Ils se ferment
+// donc, sans rien écrire, et le focus revient à la cellule sans la ramener dans la vue. Seul un
+// déplacement compte : un défilement déjà appliqué à l'ouverture (cellule amenée) ne ferme rien.
+function useFermetureAuDefilement(
+  zone: RefObject<HTMLDivElement | null>,
+  menu: MenuDeGrille,
+  edition: EditionDeLaGrille,
+  courante: CouranteDeLaGrille,
+): void {
+  const choix = edition.edition?.sorte === "choix" ? edition.edition : undefined;
+  const ouverte = menu.ouvert !== undefined || choix !== undefined;
+  const fermer = useEffectEvent(() => {
+    const origine =
+      choix === undefined
+        ? menu.origine.current
+        : courante.elementDe(cleDeCellule(choix.ligne, choix.colonne));
+    origine?.focus({ preventScroll: true });
+    menu.fermer();
+    if (choix !== undefined) {
+      edition.abandonner();
+    }
+  });
+  useEffect(() => {
+    const element = zone.current;
+    if (!ouverte || element === null) {
+      return undefined;
+    }
+    const { scrollTop, scrollLeft } = element;
+    const surDefilement = (): void => {
+      if (element.scrollTop !== scrollTop || element.scrollLeft !== scrollLeft) {
+        fermer();
+      }
+    };
+    element.addEventListener("scroll", surDefilement);
+    return () => element.removeEventListener("scroll", surDefilement);
+  }, [zone, ouverte]);
+}
+
 export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
   const { table, lue, lignes, lectureSeule } = proprietes;
   const colonnes = lue.colonnes;
@@ -166,6 +207,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
     },
   };
   useEditionOrpheline({ edition, colonnes }, lignes, setAlerte);
+  useFermetureAuDefilement(fenetre.zone, menu, edition, courante);
   return {
     proprietes,
     colonnes,
