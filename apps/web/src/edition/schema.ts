@@ -57,8 +57,9 @@ function dansUnBlocCode(editeur: Editor): boolean {
   return bornesLues(editeur.state.selection).$from.parent.type.name === BLOC_CODE;
 }
 
-// Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3) et Tab ne
-// modifie rien (F-005-AC5, H6) : les raccourcis de l'élément de liste n'y agissent pas.
+// Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3), Tab et
+// Maj+Tab indentent le texte du bloc (F-033-AC15) : les raccourcis de l'élément de liste n'y
+// agissent pas, l'élément n'est ni imbriqué ni remonté.
 const ElementDeListe = ListItem.extend({
   addKeyboardShortcuts() {
     const raccourcis = this.parent?.() ?? {};

@@ -6,7 +6,7 @@ import type { DocumentPage } from "@notionlike/document";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
 import { NodeRangeSelection } from "@tiptap/extension-node-range";
-import { NodeSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { StrictMode } from "react";
 import { afterEach, vi } from "vitest";
 import * as Y from "yjs";
@@ -178,6 +178,8 @@ interface Modificateurs {
   readonly altKey?: boolean;
   /** La frappe valide une composition en cours (éditeur de méthode de saisie). */
   readonly isComposing?: boolean;
+  /** Emplacement de la touche : 1 ou 2 pour un modificateur de gauche ou de droite (F-033-AC22). */
+  readonly location?: number;
 }
 
 /** Envoie une touche à l'élément qui a le focus ; rend vrai si elle a été traitée. */
@@ -769,4 +771,78 @@ export function effacerAvantLeCurseur(): void {
     const { from } = view.state.selection;
     view.dispatch(view.state.tr.delete(from - 1, from));
   });
+}
+
+// ——— F-033 : indentation et sortie au clavier du bloc code ———
+
+/**
+ * Pose une composition en cours, comme un éditeur de méthode de saisie : jsdom n'en a pas, la vue
+ * la lit dans son état d'entrée (F-033 H12).
+ */
+export function poserLaComposition(enCours: boolean): void {
+  const { view } = editeurMonte();
+  (view as unknown as { input: { composing: boolean } }).input.composing = enCours;
+}
+
+/** Clôt l'étape d'annulation en cours, comme un délai sans frappe (F-033 H9). */
+export function cloreLHistorique(): void {
+  const greffon: unknown = Reflect.get(editeurMonte().state, "y-undo$");
+  const gestionnaire = (greffon as { undoManager?: { stopCapturing(): void } } | undefined)
+    ?.undoManager;
+  if (gestionnaire === undefined) {
+    throw new Error("Aucun historique d'annulation n'est attaché à l'éditeur.");
+  }
+  gestionnaire.stopCapturing();
+}
+
+/** Début, dans le document, du texte du premier bloc de texte qui contient ce texte. */
+function debutDuBlocQuiPorte(texte: string): number {
+  return editeurMonte().state.doc.resolve(positionDuTexte(texte)).start();
+}
+
+/**
+ * Pose la sélection, ancre et tête en décalages depuis le début du texte du bloc qui contient ce
+ * texte ; une ancre après la tête donne une sélection vers l'arrière.
+ */
+export function selectionnerDansLeBloc(texte: string, ancre: number, tete: number = ancre): void {
+  const { view } = editeurMonte();
+  const debut = debutDuBlocQuiPorte(texte);
+  act(() => {
+    const { doc, tr } = view.state;
+    view.dispatch(tr.setSelection(TextSelection.create(doc, debut + ancre, debut + tete)));
+  });
+}
+
+/** Ancre et tête de la sélection, en décalages depuis le début du texte de leur bloc. */
+export function selectionDansLeBloc(): { readonly ancre: number; readonly tete: number } {
+  const { anchor, head, $from } = editeurMonte().state.selection;
+  const debut = $from.start();
+  return { ancre: anchor - debut, tete: head - debut };
+}
+
+/** Un clic dans la zone de saisie : le bouton enfoncé, que la vue reçoit. */
+export function enfoncerLaSourisDansLEditeur(): void {
+  act(() => {
+    zoneDeSaisie().dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+  });
+}
+
+/** Retire le focus de la zone de saisie. */
+export function quitterLEditeur(): void {
+  act(() => zoneDeSaisie().blur());
+}
+
+/**
+ * Appelle les gestionnaires de touche de l'éditeur sans la garde de composition de la vue, qui
+ * écarte la frappe avant eux dans un navigateur : prouve celle de l'application (F-033-AC18, AC20).
+ * Rend vrai si l'un d'eux a pris la touche.
+ */
+export function prisParLesGestionnaires(key: string, modificateurs: Modificateurs = {}): boolean {
+  const { view } = editeurMonte();
+  const evenement = new KeyboardEvent("keydown", { key, cancelable: true, ...modificateurs });
+  let prise = false;
+  act(() => {
+    prise = view.someProp("handleKeyDown", (gerer) => gerer(view, evenement)) === true;
+  });
+  return prise;
 }

@@ -88,6 +88,8 @@ const LECTEURS: Readonly<Record<string, Lecteur>> = {
     lectures: 1,
     lecture: { indifferent: "n'admet que la profondeur 0 : la sélection des blocs glissés" },
   },
+  // F-033 : la sélection dans un bloc code, seule lecture de l'indentation et de la sortie armée.
+  "indentation.ts › selectionDuBlocCode": { lectures: 1, lecture: BORNES },
   "invite.ts › blocAInviter": {
     lectures: 1,
     lecture: { indifferent: "n'invite qu'au curseur (`empty`) ou dans le seul bloc vide" },
