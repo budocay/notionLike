@@ -2,7 +2,7 @@
 // AC12, AC15, AC17, AC48, AC49), rendue par le point d'entrée de l'interface sur fake-indexeddb.
 import { ouvrirDocumentTable, type PageLue } from "@notionlike/document";
 import { act, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import type { SessionEspace } from "../src/espace/session-espace.ts";
@@ -170,6 +170,20 @@ describe("ouvrir une table (F-018-AC12, AC15, AC17)", () => {
     const bases = await nomsDesBases();
     expect(bases.filter((nom) => nom.includes(":page:"))).toEqual([]);
     expect(bases).toContain(nomDeLaBaseDeTable(designation(session, id)));
+  });
+
+  it("F-018-AC12 l'en-tête et l'écran de la table affichée sont deux enfants de clés distinctes : React ne signale aucune clé en double", async () => {
+    const erreurs = vi.spyOn(console, "error");
+    const { session, utilisateur } = await ouvrirCoquille();
+    recevoirUneTable(session, "Budget");
+
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    expect(await screen.findByText(/Cette table n'a encore aucune colonne/)).toBeDefined();
+    await act(() => laisserIndexedDbTravailler());
+
+    const doublons = erreurs.mock.calls.filter((appel) => String(appel[0]).includes("same key"));
+    erreurs.mockRestore();
+    expect(doublons).toEqual([]);
   });
 
   it("F-018-AC12 une page sélectionnée n'ouvre aucune base de table, une table aucune base de page", async () => {

@@ -142,8 +142,9 @@ export function ZonePrincipale(props: Proprietes): ReactElement {
       <Principale ref={props.ref}>
         {entete(props)}
         {table !== undefined && (
+          // Clé distincte de celle de l'en-tête, son voisin : l'écran est recréé à chaque table.
           <EcranDeTable
-            key={selection.page.id}
+            key={`ecran:${selection.page.id}`}
             etat={table}
             idEspace={props.idEspace}
             idTable={selection.page.id}
