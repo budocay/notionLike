@@ -1,7 +1,7 @@
 # ADR-0019 — Écran de table : session, module des vues et réglages de vue sur l'appareil
 
 Statut : proposé
-Date : 2026-10-16
+Date : 2026-10-16 ; écarts au code relevés le 2026-10-21 (addendum à la fin de « Décision »)
 
 ## Contexte et problème
 
@@ -67,6 +67,15 @@ Synchronisation d'une table affichée :
 - La synchronisation reçoit de l'interface, pour chaque identifiant de l'arborescence et de la corbeille, son type lu (`page` ou `table`) et en tire le nom du document (`correspondance(type, …)`, `table:<idEspace>:<idTable>`) pour la passe de fond et pour le document affiché.
 - La table affichée est échangée directement sur le `Y.Doc` que tient `table/` : ni réplique ni miroir (ADR-0016). Une version refusée est signalée par la façade (`lire()` lève) et l'écran affiche le message de F-018-AC15 ; ce que le serveur envoie reste enregistré dans la base de la table, comme la réplique d'une page refusée (ADR-0014).
 - Effacements (suppression définitive locale ou reçue, copie locale effacée) : pour chaque identifiant retiré, quel que soit son type, la base de page, la base de table et les réglages de vue de l'espace ouvert (H11 : le type d'une entrée retirée n'est plus lisible).
+
+### Écarts au code (addendum du 2026-10-21)
+
+Relevé sur le code de la branche `F-018` à `d4fb6e5` (blocs 3 à 8 : `846c922` à `d4fb6e5`), détail dans l'addendum du même jour de `docs/decisions/F-018-conception.md`. Aucune des décisions ci-dessus ne change ; le code les tient de cette façon :
+
+- **Type de chaque identifiant** : la synchronisation le reçoit par un rappel facultatif `typeDe(id)` de ses options, à côté de `lirePages`, dont le contrat (F-013) ne change pas ; absent, ou `undefined` pour un identifiant, c'est une page. L'interface le calcule à chaque appel sur l'arborescence lue (`typesDesPages`, `synchronisation/pages-de-l-espace.ts`), si bien qu'une passe de fond coûte un parcours de l'arborescence par document, quadratique en nombre de pages ; rien n'est mesuré.
+- **Table affichée** : un membre de plus de la synchronisation, `afficherTable({ idTable, doc })`, qui prend la place de la page affichée (`synchronisation/table-affichee.ts`, classe `TableSynchronisee`, sans réplique ni miroir) ; `#bloquerLeDocument` reconnaît `table:`, et les effacements de `synchronisation/stockage.ts` traitent chaque identifiant comme ci-dessus.
+- **Présentation** : le module des vues n'écrit aucune classe ; il rend les composants de présentation de `interface/composants/Table.tsx` (classes dans `table.classes.ts`), tenus par `web-composants-de-presentation`, et `MenuActions` (nom accessible par entrée, `nom`). Ses textes sont dans `vues-de-table/textes.ts` ; il n'importe d'`interface/messages.ts` que `messageErreur`, et d'`interface/raccourcis.ts` les combinaisons de la grille (`TOUCHES_DE_LA_GRILLE`, `TOUCHES_DE_LA_CELLULE`, `TOUCHES_DE_L_EDITION`, `monterLaLigne` et `descendreLaLigne` de `RACCOURCIS`), déclarées là par F-004-AC31, celles des boîtes (`TOUCHES_DE_BOITE`), `caractereSeul`, `estLaFrappe`, `afficherTouches` et `cleAria`.
+- **Interface** : `interface/table-ouverte.ts` (`useTablesOuvertes`, `useTableOuverte`) ouvre la session de la table sélectionnée ; `useSynchronisationDeLEspace` et `etatAvecLaPage` acceptent une table à la place de la page.
 
 ## Conséquences
 
