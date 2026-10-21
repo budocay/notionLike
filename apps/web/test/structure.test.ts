@@ -57,8 +57,7 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 persistance/index.ts exporte exactement ouvrirPersistance, ouvrirEspaceLocal et ErreurPersistance, sans rien de y-indexeddb", () => {
     expect(Object.keys(persistance).sort()).toEqual([
       "ErreurPersistance",
-      // F-018 : clé, lecture, écriture et effacement des réglages de vue d'une table (AC40, AC49).
-      "cleDesReglagesDeVue",
+      // F-018 : lecture, écriture et effacement des réglages de vue d'une table (AC40, AC49).
       "ecrireReglagesDeVue",
       // F-013 : effacement de la base du document d'espace (AC24).
       "effacerBaseDeDocument",

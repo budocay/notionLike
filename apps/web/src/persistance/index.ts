@@ -10,7 +10,6 @@ export {
 } from "./effacement.ts";
 // F-018 : réglages de vue d'une table, sur l'appareil (ADR-0019).
 export {
-  cleDesReglagesDeVue,
   type DesignationDeVue,
   ecrireReglagesDeVue,
   effacerReglagesDeVue,

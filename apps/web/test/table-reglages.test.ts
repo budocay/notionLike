@@ -4,10 +4,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  cleDesReglagesDeVue,
   ecrireReglagesDeVue,
   effacerReglagesDeVue,
-  ErreurPersistance,
   lireReglagesDeVue,
 } from "../src/persistance/index.ts";
 import { lire, lireDossier } from "./aides-disque.ts";
@@ -39,19 +37,25 @@ function enregistre(cle: string): unknown {
 }
 
 describe("clé et enregistrement (F-018-AC40)", () => {
-  it("F-018-AC40 une seule fonction assemble la clé notionlike:vue:<idEspace>:<idTable>, et refuse un identifiant qui n'est pas un UUID canonique", () => {
+  it("F-018-AC40 les réglages d'une table sont écrits sous la clé notionlike:vue:<idEspace>:<idTable>, et rien n'est lu ni écrit pour un identifiant qui n'est pas un UUID canonique", () => {
     const table = designation();
-    expect(cleDesReglagesDeVue(table)).toBe(cleDesReglages(table));
+    ecrireReglagesDeVue(table, { vue: { active: "kanban" } });
+    expect([localStorage.length, localStorage.key(0)]).toEqual([1, cleDesReglages(table)]);
+    localStorage.clear();
     for (const refusee of [
       { idEspace: "pas-un-uuid", idTable: table.idTable },
       { idEspace: ESPACE_A.toUpperCase(), idTable: table.idTable },
       { idEspace: ESPACE_A, idTable: `${table.idTable}:x` },
     ]) {
-      expect(() => cleDesReglagesDeVue(refusee)).toThrow(ErreurPersistance);
+      localStorage.setItem(`notionlike:vue:${refusee.idEspace}:${refusee.idTable}`, "{}");
       expect(lireReglagesDeVue(refusee)).toEqual({});
-      ecrireReglagesDeVue(refusee, { vue: { active: "tableau" } });
+      ecrireReglagesDeVue(refusee, { vue: { active: "kanban" } });
+      effacerReglagesDeVue(refusee.idEspace, [refusee.idTable]);
+      expect(localStorage.getItem(`notionlike:vue:${refusee.idEspace}:${refusee.idTable}`)).toBe(
+        "{}",
+      );
+      localStorage.clear();
     }
-    expect(localStorage.length).toBe(0);
   });
 
   it("F-018-AC40 aucun autre module d'apps/web ne nomme localStorage ni n'assemble la clé des réglages de vue", () => {

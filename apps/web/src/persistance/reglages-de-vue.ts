@@ -21,10 +21,10 @@ const PREFIXE = "notionlike:vue:";
 const enMemoire = new Map<string, SectionsDeVue>();
 
 /**
- * Seule fonction d'apps/web qui assemble la clé des réglages de vue (F-018-AC40). Lève
- * `identifiant-invalide` si l'un des identifiants n'est pas un UUID canonique, comme `nomDeBase`.
+ * Seule fonction d'apps/web qui assemble la clé des réglages de vue (F-018-AC40), interne au module.
+ * Lève `identifiant-invalide` si l'un des identifiants n'est pas un UUID canonique, comme `nomDeBase`.
  */
-export function cleDesReglagesDeVue({ idEspace, idTable }: DesignationDeVue): string {
+function cleDesReglagesDeVue({ idEspace, idTable }: DesignationDeVue): string {
   if (!estUuidCanonique(idEspace) || !estUuidCanonique(idTable)) {
     throw new ErreurPersistance(
       "identifiant-invalide",
