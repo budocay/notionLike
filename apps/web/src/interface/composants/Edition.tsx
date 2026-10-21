@@ -272,6 +272,24 @@ export function MenuDeCommandes(props: ProprietesMenuDeCommandes): ReactElement 
 /** Classe du curseur de dépôt de l'éditeur : sa couleur vient des jetons (F-006-AC37). */
 export const CLASSE_DU_CURSEUR_DE_DEPOT = EDITION.curseurDeDepot;
 
+/**
+ * Classes de rôle du bloc code (F-033-AC6, AC13, H5) : la liste fermée des sept rôles syntaxiques,
+ * chacun vers la seule classe que la coloration pose pour lui. Le module d'édition, la page de
+ * démonstration et les tests la lisent ici.
+ */
+export const CLASSES_DE_ROLE = {
+  motCle: EDITION.syntaxeMotCle,
+  chaine: EDITION.syntaxeChaine,
+  nombre: EDITION.syntaxeNombre,
+  commentaire: EDITION.syntaxeCommentaire,
+  fonction: EDITION.syntaxeFonction,
+  type: EDITION.syntaxeType,
+  propriete: EDITION.syntaxePropriete,
+} as const;
+
+/** Un rôle syntaxique de la liste fermée (F-033 H5). */
+export type RoleSyntaxique = keyof typeof CLASSES_DE_ROLE;
+
 interface ProprietesPoignee {
   /** Nom accessible, « Déplacer le bloc ». */
   readonly nom: string;

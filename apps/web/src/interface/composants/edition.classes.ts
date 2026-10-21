@@ -46,6 +46,15 @@ export const EDITION = {
   annonce: "sr-only",
   // Curseur de dépôt de l'éditeur (F-006-AC37) : sa couleur est celle de cette classe.
   curseurDeDepot: "curseur-de-depot",
+  // Classes de rôle du bloc code (F-033-AC6, AC13) : la liste fermée, déclarée ici seulement ; la
+  // coloration ne pose qu'elles, et chacune n'est habillée que par son jeton de rôle.
+  syntaxeMotCle: "syntaxe-mot-cle",
+  syntaxeChaine: "syntaxe-chaine",
+  syntaxeNombre: "syntaxe-nombre",
+  syntaxeCommentaire: "syntaxe-commentaire",
+  syntaxeFonction: "syntaxe-fonction",
+  syntaxeType: "syntaxe-type",
+  syntaxePropriete: "syntaxe-propriete",
   action:
     "contour-interieur inline-flex min-h-cible flex-none cursor-pointer items-center justify-center rounded-moyen px-petit text-interface font-moyen text-texte-secondaire hover:bg-surface-active hover:text-texte-principal aria-disabled:text-texte-discret aria-disabled:hover:bg-transparent etroit:pointer-fine:min-h-rangee",
 } as const;
