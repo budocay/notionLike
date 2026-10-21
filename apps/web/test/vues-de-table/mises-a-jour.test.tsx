@@ -75,6 +75,22 @@ describe("mises à jour reçues (F-018-AC35)", () => {
       }
     });
     expect(screen.getByText(/aucune colonne/)).toBeDefined();
+    expect(focus()).toBe(screen.getByRole("button", { name: "Ajouter une colonne" }));
+  });
+
+  it("F-018-AC35 la dernière colonne retirée par une mise à jour reçue alors que le focus est hors de la grille : le focus n'est pas déplacé", () => {
+    const { table } = rendreLaTable(deuxLignes);
+    const dehors = document.createElement("button");
+    document.body.append(dehors);
+    dehors.focus();
+    recevoirDansLaTable(table, (replique) => {
+      for (const { id } of replique.lire().colonnes) {
+        replique.supprimerColonne(id);
+      }
+    });
+    expect(screen.getByText(/aucune colonne/)).toBeDefined();
+    expect(focus()).toBe(dehors);
+    dehors.remove();
   });
 });
 

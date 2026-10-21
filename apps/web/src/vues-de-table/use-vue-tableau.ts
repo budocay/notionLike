@@ -60,6 +60,30 @@ export interface VueTableau {
   readonly moyens: Moyens;
 }
 
+function focusSurLeCorps(): boolean {
+  const actif = document.activeElement;
+  return actif === null || actif === document.body;
+}
+
+// Le focus passe à l'invitation « Ajouter une colonne » quand la suppression locale de la dernière
+// colonne le demande, ou quand une mise à jour reçue retire la dernière colonne : la grille et sa
+// barre d'outils sont démontées et le focus qui y était retombe sur `body` (AC35). Un focus resté
+// ailleurs dans l'application n'est pas déplacé.
+function useFocusDeLInvitation(nombreDeColonnes: number) {
+  const invitation = useRef<HTMLButtonElement>(null);
+  const versLInvitation = useRef(false);
+  const avaitDesColonnes = useRef(nombreDeColonnes > 0);
+  useLayoutEffect(() => {
+    const perdu = avaitDesColonnes.current && nombreDeColonnes === 0 && focusSurLeCorps();
+    avaitDesColonnes.current = nombreDeColonnes > 0;
+    if ((versLInvitation.current || perdu) && invitation.current !== null) {
+      versLInvitation.current = false;
+      invitation.current.focus();
+    }
+  });
+  return { invitation, versLInvitation };
+}
+
 // L'origine d'une boîte est l'élément qui a le focus, ou la cellule qui a ouvert le menu quand la
 // boîte est ouverte depuis l'une de ses entrées, qui disparaît avec lui (AC21).
 function useBoiteOuverte(menu: MenuDeGrille) {
@@ -117,14 +141,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
   const [annonce, setAnnonce] = useState("");
   const [alerte, setAlerte] = useState<string | undefined>(undefined);
   const cadre = useRef<HTMLDivElement>(null);
-  const invitation = useRef<HTMLButtonElement>(null);
-  const versLInvitation = useRef(false);
-  useLayoutEffect(() => {
-    if (versLInvitation.current && invitation.current !== null) {
-      versLInvitation.current = false;
-      invitation.current.focus();
-    }
-  });
+  const { invitation, versLInvitation } = useFocusDeLInvitation(colonnes.length);
   const fenetre = useFenetre(lignes.length);
   const courante = useCourante({ lignes, colonnes, grille: cadre, amener: fenetre.amener });
   const apres = (suite: Suite): void =>
