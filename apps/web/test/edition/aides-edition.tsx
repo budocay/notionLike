@@ -846,3 +846,8 @@ export function prisParLesGestionnaires(key: string, modificateurs: Modificateur
   });
   return prise;
 }
+
+/** Les noms des extensions de l'éditeur monté, dans l'ordre où le module d'édition les donne. */
+export function extensionsDeLEditeurMonte(): string[] {
+  return editeurMonte().extensionManager.extensions.map((extension) => extension.name);
+}
