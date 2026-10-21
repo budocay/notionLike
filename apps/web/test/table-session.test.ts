@@ -405,16 +405,20 @@ describe("couture du module de persistance (F-018-AC50)", () => {
     tables.fermer();
   });
 
-  it("F-018-AC50 la base d'une table s'ouvre et s'efface par le module de persistance : son nom vient de la fonction de nommage, et les tables ouvertes n'importent ni y-indexeddb ni IndexedDB", () => {
-    const source = lire("src/table/tables-ouvertes.ts");
-    expect(source).toMatch(/from "\.\.\/persistance\/index\.ts"/);
-    expect(source).toMatch(
-      /ouvrirPersistance\(tenue\.doc, \{ type: "table", idEspace, idTable \}\)/,
-    );
-    expect(source).toMatch(/effacerBaseDeDocument\(\{ type: "table", idEspace, idTable \}\)/);
-    for (const chemin of ["src/table/tables-ouvertes.ts", "src/table/session-table.ts"]) {
-      expect(lire(chemin)).not.toMatch(/y-indexeddb|indexedDB|localStorage|notionlike:/);
-    }
+  // Les appelants de production du module de persistance, dont la session de table et les tables
+  // ouvertes, sont énumérés par F-007-AC26 (`corbeille-effacement.test.ts`) ; ici, le nom de la
+  // base est constaté sur l'appareil, ouverte puis effacée par ce module.
+  it("F-018-AC50 la base d'une table s'ouvre et s'efface par le module de persistance : elle porte le nom notionlike:table:<idEspace>:<idTable>, et n'existe plus une fois effacée", async () => {
+    const tables = creerTablesOuvertes();
+    const session = tables.ouvrir(TABLE_A_DE_L_ESPACE_A);
+    await attendrePhaseDeTable(session, "pret");
+    tableDeLaSession(session).creerColonne("Témoin", "texte");
+    await vi.waitFor(() => expect(estEnregistree(session)).toBe(true));
+
+    expect(await nomsDesBases()).toEqual([nomDeLaBaseDeTable(TABLE_A_DE_L_ESPACE_A)]);
+    expect(await tables.effacer(ESPACE_A, [TABLE_A])).toBe("effacee");
+    expect(await nomsDesBases()).toEqual([]);
+    tables.fermer();
   });
 });
 
