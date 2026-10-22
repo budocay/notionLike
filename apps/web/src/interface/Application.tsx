@@ -377,6 +377,7 @@ function ZoneAffichee(props: {
       table={props.table}
       idEspace={etat.idEspace}
       lectureSeule={props.lectureSeule !== undefined}
+      raisonDeLectureSeule={props.lectureSeule}
       poignees={!props.etroit}
     />
   );

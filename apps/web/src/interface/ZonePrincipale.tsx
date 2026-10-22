@@ -20,7 +20,6 @@ import {
   titreEstVide,
 } from "./messages.ts";
 import { estUnClicAvecMod } from "./clic.ts";
-import { LECTURE_SEULE } from "./messages-synchronisation.ts";
 import { cleAria, estLaFrappe, RACCOURCIS } from "./raccourcis.ts";
 
 /** Ce que l'adresse désigne, confronté à l'arborescence lue. */
@@ -36,11 +35,14 @@ interface Proprietes {
   readonly page: EtatSessionPage | undefined;
   /** Le focus y est porté quand une page est choisie dans le tiroir (F-004-AC42). */
   readonly ref?: Ref<HTMLElement> | undefined;
-  /**
-   * Vrai : l'espace est ouvert en lecture seule (F-013-AC25), l'éditeur n'est pas modifiable et
-   * l'écran de table porte la raison « Lecture seule » sur chaque action qui écrit (F-018-AC52).
-   */
+  /** Vrai : l'espace est ouvert en lecture seule (F-013-AC25), l'éditeur n'est pas modifiable. */
   readonly lectureSeule?: boolean | undefined;
+  /**
+   * Raison de la lecture seule, que l'écran de table porte sur chaque action qui écrit
+   * (F-018-AC52) ; donnée par l'appelant avec `lectureSeule`, de la même valeur. Absente : la table
+   * est modifiable.
+   */
+  readonly raisonDeLectureSeule?: string | undefined;
   /** Faux sur écran étroit : les poignées de bloc ne sont pas rendues (F-006, hors périmètre). */
   readonly poignees?: boolean | undefined;
   /**
@@ -149,7 +151,7 @@ export function ZonePrincipale(props: Proprietes): ReactElement {
             idEspace={props.idEspace}
             idTable={selection.page.id}
             titre={titreAffiche(selection.page.titre)}
-            lectureSeule={props.lectureSeule === true ? LECTURE_SEULE : undefined}
+            lectureSeule={props.raisonDeLectureSeule}
           />
         )}
       </Principale>
