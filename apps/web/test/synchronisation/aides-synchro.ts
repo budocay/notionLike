@@ -620,16 +620,17 @@ export function pageDEssai(idPage: string = crypto.randomUUID()): PageDEssai {
   return { idPage, doc: new Y.Doc(), refus: [] };
 }
 
+/** Affiche la page ; `undefined` : plus aucun document affiché (`afficherAucun`). */
 export function afficher(onglet: Onglet, page: PageDEssai | undefined): void {
-  onglet.synchro.afficherPage(
-    page === undefined
-      ? undefined
-      : {
-          idPage: page.idPage,
-          doc: page.doc,
-          refuserLaVersion: () => page.refus.push(Date.now()),
-        },
-  );
+  if (page === undefined) {
+    onglet.synchro.afficherAucun();
+    return;
+  }
+  onglet.synchro.afficherPage({
+    idPage: page.idPage,
+    doc: page.doc,
+    refuserLaVersion: () => page.refus.push(Date.now()),
+  });
 }
 
 /** Adopte l'espace de l'onglet et attend « Synchronisé ». */

@@ -81,8 +81,8 @@ export interface OptionsDeSynchronisation {
 export interface Synchronisation {
   lireEtat(): EtatDeSynchronisation;
   abonner(rappel: () => void): () => void;
-  /** La page affichée, entièrement relue ; `undefined` quand aucune ne l'est. */
-  afficherPage(page: PageAffichee | undefined): void;
+  /** La page affichée, entièrement relue ; aucune affichée : `afficherAucun`. */
+  afficherPage(page: PageAffichee): void;
   /** La table affichée, entièrement relue (F-018-AC51) ; elle prend la place de la page affichée. */
   afficherTable(table: TableAffichee): void;
   /** Plus aucun document affiché, ni page ni table (F-018-AC51). */
@@ -694,16 +694,14 @@ class Orchestre {
   // ---------------------------------------------------------------------------------------------
   // Page affichée (AC17, AC34, AC36).
 
-  readonly afficherPage = (page: PageAffichee | undefined): void =>
-    this.#afficher(page === undefined ? undefined : { id: page.idPage, doc: page.doc }, () =>
-      page === undefined
-        ? undefined
-        : PageSynchronisee.creer({
-            page,
-            idEspace: this.#options.idEspace,
-            environnement: this.#options.environnement,
-            contexte: this.#contexte,
-          }),
+  readonly afficherPage = (page: PageAffichee): void =>
+    this.#afficher({ id: page.idPage, doc: page.doc }, () =>
+      PageSynchronisee.creer({
+        page,
+        idEspace: this.#options.idEspace,
+        environnement: this.#options.environnement,
+        contexte: this.#contexte,
+      }),
     );
 
   // F-018-AC51 : la table affichée prend la place de la page affichée, son document échangé tel

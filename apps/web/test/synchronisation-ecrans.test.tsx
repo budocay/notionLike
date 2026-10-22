@@ -4,7 +4,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { Application } from "../src/interface/Application.tsx";
@@ -1062,5 +1062,11 @@ describe("l'application et la synchronisation d'une table (F-018-AC51, AC53)", (
 
     await waitFor(() => expect(simulee.compteurs.aucun).toBe(aucunAvant + 1));
     expect(simulee.pages.length).toBe(pagesAvant);
+  });
+
+  it("F-018-AC51 « aucun document affiché » n'a qu'un point d'entrée : afficherPage exige une page, afficherAucun n'en prend pas", () => {
+    // Vérifié à la vérification de types (`pnpm typecheck`, lancée par `table-contrat.test.ts`).
+    expectTypeOf<Synchronisation["afficherPage"]>().parameters.toEqualTypeOf<[PageAffichee]>();
+    expectTypeOf<Synchronisation["afficherAucun"]>().parameters.toEqualTypeOf<[]>();
   });
 });
