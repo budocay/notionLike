@@ -110,6 +110,25 @@ describe("cellule en mode édition (F-018-AC36)", () => {
     expect(table.lire().lignes.map(({ cellules }) => cellules[0])).toEqual(["B"]);
   });
 
+  it("F-018-AC36 sa colonne supprimée par une mise à jour reçue : le mode édition est quitté sans rien écrire, et l'écran le dit", async () => {
+    const { table, utilisateur, emises } = rendreLaTable(deuxLignes);
+    cellule(2, 3).focus();
+    await utilisateur.keyboard("en cours");
+    expect(screen.getByRole<HTMLInputElement>("textbox").value).toBe("en cours");
+    recevoirDansLaTable(table, (replique) =>
+      replique.supprimerColonne(replique.lire().colonnes[1]?.id ?? ""),
+    );
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "La cellule que vous modifiiez a été supprimée.",
+    );
+    // Seule la mise à jour reçue a changé le document : la saisie abandonnée n'a rien écrit.
+    expect(emises).toHaveLength(1);
+    expect(table.lire().colonnes.map(({ nom }) => nom)).toEqual(["Nom"]);
+    expect(table.lire().lignes.map(({ cellules }) => cellules)).toEqual([["A"], ["B"]]);
+  });
+
   it("F-018-AC36 sa valeur changée par une mise à jour reçue : le texte en cours de saisie est gardé, la validation l'écrit", async () => {
     const { table, utilisateur } = rendreLaTable(deuxLignes);
     cellule(2, 2).focus();
