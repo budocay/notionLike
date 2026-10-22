@@ -27,6 +27,7 @@ function NomEnSaisie({ vue, colonne }: { readonly vue: VueTableau; readonly colo
   }
   return (
     <ChampDEdition
+      champ={vue.edition.champ}
       nom={nomDuChampDeNom(colonne.nom)}
       texte={ouverte.texte}
       date={false}
@@ -57,7 +58,11 @@ function CommandeDeLEnTete(props: {
       tabIndex={-1}
       aria-haspopup="menu"
       aria-expanded={ouvert?.sorte === "colonne" && ouvert.colonne === colonne.id}
-      onClick={() => {
+      onClick={(evenement) => {
+        // Une saisie refusée reste ouverte : le menu ne s'ouvre pas par-dessus.
+        if (vue.edition.garderLeFocus(evenement.currentTarget)) {
+          return;
+        }
         const element = vue.courante.elementDe(cleDeCellule(null, colonne.id));
         vue.courante.devenirCourante(place);
         if (element !== undefined) {

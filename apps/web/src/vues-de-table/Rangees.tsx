@@ -64,6 +64,7 @@ function ContenuDeLaCellule(props: ProprietesCellule): ReactElement {
   if (ouverte?.sorte === "champ" && ouverte.ligne === ligne.id && ouverte.colonne === colonne.id) {
     return (
       <ChampDEdition
+        champ={vue.edition.champ}
         nom={nomDuChamp(colonne.nom, rang)}
         texte={ouverte.texte}
         date={colonne.type === "date"}
@@ -131,7 +132,11 @@ function CelluleDActions(props: {
         tabIndex={-1}
         aria-haspopup="menu"
         aria-expanded={ouvert?.sorte === "ligne" && ouvert.ligne === ligne.id}
-        onClick={() => {
+        onClick={(evenement) => {
+          // Une saisie refusée reste ouverte : le menu ne s'ouvre pas par-dessus.
+          if (vue.edition.garderLeFocus(evenement.currentTarget)) {
+            return;
+          }
           const element = vue.courante.elementDe(cle);
           vue.courante.devenirCourante(place);
           if (element !== undefined) {

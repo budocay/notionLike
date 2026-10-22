@@ -96,6 +96,8 @@ interface ProprietesGrille {
   readonly refCadre: Ref<HTMLDivElement>;
   readonly surDefilement: (evenement: UIEvent<HTMLDivElement>) => void;
   readonly surTouche: (evenement: KeyboardEvent<HTMLDivElement>) => void;
+  /** Focus arrivant sur un élément de la grille, lu avant la cellule qui le reçoit. */
+  readonly surFocus: (evenement: FocusEvent<HTMLDivElement>) => void;
   readonly enTetes: ReactNode;
   readonly rangees: ReactNode;
   /** Menu, liste de choix : posés au-dessus de la zone défilante. */
@@ -112,6 +114,7 @@ export function Grille(props: ProprietesGrille): ReactElement {
         aria-colcount={props.nombreDeColonnes}
         className={TABLE.grille}
         onKeyDown={props.surTouche}
+        onFocusCapture={props.surFocus}
       >
         <div
           ref={props.refDefilement}

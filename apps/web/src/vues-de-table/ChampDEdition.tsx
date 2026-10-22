@@ -1,7 +1,8 @@
 // Champ du mode édition d'une cellule ou d'un en-tête (F-018-AC19, AC27, AC28, AC30, AC32, AC33) :
 // Entrée valide et descend, Tab et Maj+Tab valident et passent à côté, la sortie du champ valide,
-// Échap abandonne sans rien écrire. Rien n'est écrit à la frappe (H16).
-import { type KeyboardEvent, type ReactElement, useEffect, useRef } from "react";
+// Échap abandonne sans rien écrire. Rien n'est écrit à la frappe (H16). Le champ n'est pas un arrêt
+// de tabulation : sa cellule, la courante, en est un, et le focus qui y arrive passe au champ (AC33).
+import { type KeyboardEvent, type ReactElement, type RefObject, useEffect } from "react";
 
 import { ChampDeCellule } from "../interface/composants/Table.tsx";
 import { estLaFrappe, TOUCHES_DE_L_EDITION } from "../interface/raccourcis.ts";
@@ -11,6 +12,8 @@ const DATE_MIN = "0001-01-01";
 const DATE_MAX = "9999-12-31";
 
 interface Proprietes {
+  /** Le champ du mode édition de la grille (`EditionDeLaGrille.champ`). */
+  readonly champ: RefObject<HTMLInputElement | null>;
   readonly nom: string;
   readonly texte: string;
   readonly date: boolean;
@@ -36,7 +39,7 @@ function suiteDe(evenement: KeyboardEvent<HTMLInputElement>, suites: Proprietes[
 }
 
 export function ChampDEdition(props: Proprietes): ReactElement {
-  const champ = useRef<HTMLInputElement>(null);
+  const { champ } = props;
   useEffect(() => {
     const element = champ.current;
     element?.focus();
@@ -44,7 +47,7 @@ export function ChampDEdition(props: Proprietes): ReactElement {
       element.setSelectionRange(element.value.length, element.value.length);
     }
     // Le focus n'est posé qu'à l'entrée en mode édition, pas à chaque frappe.
-  }, [props.date]);
+  }, [champ, props.date]);
   const surTouche = (evenement: KeyboardEvent<HTMLInputElement>): void => {
     if (estLaFrappe(evenement, TOUCHES_DE_L_EDITION.abandonner)) {
       evenement.preventDefault();
@@ -62,6 +65,7 @@ export function ChampDEdition(props: Proprietes): ReactElement {
   return (
     <ChampDeCellule
       refChamp={champ}
+      tabIndex={-1}
       type={props.date ? "date" : "text"}
       min={props.date ? DATE_MIN : undefined}
       max={props.date ? DATE_MAX : undefined}

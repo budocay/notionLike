@@ -1032,6 +1032,7 @@ function GrilleFictive(): ReactElement {
       refCadre={sansEffet}
       surDefilement={sansEffet}
       surTouche={sansEffet}
+      surFocus={sansEffet}
       enTetes={<EnTetesFictifs />}
       rangees={T.lignes.map(([article = "", prix = ""], rang) => (
         <RangeeFictiveDeTable

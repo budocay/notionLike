@@ -1,8 +1,8 @@
 // Mode édition de la grille (F-018-AC19, AC27 à AC33, AC36) : une saisie n'est écrite qu'à sa
 // validation (Entrée, Tab, sortie du champ), jamais à la frappe (H16) ; Échap abandonne sans rien
-// écrire ; un refus garde le mode édition et le texte saisi.
+// écrire ; un refus garde le mode édition et le texte saisi, et le focus dans son champ.
 import type { ColonneLue, DocumentTable, LigneLue } from "@notionlike/document";
-import { useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 
 import { texteDEdition } from "./affichage.ts";
 import type { Edition, Suite } from "./grille.ts";
@@ -17,7 +17,17 @@ import {
 
 export interface EditionDeLaGrille {
   readonly edition: Edition | undefined;
-  /** Entre en mode édition sur la cellule à cette place ; `texte` remplace son contenu (AC33). */
+  /** Le champ du mode édition ouvert, une fois rendu. */
+  readonly champ: RefObject<HTMLInputElement | null>;
+  /**
+   * Le focus arrive sur `cible`, dans la grille : si un champ reste ouvert (saisie refusée à la
+   * sortie du champ), le focus y revient et la cellule courante reste la sienne ; vrai dans ce cas.
+   */
+  readonly garderLeFocus: (cible: EventTarget) => boolean;
+  /**
+   * Entre en mode édition sur la cellule à cette place ; `texte` remplace son contenu (AC33). Sans
+   * effet si un mode édition est déjà ouvert : sa saisie n'est pas perdue.
+   */
   readonly commencer: (place: Position, texte?: string) => void;
   /** Ouvre la saisie du nom de cette colonne (AC19). */
   readonly renommer: (colonne: ColonneLue) => void;
@@ -64,36 +74,57 @@ function editionDeLaCellule(
   };
 }
 
+function cibleDe(
+  options: Options,
+  ouverte: Extract<Edition, { sorte: "champ" | "choix" }>,
+): CibleDeCellule | undefined {
+  const ligne = options.lignes.find(({ id }) => id === ouverte.ligne);
+  const rang = options.colonnes.findIndex(({ id }) => id === ouverte.colonne);
+  const colonne = options.colonnes[rang];
+  return ligne === undefined || colonne === undefined
+    ? undefined
+    : { ligne: ligne.id, colonne, avant: valeurDe(ligne, rang) };
+}
+
+// Le focus arrive sur `vers` alors qu'un champ reste ouvert : il revient au champ.
+function ramenerAuChamp(
+  ouverte: Edition | undefined,
+  champ: HTMLInputElement | null,
+  vers: EventTarget,
+): boolean {
+  if (ouverte === undefined || champ === null || vers === champ) {
+    return false;
+  }
+  champ.focus();
+  return true;
+}
+
 export function useEdition(options: Options): EditionDeLaGrille {
   const [edition, setEdition] = useState<Edition | undefined>(undefined);
   // La dernière édition, lue par une validation qui suit une autre dans le même événement (Entrée
   // puis la sortie du champ qui disparaît) : la seconde ne trouve plus rien à valider.
   const tenue = useRef<Edition | undefined>(undefined);
+  const champ = useRef<HTMLInputElement>(null);
+  const libre = (): boolean => options.lectureSeule === undefined && tenue.current === undefined;
   const poser = (suivante: Edition | undefined): void => {
     tenue.current = suivante;
     setEdition(suivante);
   };
-  const cible = (
-    ouverte: Extract<Edition, { sorte: "champ" | "choix" }>,
-  ): CibleDeCellule | undefined => {
-    const ligne = options.lignes.find(({ id }) => id === ouverte.ligne);
-    const rang = options.colonnes.findIndex(({ id }) => id === ouverte.colonne);
-    const colonne = options.colonnes[rang];
-    return ligne === undefined || colonne === undefined
-      ? undefined
-      : { ligne: ligne.id, colonne, avant: valeurDe(ligne, rang) };
-  };
+  const cible = (ouverte: Extract<Edition, { sorte: "champ" | "choix" }>) =>
+    cibleDe(options, ouverte);
   return {
     edition,
+    champ,
+    garderLeFocus: (vers) => ramenerAuChamp(tenue.current, champ.current, vers),
     commencer: (place, texte) => {
       const ligne = options.lignes[place.rang - 1];
       const colonne = options.colonnes[place.colonne - 1];
-      if (options.lectureSeule === undefined && ligne !== undefined && colonne !== undefined) {
+      if (libre() && ligne !== undefined && colonne !== undefined) {
         poser(editionDeLaCellule(ligne, colonne, place.colonne - 1, texte));
       }
     },
     renommer: (colonne) => {
-      if (options.lectureSeule === undefined) {
+      if (libre()) {
         poser({ sorte: "nom", colonne: colonne.id, texte: colonne.nom, erreur: undefined });
       }
     },

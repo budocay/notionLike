@@ -4,7 +4,7 @@ import type { DocumentTable } from "@notionlike/document";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { cellule, focus, rendreLaTable, textesDesLignes } from "./aides-grille.tsx";
+import { cellule, focus, grille, rendreLaTable, textesDesLignes } from "./aides-grille.tsx";
 
 const SCRIPT = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
 
@@ -18,6 +18,11 @@ function uneDeChaque(table: DocumentTable): void {
   table.ajouterOption(etat, "En cours");
   table.ajouterOption(etat, "Terminé");
   table.creerLigne();
+}
+
+/** Les éléments de la grille dans l'ordre de tabulation : un seul attendu (AC33). */
+function arretsDeTabulation(): HTMLElement[] {
+  return [...grille().querySelectorAll<HTMLElement>("*")].filter(({ tabIndex }) => tabIndex === 0);
 }
 
 function valeurs(table: DocumentTable): readonly unknown[] {
@@ -132,6 +137,54 @@ describe("saisie d'un nombre (F-018-AC28)", () => {
     expect(champ.value).toBe("1e3");
     expect(valeurs(table)[1]).toBeNull();
     expect(emises).toEqual([]);
+  });
+
+  it("F-018-AC28 F-018-AC33 une saisie refusée à la sortie du champ (clic sur une autre cellule) garde le mode édition : le focus revient au champ, texte gardé, la grille reste un seul arrêt de tabulation ; Échap rend la cellule, d'où les flèches repartent", async () => {
+    const { table, utilisateur, emises } = rendreLaTable(uneDeChaque);
+    await saisir(utilisateur, 3, "1e3");
+    const champ = screen.getByRole<HTMLInputElement>("textbox", { name: "Prix, ligne 1" });
+    await utilisateur.click(cellule(2, 2));
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Saisissez un nombre, par exemple 12 ou 3,5.",
+    );
+    expect(focus()).toBe(champ);
+    expect(champ.value).toBe("1e3");
+    expect(arretsDeTabulation()).toEqual([cellule(2, 3)]);
+    expect(emises).toEqual([]);
+
+    // Le focus revenu dans la grille par la tabulation va lui aussi au champ.
+    await utilisateur.click(document.body);
+    expect(focus()).toBe(document.body);
+    expect(champ.isConnected).toBe(true);
+    cellule(2, 3).focus();
+    expect(focus()).toBe(champ);
+
+    await utilisateur.keyboard("{Escape}");
+    expect(focus()).toBe(cellule(2, 3));
+    await utilisateur.keyboard("{ArrowLeft}");
+    expect(focus()).toBe(cellule(2, 2));
+    expect(arretsDeTabulation()).toEqual([cellule(2, 2)]);
+    expect(valeurs(table)[1]).toBeNull();
+  });
+
+  it("F-018-AC28 F-018-AC20 la commande « ⋯ » d'une ligne, cliquée pendant une saisie refusée, n'ouvre pas son menu : le focus reste au champ", async () => {
+    const { utilisateur } = rendreLaTable(uneDeChaque);
+    await saisir(utilisateur, 3, "1e3");
+    const champ = screen.getByRole<HTMLInputElement>("textbox", { name: "Prix, ligne 1" });
+    await utilisateur.click(screen.getByRole("button", { name: "Actions de la ligne 1" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(focus()).toBe(champ);
+    expect(champ.value).toBe("1e3");
+  });
+
+  it("F-018-AC28 F-018-AC33 un double clic dans le champ ouvert ne relance pas le mode édition : le texte saisi est gardé", async () => {
+    const { utilisateur } = rendreLaTable(uneDeChaque);
+    await saisir(utilisateur, 3, "1e3{Enter}");
+    const champ = screen.getByRole<HTMLInputElement>("textbox", { name: "Prix, ligne 1" });
+    await utilisateur.dblClick(champ);
+    expect(champ.isConnected).toBe(true);
+    expect(champ.value).toBe("1e3");
   });
 });
 

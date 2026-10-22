@@ -90,6 +90,13 @@ function GrilleDeLaTable({ vue }: { readonly vue: Vue }): ReactElement {
       refCadre={vue.cadre}
       surDefilement={vue.fenetre.surDefilement}
       surTouche={(evenement) => surToucheDeLaGrille(vue, evenement)}
+      surFocus={(evenement) => {
+        // Une saisie refusée à la sortie du champ garde le mode édition (AC27, AC28, AC30) : le focus
+        // arrivé sur une autre cellule revient au champ, qui reste la cellule courante (AC33).
+        if (vue.edition.garderLeFocus(evenement.target)) {
+          evenement.stopPropagation();
+        }
+      }}
       enTetes={<RangeeDesEnTetes vue={vue} />}
       rangees={<RangeesDeLaGrille vue={vue} largeur={largeur} />}
       flottante={
