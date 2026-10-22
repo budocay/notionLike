@@ -106,6 +106,19 @@ describe("saisie d'un texte (F-018-AC27, AC32, AC33)", () => {
     expect(emises).toHaveLength(1);
   });
 
+  it("F-018-AC33 F-018-AC32 pendant une composition (IME), Entrée et Tab ne valident pas : le champ reste ouvert, rien n'est écrit", async () => {
+    const { table, utilisateur, emises } = rendreLaTable(uneDeChaque);
+    await saisir(utilisateur, 2, "ni");
+    const champ = screen.getByRole<HTMLInputElement>("textbox", { name: "Nom, ligne 1" });
+    fireEvent.keyDown(champ, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(champ, { key: "Tab", isComposing: true });
+    expect(champ.isConnected).toBe(true);
+    expect(focus()).toBe(champ);
+    expect(emises).toEqual([]);
+    await utilisateur.keyboard("{Enter}");
+    expect(valeurs(table)[0]).toBe("ni");
+  });
+
   it("F-018-AC32 la sortie du champ valide, sans reprendre le focus", async () => {
     const { table, utilisateur } = rendreLaTable(uneDeChaque);
     await saisir(utilisateur, 2, "sortie");

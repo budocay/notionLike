@@ -49,6 +49,11 @@ export function ChampDEdition(props: Proprietes): ReactElement {
     // Le focus n'est posé qu'à l'entrée en mode édition, pas à chaque frappe.
   }, [champ, props.date]);
   const surTouche = (evenement: KeyboardEvent<HTMLInputElement>): void => {
+    // Pendant une composition (IME), Entrée, Tab et Échap appartiennent à la méthode de saisie : la
+    // saisie en cours n'est ni validée ni abandonnée.
+    if (evenement.nativeEvent.isComposing) {
+      return;
+    }
     if (estLaFrappe(evenement, TOUCHES_DE_L_EDITION.abandonner)) {
       evenement.preventDefault();
       evenement.stopPropagation();
