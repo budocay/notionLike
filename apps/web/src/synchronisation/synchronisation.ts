@@ -8,7 +8,7 @@ import type * as Y from "yjs";
 
 import {
   type Droit,
-  effacerLesPages,
+  effacerLesDocuments,
   type EntreeDuRegistre,
   inscrireLEntree,
   lireLEntree,
@@ -69,8 +69,11 @@ export interface OptionsDeSynchronisation {
   readonly typeDe?: ((id: string) => TypeDePage | undefined) | undefined;
   readonly compte: SourceDuCompte;
   readonly serveur: ServeurDesEspaces;
-  /** Avant l'effacement des bases de pages supprimées ailleurs : fermer leurs documents (AC37). */
-  readonly surPagesSupprimees?: ((idPages: readonly string[]) => void) | undefined;
+  /**
+   * Avant l'effacement des bases des pages et des tables supprimées ailleurs : fermer leurs
+   * documents (AC37, F-018-AC53).
+   */
+  readonly surDocumentsSupprimes?: ((ids: readonly string[]) => void) | undefined;
   /** Un autre onglet efface la copie locale de cet espace (AC24) : tout fermer, puis recharger. */
   readonly surEffacement?: ((etape: "demande" | "faite") => void) | undefined;
 }
@@ -82,6 +85,8 @@ export interface Synchronisation {
   afficherPage(page: PageAffichee | undefined): void;
   /** La table affichée, entièrement relue (F-018-AC51) ; elle prend la place de la page affichée. */
   afficherTable(table: TableAffichee): void;
+  /** Plus aucun document affiché, ni page ni table (F-018-AC51). */
+  afficherAucun(): void;
   adopter(nom: string): Promise<IssueDAdoption>;
   /** « Réessayer » de la zone : connexion refusée (AC19) ou espace détaché (AC23). */
   reessayer(): void;
@@ -114,6 +119,7 @@ export function demarrerSynchronisation(options: OptionsDeSynchronisation): Sync
     abonner: orchestre.abonner,
     afficherPage: orchestre.afficherPage,
     afficherTable: orchestre.afficherTable,
+    afficherAucun: orchestre.afficherAucun,
     adopter: orchestre.adopter,
     reessayer: orchestre.reessayer,
     reessayerLeDocument: orchestre.reessayerLeDocument,
@@ -150,7 +156,8 @@ class Orchestre {
   #relectureDuRegistreMs = PREMIERE_RELECTURE_DU_REGISTRE_MS;
   #annulerLaRelecture: (() => void) | undefined;
   #prise: HocuspocusProviderWebsocket | undefined;
-  #page: DocumentAffiche | undefined;
+  /** Le document affiché, page ou table (F-018-AC51). */
+  #affiche: DocumentAffiche | undefined;
   #passe: Passe | undefined;
   #passeAchevee = false;
   #ids: ReadonlySet<string>;
@@ -403,7 +410,7 @@ class Orchestre {
       this.#avancerEnPrudence();
     } else {
       this.#espace.ouvrir();
-      this.#page?.suivi.ouvrir();
+      this.#affiche?.suivi.ouvrir();
     }
     this.#publier();
   }
@@ -460,7 +467,7 @@ class Orchestre {
   }
 
   #suspects(): string[] {
-    const suivis = [this.#espace, this.#page?.suivi].filter(
+    const suivis = [this.#espace, this.#affiche?.suivi].filter(
       (suivi): suivi is DocumentSuivi =>
         suivi !== undefined && (suivi.estEnCoursDOuverture() || suivi.aDesModificationsEnAttente()),
     );
@@ -474,7 +481,7 @@ class Orchestre {
   }
 
   #avancerEnPrudence(): void {
-    for (const suivi of [this.#espace, this.#page?.suivi]) {
+    for (const suivi of [this.#espace, this.#affiche?.suivi]) {
       if (suivi === undefined || suivi.erreur()?.reessayable === true) {
         continue;
       }
@@ -495,7 +502,7 @@ class Orchestre {
   }
 
   #bloquerLeDocument(nom: string, cause: CauseDErreur): void {
-    const suivi = [this.#espace, this.#page?.suivi].find((un) => un?.nom === nom);
+    const suivi = [this.#espace, this.#affiche?.suivi].find((un) => un?.nom === nom);
     if (suivi !== undefined) {
       suivi.bloquer(cause);
       return;
@@ -513,7 +520,7 @@ class Orchestre {
     this.#annulerLAttente?.();
     this.#annulerLAttente = undefined;
     this.#espace.defaire();
-    this.#page?.suivi.defaire();
+    this.#affiche?.suivi.defaire();
     // Connexion coupée, une page quittée n'attend pas l'accusé : la passe de fond l'enverra (AC17).
     this.#partantes.forEach((partante) => partante.fermer());
     this.#partantes.clear();
@@ -527,7 +534,7 @@ class Orchestre {
     const enAttente =
       this.#connexion.etat() === "etablie" &&
       (this.#espace.aDesModificationsEnAttente() ||
-        this.#page?.suivi.aDesModificationsEnAttente() === true);
+        this.#affiche?.suivi.aDesModificationsEnAttente() === true);
     if (enAttente && this.#annulerLAttente === undefined) {
       this.#annulerLAttente = this.#options.environnement.horloge.programmer(() => {
         this.#annulerLAttente = undefined;
@@ -583,7 +590,7 @@ class Orchestre {
     }
     const exclues = new Set([
       ...this.#bloques.keys(),
-      ...(this.#page === undefined ? [] : [this.#page.idDocument]),
+      ...(this.#affiche === undefined ? [] : [this.#affiche.idDocument]),
       ...[...this.#partantes].map((partante) => partante.idDocument),
     ]);
     this.#erreursDePasse.clear();
@@ -658,7 +665,7 @@ class Orchestre {
     }
     const { ajoutees, retirees } = ecart(avant, apres);
     if (retirees.length > 0) {
-      this.#effacerLesPagesSupprimees(retirees);
+      this.#effacerLesDocumentsSupprimes(retirees);
     }
     if (ajoutees.length > 0 && this.#passe !== undefined) {
       this.#passe.ajouter(ajoutees);
@@ -668,19 +675,19 @@ class Orchestre {
     }
   }
 
-  #effacerLesPagesSupprimees(idPages: readonly string[]): void {
+  #effacerLesDocumentsSupprimes(idPages: readonly string[]): void {
     this.#passe?.oublier(idPages);
-    if (this.#page !== undefined && idPages.includes(this.#page.idDocument)) {
-      this.#page.fermer();
-      this.#page = undefined;
+    if (this.#affiche !== undefined && idPages.includes(this.#affiche.idDocument)) {
+      this.#affiche.fermer();
+      this.#affiche = undefined;
     }
     for (const idPage of idPages) {
       this.#erreursDePasse.delete(idPage);
       this.#divergentesDePasse.delete(idPage);
       this.#bloques.delete(idPage);
     }
-    this.#options.surPagesSupprimees?.(idPages);
-    void effacerLesPages(this.#options.idEspace, idPages);
+    this.#options.surDocumentsSupprimes?.(idPages);
+    void effacerLesDocuments(this.#options.idEspace, idPages);
     this.#publier();
   }
 
@@ -711,15 +718,17 @@ class Orchestre {
       }),
     );
 
+  readonly afficherAucun = (): void => this.#afficher(undefined, () => undefined);
+
   #afficher(
     affiche: { readonly id: string; readonly doc: Y.Doc } | undefined,
     creer: () => DocumentAffiche | undefined,
   ): void {
-    const courante = this.#page;
+    const courante = this.#affiche;
     if (this.#fermee || (courante?.idDocument === affiche?.id && courante?.lie === affiche?.doc)) {
       return;
     }
-    this.#page = undefined;
+    this.#affiche = undefined;
     if (courante !== undefined) {
       this.#quitter(courante);
     }
@@ -730,7 +739,7 @@ class Orchestre {
   }
 
   #suivreLeDocument(id: string, suivie: DocumentAffiche | undefined): void {
-    this.#page = suivie;
+    this.#affiche = suivie;
     this.#passe?.oublier([id]);
     if (this.#prudence) {
       this.#avancerEnPrudence();
@@ -799,8 +808,8 @@ class Orchestre {
   readonly reessayerLeDocument = (idPage: string | undefined): void => {
     if (idPage === undefined) {
       this.#espace.reessayer();
-    } else if (this.#page?.idDocument === idPage) {
-      this.#page.suivi.reessayer();
+    } else if (this.#affiche?.idDocument === idPage) {
+      this.#affiche.suivi.reessayer();
     } else {
       this.#bloques.delete(idPage);
       this.#erreursDePasse.delete(idPage);
@@ -828,7 +837,7 @@ class Orchestre {
   };
 
   readonly toutEstAcquitte = (): boolean => {
-    const page = this.#page?.suivi;
+    const page = this.#affiche?.suivi;
     return (
       this.#connexion.etat() === "etablie" &&
       this.#espace.estAcquis() &&
@@ -845,7 +854,7 @@ class Orchestre {
     if (doc === this.#options.doc) {
       return this.#espace.estAcquis() && !this.#espace.aDesModificationsEnAttente();
     }
-    return this.#page?.lie === doc && this.#page.estAcquittee();
+    return this.#affiche?.lie === doc && this.#affiche.estAcquittee();
   };
 
   readonly fermer = (): void => {
@@ -859,8 +868,8 @@ class Orchestre {
     this.#annulerLaRelecture?.();
     this.#reprise.annuler();
     this.#defaireTout();
-    this.#page?.fermer();
-    this.#page = undefined;
+    this.#affiche?.fermer();
+    this.#affiche = undefined;
     this.#connexion.fermer();
     this.#espace.fermer();
     this.#arrets.splice(0).forEach((arreter) => arreter());
@@ -898,12 +907,12 @@ class Orchestre {
   }
 
   #documentsEnErreur(): DocumentEnErreur[] {
-    const erreurs = [this.#espace.erreur(), this.#page?.suivi.erreur()].filter(
+    const erreurs = [this.#espace.erreur(), this.#affiche?.suivi.erreur()].filter(
       (erreur): erreur is DocumentEnErreur => erreur !== undefined,
     );
     // Les pages bloquées qui ne sont pas affichées, puis les erreurs de la dernière passe.
     for (const [idPage, cause] of this.#bloques) {
-      if (idPage !== ESPACE && idPage !== this.#page?.idDocument) {
+      if (idPage !== ESPACE && idPage !== this.#affiche?.idDocument) {
         erreurs.push({ idPage, cause, reessayable: true });
       }
     }
@@ -918,8 +927,8 @@ class Orchestre {
     if (this.#espace.estDivergent()) {
       divergentes.unshift(undefined);
     }
-    if (this.#page?.suivi.estDivergent() === true) {
-      divergentes.push(this.#page.idDocument);
+    if (this.#affiche?.suivi.estDivergent() === true) {
+      divergentes.push(this.#affiche.idDocument);
     }
     return divergentes;
   }
@@ -927,13 +936,13 @@ class Orchestre {
   #modificationsEnAttente(): boolean {
     return (
       this.#espace.aDesModificationsEnAttente() ||
-      this.#page?.suivi.aDesModificationsEnAttente() === true ||
+      this.#affiche?.suivi.aDesModificationsEnAttente() === true ||
       this.#partantes.size > 0
     );
   }
 
   #ouverturesAcquises(): boolean {
-    const page = this.#page?.suivi;
+    const page = this.#affiche?.suivi;
     return this.#espace.estAcquis() && (page === undefined || page.estAcquis());
   }
 

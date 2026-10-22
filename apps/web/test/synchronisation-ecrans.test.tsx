@@ -116,7 +116,8 @@ interface Simulee {
   readonly pages: (PageAffichee | undefined)[];
   /** F-018 : les tables affichées. */
   readonly tables: TableAffichee[];
-  readonly compteurs: { reessais: number; effacements: number };
+  /** `aucun` : F-018, les appels qui ne laissent aucun document affiché. */
+  readonly compteurs: { reessais: number; effacements: number; aucun: number };
   espace(): EspaceASynchroniser | undefined;
 }
 
@@ -133,7 +134,7 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
     documentsReessayes: [],
     pages: [],
     tables: [],
-    compteurs: { reessais: 0, effacements: 0 },
+    compteurs: { reessais: 0, effacements: 0, aucun: 0 },
     espace: () => dernier,
     poser: (partiel) => {
       etat = { ...etat, ...partiel };
@@ -151,6 +152,9 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
         afficherPage: (page) => simulee.pages.push(page),
         // F-018 : la table affichée.
         afficherTable: (table) => simulee.tables.push(table),
+        afficherAucun: () => {
+          simulee.compteurs.aucun += 1;
+        },
         adopter: (nom) => {
           simulee.adoptions.push(nom);
           return simulee.reponseDAdoption();
@@ -709,7 +713,7 @@ function texteDeLaZonePour(etat: EtatDeSynchronisation, stockageDisponible: bool
     idEspace: "x",
     doc: new Y.Doc(),
     lirePages: () => undefined,
-    surPagesSupprimees: () => undefined,
+    surDocumentsSupprimes: () => undefined,
     surEffacement: () => undefined,
   });
   const rendu = render(
@@ -1027,10 +1031,36 @@ describe("l'application et la synchronisation d'une table (F-018-AC51, AC53)", (
     const docDeTable = (simulee.tables.at(-1) as TableAffichee).doc;
     expect(docDeTable.isDestroyed).toBe(false);
 
-    act(() => simulee.espace()?.surPagesSupprimees?.([idTable]));
+    act(() => simulee.espace()?.surDocumentsSupprimes?.([idTable]));
 
     expect(docDeTable.isDestroyed).toBe(true);
     await act(() => laisserIndexedDbTravailler());
     expect(await nomsDesBases()).toContain(`notionlike:table:${etat.idEspace}:${idTable}`);
+  });
+
+  it("F-018-AC51 quitter la table affichée pour un écran sans document : l'application le dit à la synchronisation par afficherAucun, sans passer de page", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const aucunAvant = simulee.compteurs.aucun;
+    const pagesAvant = simulee.pages.length;
+
+    act(() => {
+      window.location.hash = "#/corbeille";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    await waitFor(() => expect(simulee.compteurs.aucun).toBe(aucunAvant + 1));
+    expect(simulee.pages.length).toBe(pagesAvant);
   });
 });

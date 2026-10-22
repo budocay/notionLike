@@ -164,7 +164,10 @@ describe("passe de fond des tables (F-018-AC51)", () => {
         JSON.stringify(attendue),
       20_000,
     );
-    chez.synchro.afficherPage(undefined);
+    expect(chez.synchro.estAcquitte(doc)).toBe(true);
+    chez.synchro.afficherAucun();
+    // La table quittée n'est plus le document affiché : il n'est plus dit acquitté (F-013-AC49).
+    expect(chez.synchro.estAcquitte(doc)).toBe(false);
     doc.destroy();
   });
 });

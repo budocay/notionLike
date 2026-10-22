@@ -56,9 +56,12 @@ function effacerLesIdentifiants(
   ]);
 }
 
-/** Pages supprimées ailleurs (AC37) : une base qui résiste reste orpheline, sans nouvel essai. */
-export async function effacerLesPages(idEspace: string, idPages: readonly string[]): Promise<void> {
-  await Promise.all(effacerLesIdentifiants(idEspace, idPages));
+/**
+ * Documents, pages et tables, supprimés ailleurs (AC37, F-018-AC53) : une base qui résiste reste
+ * orpheline, sans nouvel essai.
+ */
+export async function effacerLesDocuments(idEspace: string, ids: readonly string[]): Promise<void> {
+  await Promise.all(effacerLesIdentifiants(idEspace, ids));
 }
 
 /**

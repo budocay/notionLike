@@ -15,7 +15,7 @@ import type {
 /** Ce que l'interface donne à la fabrique : l'espace ouvert et deux rappels. */
 export type EspaceASynchroniser = Pick<
   OptionsDeSynchronisation,
-  "idEspace" | "doc" | "lirePages" | "typeDe" | "surPagesSupprimees" | "surEffacement"
+  "idEspace" | "doc" | "lirePages" | "typeDe" | "surDocumentsSupprimes" | "surEffacement"
 >;
 
 /** Démarre la synchronisation d'un espace ; l'entrée de l'application y joint l'environnement. */
@@ -25,7 +25,7 @@ export interface Rappels {
   readonly lirePages: OptionsDeSynchronisation["lirePages"];
   /** F-018-AC51 : le type lu de chaque identifiant, page ou table. */
   readonly typeDe?: OptionsDeSynchronisation["typeDe"];
-  readonly surPagesSupprimees: (idPages: readonly string[]) => void;
+  readonly surDocumentsSupprimes: (ids: readonly string[]) => void;
   readonly surEffacement: (etape: "demande" | "faite") => void;
 }
 
@@ -48,7 +48,7 @@ export function useSynchronisation(
       doc,
       lirePages: () => derniers.current.lirePages(),
       typeDe: (id) => derniers.current.typeDe?.(id),
-      surPagesSupprimees: (idPages) => derniers.current.surPagesSupprimees(idPages),
+      surDocumentsSupprimes: (ids) => derniers.current.surDocumentsSupprimes(ids),
       surEffacement: (etape) => derniers.current.surEffacement(etape),
     });
     const debrancher = brancherLAcquittement({
@@ -97,11 +97,11 @@ export function useAffichageDuDocument(
       synchro.afficherTable({ idTable, doc: docDeTable });
       return;
     }
-    synchro.afficherPage(
-      idPage === undefined || doc === undefined || refuser === undefined
-        ? undefined
-        : { idPage, doc, refuserLaVersion: refuser },
-    );
+    if (idPage === undefined || doc === undefined || refuser === undefined) {
+      synchro.afficherAucun();
+    } else {
+      synchro.afficherPage({ idPage, doc, refuserLaVersion: refuser });
+    }
   }, [synchro, idPage, doc, refuser, idTable, docDeTable]);
 }
 
@@ -143,7 +143,7 @@ export function useSynchronisationDeLEspace(
   const synchro = useSynchronisation(espace.fabrique, espace.idEspace, espace.doc, {
     lirePages: espace.lirePages,
     typeDe: espace.typeDe,
-    surPagesSupprimees: espace.fermerLesDocuments,
+    surDocumentsSupprimes: espace.fermerLesDocuments,
     surEffacement: (etape) => {
       if (etape === "demande") {
         espace.toutFermer();

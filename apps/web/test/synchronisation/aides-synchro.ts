@@ -362,7 +362,7 @@ export interface OptionsDOnglet {
   readonly compte?: CompteDEssai;
   readonly horloge?: HorlogeDEssai;
   readonly alea?: () => number;
-  readonly surPagesSupprimees?: (idPages: readonly string[]) => void;
+  readonly surDocumentsSupprimes?: (ids: readonly string[]) => void;
   readonly surEffacement?: (etape: "demande" | "faite") => void;
   /** Vrai : l'espace n'est pas l'espace local de l'appareil, sa base est ouverte par son nom. */
   readonly autreEspace?: boolean;
@@ -398,6 +398,7 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
     abonner: brute.abonner,
     afficherPage: (page) => appareil.sur(() => brute.afficherPage(page)),
     afficherTable: (table) => appareil.sur(() => brute.afficherTable(table)),
+    afficherAucun: () => appareil.sur(() => brute.afficherAucun()),
     adopter: (nom) => appareil.sur(() => brute.adopter(nom)),
     reessayer: () => appareil.sur(() => brute.reessayer()),
     reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
@@ -465,7 +466,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
         reverifier: compte.reverifier,
       },
       serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
-      surPagesSupprimees: options.surPagesSupprimees,
+      surDocumentsSupprimes: options.surDocumentsSupprimes,
       surEffacement: options.surEffacement,
     }),
   );
