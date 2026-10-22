@@ -1,44 +1,28 @@
 // Registre de l'appareil (F-013, H3) : pour chaque espace que l'appareil détient, son rattachement
 // et son dernier droit connu, et rien d'autre (ni nom, ni courriel, ni identifiant de compte). Il vit
-// dans la base de l'appareil, à côté de l'identifiant de l'espace local, une clé par espace : la
-// feature qui ouvrira d'autres espaces y en ajoutera sans le migrer. L'absence d'entrée vaut
-// `local` : rien n'inscrit jamais `local` (F-013-AC4).
+// dans la base de l'appareil, à côté de l'identifiant de l'espace local, une clé par espace ; ce que
+// F-032 retient de plus vit sous d'autres clés (`cles-de-l-appareil.ts`), sans migration. L'absence
+// d'entrée vaut `local` : rien n'inscrit jamais `local` (F-013-AC4).
 import { estUuidCanonique } from "../identifiants/uuid-canonique.ts";
-import { BASE_APPAREIL, CLE_ESPACE_LOCAL, MAGASIN_REGLAGES } from "./espace-local.ts";
+import {
+  CLE_ESPACE_RETENU,
+  cleDeLaMarque,
+  cleDuNom,
+  cleDuRegistre,
+  type Droit,
+  type EntreeDuRegistre,
+  estUneEntree,
+} from "./cles-de-l-appareil.ts";
+import { CLE_ESPACE_LOCAL } from "./espace-local.ts";
+import { operer } from "./memoire-de-l-appareil.ts";
 
-export type Droit = "ecriture" | "lecture";
-
-/** Une entrée du registre : l'espace est adopté, avec le dernier droit que l'appareil a lu. */
-export interface EntreeDuRegistre {
-  readonly rattachement: "adopte";
-  readonly droit: Droit;
-}
+export type { Droit, EntreeDuRegistre };
 
 export type LectureDuRegistre =
   | { readonly issue: "lu"; readonly entree: EntreeDuRegistre | undefined }
   | { readonly issue: "illisible" };
 
-const PREFIXE_DES_CLES = "registre:";
-/** Même échéance qu'une tentative d'ouverture (F-002-AC24). */
-const ECHEANCE_MS = 10_000;
-const VERSION_LA_PLUS_HAUTE_CONNUE = 2;
 const ILLISIBLE: LectureDuRegistre = { issue: "illisible" };
-
-function cleDe(idEspace: string): string {
-  return `${PREFIXE_DES_CLES}${idEspace}`;
-}
-
-function estUneEntree(valeur: unknown): valeur is EntreeDuRegistre {
-  if (typeof valeur !== "object" || valeur === null) {
-    return false;
-  }
-  const { rattachement, droit } = valeur as Record<string, unknown>;
-  return (
-    rattachement === "adopte" &&
-    (droit === "ecriture" || droit === "lecture") &&
-    Object.keys(valeur).length === 2
-  );
-}
 
 /** Lit l'entrée d'un espace. Jamais rejetée : tout échec, toute valeur inconnue rend `illisible`. */
 export function lireLeRegistre(idEspace: string): Promise<LectureDuRegistre> {
@@ -46,7 +30,7 @@ export function lireLeRegistre(idEspace: string): Promise<LectureDuRegistre> {
     return Promise.resolve(ILLISIBLE);
   }
   return operer<LectureDuRegistre>("readonly", ILLISIBLE, (magasin, conclure) => {
-    const lecture = magasin.get(cleDe(idEspace));
+    const lecture = magasin.get(cleDuRegistre(idEspace));
     lecture.onsuccess = () => {
       const valeur: unknown = lecture.result;
       conclure(
@@ -66,14 +50,20 @@ export function inscrireAuRegistre(idEspace: string, entree: EntreeDuRegistre): 
     return Promise.resolve(false);
   }
   return operer("readwrite", false, (magasin, conclure) => {
-    magasin.put({ rattachement: entree.rattachement, droit: entree.droit }, cleDe(idEspace));
+    magasin.put(
+      { rattachement: entree.rattachement, droit: entree.droit },
+      cleDuRegistre(idEspace),
+    );
     conclure(true);
   });
 }
 
 /**
- * Retire l'entrée d'un espace ; avec `oublierLEspaceLocal`, retire aussi l'identifiant de l'espace
- * local s'il est celui-là : le lancement suivant est un premier lancement (F-013-AC24, F-002-AC1).
+ * Retire l'entrée d'un espace, et dans la même transaction son dernier nom connu, sa marque de
+ * première synchronisation et l'espace retenu s'il le désigne (F-032-AC20). Avec
+ * `oublierLEspaceLocal`, retire aussi l'identifiant de l'espace local s'il est celui-là, et l'espace
+ * retenu : le lancement suivant est un premier lancement, sur le nouvel espace de l'appareil
+ * (F-013-AC24, F-032-AC21, F-002-AC1).
  */
 export function retirerDuRegistre(
   idEspace: string,
@@ -83,7 +73,15 @@ export function retirerDuRegistre(
     return Promise.resolve(false);
   }
   return operer("readwrite", false, (magasin, conclure) => {
-    magasin.delete(cleDe(idEspace));
+    magasin.delete(cleDuRegistre(idEspace));
+    magasin.delete(cleDuNom(idEspace));
+    magasin.delete(cleDeLaMarque(idEspace));
+    const retenu = magasin.get(CLE_ESPACE_RETENU);
+    retenu.onsuccess = () => {
+      if (retenu.result === idEspace) {
+        magasin.delete(CLE_ESPACE_RETENU);
+      }
+    };
     if (!oublierLEspaceLocal) {
       conclure(true);
       return;
@@ -92,92 +90,9 @@ export function retirerDuRegistre(
     lecture.onsuccess = () => {
       if (lecture.result === idEspace) {
         magasin.delete(CLE_ESPACE_LOCAL);
+        magasin.delete(CLE_ESPACE_RETENU);
       }
       conclure(true);
     };
   });
-}
-
-type Operation<T> = (magasin: IDBObjectStore, conclure: (valeur: T) => void) => void;
-
-// Une transaction sur le magasin des réglages de la base de l'appareil, sous une échéance. La
-// valeur passée à `conclure` n'est rendue qu'à la fin de la transaction : une écriture n'est tenue
-// pour faite qu'une fois validée. La base n'est jamais créée ni réparée ici : c'est l'affaire de
-// l'ouverture de l'espace local (F-030-AC24) ; sans elle, le registre est illisible.
-function operer<T>(mode: IDBTransactionMode, echec: T, operation: Operation<T>): Promise<T> {
-  return new Promise((resoudre) => {
-    let conclu = false;
-    const finir = (valeur: T): void => {
-      if (!conclu) {
-        conclu = true;
-        clearTimeout(echeance);
-        resoudre(valeur);
-      }
-    };
-    const echeance = setTimeout(() => finir(echec), ECHEANCE_MS);
-    ouvrir((connexion) => {
-      if (connexion === undefined) {
-        finir(echec);
-        return;
-      }
-      transiger(connexion, mode, operation, (valeur) => finir(valeur ?? echec));
-    });
-  });
-}
-
-function transiger<T>(
-  connexion: IDBDatabase,
-  mode: IDBTransactionMode,
-  operation: Operation<T>,
-  finir: (valeur: T | undefined) => void,
-): void {
-  let valeur: T | undefined;
-  let transaction: IDBTransaction;
-  try {
-    transaction = connexion.transaction(MAGASIN_REGLAGES, mode);
-    operation(transaction.objectStore(MAGASIN_REGLAGES), (lue) => {
-      valeur = lue;
-    });
-  } catch {
-    connexion.close();
-    finir(undefined);
-    return;
-  }
-  transaction.oncomplete = () => {
-    connexion.close();
-    finir(valeur);
-  };
-  transaction.onabort = () => {
-    connexion.close();
-    finir(undefined);
-  };
-}
-
-function ouvrir(poursuivre: (connexion: IDBDatabase | undefined) => void): void {
-  let demande: IDBOpenDBRequest;
-  try {
-    demande = indexedDB.open(BASE_APPAREIL);
-  } catch {
-    poursuivre(undefined);
-    return;
-  }
-  // Une base absente n'est pas créée ici : la montée de version est annulée.
-  demande.onupgradeneeded = () => demande.transaction?.abort();
-  demande.onsuccess = () => {
-    const connexion = demande.result;
-    connexion.onversionchange = () => connexion.close();
-    if (
-      connexion.version > VERSION_LA_PLUS_HAUTE_CONNUE ||
-      !connexion.objectStoreNames.contains(MAGASIN_REGLAGES)
-    ) {
-      connexion.close();
-      poursuivre(undefined);
-      return;
-    }
-    poursuivre(connexion);
-  };
-  demande.onerror = (evenement) => {
-    evenement.preventDefault();
-    poursuivre(undefined);
-  };
 }

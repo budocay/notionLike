@@ -2,7 +2,9 @@ import type * as Y from "yjs";
 
 import { estUuidCanonique } from "../identifiants/uuid-canonique.ts";
 import { type Ouverture, ouvrirSousEcheance, type Persistance } from "./indexeddb.ts";
-import { espaceDeLaBase, nomDeBase } from "./nom-de-base.ts";
+import { cleDuRegistre, estUneEntree } from "./cles-de-l-appareil.ts";
+import { enumererLesBases } from "./enumeration.ts";
+import { nomDeBase } from "./nom-de-base.ts";
 import { creerLesMagasinsManquants } from "./reparation.ts";
 
 // Base de l'appareil : ce n'est pas une base de document (ADR-0008). Elle naît à la version 1 avec
@@ -71,58 +73,106 @@ function retenirLEspace(
 }
 
 // La valeur illisible ne porte rien d'utilisable : elle est remplacée, sans qu'aucune base de
-// document soit lue, renommée ni fusionnée. Une seule base d'espace sur l'appareil : c'est celle
-// de l'utilisateur. Aucune : le candidat. Plusieurs, ou énumération impossible : rien ne dit
-// laquelle est la bonne, le candidat est inscrit et les autres restent intactes (F-030-AC23).
+// document soit lue, renommée ni fusionnée (F-030-AC23). Parmi les bases d'espace de l'appareil,
+// celles d'un espace inscrit au registre sont celles d'espaces ajoutés, que la liste des espaces
+// montre : elles sont écartées (F-032-AC23, D-009). Une seule base restante : c'est celle de
+// l'utilisateur. Aucune : le candidat. Plusieurs, énumération impossible ou registre illisible :
+// rien ne dit laquelle est la bonne, le candidat est inscrit et les autres restent intactes.
 function remplacerLaValeurIllisible(
   idCandidat: string,
   ouverture: Ouverture,
   poursuivre: (idEspace: string) => void,
 ): void {
-  enumererLesEspaces((espaces) => {
+  enumererLesBases((bases) => {
     if (!ouverture.attendue()) {
       return;
     }
-    const [seul] = espaces ?? [];
-    const idAInscrire = espaces?.length === 1 && seul !== undefined ? seul : idCandidat;
-    if (espaces === undefined || espaces.length > 1) {
-      ouverture.signalerDesBasesNonRattachees();
-    }
+    const espaces = bases
+      ?.filter((designation) => designation.type === "espace")
+      .map((designation) => designation.idEspace);
     ouvrirLaBaseDeLAppareil(ouverture, (connexion) => {
-      // La valeur est relue dans la transaction qui l'écrit, et n'est remplacée que si elle est
-      // encore illisible : deux onglets lancés ensemble retiennent le même identifiant.
-      const remplacable = (valeur: unknown): boolean => !estUnIdentifiant(valeur);
-      lireOuInscrire({ connexion, ouverture, idAInscrire, remplacable }, (valeur) => {
-        if (estUnIdentifiant(valeur)) {
-          poursuivre(valeur);
+      const inscrire = (choix: Choix): void => {
+        if (choix.signaler) {
+          ouverture.signalerDesBasesNonRattachees();
+        }
+        // La valeur est relue dans la transaction qui l'écrit, et n'est remplacée que si elle est
+        // encore illisible : deux onglets lancés ensemble retiennent le même identifiant.
+        const remplacable = (valeur: unknown): boolean => !estUnIdentifiant(valeur);
+        lireOuInscrire(
+          { connexion, ouverture, idAInscrire: choix.idAInscrire, remplacable },
+          (valeur) => (estUnIdentifiant(valeur) ? poursuivre(valeur) : ouverture.echouer()),
+        );
+      };
+      if (espaces === undefined || espaces.length === 0) {
+        inscrire({ idAInscrire: idCandidat, signaler: espaces === undefined });
+        return;
+      }
+      lireLesInscriptions(connexion, espaces, (inscrits) => {
+        if (ouverture.attendue()) {
+          inscrire(choisir(espaces, inscrits, idCandidat));
         } else {
-          ouverture.echouer();
+          connexion.close();
         }
       });
     });
   });
 }
 
-/** Identifiants des espaces qui ont une base sur l'appareil ; `undefined` si rien ne le dit. */
-function enumererLesEspaces(conclure: (espaces: readonly string[] | undefined) => void): void {
-  if (typeof indexedDB.databases !== "function") {
-    conclure(undefined);
-    return;
+interface Choix {
+  readonly idAInscrire: string;
+  /** Vrai : des pages d'avant peuvent rester sur l'appareil sans être rattachées (F-030-AC23). */
+  readonly signaler: boolean;
+}
+
+function choisir(
+  espaces: readonly string[],
+  inscrits: ReadonlySet<string> | undefined,
+  idCandidat: string,
+): Choix {
+  if (inscrits === undefined) {
+    return { idAInscrire: idCandidat, signaler: true };
   }
-  let enumeration: Promise<IDBDatabaseInfo[]>;
+  const restantes = espaces.filter((idEspace) => !inscrits.has(idEspace));
+  const [seule] = restantes;
+  if (restantes.length === 1 && seule !== undefined) {
+    return { idAInscrire: seule, signaler: false };
+  }
+  return { idAInscrire: idCandidat, signaler: restantes.length > 1 };
+}
+
+/**
+ * Les espaces énumérés qui ont une entrée au registre, lus dans une transaction en lecture ;
+ * `undefined` : registre illisible, parce que la transaction échoue ou qu'une valeur d'une autre
+ * forme qu'une entrée est rangée sous la clé d'un espace énuméré (F-032-AC23, retouche R3). La
+ * connexion reste ouverte pour l'inscription qui suit, sauf en cas d'échec.
+ */
+function lireLesInscriptions(
+  connexion: IDBDatabase,
+  espaces: readonly string[],
+  conclure: (inscrits: ReadonlySet<string> | undefined) => void,
+): void {
+  const inscrits = new Set<string>();
+  let illisible = false;
+  let transaction: IDBTransaction;
   try {
-    enumeration = indexedDB.databases();
+    transaction = connexion.transaction(MAGASIN_REGLAGES, "readonly");
+    const reglages = transaction.objectStore(MAGASIN_REGLAGES);
+    for (const idEspace of espaces) {
+      const lecture = reglages.get(cleDuRegistre(idEspace));
+      lecture.onsuccess = () => {
+        if (estUneEntree(lecture.result)) {
+          inscrits.add(idEspace);
+        } else if (lecture.result !== undefined) {
+          illisible = true;
+        }
+      };
+    }
   } catch {
     conclure(undefined);
     return;
   }
-  enumeration.then(
-    (bases) => {
-      const espaces = bases.map((base) => espaceDeLaBase(base.name ?? ""));
-      conclure(espaces.filter((idEspace) => idEspace !== undefined));
-    },
-    () => conclure(undefined),
-  );
+  transaction.oncomplete = () => conclure(illisible ? undefined : inscrits);
+  transaction.onabort = () => conclure(undefined);
 }
 
 interface Inscription {

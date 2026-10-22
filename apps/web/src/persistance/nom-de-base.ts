@@ -8,6 +8,9 @@ export type DesignationDocument =
 type CodeErreurPersistance = "identifiant-invalide";
 
 const PREFIXE_DES_BASES_D_ESPACE = "notionlike:espace:";
+const SEPARATEUR = ":";
+const PARTIES_D_UN_ESPACE = 3;
+const PARTIES_D_UN_DOCUMENT = 4;
 
 export class ErreurPersistance extends Error {
   readonly code: CodeErreurPersistance;
@@ -36,15 +39,35 @@ export function nomDeBase(designation: DesignationDocument): string {
 }
 
 /**
- * Identifiant de l'espace dont ce nom est celui de la base d'espace ; `undefined` pour tout autre
- * nom, reconnu ou non. La forme est jugée par la seule fonction d'`identifiants/` (F-030-AC23).
+ * Le document dont ce nom est celui de la base, lu par la fonction de nommage elle-même : le nom
+ * reconstruit depuis la désignation doit être ce nom, caractère pour caractère, et chaque
+ * identifiant passer le contrôle de forme. `undefined` pour tout autre nom, que rien n'efface
+ * (F-032-AC20, H8) : aucune comparaison de préfixe sur le nom brut.
  */
-export function espaceDeLaBase(nom: string): string | undefined {
-  if (!nom.startsWith(PREFIXE_DES_BASES_D_ESPACE)) {
+export function designationDeLaBase(nom: string): DesignationDocument | undefined {
+  const designation = designationLue(nom.split(SEPARATEUR));
+  if (designation === undefined) {
     return undefined;
   }
-  const idEspace = nom.slice(PREFIXE_DES_BASES_D_ESPACE.length);
-  return estUuidCanonique(idEspace) ? idEspace : undefined;
+  try {
+    return nomDeBase(designation) === nom ? designation : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function designationLue(parties: readonly string[]): DesignationDocument | undefined {
+  const [, type, idEspace = "", idDocument = ""] = parties;
+  if (type === "espace" && parties.length === PARTIES_D_UN_ESPACE) {
+    return { type, idEspace };
+  }
+  if (parties.length !== PARTIES_D_UN_DOCUMENT) {
+    return undefined;
+  }
+  if (type === "page") {
+    return { type, idEspace, idPage: idDocument };
+  }
+  return type === "table" ? { type, idEspace, idTable: idDocument } : undefined;
 }
 
 // Le message ne cite pas l'identifiant refusé : sa forme est inconnue (ADR-0008).

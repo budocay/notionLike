@@ -104,6 +104,35 @@ export function effacerReglagesDeVue(idEspace: string, idTables: readonly string
   }
 }
 
+/**
+ * Retire les réglages de vue de toutes les tables de l'espace, quelle que soit la table (F-032-AC20,
+ * F-018-AC49) : chaque clé dont l'espace est celui-là, lue par la même forme que la fonction qui
+ * les assemble. Un identifiant refusé ne désigne aucune clé. Ne lève jamais.
+ */
+export function effacerLesReglagesDeLEspace(idEspace: string): void {
+  if (!estUuidCanonique(idEspace)) {
+    return;
+  }
+  const prefixe = `${PREFIXE}${idEspace}:`;
+  for (const cle of [...enMemoire.keys()]) {
+    if (cle.startsWith(prefixe)) {
+      enMemoire.delete(cle);
+    }
+  }
+  try {
+    const cles: string[] = [];
+    for (let rang = 0; rang < localStorage.length; rang += 1) {
+      const cle = localStorage.key(rang);
+      if (cle !== null && cle.startsWith(prefixe) && estUuidCanonique(cle.slice(prefixe.length))) {
+        cles.push(cle);
+      }
+    }
+    cles.forEach((cle) => localStorage.removeItem(cle));
+  } catch {
+    // Stockage absent ou qui lève : il n'y a rien à retirer de l'appareil.
+  }
+}
+
 type Lecture =
   | { readonly sorte: "absent" }
   | { readonly sorte: "lisible"; readonly sections: SectionsDeVue }

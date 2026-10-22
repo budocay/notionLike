@@ -12,6 +12,7 @@ export {
 export {
   type DesignationDeVue,
   ecrireReglagesDeVue,
+  effacerLesReglagesDeLEspace,
   effacerReglagesDeVue,
   lireReglagesDeVue,
   type SectionsDeVue,
@@ -25,3 +26,15 @@ export {
   lireLeRegistre,
   retirerDuRegistre,
 } from "./registre.ts";
+// F-032 : mémoire de l'appareil, bases d'un espace et relevé d'une base sans énumération.
+export {
+  ajouterALAppareil,
+  type EspaceInscrit,
+  inscrireLEspaceRetenu,
+  type LectureDeLAppareil,
+  lireLAppareil,
+  noterLesNoms,
+  retirerLaMarque,
+} from "./memoire-de-l-appareil.ts";
+export { basesDeLEspace } from "./enumeration.ts";
+export { releverLaBase } from "./releve.ts";
