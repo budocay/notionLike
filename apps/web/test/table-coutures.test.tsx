@@ -118,7 +118,13 @@ const LECTEURS_DE_L_ARBORESCENCE: Readonly<Record<string, Lecture>> = {
     [...idsDesPages(arborescence(coquille))].sort(),
 };
 
-const LIT_LA_TABLE = "lit la table par la façade du document de table (module des vues de table)";
+// Le module des vues de table compte pour un : on n'y entre que par son interface (`index.ts`,
+// F-018-AC54), et ses fichiers ne lisent que le document d'une table.
+const MODULE_DES_VUES = "src/vues-de-table/";
+
+function moduleDe(chemin: string): string {
+  return chemin.startsWith(MODULE_DES_VUES) ? MODULE_DES_VUES : chemin;
+}
 
 // Les importateurs qui ne lisent ni l'arborescence ni la corbeille, et ce qu'ils lisent à la place.
 const AUTRES_IMPORTATEURS: Readonly<Record<string, string>> = {
@@ -126,34 +132,14 @@ const AUTRES_IMPORTATEURS: Readonly<Record<string, string>> = {
   "src/page/session-page.ts": "lit le document d'une page",
   "src/synchronisation/miroir.ts": "lit la version d'un document de page",
   "src/table/session-table.ts": "lit le document d'une table",
-  "src/vues-de-table/EcranDeTable.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/actions.ts": LIT_LA_TABLE,
-  "src/vues-de-table/affichage.ts": LIT_LA_TABLE,
-  "src/vues-de-table/Boites.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/ChoixDeCellule.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/courante.ts": LIT_LA_TABLE,
-  "src/vues-de-table/ecritures.ts": LIT_LA_TABLE,
-  "src/vues-de-table/EnTetes.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/grille.ts": LIT_LA_TABLE,
-  "src/vues-de-table/lignes-affichees.ts": LIT_LA_TABLE,
-  "src/vues-de-table/menu-de-grille.ts": LIT_LA_TABLE,
-  "src/vues-de-table/menus.ts": LIT_LA_TABLE,
-  "src/vues-de-table/PanneauDesOptions.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/Rangees.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/reglages.ts": LIT_LA_TABLE,
-  "src/vues-de-table/saisie.ts": LIT_LA_TABLE,
-  "src/vues-de-table/use-courante.ts": LIT_LA_TABLE,
-  "src/vues-de-table/use-edition.ts": LIT_LA_TABLE,
-  "src/vues-de-table/use-vue-tableau.ts": LIT_LA_TABLE,
-  "src/vues-de-table/valider.ts": LIT_LA_TABLE,
-  "src/vues-de-table/Separateur.tsx": LIT_LA_TABLE,
-  "src/vues-de-table/use-reglages.ts": LIT_LA_TABLE,
+  [MODULE_DES_VUES]: "lit la table par la façade du document de table",
 };
 
 function importateursDuDocument(): string[] {
-  return lister("src")
+  const chemins = lister("src")
     .filter((chemin) => /\.tsx?$/.test(chemin))
     .filter((chemin) => /from\s+"@notionlike\/document"/.test(lire(chemin)));
+  return [...new Set(chemins.map(moduleDe))].sort();
 }
 
 describe("couture du format du document d'espace (F-018-AC9)", () => {

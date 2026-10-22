@@ -90,7 +90,15 @@ async function espaceAuxEntreesRetirees(): Promise<CoquilleRendue & Identifiants
 /** Ce que le module donne à lire, sur l'espace courant ; l'identifiant retiré y est introuvable. */
 type Lecture = (coquille: CoquilleRendue, ids: Identifiants) => Promise<unknown> | unknown;
 
-// Le module des vues de table : l'adresse d'une entrée retirée n'affiche aucun écran de table.
+// Le module des vues de table compte pour un : on n'y entre que par son interface (`index.ts`,
+// F-018-AC54), et ses fichiers ne lisent que le document d'une table. Une seule lecture l'exerce.
+const MODULE_DES_VUES = "src/vues-de-table/";
+
+function moduleDe(chemin: string): string {
+  return chemin.startsWith(MODULE_DES_VUES) ? MODULE_DES_VUES : chemin;
+}
+
+// L'adresse d'une entrée retirée n'affiche aucun écran de table.
 const lectureDesVues: Lecture = (_coquille, { retiree }) => {
   aller(`#/page/${retiree}`);
   expect(titrePrincipal()).toBe("Page introuvable");
@@ -187,34 +195,14 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
   },
   // F-018 : l'écran de table ne paraît que pour une table de l'arborescence lue ; le module des vues
   // de table ne lit que le document d'une table.
-  "src/vues-de-table/EcranDeTable.tsx": lectureDesVues,
-  "src/vues-de-table/actions.ts": lectureDesVues,
-  "src/vues-de-table/affichage.ts": lectureDesVues,
-  "src/vues-de-table/Boites.tsx": lectureDesVues,
-  "src/vues-de-table/ChoixDeCellule.tsx": lectureDesVues,
-  "src/vues-de-table/courante.ts": lectureDesVues,
-  "src/vues-de-table/ecritures.ts": lectureDesVues,
-  "src/vues-de-table/EnTetes.tsx": lectureDesVues,
-  "src/vues-de-table/grille.ts": lectureDesVues,
-  "src/vues-de-table/lignes-affichees.ts": lectureDesVues,
-  "src/vues-de-table/menu-de-grille.ts": lectureDesVues,
-  "src/vues-de-table/menus.ts": lectureDesVues,
-  "src/vues-de-table/PanneauDesOptions.tsx": lectureDesVues,
-  "src/vues-de-table/Rangees.tsx": lectureDesVues,
-  "src/vues-de-table/reglages.ts": lectureDesVues,
-  "src/vues-de-table/saisie.ts": lectureDesVues,
-  "src/vues-de-table/use-courante.ts": lectureDesVues,
-  "src/vues-de-table/use-edition.ts": lectureDesVues,
-  "src/vues-de-table/use-vue-tableau.ts": lectureDesVues,
-  "src/vues-de-table/valider.ts": lectureDesVues,
-  "src/vues-de-table/Separateur.tsx": lectureDesVues,
-  "src/vues-de-table/use-reglages.ts": lectureDesVues,
+  [MODULE_DES_VUES]: lectureDesVues,
 };
 
 function importateursDuDocument(): string[] {
-  return lister("src")
+  const chemins = lister("src")
     .filter((chemin) => /\.tsx?$/.test(chemin))
     .filter((chemin) => /from\s+"@notionlike\/document"/.test(lire(chemin)));
+  return [...new Set(chemins.map(moduleDe))].sort();
 }
 
 describe("relecture d'un document aux entrées retirées, module par module", () => {
