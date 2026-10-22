@@ -347,7 +347,11 @@ export interface ChoixDeListe {
   readonly courant: boolean;
 }
 
-/** Liste des choix d'une cellule `selection` (AC31) : l'option courante est marquée d'une coche. */
+/**
+ * Liste des choix d'une cellule `selection` (AC31) : la sélection suit l'option active (une seule
+ * option `aria-selected`, celle qu'Entrée choisirait), et la valeur courante de la cellule est
+ * marquée à part, d'une coche et de `aria-current`.
+ */
 export function ListeDeChoix(props: {
   readonly id: string;
   readonly nom: string;
@@ -374,7 +378,8 @@ export function ListeDeChoix(props: {
           key={choix.cle}
           id={`${props.id}-${String(rang)}`}
           role="option"
-          aria-selected={choix.courant}
+          aria-selected={rang === props.active}
+          aria-current={choix.courant ? "true" : undefined}
           className={rang === props.active ? TABLE.optionActive : TABLE.option}
           onMouseDown={(evenement) => evenement.preventDefault()}
           onClick={() => props.surChoix(rang)}

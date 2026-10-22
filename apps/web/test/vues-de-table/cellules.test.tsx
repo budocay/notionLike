@@ -273,6 +273,19 @@ describe("sélection (F-018-AC31)", () => {
     expect(valeurs(table)[4]).toBeNull();
   });
 
+  it("F-018-AC31 une seule option est sélectionnée, l'active, qui suit les flèches ; la valeur courante est marquée à part", async () => {
+    const { utilisateur } = rendreLaTable(uneDeChaque);
+    await saisir(utilisateur, 6, "{Enter}{ArrowDown}{ArrowDown}{Enter}");
+    await saisir(utilisateur, 6, "{Enter}{ArrowUp}");
+    const liste = screen.getByRole("listbox", { name: "Choix pour la colonne État" });
+    const options = within(liste).getAllByRole("option");
+    const marquees = (attribut: string) =>
+      options.filter((option) => option.getAttribute(attribut) === "true");
+    expect(marquees("aria-selected").map(({ textContent }) => textContent)).toEqual(["En cours"]);
+    expect(marquees("aria-selected")[0]?.id).toBe(liste.getAttribute("aria-activedescendant"));
+    expect(marquees("aria-current").map(({ textContent }) => textContent)).toEqual(["Terminé"]);
+  });
+
   it("F-018-AC31 une colonne sans option propose « Gérer les options », qui ouvre le panneau", async () => {
     const { utilisateur } = rendreLaTable((table) => {
       table.creerColonne("Étiquette", "selection");
