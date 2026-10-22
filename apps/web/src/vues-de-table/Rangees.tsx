@@ -57,7 +57,12 @@ function ContenuDeLaCellule(props: ProprietesCellule): ReactElement {
         nom={nomDeLaCelluleCase(colonne.nom, rang)}
         cochee={estCochee(valeur)}
         raison={vue.proprietes.lectureSeule}
-        surBascule={() => basculerUneCase(vue.moyens, ligne, rangDeColonne)}
+        surBascule={(evenement) => {
+          // Une saisie refusée reste ouverte : aucune autre cellule ne change par un clic.
+          if (!vue.edition.garderLeFocus(evenement.currentTarget)) {
+            basculerUneCase(vue.moyens, ligne, rangDeColonne);
+          }
+        }}
       />
     );
   }

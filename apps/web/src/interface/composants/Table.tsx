@@ -3,6 +3,7 @@
 // valeur est rendue comme du texte (AC38). Les seuls styles en ligne sont la géométrie que la
 // fenêtre et les largeurs calculent : `width`, `height`, `transform` (AC55).
 import {
+  type ChangeEvent,
   type ComponentProps,
   type FocusEvent,
   type KeyboardEvent,
@@ -241,7 +242,7 @@ export function TexteDeCellule({ texte }: { readonly texte: string }): ReactElem
 export function CaseDeCellule(props: {
   readonly nom: string;
   readonly cochee: boolean;
-  readonly surBascule: () => void;
+  readonly surBascule: (evenement: ChangeEvent<HTMLInputElement>) => void;
   readonly raison?: string | undefined;
 }): ReactElement {
   return (

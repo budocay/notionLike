@@ -191,6 +191,31 @@ describe("saisie d'un nombre (F-018-AC28)", () => {
     expect(champ.value).toBe("1e3");
   });
 
+  it("F-018-AC28 F-018-AC29 la case d'une autre ligne, cliquée pendant une saisie refusée, ne bascule pas : case et document de table inchangés, le focus reste au champ ; hors édition, le clic bascule de nouveau", async () => {
+    const { table, utilisateur, emises } = rendreLaTable((document) => {
+      uneDeChaque(document);
+      document.creerLigne();
+    });
+    await saisir(utilisateur, 3, "1e3");
+    const champ = screen.getByRole<HTMLInputElement>("textbox", { name: "Prix, ligne 1" });
+    const avant = structuredClone(table.lire());
+    const caseDeLaLigne2 = screen.getByRole<HTMLInputElement>("checkbox", {
+      name: "Fait, ligne 2",
+    });
+    await utilisateur.click(caseDeLaLigne2);
+
+    expect(caseDeLaLigne2.checked).toBe(false);
+    expect(table.lire()).toEqual(avant);
+    expect(emises).toEqual([]);
+    expect(focus()).toBe(champ);
+    expect(champ.value).toBe("1e3");
+
+    await utilisateur.keyboard("{Escape}");
+    await utilisateur.click(caseDeLaLigne2);
+    expect(caseDeLaLigne2.checked).toBe(true);
+    expect(table.lire().lignes[1]?.cellules[2]).toBe(true);
+  });
+
   it("F-018-AC28 F-018-AC33 un double clic dans le champ ouvert ne relance pas le mode édition : le texte saisi est gardé", async () => {
     const { utilisateur } = rendreLaTable(uneDeChaque);
     await saisir(utilisateur, 3, "1e3{Enter}");
