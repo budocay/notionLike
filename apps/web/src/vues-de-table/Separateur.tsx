@@ -11,11 +11,6 @@ import { LARGEUR_MAX, LARGEUR_MIN, PAS_DE_LARGEUR } from "./reglages.ts";
 import { largeurDeLaColonne } from "./textes.ts";
 import type { VueTableau } from "./use-vue-tableau.ts";
 
-/** Clé du séparateur d'une colonne, pour le retrouver depuis le menu de son en-tête. */
-export function cleDuSeparateur(colonne: string): string {
-  return `separateur\u0000${colonne}`;
-}
-
 // Flèches gauche et droite : 16 pixels de moins ou de plus ; Échap ou Entrée : retour à l'en-tête.
 function toucheDuSeparateur(
   evenement: KeyboardEvent<HTMLDivElement>,
@@ -71,7 +66,13 @@ export function Separateur(props: {
       valeur={largeur}
       min={LARGEUR_MIN}
       max={LARGEUR_MAX}
-      refSeparateur={vue.courante.refCellule(cleDuSeparateur(colonne.id))}
+      refSeparateur={(element) => {
+        if (element === null) {
+          vue.separateurs.delete(colonne.id);
+        } else {
+          vue.separateurs.set(colonne.id, element);
+        }
+      }}
       surTouche={surTouche}
       surAppui={(evenement) => {
         evenement.preventDefault();

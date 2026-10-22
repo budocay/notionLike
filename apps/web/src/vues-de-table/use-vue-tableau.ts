@@ -48,6 +48,8 @@ export interface VueTableau {
   readonly colonnes: readonly ColonneLue[];
   readonly fenetre: FenetreDeLaGrille;
   readonly courante: CouranteDeLaGrille;
+  /** Séparateurs de largeur rendus, par colonne : le menu d'un en-tête y porte le focus (AC43). */
+  readonly separateurs: Map<IdColonne, HTMLElement>;
   readonly edition: EditionDeLaGrille;
   readonly menu: MenuDeGrille;
   readonly boite: Boite | undefined;
@@ -190,6 +192,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
   const { invitation, versLInvitation } = useFocusDeLInvitation(colonnes.length);
   const fenetre = useFenetre(lignes.length);
   const courante = useCourante({ lignes, colonnes, grille: cadre, amener: fenetre.amener });
+  const separateurs = useRef(new Map<IdColonne, HTMLElement>()).current;
   const apres = (suite: Suite): void =>
     apresLaValidation(courante, fenetre, { lignes, colonnes }, suite);
   const edition = useEdition({ table, lignes, colonnes, lectureSeule, apres });
@@ -214,6 +217,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
     colonnes,
     fenetre,
     courante,
+    separateurs,
     edition,
     menu,
     ...boites,

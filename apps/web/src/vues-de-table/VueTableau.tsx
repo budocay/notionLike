@@ -19,7 +19,6 @@ import { RangeeDesEnTetes } from "./EnTetes.tsx";
 import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, LARGEUR_DES_ACTIONS } from "./grille.ts";
 import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
-import { cleDuSeparateur } from "./Separateur.tsx";
 import {
   AJOUTER_UNE_COLONNE,
   INVITATION_SANS_COLONNE,
@@ -40,7 +39,7 @@ function commandesDe(vue: Vue): Commandes {
     fermer: vue.menu.fermer,
     renommer: vue.edition.renommer,
     ouvrirBoite: vue.ouvrirBoite,
-    reglerLaLargeur: (colonne) => vue.courante.elementDe(cleDuSeparateur(colonne.id))?.focus(),
+    reglerLaLargeur: (colonne) => vue.separateurs.get(colonne.id)?.focus(),
   };
 }
 
