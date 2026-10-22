@@ -9,6 +9,7 @@ import { ecrireReglagesDeVue, lireReglagesDeVue } from "../persistance/index.ts"
 import {
   largeurBornee,
   largeurDe,
+  largeursLues,
   lireLesReglages,
   type ReglagesDeLaTable,
   SECTION_TABLEAU,
@@ -76,11 +77,14 @@ export function useReglages(
     vueActive: reglages.vueActive,
     largeurDe: (colonne) => largeurDe(reglages, colonne),
     reglerLargeur: (colonne, largeur, enregistrer) => {
-      const largeurs = new Map(reglages.largeurs);
-      largeurs.set(colonne, largeurBornee(largeur));
-      setReglages({ ...reglages, largeurs });
+      const bornee = largeurBornee(largeur);
+      setReglages({ ...reglages, largeurs: new Map(reglages.largeurs).set(colonne, bornee) });
+      // La largeur réglée s'ajoute à celles enregistrées : celles qu'un autre onglet a écrites pour
+      // d'autres colonnes restent (H4).
       if (enregistrer) {
-        ecrire(SECTION_TABLEAU, (lue) => sectionDuTableau(largeurs, colonnesLues, lue));
+        ecrire(SECTION_TABLEAU, (lue) =>
+          sectionDuTableau(new Map(largeursLues(lue)).set(colonne, bornee), colonnesLues, lue),
+        );
       }
     },
     choisirLaVue: (vue) => {

@@ -258,6 +258,26 @@ describe("un changement n'écrit que sa section (F-018-AC41, F-018-AC44, H4)", (
       sections: { vue: { active: "kanban", tri: "f-020" }, tableau: { gelees: 2 } },
     });
   });
+
+  it("F-018-AC43 F-018-AC41 régler une largeur garde celles qu'un autre onglet a écrites depuis pour d'autres colonnes", async () => {
+    const { table, utilisateur } = rendreLaTable(deuxColonnes);
+    const [nom = "", prix = ""] = table.lire().colonnes.map(({ id }) => id);
+    act(() => separateur("Nom").focus());
+    await utilisateur.keyboard("{ArrowRight}");
+    // Un autre onglet règle ensuite la colonne « Prix » sur cet appareil.
+    localStorage.setItem(
+      CLE,
+      JSON.stringify({
+        version: 1,
+        sections: { tableau: { largeurs: { [nom]: 196, [prix]: 300 } } },
+      }),
+    );
+    await utilisateur.keyboard("{ArrowRight}");
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: { tableau: { largeurs: { [nom]: 212, [prix]: 300 } } },
+    });
+  });
 });
 
 describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {

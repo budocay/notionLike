@@ -47,7 +47,8 @@ function vueLue(section: unknown, vues: readonly string[], parDefaut: string): s
   return typeof active === "string" && vues.includes(active) ? active : parDefaut;
 }
 
-function largeursLues(section: unknown): ReadonlyMap<IdColonne, number> {
+/** Les largeurs d'une section `tableau` lue ; aucune si elle est mal formée. */
+export function largeursLues(section: unknown): ReadonlyMap<IdColonne, number> {
   if (!estUnObjet(section) || !estUnObjet(section.largeurs)) {
     return new Map();
   }
