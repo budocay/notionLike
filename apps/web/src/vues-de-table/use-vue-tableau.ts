@@ -64,6 +64,29 @@ export interface VueTableau {
   readonly moyens: Moyens;
 }
 
+/** Délai entre le vidage de la zone d'annonce et sa réécriture, pour qu'un texte identique soit relu. */
+const RELECTURE_D_ANNONCE_MS = 150;
+
+// La zone d'annonce (`role="status"`) ne relit pas un texte inchangé : une annonce identique à la
+// précédente (deux « Déjà la première ligne. » de suite) la vide, puis la réécrit un instant après.
+function useAnnonce(): readonly [string, (texte: string) => void] {
+  const [annonce, setAnnonce] = useState("");
+  const derniere = useRef("");
+  const differee = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(differee.current), []);
+  const annoncer = (texte: string): void => {
+    window.clearTimeout(differee.current);
+    if (texte !== derniere.current) {
+      derniere.current = texte;
+      setAnnonce(texte);
+      return;
+    }
+    setAnnonce("");
+    differee.current = window.setTimeout(() => setAnnonce(texte), RELECTURE_D_ANNONCE_MS);
+  };
+  return [annonce, annoncer];
+}
+
 function focusSurLeCorps(): boolean {
   const actif = document.activeElement;
   return actif === null || actif === document.body;
@@ -186,7 +209,7 @@ function useFermetureAuDefilement(
 export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
   const { table, lue, lignes, lectureSeule } = proprietes;
   const colonnes = lue.colonnes;
-  const [annonce, setAnnonce] = useState("");
+  const [annonce, annoncer] = useAnnonce();
   const [alerte, setAlerte] = useState<string | undefined>(undefined);
   const cadre = useRef<HTMLDivElement>(null);
   const { invitation, versLInvitation } = useFocusDeLInvitation(colonnes.length);
@@ -204,7 +227,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
     lignes,
     lectureSeule,
     allerVers: courante.allerVers,
-    annoncer: setAnnonce,
+    annoncer,
     signaler: setAlerte,
     focaliserLInvitation: () => {
       versLInvitation.current = true;

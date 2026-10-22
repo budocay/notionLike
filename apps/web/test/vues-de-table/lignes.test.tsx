@@ -1,7 +1,7 @@
 // Lignes de la grille (F-018-AC23 à AC25) : création, déplacement par commande et par raccourci,
 // suppression confirmée, chacune par une seule opération du document de table.
 import type { DocumentTable } from "@notionlike/document";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { cellule, focus, rendreLaTable, textesDesLignes } from "./aides-grille.tsx";
@@ -49,6 +49,23 @@ describe("déplacer une ligne (F-018-AC24)", () => {
     await utilisateur.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
     expect(premiers()).toEqual(["Une", "Deux", "Trois"]);
     expect(focus()).toBe(cellule(2, 3));
+  });
+
+  it("F-018-AC24 une même annonce répétée est relue : la zone d'annonce est vidée puis réécrite", async () => {
+    const { utilisateur } = rendreLaTable(troisLignes);
+    cellule(2, 2).focus();
+    await utilisateur.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
+    const zone = screen.getByRole("status");
+    expect(zone.textContent).toBe("Déjà la première ligne.");
+    const lus: string[] = [];
+    const observateur = new MutationObserver(() => lus.push(zone.textContent ?? ""));
+    observateur.observe(zone, { childList: true, characterData: true, subtree: true });
+    try {
+      await utilisateur.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
+      await waitFor(() => expect(lus).toEqual(["", "Déjà la première ligne."]));
+    } finally {
+      observateur.disconnect();
+    }
   });
 
   it("F-018-AC24 la première ne monte pas, la dernière ne descend pas : commande et raccourci indisponibles, aucune mise à jour", async () => {
