@@ -14,10 +14,11 @@ export interface Courante {
   readonly place: Position;
 }
 
+/** L'angle de la grille : la rangée d'en-têtes et la colonne des actions de ligne, place `(0,0)`. */
 export const COURANTE_INITIALE: Courante = {
   ligne: null,
   colonne: null,
-  place: { rang: 1, colonne: 1 },
+  place: { rang: 0, colonne: 0 },
 };
 
 function borner(valeur: number, max: number): number {

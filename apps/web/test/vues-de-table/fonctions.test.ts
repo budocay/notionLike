@@ -11,6 +11,7 @@ import {
   texteAffiche,
 } from "../../src/vues-de-table/affichage.ts";
 import { defilementPour, fenetre, indicesRendus } from "../../src/vues-de-table/fenetre.ts";
+import { COURANTE_INITIALE, couranteA, placeDe } from "../../src/vues-de-table/courante.ts";
 import { colonneDeTitre, lignesAffichees } from "../../src/vues-de-table/lignes-affichees.ts";
 import { type Deplacement, deplacer } from "../../src/vues-de-table/navigation-grille.ts";
 import {
@@ -260,6 +261,15 @@ describe("déplacement de la cellule courante (F-018-AC33)", () => {
       });
     },
   );
+
+  it("F-018-AC33 la cellule courante initiale est l'angle (0,0), et la place qu'elle retient est celle-là", () => {
+    const colonnes = [colonne("texte")];
+    const lignes = [{ id: "l1", cellules: ["A"] }];
+    const place = placeDe(COURANTE_INITIALE, lignes, colonnes);
+    expect(place).toEqual({ rang: 0, colonne: 0 });
+    expect(COURANTE_INITIALE.place).toEqual(place);
+    expect(couranteA(place, lignes, colonnes)).toEqual(COURANTE_INITIALE);
+  });
 
   it("F-018-AC33 sans ligne, Mod+Début et Mod+Fin restent sur la rangée d'en-têtes", () => {
     const vide = { lignes: 0, colonnes: 2, parPage: 1 };
