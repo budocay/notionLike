@@ -95,7 +95,6 @@ export const TABLE_FICTIVE = {
   ajouter: "Ajouter une colonne",
   nouvelleTable: "Nouvelle table",
   grille: "Lignes de la table Suivi des achats",
-  actions: "Actions des lignes",
   colonnes: ["Article", "Prix", "Reçu"],
   lignes: [
     ["Papier", "12,5"],

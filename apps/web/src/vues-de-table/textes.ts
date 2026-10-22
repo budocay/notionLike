@@ -37,9 +37,6 @@ export function libelleAffiche(libelle: string): string {
   return libelle.trim() === "" ? SANS_LIBELLE : libelle;
 }
 
-export function placeDeLaLigne(rang: number, total: number): string {
-  return `ligne ${String(rang)} sur ${String(total)}`;
-}
 export function nomActionsDeLaColonne(nom: string): string {
   return `Actions de la colonne ${nomAffiche(nom)}`;
 }
