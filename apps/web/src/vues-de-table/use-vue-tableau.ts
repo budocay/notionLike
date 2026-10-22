@@ -91,7 +91,8 @@ function useFocusDeLInvitation(nombreDeColonnes: number) {
 // menu d'une colonne, la boîte rend donc le focus à la cellule d'en-tête, pas au bouton « Actions de
 // la colonne … » : ce bouton est hors de l'ordre de tabulation (tabindex itinérant, AC33), et la
 // cellule est le seul arrêt de la grille d'où le clavier repart. C'est la « commande d'origine » de
-// la spec, lue à travers le tabindex itinérant.
+// la spec, lue à travers le tabindex itinérant : un écart à la lettre d'AC21, à tenir dans l'addendum
+// « Écarts au code » de docs/decisions/0019-ecran-de-table-et-reglages-de-vue.md.
 function useBoiteOuverte(menu: MenuDeGrille) {
   const [boite, setBoite] = useState<Boite | undefined>(undefined);
   const origine = useRef<HTMLElement | null>(null);
