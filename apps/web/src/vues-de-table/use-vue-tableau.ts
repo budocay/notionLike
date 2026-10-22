@@ -206,50 +206,75 @@ function useFermetureAuDefilement(
   }, [zone, ouverte]);
 }
 
-export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
+// Annonce polie et alerte de la vue, et l'identifiant de l'alerte, que cite un champ refusé.
+function useMessages() {
+  const [annonce, annoncer] = useAnnonce();
+  const [alerte, signaler] = useState<string | undefined>(undefined);
+  const idAlerte = useId();
+  return { annonce, annoncer, alerte, signaler, idAlerte };
+}
+
+// Navigation et saisie de la grille : fenêtre, cellule courante et mode édition.
+function useNavigationEtSaisie(proprietes: ProprietesVueTableau) {
   const { table, lue, lignes, lectureSeule } = proprietes;
   const colonnes = lue.colonnes;
-  const [annonce, annoncer] = useAnnonce();
-  const [alerte, setAlerte] = useState<string | undefined>(undefined);
   const cadre = useRef<HTMLDivElement>(null);
-  const { invitation, versLInvitation } = useFocusDeLInvitation(colonnes.length);
   const fenetre = useFenetre(lignes.length);
   const courante = useCourante({ lignes, colonnes, grille: cadre, amener: fenetre.amener });
-  const separateurs = useRef(new Map<IdColonne, HTMLElement>()).current;
   const apres = (suite: Suite): void =>
     apresLaValidation(courante, fenetre, { lignes, colonnes }, suite);
   const edition = useEdition({ table, lignes, colonnes, lectureSeule, apres });
-  const menu = useMenuDeGrille();
-  const boites = useBoiteOuverte(menu);
-  const moyens: Moyens = {
+  return { colonnes, cadre, fenetre, courante, edition };
+}
+
+// Ce dont les commandes ont besoin (`actions.ts`) : la table, sa lecture, où dire et focaliser.
+function moyensDe(
+  { table, lue, lignes, lectureSeule }: ProprietesVueTableau,
+  courante: CouranteDeLaGrille,
+  messages: ReturnType<typeof useMessages>,
+  versLInvitation: RefObject<boolean>,
+): Moyens {
+  return {
     table,
     lue,
     lignes,
     lectureSeule,
     allerVers: courante.allerVers,
-    annoncer,
-    signaler: setAlerte,
+    annoncer: messages.annoncer,
+    signaler: messages.signaler,
     focaliserLInvitation: () => {
       versLInvitation.current = true;
     },
   };
-  useEditionOrpheline({ edition, colonnes }, lignes, setAlerte);
+}
+
+// Le refus d'une saisie ouverte passe avant la dernière alerte ; une liste de choix n'en a pas.
+function alerteAffichee(edition: EditionDeLaGrille, alerte: string | undefined) {
+  const ouverte = edition.edition;
+  return ouverte?.sorte === "choix" ? alerte : (ouverte?.erreur ?? alerte);
+}
+
+export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
+  const messages = useMessages();
+  const { invitation, versLInvitation } = useFocusDeLInvitation(proprietes.lue.colonnes.length);
+  const grille = useNavigationEtSaisie(proprietes);
+  const { colonnes, fenetre, courante, edition } = grille;
+  const separateurs = useRef(new Map<IdColonne, HTMLElement>()).current;
+  const menu = useMenuDeGrille();
+  const boites = useBoiteOuverte(menu);
+  useEditionOrpheline({ edition, colonnes }, proprietes.lignes, messages.signaler);
   useFermetureAuDefilement(fenetre.zone, menu, edition, courante);
   return {
     proprietes,
-    colonnes,
-    fenetre,
-    courante,
+    ...grille,
     separateurs,
-    edition,
     menu,
     ...boites,
-    annonce,
-    alerte: edition.edition?.sorte === "choix" ? alerte : (edition.edition?.erreur ?? alerte),
-    idAlerte: useId(),
-    cadre,
+    annonce: messages.annonce,
+    alerte: alerteAffichee(edition, messages.alerte),
+    idAlerte: messages.idAlerte,
     invitation,
-    moyens,
+    moyens: moyensDe(proprietes, courante, messages, versLInvitation),
   };
 }
 

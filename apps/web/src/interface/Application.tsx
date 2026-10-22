@@ -143,6 +143,18 @@ interface ProprietesEspacePret {
   readonly fabrique: FabriqueDeSynchronisation | undefined;
 }
 
+// Le document ouvert pour la page sélectionnée : une page ouvre son document de page, une table
+// son document de table, jamais l'autre (F-018-AC12, AC9).
+function useDocumentDeLaSelection(idEspace: EtatPret["idEspace"], page: PageLue | undefined) {
+  const idTable = page?.type === "table" ? page.id : undefined;
+  const idPage = idTable === undefined ? page?.id : undefined;
+  const pages = usePagesOuvertes();
+  const etatDeLaPage = usePageOuverte(pages, idEspace, idPage);
+  const tables = useTablesOuvertes();
+  const etatDeLaTable = useTableOuverte(tables, idEspace, idTable);
+  return { idPage, idTable, pages, tables, etatDeLaPage, etatDeLaTable };
+}
+
 // Ce que l'écran de l'espace tient : navigation, sélection, page ouverte, synchronisation.
 function useEspacePret(props: ProprietesEspacePret) {
   const { etat, compte } = props;
@@ -150,24 +162,18 @@ function useEspacePret(props: ProprietesEspacePret) {
   const selection = selectionDe(navigation.route, etat.arborescence);
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
-  // F-018-AC12, AC9 : une table n'ouvre que son document de table, jamais un document de page.
-  const table = page?.type === "table" ? page : undefined;
-  const pages = usePagesOuvertes();
-  const etatDeLaPage = usePageOuverte(
-    pages,
+  const { idPage, idTable, pages, tables, etatDeLaPage, etatDeLaTable } = useDocumentDeLaSelection(
     etat.idEspace,
-    table === undefined ? page?.id : undefined,
+    page,
   );
-  const tables = useTablesOuvertes();
-  const etatDeLaTable = useTableOuverte(tables, etat.idEspace, table?.id);
   const synchronisation = useSynchronisationDeLEspace(
     {
       fabrique: props.fabrique,
       idEspace: etat.idEspace,
       doc: props.session.doc,
-      idPage: table === undefined ? page?.id : undefined,
+      idPage,
       page: etatDeLaPage,
-      idTable: table?.id,
+      idTable,
       table: etatDeLaTable,
       lirePages: () => pagesDeLaSession(props.session),
       typeDe: (id) => typeDansLaSession(props.session, id),
