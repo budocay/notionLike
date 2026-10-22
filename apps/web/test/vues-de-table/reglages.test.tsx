@@ -126,6 +126,23 @@ describe("réglages sur l'appareil (F-018-AC40 à AC42)", () => {
     expect(localStorage.getItem(CLE)).toBeNull();
   });
 
+  it("F-018-AC40 F-018-AC14 table affichée avant que son espace ne soit connu : réglages par défaut, puis, l'espace connu, ceux enregistrés sous sa clé sont relus", () => {
+    localStorage.setItem(
+      CLE,
+      JSON.stringify({ version: 1, sections: { tableau: { largeurs: { c: 300 } } } }),
+    );
+    const { result, rerender } = renderHook(
+      ({ idEspace }: { idEspace: string | undefined }) =>
+        useReglages({ idEspace, idTable: TABLE_D_ESSAI }, ["c"]),
+      { initialProps: { idEspace: undefined as string | undefined } },
+    );
+    expect(result.current.largeurDe("c")).toBe(180);
+
+    rerender({ idEspace: ESPACE_A });
+
+    expect(result.current.largeurDe("c")).toBe(300);
+  });
+
   it("F-018-AC41 une section mal formée est lue seule à ses valeurs par défaut, et une section inconnue est gardée à la réécriture", async () => {
     localStorage.setItem(
       CLE,
