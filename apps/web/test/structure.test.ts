@@ -57,13 +57,17 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 persistance/index.ts exporte exactement ouvrirPersistance, ouvrirEspaceLocal et ErreurPersistance, sans rien de y-indexeddb", () => {
     expect(Object.keys(persistance).sort()).toEqual([
       "ErreurPersistance",
+      // F-018 : lecture, écriture et effacement des réglages de vue d'une table (AC40, AC49).
+      "ecrireReglagesDeVue",
       // F-013 : effacement de la base du document d'espace (AC24).
       "effacerBaseDeDocument",
       // F-007 : effacement d'une base de page.
       "effacerBaseDePage",
+      "effacerReglagesDeVue",
       // F-013 : registre de l'appareil (H3).
       "inscrireAuRegistre",
       "lireLeRegistre",
+      "lireReglagesDeVue",
       // F-013-AC16 : le nom de base d'un document, pour la correspondance avec son nom au serveur.
       "nomDeBase",
       "ouvrirEspaceLocal",
@@ -74,6 +78,7 @@ describe("frontières du module de persistance", () => {
     expect(sourceDeLInterface.match(/type \w+/g)?.sort()).toEqual([
       // F-007 : désignation et issue d'un effacement.
       "type DesignationDeBaseDePage",
+      "type DesignationDeVue",
       "type DesignationDocument",
       // F-013 : registre de l'appareil.
       "type Droit",
@@ -83,6 +88,8 @@ describe("frontières du module de persistance", () => {
       "type LectureDuRegistre",
       "type Persistance",
       "type PersistanceEspaceLocal",
+      // F-018 : sections des réglages de vue.
+      "type SectionsDeVue",
     ]);
   });
 

@@ -232,6 +232,7 @@ describe("menu « ⋯ »", () => {
       "ArrowDown",
       "ArrowDown",
       "ArrowDown",
+      "ArrowDown",
       "ArrowUp",
       "ArrowUp",
     ]) {
@@ -241,6 +242,8 @@ describe("menu « ⋯ »", () => {
 
     expect(parcours).toEqual([
       "Ajouter une sous-page",
+      // F-018-AC10 : l'entrée de création d'une table.
+      "Ajouter une table",
       "Mettre à la corbeille",
       "Descendre",
       "Renommer",
@@ -576,7 +579,11 @@ describe("tête, pied et raccourcis", () => {
     const sceau = tete.querySelector(".fond-accent");
     expect(sceau?.getAttribute("aria-hidden")).toBe("true");
     expect(sceau?.textContent).toBe("");
-    expect(within(tete).getAllByRole("button").map(nomDe)).toEqual(["Nouvelle page"]);
+    // F-018-AC10 : « Nouvelle table » suit « Nouvelle page ».
+    expect(within(tete).getAllByRole("button").map(nomDe)).toEqual([
+      "Nouvelle page",
+      "Nouvelle table",
+    ]);
     expect(within(tete).queryAllByRole("link")).toEqual([]);
     expect(barre().textContent).not.toContain("Rechercher");
     expect(lister("src").filter((chemin) => /palette|recherche/i.test(chemin))).toEqual([]);
@@ -608,6 +615,9 @@ describe("tête, pied et raccourcis", () => {
       "sortirDUnNiveau",
       "monterLeBloc",
       "descendreLeBloc",
+      // F-018-AC24 : le déplacement d'une ligne de table.
+      "monterLaLigne",
+      "descendreLaLigne",
     ]);
     expect(RACCOURCIS.barreDeBlocs).toEqual({ touche: "F10", modificateurs: ["Alt"] });
     // F-028-AC6 : Mod+K, ouvert sur une sélection ou dans un lien.

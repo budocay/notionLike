@@ -213,6 +213,8 @@ const PREFIXE_DES_BASES = "notionlike:";
 const FICHIERS_QUI_NOMMENT_UNE_BASE = [
   "src/persistance/espace-local.ts",
   "src/persistance/nom-de-base.ts",
+  // F-018-AC40 : la clé des réglages de vue d'une table, assemblée par ce seul fichier.
+  "src/persistance/reglages-de-vue.ts",
 ];
 
 function fautesDIdentifiants(fichiers: ReadonlyMap<string, string>): string[] {

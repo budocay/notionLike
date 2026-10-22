@@ -15,7 +15,7 @@ declare const console: { error(...donnees: unknown[]): void };
 
 const ID_ABSENT = "00000000-0000-4000-8000-0000000000ff";
 const TITRE_TROP_LONG = "x".repeat(201);
-const VERSION_NON_PRISE_EN_CHARGE = 2;
+const VERSION_NON_PRISE_EN_CHARGE = 3;
 const NOMBRE_D_OUVERTURES = 50;
 
 // Compte du départ de chaque `Y.Doc` où une façade a été ouverte, et façades à fermer en fin de test.

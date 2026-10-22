@@ -7,6 +7,25 @@ import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/Bar
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
 import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
+import { MarqueDeTable } from "../interface/composants/Rangee.tsx";
+import {
+  CaseDeCellule,
+  CelluleDeGrille,
+  ChampDeCellule,
+  ChampDeFormulaire,
+  EcranDeTableCadre,
+  Grille,
+  InvitationDeTable,
+  LigneDOption,
+  ListeDeChoix,
+  ListeDOptions,
+  RangeeDEnTetes,
+  RangeeDeGrille,
+  SelecteurDeVues,
+  SeparateurDeColonne,
+  SurfaceFlottante,
+  TexteDeCellule,
+} from "../interface/composants/Table.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
 import {
   ActionDeCompte,
@@ -112,6 +131,7 @@ import {
   SELECTEUR_DE_LANGAGE_FICTIF,
   PANNEAU_DE_LIEN_FICTIF,
   POSITION_DE_BARRE_FICTIVE,
+  TABLE_FICTIVE,
 } from "./donnees.ts";
 import { echantillonsDe } from "./Echantillons.tsx";
 import { MARQUEUR_DE_DEMONSTRATION } from "./marqueur.ts";
@@ -195,6 +215,7 @@ function Tete({ fermeture }: { readonly fermeture?: ReactNode }): ReactElement {
       nomEspace={NOM_DE_L_ESPACE_FICTIF}
       libelleNouvellePage={NOUVELLE_PAGE}
       surNouvellePage={sansEffet}
+      autreCreation={{ libelle: TABLE_FICTIVE.nouvelleTable, surActivation: sansEffet }}
       fermeture={fermeture}
     />
   );
@@ -883,6 +904,215 @@ function SectionCorbeille(): ReactElement {
   );
 }
 
+// La grille fictive tient dans un aperçu de 360 pixels : aucun conteneur n'y défile (F-004-AC45).
+const LARGEUR_FICTIVE = 72;
+const HAUTEUR_FICTIVE = 32;
+const ACTIONS_FICTIVES = 72;
+const LARGEUR_FICTIVE_MIN = 60;
+const LARGEUR_FICTIVE_MAX = 800;
+
+function CelluleFictive(props: {
+  readonly role: "gridcell" | "columnheader" | "rowheader";
+  readonly colonne: number;
+  readonly children?: ReactNode;
+  readonly courante?: boolean;
+}): ReactElement {
+  return (
+    <CelluleDeGrille
+      role={props.role}
+      indiceDeColonne={props.colonne}
+      largeur={props.colonne === 1 ? ACTIONS_FICTIVES : LARGEUR_FICTIVE}
+      courante={props.courante === true}
+      refCellule={sansEffet}
+      surFocus={sansEffet}
+      sorte={props.colonne === 1 ? "actions" : "donnee"}
+    >
+      {props.children}
+    </CelluleDeGrille>
+  );
+}
+
+function EnTetesFictifs(): ReactElement {
+  const T = TABLE_FICTIVE;
+  return (
+    <RangeeDEnTetes hauteur={HAUTEUR_FICTIVE}>
+      <CelluleFictive role="columnheader" colonne={1} />
+      {T.colonnes.map((nom, rang) => (
+        <CelluleFictive key={nom} role="columnheader" colonne={rang + 2}>
+          <TexteDeCellule texte={nom} />
+          {rang === 0 && (
+            <SeparateurDeColonne
+              nom={T.largeur}
+              valeur={LARGEUR_FICTIVE}
+              min={LARGEUR_FICTIVE_MIN}
+              max={LARGEUR_FICTIVE_MAX}
+              refSeparateur={sansEffet}
+              surTouche={sansEffet}
+              surAppui={sansEffet}
+              surGlisse={sansEffet}
+              surLacher={sansEffet}
+            />
+          )}
+        </CelluleFictive>
+      ))}
+    </RangeeDEnTetes>
+  );
+}
+
+function RangeeFictiveDeTable(props: {
+  readonly rang: number;
+  readonly article: string;
+  readonly prix: string;
+  readonly largeur: number;
+}): ReactElement {
+  const { rang, article } = props;
+  return (
+    <RangeeDeGrille
+      indice={rang + 2}
+      decalage={rang * HAUTEUR_FICTIVE}
+      hauteur={HAUTEUR_FICTIVE}
+      largeur={props.largeur}
+    >
+      <CelluleFictive role="rowheader" colonne={1}>
+        <TexteDeCellule texte={String(rang + 1)} />
+      </CelluleFictive>
+      <CelluleFictive role="gridcell" colonne={2} courante={rang === 0}>
+        {rang === 0 ? (
+          <ChampDeCellule nom={TABLE_FICTIVE.champ} defaultValue={article} />
+        ) : (
+          <TexteDeCellule texte={article} />
+        )}
+      </CelluleFictive>
+      <CelluleFictive role="gridcell" colonne={3}>
+        <TexteDeCellule texte={props.prix} />
+      </CelluleFictive>
+      <CelluleFictive role="gridcell" colonne={4}>
+        <CaseDeCellule nom={TABLE_FICTIVE.colonnes[2]} cochee={rang === 1} surBascule={sansEffet} />
+      </CelluleFictive>
+    </RangeeDeGrille>
+  );
+}
+
+function ChoixFictif(): ReactElement {
+  return (
+    <SurfaceFlottante
+      x={0}
+      y={HAUTEUR_FICTIVE * 2}
+      largeur={ACTIONS_FICTIVES + TABLE_FICTIVE.colonnes.length * LARGEUR_FICTIVE}
+      hauteur={HAUTEUR_FICTIVE}
+    >
+      <ListeDeChoix
+        id="demonstration-choix"
+        nom={TABLE_FICTIVE.nomDuChoix}
+        choix={TABLE_FICTIVE.choix}
+        active={1}
+        refListe={sansEffet}
+        surTouche={sansEffet}
+        surChoix={sansEffet}
+        surSortie={sansEffet}
+      />
+    </SurfaceFlottante>
+  );
+}
+
+// Grille d'une table : en-têtes à séparateur, une cellule en mode édition, une case, un texte coupé,
+// une liste de choix posée au-dessus.
+function GrilleFictive(): ReactElement {
+  const T = TABLE_FICTIVE;
+  const largeur = ACTIONS_FICTIVES + T.colonnes.length * LARGEUR_FICTIVE;
+  return (
+    <Grille
+      nom={T.grille}
+      nombreDeRangees={T.lignes.length + 1}
+      nombreDeColonnes={T.colonnes.length + 1}
+      largeur={largeur}
+      hauteurDuCorps={T.lignes.length * HAUTEUR_FICTIVE}
+      hauteurDeLaZone={`${String((T.lignes.length + 1) * HAUTEUR_FICTIVE)}px`}
+      refDefilement={sansEffet}
+      refCadre={sansEffet}
+      surDefilement={sansEffet}
+      surTouche={sansEffet}
+      surFocus={sansEffet}
+      enTetes={<EnTetesFictifs />}
+      rangees={T.lignes.map(([article = "", prix = ""], rang) => (
+        <RangeeFictiveDeTable
+          key={article}
+          rang={rang}
+          article={article}
+          prix={prix}
+          largeur={largeur}
+        />
+      ))}
+      flottante={<ChoixFictif />}
+    />
+  );
+}
+
+function SpecimenDeLaGrille(): ReactElement {
+  return (
+    <Specimen etiquette="Grille, cellule en mode édition, liste de choix">
+      <div className={PAGE.fondZone}>
+        <EcranDeTableCadre
+          annonce=""
+          outils={
+            <SelecteurDeVues
+              nom={TABLE_FICTIVE.nomDesVues}
+              vues={TABLE_FICTIVE.vues}
+              active="tableau"
+              surChoix={sansEffet}
+            />
+          }
+        >
+          <GrilleFictive />
+        </EcranDeTableCadre>
+      </div>
+    </Specimen>
+  );
+}
+
+function SpecimenDesOptions(): ReactElement {
+  return (
+    <Specimen etiquette="Options d'une colonne">
+      <div className={PAGE.fondZone}>
+        <ListeDOptions nom={TABLE_FICTIVE.options} vide={TABLE_FICTIVE.aucuneOption} nombre={1}>
+          <LigneDOption>
+            <ChampDeCellule nom={TABLE_FICTIVE.options} defaultValue="En attente" />
+          </LigneDOption>
+        </ListeDOptions>
+        <ChampDeFormulaire etiquette={TABLE_FICTIVE.nouvelleOption} faute={TABLE_FICTIVE.faute} />
+      </div>
+    </Specimen>
+  );
+}
+
+// Écran de table (F-018) : la marque d'une table, l'écran d'une table sans colonne et son invitation.
+function SectionTables(): ReactElement {
+  const T = TABLE_FICTIVE;
+  return (
+    <Section titre="Tables">
+      <div className={PAGE.grille}>
+        <Specimen etiquette="Marque d'une table">
+          <div className={PAGE.fondZone}>
+            <MarqueDeTable nom={T.marque} />
+            {T.titre}
+          </div>
+        </Specimen>
+        <SpecimenDeLaGrille />
+        <SpecimenDesOptions />
+        <Specimen etiquette="Table sans colonne">
+          <div className={PAGE.fondZone}>
+            <EcranDeTableCadre annonce="">
+              <InvitationDeTable texte={T.invitation}>
+                <Bouton libelle={T.ajouter} surActivation={sansEffet} />
+              </InvitationDeTable>
+            </EcranDeTableCadre>
+          </div>
+        </Specimen>
+      </div>
+    </Section>
+  );
+}
+
 function SpecimenDeFormulaire(): ReactElement {
   return (
     <Specimen etiquette="Formulaire de connexion, envoi refusé">
@@ -941,6 +1171,7 @@ export function PageDemonstration({ jetons }: { readonly jetons: string }): Reac
       <SectionCompte />
       <SectionEspaces />
       <SectionCorbeille />
+      <SectionTables />
       {echantillonsDe(jetons).map(({ titre, contenu }) => (
         <Section key={titre} titre={titre}>
           {contenu}

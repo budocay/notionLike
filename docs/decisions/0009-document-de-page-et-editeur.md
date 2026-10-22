@@ -1,7 +1,7 @@
 # ADR-0009 — Document de page : contenu Tiptap dans un fragment Yjs, version à maximum, éditeur confiné
 
-Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-005 » : écrite le 2026-10-19, d'après le code de la branche `F-005` ; elle reporte une décision de l'ADR-0018 et en suit le statut (accepté)
-Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16 ; écarts au code corrigés le 2026-10-19 ; amendement F-005 du 2026-10-19
+Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-005 » : écrite le 2026-10-19, d'après le code de la branche `F-005` ; elle reporte une décision de l'ADR-0018 et en suit le statut (accepté) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : acceptée par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019
+Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16 ; écarts au code corrigés le 2026-10-19 ; amendement F-005 du 2026-10-19 ; amendement F-018 du 2026-10-21
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé par le gate d'architecture de F-003).
 
 ## Contexte et problème
@@ -56,6 +56,14 @@ Contexte : F-005 (ADR-0018) ajoute au module d'édition le bloc code et le menu 
 - **« Pas de `@floating-ui/dom` » ne vaut plus pour le menu slash.** `@floating-ui/dom` 1.8.0 est une dépendance directe d'`apps/web`, importée par le seul `apps/web/src/edition/menu-slash.ts` (`shift`), avec `@tiptap/suggestion` 3.31.4 ; le placement du menu passe par `props.mount` de l'utilitaire, qui le calcule par cette bibliothèque. Règle `suggestion-et-positionnement-confines` (ni l'un ni l'autre hors de `apps/web/src/edition/`, tests compris) et `web-edition-liste-blanche` élargie (commit du dev `d39cd86`). La barre de blocs reste placée par `edition/placement.ts`.
 - **L'interface `edition/index.ts` n'exporte plus le seul composant.** Elle exporte `EditeurDePage` et le type de ses propriétés, les fonctions pures des adresses de F-028 (`adresseAcceptee`, `adresseDUneSaisie`), et, depuis F-005, la liste des commandes de bloc (`LISTE_DES_COMMANDES`, de `commandes-de-bloc.ts`, sans import) et son filtre (`commandesFiltrees`, de `filtre-des-commandes.ts`, sans import) : données et fonctions pures, sans aucun type de la bibliothèque d'édition. Seuls des tests consomment ces quatre derniers.
 
+### Amendement F-018 (2026-10-21) : élément non compté dans `versions`
+
+Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019. Contexte : F-018 change `lireFormeStockee` (`packages/document/src/format-page.ts`, `60258d0`), fonction commune aux documents de page, d'espace et de table ; la décision est celle de l'addendum du 2026-10-21 de l'amendement F-018 de l'ADR-0002 (« Élément non compté dans `versions` »), que cet amendement reporte pour la page.
+
+- **Règle de lecture complétée** : la fonction parcourt les éléments du type `versions`, supprimés exceptés. Un élément non compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom, que `forEach` et `toArray` passaient sous silence) rend la forme non admise, comme une entrée non entière ou nommée : `ouvrirDocumentPage` lève `version-non-prise-en-charge`, et la garde de version relit par la même fonction.
+- **Seconde barrière inchangée** : la réplique de la page affichée (`apps/web/src/synchronisation/miroir.ts`, `lireVersionPage`) ne juge que le numéro ; un tel élément la passe, comme une entrée mal formée (amendement F-012 et F-013), et c'est la façade qui le refuse.
+- **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `document-page.ts` (F-018-AC58).
+
 ## Conséquences
 
 - Entorse à l'ADR-0003 : le paquet expose un type partagé, le fragment du contenu. Le reste du format (noms des types racines, forme de la version) n'en sort pas.
@@ -64,3 +72,4 @@ Contexte : F-005 (ADR-0018) ajoute au module d'édition le bloc code et le menu 
 - Non garanti : un contenu nouveau reçu dans une mise à jour, et sa version dans une mise à jour suivante. La liaison retire le contenu avant que la version ne soit connue ; risque accepté par la spec F-003 (H4, cas a), qui ne peut venir que d'un client qui enfreint la règle ci-dessus ou d'un maillon qui scinde une transaction.
 - Un document conservé par le client et par le serveur garde le tableau `versions` pour toujours ; il ne grandit que d'une entrée par version atteinte et par réplique qui l'élève.
 - Amendement F-012 et F-013 : la page affichée vit en deux `Y.Doc` dans l'onglet, le document lié et sa réplique, chacun avec l'état complet de la page ; la mémoire d'une page affichée double.
+- Amendement F-018 : un document de page qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la page) s'ouvrait avant F-018 et est désormais refusé par la façade, qui n'y retire rien. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue.

@@ -38,6 +38,7 @@ import {
   type SourceDuCompte,
   type StatutDuCompte,
   type Synchronisation,
+  typesDesPages,
 } from "../../src/synchronisation/index.ts";
 import type { CanalEntreOnglets, Signal } from "../../src/synchronisation/environnement.ts";
 import { creerFacade, ouvrirFacade } from "../aides-facade.ts";
@@ -361,7 +362,7 @@ export interface OptionsDOnglet {
   readonly compte?: CompteDEssai;
   readonly horloge?: HorlogeDEssai;
   readonly alea?: () => number;
-  readonly surPagesSupprimees?: (idPages: readonly string[]) => void;
+  readonly surDocumentsSupprimes?: (ids: readonly string[]) => void;
   readonly surEffacement?: (etape: "demande" | "faite") => void;
   /** Vrai : l'espace n'est pas l'espace local de l'appareil, sa base est ouverte par son nom. */
   readonly autreEspace?: boolean;
@@ -396,6 +397,8 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
     lireEtat: brute.lireEtat,
     abonner: brute.abonner,
     afficherPage: (page) => appareil.sur(() => brute.afficherPage(page)),
+    afficherTable: (table) => appareil.sur(() => brute.afficherTable(table)),
+    afficherAucun: () => appareil.sur(() => brute.afficherAucun()),
     adopter: (nom) => appareil.sur(() => brute.adopter(nom)),
     reessayer: () => appareil.sur(() => brute.reessayer()),
     reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
@@ -448,6 +451,14 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
           return undefined;
         }
       },
+      // F-018-AC51 : le type lu de chaque identifiant, comme l'interface le donne.
+      typeDe: (id) => {
+        try {
+          return typesDesPages(facade.lire()).get(id);
+        } catch {
+          return undefined;
+        }
+      },
       // Ce que le test pose sur le compte parvient à la synchronisation sur son appareil.
       compte: {
         lire: compte.lire,
@@ -455,7 +466,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
         reverifier: compte.reverifier,
       },
       serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
-      surPagesSupprimees: options.surPagesSupprimees,
+      surDocumentsSupprimes: options.surDocumentsSupprimes,
       surEffacement: options.surEffacement,
     }),
   );
@@ -609,16 +620,17 @@ export function pageDEssai(idPage: string = crypto.randomUUID()): PageDEssai {
   return { idPage, doc: new Y.Doc(), refus: [] };
 }
 
+/** Affiche la page ; `undefined` : plus aucun document affiché (`afficherAucun`). */
 export function afficher(onglet: Onglet, page: PageDEssai | undefined): void {
-  onglet.synchro.afficherPage(
-    page === undefined
-      ? undefined
-      : {
-          idPage: page.idPage,
-          doc: page.doc,
-          refuserLaVersion: () => page.refus.push(Date.now()),
-        },
-  );
+  if (page === undefined) {
+    onglet.synchro.afficherAucun();
+    return;
+  }
+  onglet.synchro.afficherPage({
+    idPage: page.idPage,
+    doc: page.doc,
+    refuserLaVersion: () => page.refus.push(Date.now()),
+  });
 }
 
 /** Adopte l'espace de l'onglet et attend « Synchronisé ». */

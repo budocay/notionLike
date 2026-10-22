@@ -8,7 +8,7 @@ import * as Y from "yjs";
 export const NOMS_DU_FORMAT = { meta: "meta", version: "version", pages: "pages" } as const;
 
 export const VERSION_PRISE_EN_CHARGE = 1;
-export const VERSION_NON_PRISE_EN_CHARGE = 2;
+export const VERSION_NON_PRISE_EN_CHARGE = 3;
 
 export function ecrireLaVersion(doc: Y.Doc, version: number): void {
   doc.getMap(NOMS_DU_FORMAT.meta).set(NOMS_DU_FORMAT.version, version);

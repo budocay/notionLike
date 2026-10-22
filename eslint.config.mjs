@@ -65,9 +65,13 @@ const FICHIERS_PURS_WEB = [
   "apps/web/src/navigation/route.ts",
   "apps/web/src/persistance/nom-de-base.ts",
 ];
+// F-018-AC40, ADR-0019 : seul fichier d'apps/web qui nomme localStorage et assemble la clé des
+// réglages de vue d'une table.
+const FICHIER_REGLAGES_DE_VUE = "apps/web/src/persistance/reglages-de-vue.ts";
 const FICHIERS_NOM_DE_BASE_WEB = [
   "apps/web/src/persistance/nom-de-base.ts",
   "apps/web/src/persistance/espace-local.ts",
+  FICHIER_REGLAGES_DE_VUE,
 ];
 const PROPRIETES_INTERDITES_WEB = [
   ["random", "Math", "F-002-AC26 : aucun identifiant ni aléa hors de crypto.randomUUID."],
@@ -115,7 +119,8 @@ const SYNTAXES_NOM_DE_BASE = [
   "TemplateElement[value.raw=/notionlike:/]",
 ].map((selector) => ({
   selector,
-  message: "F-002-AC25 : seuls nom-de-base.ts et espace-local.ts écrivent un nom de base.",
+  message:
+    "F-002-AC25, F-018-AC40 : seuls nom-de-base.ts, espace-local.ts et reglages-de-vue.ts écrivent un nom de base ou de clé.",
 }));
 
 export default tseslint.config(
@@ -193,6 +198,23 @@ export default tseslint.config(
       "no-restricted-globals": [
         "error",
         { globals: GLOBALES_INTERDITES_WEB, checkGlobalObject: true },
+      ],
+    },
+  },
+  {
+    // F-018-AC40 : seul ce fichier d'apps/web nomme localStorage ; IndexedDB et les autres globales
+    // y restent interdites.
+    files: [FICHIER_REGLAGES_DE_VUE],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          globals: [
+            ...GLOBALES_INTERDITES_WEB.filter(({ name }) => name !== "localStorage"),
+            GLOBALE_INDEXEDDB,
+          ],
+          checkGlobalObject: true,
+        },
       ],
     },
   },

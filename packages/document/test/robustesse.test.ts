@@ -490,7 +490,7 @@ describe("exposer à la racine une page dont le parent est ignoré", () => {
 });
 
 const VERSIONS_NON_PRISES_EN_CHARGE: { cas: string; fabriquer: () => unknown }[] = [
-  { cas: "2", fabriquer: () => 2 },
+  { cas: "3", fabriquer: () => 3 },
   { cas: "2.5", fabriquer: () => 2.5 },
   { cas: "1.5", fabriquer: () => 1.5 },
   { cas: "0", fabriquer: () => 0 },
@@ -557,7 +557,7 @@ describe("refuser une version de format inconnue", () => {
   });
 
   it("F-001-AC18 la version non prise en charge est contrôlée avant le titre : les deux refus ensemble donnent version-non-prise-en-charge", () => {
-    const { espace, page: creee } = espaceEnVersion(2);
+    const { espace, page: creee } = espaceEnVersion(3);
 
     expect(codeDuRefus(() => espace.creerPage("t".repeat(201)))).toBe(
       "version-non-prise-en-charge",
@@ -574,7 +574,7 @@ describe("refuser une version de format inconnue", () => {
     const rappel = vi.fn();
     espace.abonner(rappel);
 
-    espace.doc.getMap("meta").set("version", 2);
+    espace.doc.getMap("meta").set("version", 3);
 
     expect(rappel).toHaveBeenCalledTimes(1);
     expect(codeDuRefus(() => espace.lire())).toBe("version-non-prise-en-charge");
@@ -612,7 +612,7 @@ describe("refuser une version de format inconnue", () => {
   it("F-001-AC18 tant que la version reste inconnue, les mises à jour reçues ne notifient pas ; au retour à 1, la lecture reflète tout ce qui a été reçu", () => {
     const source = creerDocumentEspace();
     const replique = ouvrirDocumentEspace(new Y.Doc());
-    source.doc.getMap("meta").set("version", 2);
+    source.doc.getMap("meta").set("version", 3);
     Y.applyUpdate(replique.doc, Y.encodeStateAsUpdate(source.doc));
     const rappel = vi.fn();
     replique.abonner(rappel);

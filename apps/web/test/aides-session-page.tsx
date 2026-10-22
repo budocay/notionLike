@@ -2,7 +2,7 @@
 // rendue par la zone principale comme l'application le fait.
 import type { PageLue } from "@notionlike/document";
 import { act, render } from "@testing-library/react";
-import { type ReactElement, StrictMode, useSyncExternalStore } from "react";
+import { type ComponentProps, type ReactElement, StrictMode, useSyncExternalStore } from "react";
 import { afterEach } from "vitest";
 import * as Y from "yjs";
 
@@ -13,7 +13,8 @@ import {
   type SessionPage,
 } from "../src/page/session-page.ts";
 import { ouvrirPersistance, type Persistance } from "../src/persistance/index.ts";
-import { type DocumentPage } from "@notionlike/document";
+import type { EtatSessionTable } from "../src/table/session-table.ts";
+import { type DocumentPage, type DocumentTable } from "@notionlike/document";
 import { miseAJourDUneReplique } from "./aides-facade-page.ts";
 import { attendreEtat, ESPACE_A, laisserIndexedDbTravailler } from "./aides-persistance.ts";
 import { ecouterLesMisesAJour } from "./edition/aides-edition.tsx";
@@ -108,6 +109,32 @@ export function rendreLaSession(session: SessionPage, idPage: string = PAGE_A): 
     <StrictMode>
       <PageDEssai session={session} page={page} />
     </StrictMode>,
+  );
+}
+
+/** Rend par la zone principale une table prête, sous cet identifiant, comme l'application le fait. */
+export function rendreUneTable(
+  table: DocumentTable,
+  idTable: string,
+  proprietes: Pick<ComponentProps<typeof ZonePrincipale>, "lectureSeule" | "raisonDeLectureSeule">,
+): void {
+  const page: PageLue = { id: idTable, titre: "Budget", type: "table", enfants: [] };
+  const etat: EtatSessionTable = {
+    phase: "pret",
+    table,
+    enregistre: true,
+    baseRelue: true,
+    reessayer: () => undefined,
+  };
+  render(
+    <ZonePrincipale
+      selection={{ type: "page", page }}
+      espaceVide={false}
+      page={undefined}
+      table={etat}
+      idEspace={ESPACE_A}
+      {...proprietes}
+    />,
   );
 }
 

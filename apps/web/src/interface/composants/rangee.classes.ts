@@ -26,6 +26,10 @@ export const RANGEE = {
   chevronReplie: "chevron inline-flex",
   chevronDeplie: "chevron chevron-ouvert inline-flex",
   lien: "extensible contour-interieur content-center self-stretch truncate rounded-petit px-mince",
+  // F-018-AC11 : marque d'une table, un pictogramme devant le titre, et le début de son nom
+  // accessible, lu par les seules technologies d'assistance.
+  marque: "mr-mince inline-flex text-texte-discret",
+  nomDeMarque: "sr-only",
   actions: "actions-de-rangee flex flex-none items-center",
   infobulle:
     "infobulle plan-menu pointer-events-none absolute inset-x-nul top-full mt-infime wrap-anywhere rounded-moyen bg-surface-relief px-petit py-mince text-petit font-normal text-texte-principal shadow-menu filet",

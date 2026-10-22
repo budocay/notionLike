@@ -4,7 +4,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { Application } from "../src/interface/Application.tsx";
@@ -67,6 +67,7 @@ import {
   type IssueDeLEffacement,
   type PageAffichee,
   type Synchronisation,
+  type TableAffichee,
 } from "../src/synchronisation/index.ts";
 import { compteSimule, jamais, moi200, ROUTES, serveurSimule } from "./aides-compte.tsx";
 import { boutonNouvellePage, fermerLOnglet } from "./aides-coquille.tsx";
@@ -74,6 +75,7 @@ import { demarrerSession } from "./aides-facade.ts";
 import {
   fermerDeForce,
   laisserIndexedDbTravailler,
+  nomsDesBases,
   suivreLesConnexionsTenues,
 } from "./aides-persistance.ts";
 import { ouvrirUnePage, poserLeRattachement } from "./aides-page.tsx";
@@ -81,6 +83,10 @@ import { simulerLHorloge, tenterDeQuitter } from "./aides-reprise.ts";
 import { attendreLaZoneDeSaisie } from "./edition/aides-edition.tsx";
 
 type SessionEspace = ReturnType<typeof demarrerSession>;
+type OperationsDeLEspace = Extract<
+  ReturnType<SessionEspace["lireEtat"]>,
+  { readonly phase: "pret" }
+>["operations"];
 
 // ---------------------------------------------------------------------------------------------
 // Une synchronisation simulée : l'interface du module, un état posé par le test.
@@ -108,7 +114,10 @@ interface Simulee {
   readonly adoptions: string[];
   readonly documentsReessayes: (string | undefined)[];
   readonly pages: (PageAffichee | undefined)[];
-  readonly compteurs: { reessais: number; effacements: number };
+  /** F-018 : les tables affichées. */
+  readonly tables: TableAffichee[];
+  /** `aucun` : F-018, les appels qui ne laissent aucun document affiché. */
+  readonly compteurs: { reessais: number; effacements: number; aucun: number };
   espace(): EspaceASynchroniser | undefined;
 }
 
@@ -124,7 +133,8 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
     adoptions: [],
     documentsReessayes: [],
     pages: [],
-    compteurs: { reessais: 0, effacements: 0 },
+    tables: [],
+    compteurs: { reessais: 0, effacements: 0, aucun: 0 },
     espace: () => dernier,
     poser: (partiel) => {
       etat = { ...etat, ...partiel };
@@ -140,6 +150,11 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
           return () => abonnes.delete(rappel);
         },
         afficherPage: (page) => simulee.pages.push(page),
+        // F-018 : la table affichée.
+        afficherTable: (table) => simulee.tables.push(table),
+        afficherAucun: () => {
+          simulee.compteurs.aucun += 1;
+        },
         adopter: (nom) => {
           simulee.adoptions.push(nom);
           return simulee.reponseDAdoption();
@@ -698,7 +713,7 @@ function texteDeLaZonePour(etat: EtatDeSynchronisation, stockageDisponible: bool
     idEspace: "x",
     doc: new Y.Doc(),
     lirePages: () => undefined,
-    surPagesSupprimees: () => undefined,
+    surDocumentsSupprimes: () => undefined,
     surEffacement: () => undefined,
   });
   const rendu = render(
@@ -851,5 +866,207 @@ describe("F-013-AC31 F-013-AC32 F-013-AC48 les textes de la zone", () => {
     poser(simulee, { affiche: "en-cours" });
     expect(tenterDeQuitter().defaultPrevented).toBe(true);
     expect(local()).toContain("Non enregistré sur cet appareil");
+  });
+});
+
+describe("une table en lecture seule (F-018-AC52)", () => {
+  it("F-018-AC52 en lecture seule, « Nouvelle table », « Ajouter une table » et chaque action qui écrit dans la table sont désactivées avec la raison ; navigation et réglages restent ; documents d'espace et de table identiques octet pour octet", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await utilisateur.click(await screen.findByRole("button", { name: "Ajouter une colonne" }));
+    await utilisateur.type(screen.getByRole("textbox", { name: "Nom de la colonne" }), "Fait");
+    await utilisateur.selectOptions(
+      screen.getByRole("combobox", { name: "Type de la colonne" }),
+      "case",
+    );
+    await utilisateur.click(screen.getByRole("button", { name: "Créer la colonne" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Nouvelle ligne" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const docDeTable = (simulee.tables.at(-1) as TableAffichee).doc;
+
+    poser(simulee, { affiche: "synchronise", rattachement: "adopte", droit: "lecture" });
+    const docs = [session.doc as Y.Doc, docDeTable];
+    const avant = docs.map((doc) => Y.encodeStateAsUpdate(doc));
+    let mises = 0;
+    const compter = (): void => {
+      mises += 1;
+    };
+    docs.forEach((doc) => doc.on("update", compter));
+
+    expect(
+      (screen.getByRole("button", { name: "Nouvelle table" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    for (const nom of ["Ajouter une colonne", "Nouvelle ligne"]) {
+      const bouton = screen.getByRole<HTMLButtonElement>("button", { name: nom });
+      expect(bouton.disabled, nom).toBe(true);
+      expect(descriptionDe(bouton), nom).toBe(LECTURE_SEULE);
+    }
+    expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "Fait, ligne 1" }).disabled).toBe(
+      true,
+    );
+    const casePremiere = screen.getAllByRole("gridcell")[0] as HTMLElement;
+    casePremiere.focus();
+    await utilisateur.keyboard(" {Enter}{F2}{Delete}x");
+    fireEvent.doubleClick(casePremiere);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await utilisateur.click(screen.getByRole("button", { name: "Actions de la ligne 1" }));
+    for (const entree of within(screen.getByRole("menu")).getAllByRole("menuitem")) {
+      expect(entree.hasAttribute("disabled"), entree.textContent ?? "").toBe(true);
+    }
+    await utilisateur.keyboard("{Escape}");
+    await utilisateur.click(screen.getByRole("button", { name: "Actions de la colonne Fait" }));
+    const ouvertes = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem")
+      .filter((entree) => !entree.hasAttribute("disabled"))
+      .map((entree) => entree.firstChild?.textContent);
+    expect(ouvertes).toEqual(["Régler la largeur"]);
+    await utilisateur.keyboard("{Escape}");
+    await utilisateur.click(screen.getByRole("button", { name: nomActionsDeLaPage("Budget") }));
+    expect(
+      screen.getByRole("menuitem", { name: "Ajouter une table" }).hasAttribute("disabled"),
+    ).toBe(true);
+    await utilisateur.keyboard("{Escape}");
+
+    // Navigation au clavier et réglages de vue restent utilisables.
+    casePremiere.focus();
+    await utilisateur.keyboard("{ArrowLeft}");
+    expect(document.activeElement?.getAttribute("role")).toBe("rowheader");
+    const separateur = screen.getByRole("separator", { name: "Largeur de la colonne Fait" });
+    act(() => separateur.focus());
+    await utilisateur.keyboard("{ArrowRight}");
+    expect(separateur.getAttribute("aria-valuenow")).toBe("196");
+    await act(() => laisserIndexedDbTravailler());
+
+    docs.forEach((doc) => doc.off("update", compter));
+    expect(docs.map((doc) => Y.encodeStateAsUpdate(doc))).toEqual(avant);
+    expect(mises).toBe(0);
+    localStorage.clear();
+  });
+});
+
+function creerTable(ops: OperationsDeLEspace, titre: string): string {
+  let id = "";
+  act(() => {
+    id = ops.creerTable(titre);
+  });
+  return id;
+}
+
+// Couture de l'application et de la fabrique de synchronisation (F-018-AC51, AC53) : le type que
+// l'application lit dans sa session est celui que la synchronisation reçoit, sans quoi une table
+// serait synchronisée sous `page:` (F-018-AC9) ; une table supprimée ailleurs voit son document
+// fermé dans l'onglet.
+describe("l'application et la synchronisation d'une table (F-018-AC51, AC53)", () => {
+  it("F-018-AC51 F-018-AC9 la synchronisation reçoit de l'application le type lu de chaque identifiant : table, page, rien pour un inconnu", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    const ops = etat.operations;
+    let ids: string[] = [];
+    act(() => {
+      const page = ops.creerPage("Projets");
+      const archive = ops.creerTable("Archive");
+      ops.mettreALaCorbeille(archive);
+      ids = [ops.creerTable("Budget"), ops.creerTable("Suivi", { parent: page }), archive, page];
+    });
+    const espace = simulee.espace();
+
+    expect([...ids, crypto.randomUUID()].map((id) => espace?.typeDe?.(id))).toEqual([
+      "table",
+      "table",
+      "table",
+      "page",
+      undefined,
+    ]);
+  });
+
+  it("F-018-AC51 le type donné suit l'arborescence lue : une table créée ou retirée après une première lecture est vue telle qu'elle est", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    const ops = etat.operations;
+    const espace = simulee.espace();
+    const premiere = creerTable(ops, "Budget");
+    expect(espace?.typeDe?.(premiere)).toBe("table");
+
+    const seconde = creerTable(ops, "Suivi");
+    expect([premiere, seconde].map((id) => espace?.typeDe?.(id))).toEqual(["table", "table"]);
+    act(() => {
+      ops.mettreALaCorbeille(seconde);
+      ops.supprimerDefinitivement(seconde);
+    });
+    expect(espace?.typeDe?.(seconde)).toBeUndefined();
+  });
+
+  it("F-018-AC53 une table supprimée ailleurs : l'application ferme son document dans l'onglet, sans effacer sa base faute d'espace désigné", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const docDeTable = (simulee.tables.at(-1) as TableAffichee).doc;
+    expect(docDeTable.isDestroyed).toBe(false);
+
+    act(() => simulee.espace()?.surDocumentsSupprimes?.([idTable]));
+
+    expect(docDeTable.isDestroyed).toBe(true);
+    await act(() => laisserIndexedDbTravailler());
+    expect(await nomsDesBases()).toContain(`notionlike:table:${etat.idEspace}:${idTable}`);
+  });
+
+  it("F-018-AC51 quitter la table affichée pour un écran sans document : l'application le dit à la synchronisation par afficherAucun, sans passer de page", async () => {
+    const simulee = synchronisationSimulee();
+    const { session } = await ouvrirAvec(simulee);
+    const utilisateur = userEvent.setup();
+    const etat = session.lireEtat();
+    if (etat.phase !== "pret") {
+      throw new Error("La session n'est pas prête.");
+    }
+    let idTable = "";
+    act(() => {
+      idTable = etat.operations.creerTable("Budget");
+    });
+    await utilisateur.click(await screen.findByRole("link", { name: "Table Budget" }));
+    await waitFor(() => expect(simulee.tables.at(-1)?.idTable).toBe(idTable));
+    const aucunAvant = simulee.compteurs.aucun;
+    const pagesAvant = simulee.pages.length;
+
+    act(() => {
+      window.location.hash = "#/corbeille";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    await waitFor(() => expect(simulee.compteurs.aucun).toBe(aucunAvant + 1));
+    expect(simulee.pages.length).toBe(pagesAvant);
+  });
+
+  it("F-018-AC51 « aucun document affiché » n'a qu'un point d'entrée : afficherPage exige une page, afficherAucun n'en prend pas", () => {
+    // Vérifié à la vérification de types (`pnpm typecheck`, lancée par `table-contrat.test.ts`).
+    expectTypeOf<Synchronisation["afficherPage"]>().parameters.toEqualTypeOf<[PageAffichee]>();
+    expectTypeOf<Synchronisation["afficherAucun"]>().parameters.toEqualTypeOf<[]>();
   });
 });

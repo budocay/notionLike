@@ -17,12 +17,13 @@ function texteDe(relatif: string): string {
 }
 
 // Empreintes SHA-256 des tests de F-001 tels que F-029 les a trouvés (`8ec93ec`) : seul
-// `rang.test.ts` pouvait être adapté (F-029-AC14).
+// `rang.test.ts` pouvait être adapté (F-029-AC14). F-018 : `robustesse.test.ts` relevé après le seul
+// changement que la spec permet (refus de la version 2 devenu refus de la version 3).
 const TESTS_DE_F001: Readonly<Record<string, string>> = {
   "operations.test.ts": "87a1da35b578674a82aea93f9c7b443d3ca3ac63d4d9350267d67653b41ea7e3",
   "abonnement.test.ts": "064870765bec51128943655b36d20bccb6f24ed642435476fb3e6fc4393f80a0",
   "convergence.test.ts": "f94ad5f5d1f9216eb5da5219fbe3716342289e2ce68230b7b2a0e427c7321c7c",
-  "robustesse.test.ts": "f854147e6235a4e021deb916f96c9701b465e4d22c8f0110f9ca869a849f0fbb",
+  "robustesse.test.ts": "1cb8f327b902ef6a8f48cb65c65ea9519bedf1868f8331b9a07606c75b9ea373",
   "structure.test.ts": "4c87a48aa438251ab81fb272e796577fdf13b7a9adc504671ea0f3710d77741a",
 };
 
@@ -82,6 +83,8 @@ const EXPORTS_DU_PAQUET = [
   "ValeurDeCellule",
   "creerDocumentTable",
   "ouvrirDocumentTable",
+  // F-018 : type des pages lues.
+  "TypeDePage",
 ];
 
 /** Noms rendus par les `export { … } from` d'un module ; `*` signale un réexport entier. */
@@ -122,7 +125,7 @@ describe("contrat public", () => {
     expect(nomsExportes(texte)).toEqual(attendus);
   });
 
-  it("F-029-AC15 F-017-AC25 src/index.ts rend exactement les quinze noms de F-001 et F-003, plus les douze du document de table de F-017, ni borne, ni fonction de rang, ni entrée interne", () => {
+  it("F-029-AC15 F-017-AC25 F-018-AC8 src/index.ts rend exactement les quinze noms de F-001 et F-003, plus les douze du document de table de F-017 et TypeDePage de F-018, ni borne, ni fonction de rang, ni entrée interne", () => {
     const noms = nomsExportes(texteDe("../src/index.ts"));
 
     expect(noms).toEqual([...EXPORTS_DU_PAQUET].sort());

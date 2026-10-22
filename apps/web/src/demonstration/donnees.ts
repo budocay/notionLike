@@ -87,6 +87,38 @@ export const CORBEILLE_FICTIVE = {
   uneSousPage: "1 sous-page",
 } as const;
 
+// Écran de table (F-018) : une table sans colonne, sa marque dans une rangée et dans la corbeille.
+export const TABLE_FICTIVE = {
+  titre: "Suivi des achats",
+  marque: "Table",
+  invitation: "Cette table n'a encore aucune colonne. Ajoutez-en une pour commencer à la remplir.",
+  ajouter: "Ajouter une colonne",
+  nouvelleTable: "Nouvelle table",
+  grille: "Lignes de la table Suivi des achats",
+  colonnes: ["Article", "Prix", "Reçu"],
+  lignes: [
+    ["Papier", "12,5"],
+    ["Encre, cartouche noire de grande capacité pour l'imprimante du bureau", "39"],
+  ],
+  vues: [
+    { id: "tableau", libelle: "Tableau" },
+    { id: "kanban", libelle: "Kanban" },
+  ],
+  nomDesVues: "Vue de la table",
+  largeur: "Largeur de la colonne Article",
+  champ: "Article, ligne 1",
+  choix: [
+    { cle: "aucune", libelle: "Aucune", courant: false },
+    { cle: "attente", libelle: "En attente", courant: true },
+    { cle: "recu", libelle: "Reçu", courant: false },
+  ],
+  nomDuChoix: "Choix pour la colonne État",
+  options: "Options de la colonne État",
+  aucuneOption: "Cette colonne n'a encore aucune option.",
+  nouvelleOption: "Nouvelle option",
+  faute: "Le libellé d'une option compte au plus 100 caractères.",
+} as const;
+
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
 export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";

@@ -1,0 +1,90 @@
+# ADR-0019 — Écran de table : session, module des vues et réglages de vue sur l'appareil
+
+Statut : accepté (décision du dev du 2026-10-21, addendum des écarts au code compris) ; complément du 2026-10-22 à l'addendum (focus rendu à l'annulation, F-018-AC21) accepté par le dev le 2026-10-22
+Date : 2026-10-16 ; écarts au code relevés le 2026-10-21 (addendum à la fin de « Décision »), complétés le 2026-10-22
+
+## Contexte et problème
+
+F-018 (`specs/F-018.md`, validée, structurel) est le premier appelant du document de table (F-017, ADR-0016) : `apps/web` doit ouvrir une table depuis l'arborescence, la conserver sur l'appareil, l'afficher en grille et la synchroniser (F-013 est livrée : F-018-AC51 à AC53 s'appliquent). Trois choix s'y défont mal :
+
+- où vit, dans `apps/web`, ce qui tient le document d'une table et ce qui l'affiche, et ce que chaque partie a le droit d'importer (F-018-AC54) ;
+- la forme des réglages de vue conservés sur l'appareil (F-018 H3, H4, AC40 à AC44) : une fois écrite dans le `localStorage` des utilisateurs, une clé ou un enregistrement ne se retire plus, et F-019, F-020 et F-021 y ajouteront leurs sections ;
+- la façon dont la synchronisation traite un document de table à côté d'un document de page.
+
+La spec fixe déjà le format du document d'espace (amendement F-018 de l'ADR-0002), le nom des bases (ADR-0008) et des documents (ADR-0001), et le support des réglages : `localStorage`, une clé `notionlike:vue:<idEspace>:<idTable>` produite par une seule fonction (AC40).
+
+## Options étudiées
+
+Session d'une table :
+
+1. Généraliser `apps/web/src/page/` (session et documents ouverts) aux deux types. Écarté : `page/session-page.ts` porte la garde et l'élévation de version du document de page, que F-005 modifie en parallèle ; la session de table n'a ni l'une ni l'autre (ADR-0016 : pas de seconde barrière).
+2. **Un module `apps/web/src/table/`, sans React, sur le modèle de `page/`** (retenu) : session de table et tables ouvertes de l'onglet.
+
+Grille :
+
+- a. TanStack Table (`@tanstack/react-table@9.2.8`, cinq paquets, veille du 2026-10-16). Elle tourne sous jsdom et admet React 19 (aucune condition de repli de H8), mais elle est sans tête : balisage, accessibilité, fenêtre, analyse des saisies, lignes affichées et largeurs restent au projet ; elle n'apporte que le modèle de colonnes et de rangées.
+- b. **Grille écrite par le projet** (retenue, repli permis par H8 sans changer de critère) : aucune dépendance, aucun changement du verrou, aucune API en réécriture (9.0.0 a deux mois). Se défait sans coût : la règle de dépendances réserve déjà `@tanstack/react-table` au module des vues.
+
+Lieu du code qui touche au `localStorage` :
+
+- i. Un module propre aux réglages. Possible, mais la synchronisation (effacements reçus, F-018-AC53) ne pourrait l'atteindre qu'en élargissant sa liste blanche ou par un rappel de plus.
+- ii. **Un fichier du module de persistance, `persistance/reglages-de-vue.ts`** (retenu) : l'ADR-0008 y range déjà tout ce que l'appareil conserve (« rien n'est conservé hors du module de persistance », règle ESLint) ; la session de table, les vues et la synchronisation l'atteignent par `persistance/index.ts` qu'elles importent déjà.
+
+Forme de l'enregistrement :
+
+- α. Une clé par réglage. Écarté : autant de clés à énumérer et à effacer, et aucune place pour une version.
+- β. **Un enregistrement JSON par table, versionné, découpé en sections nommées** (retenu, H4).
+
+Synchronisation d'une table affichée :
+
+- A. Réplique et miroir, comme la page affichée (ADR-0014). Écarté : la réplique protège la liaison de l'éditeur d'un contenu qu'elle détruirait ; une table n'a pas de liaison, sa façade refuse une version inconnue sans rien retirer (ADR-0016, « Conséquences »).
+- B. **Le document de table affiché est échangé directement** (retenu).
+
+## Décision
+
+### Modules d'`apps/web`
+
+| Module                           | Rôle                                                                                                                                                                                                                                                                                         | Importe (règle de `.dependency-cruiser.cjs`)                                                                                                                                                                                                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `table/`                         | `session-table.ts` : relit la base de la table, juge l'état relu (version, autre genre) avant toute fusion, ouvre la façade par `ouvrirDocumentTable`, publie son état ; `tables-ouvertes.ts` : au plus une session, document conservé tant qu'une modification n'est pas écrite, effacement | lui-même, `persistance/index.ts`, `espace/garde-onglet.ts`, exports de `@notionlike/document`, `yjs` (`web-table-liste-blanche`)                                                                                                                                                                     |
+| `vues-de-table/`                 | le module des vues de table (AC54) : écran de table, liste des vues, vue « Tableau », fonctions sans DOM (lignes affichées, colonne de titre, fenêtre, saisies, affichage, navigation au clavier), sections des réglages de vue ; seul `index.ts` est importable du dehors                   | lui-même, `persistance/index.ts`, `table/session-table.ts`, `interface/composants/`, `interface/messages.ts`, `interface/raccourcis.ts`, exports de `@notionlike/document`, `react`, `react-dom`, `@tanstack/react-table` (`web-vues-de-table-liste-blanche`, `web-vues-de-table-par-son-interface`) |
+| `persistance/reglages-de-vue.ts` | seul fichier d'`apps/web` qui nomme `localStorage` et assemble la clé `notionlike:vue:<idEspace>:<idTable>` (ESLint)                                                                                                                                                                         | liste blanche de la persistance, inchangée                                                                                                                                                                                                                                                           |
+
+- Aucun paquet `@tanstack/*` n'est importé hors de `vues-de-table/` et de ses tests (`bibliotheque-de-table-reservee-aux-vues-de-table`) ; le module n'admet que `@tanstack/react-table`, donc ni défilement virtuel, ni dates, ni glisser-déposer (AC54). Aucun paquet n'est installé par F-018.
+- Le module des vues n'importe pas `yjs` : il ne touche aux documents que par la façade `DocumentTable` reçue de la session.
+- Une table se construit par `new Y.Doc({ gc: true })` dans `tables-ouvertes.ts`, constructeur à ajouter à la liste fermée d'`apps/web/test/corbeille-coutures.test.ts`.
+
+### Réglages de vue
+
+- Clé : `notionlike:vue:<idEspace>:<idTable>`, produite par une seule fonction de `reglages-de-vue.ts`, qui refuse un identifiant d'espace ou de table qui n'est pas un UUID canonique (`identifiants/`), comme `nomDeBase`.
+- Valeur : `{"version":1,"sections":{"<nom>":<valeur JSON>}}`. Version 1. Sections de F-018 : `vue` (`{"active":"tableau"}`) et `tableau` (`{"largeurs":{"<idColonne>":<entier de 60 à 800>}}`). F-019, F-020 et F-021 ajoutent chacune la leur, sans élever la version.
+- `reglages-de-vue.ts` ne connaît que l'enveloppe : il lit les sections comme des valeurs JSON opaques, réécrit l'enregistrement en conservant telle quelle toute section qu'on ne lui demande pas de changer (AC41), n'écrit jamais un enregistrement de version supérieure à 1 ni un enregistrement illisible (il rend alors des sections vides), retire la clé quand plus aucune section ne reste, et n'écrit rien tant qu'on ne lui demande pas d'écrire. Si `localStorage` est absent ou lève (lecture, écriture, quota), il tient les sections en mémoire pour l'onglet, sans erreur ni avertissement. Il efface les réglages d'une liste de tables d'un espace, une clé absente n'étant pas une erreur.
+- Le module des vues valide le contenu de chaque section : une section mal formée est lue à ses valeurs par défaut, seule (AC41) ; une section égale à ses valeurs par défaut est retirée plutôt qu'écrite (AC40) ; les largeurs de colonnes absentes de la table lue sont retirées à l'écriture suivante (AC43).
+- Rien du compte n'y entre (ni nom, ni courriel, ni identifiant de compte, ni jeton) ; aucun réglage n'entre dans un document Yjs ni ne passe par le réseau (AC42).
+
+### Synchronisation des documents de table (F-018-AC51 à AC53)
+
+- La synchronisation reçoit de l'interface, pour chaque identifiant de l'arborescence et de la corbeille, son type lu (`page` ou `table`) et en tire le nom du document (`correspondance(type, …)`, `table:<idEspace>:<idTable>`) pour la passe de fond et pour le document affiché.
+- La table affichée est échangée directement sur le `Y.Doc` que tient `table/` : ni réplique ni miroir (ADR-0016). Une version refusée est signalée par la façade (`lire()` lève) et l'écran affiche le message de F-018-AC15 ; ce que le serveur envoie reste enregistré dans la base de la table, comme la réplique d'une page refusée (ADR-0014).
+- Effacements (suppression définitive locale ou reçue, copie locale effacée) : pour chaque identifiant retiré, quel que soit son type, la base de page, la base de table et les réglages de vue de l'espace ouvert (H11 : le type d'une entrée retirée n'est plus lisible).
+
+### Écarts au code (addendum du 2026-10-21)
+
+Relevé sur le code de la branche `F-018` à `d4fb6e5` (blocs 3 à 8 : `846c922` à `d4fb6e5`), puis revu le même jour sur `05b1004` (correctifs d'après les revues) et le 2026-10-22 sur `520a26a` (correctifs d'après la reprise D-039, `a4c9f71` à `520a26a`), puis sur `bfbb974` (correctifs d'après le quatrième passage des gates, `5ffa15a` à `bfbb974`), détail dans l'addendum du même jour de `docs/decisions/F-018-conception.md`. Aucune des décisions ci-dessus ne change ; le code les tient de cette façon :
+
+- **Type de chaque identifiant** : la synchronisation le reçoit par un rappel facultatif `typeDe(id)` de ses options, à côté de `lirePages`, dont le contrat (F-013) ne change pas ; absent, ou `undefined` pour un identifiant, c'est une page. L'interface le lit dans les types de l'arborescence lue (`typesDesPages`, `synchronisation/pages-de-l-espace.ts`), calculés une fois par arborescence et gardés dans une `WeakMap` (`TYPES_PAR_ARBORESCENCE`, `interface/Application.tsx`, `c059f8b`) : un parcours de l'arborescence à chaque nouvelle arborescence lue, puis une lecture par appel ; rien n'est mesuré.
+- **Table affichée** : deux membres de plus de la synchronisation, qui en compte douze : `afficherTable({ idTable, doc })`, qui prend la place de la page affichée (`synchronisation/table-affichee.ts`, classe `TableSynchronisee`, sans réplique ni miroir), et `afficherAucun()`, qui retire le document affiché, page ou table (`6a655c5`), appelé par `useAffichageDuDocument` quand il n'a ni page ni table prête à donner ; depuis `6d54185`, `afficherPage(page: PageAffichee)` exige une page et `afficherAucun()` est le seul point d'entrée de « aucun document affiché », que l'aide `afficher` des tests de synchronisation (`test/synchronisation/aides-synchro.ts`) appelle quand elle ne reçoit pas de page. L'orchestre tient le document affiché dans le champ `#affiche` ; `#bloquerLeDocument` reconnaît `table:`, et les effacements de `synchronisation/stockage.ts` (`effacerLesDocuments`, appelé par `#effacerLesDocumentsSupprimes` après le rappel `surDocumentsSupprimes` des options, qui ferme les documents de l'onglet) traitent chaque identifiant comme ci-dessus. Noms depuis `6a655c5` : `#page`, `effacerLesPages`, `#effacerLesPagesSupprimees` et `surPagesSupprimees` avant.
+- **Présentation** : le module des vues n'écrit aucune classe ; il rend les composants de présentation de `interface/composants/Table.tsx` (classes dans `table.classes.ts`), tenus par `web-composants-de-presentation`, et `MenuActions` (nom accessible par entrée, `nom`). Ses textes sont dans `vues-de-table/textes.ts` ; il n'importe d'`interface/messages.ts` que `messageErreur`, et d'`interface/raccourcis.ts` les combinaisons de la grille (`TOUCHES_DE_LA_GRILLE`, `TOUCHES_DE_LA_CELLULE`, `TOUCHES_DE_L_EDITION`, `monterLaLigne` et `descendreLaLigne` de `RACCOURCIS`), déclarées là par F-004-AC31, celles des boîtes (`TOUCHES_DE_BOITE`), `caractereSeul`, `estLaFrappe`, `afficherTouches`, `cleAria` et le type `Combinaison`.
+- **Réglages de vue** : la fonction qui assemble la clé, `cleDesReglagesDeVue`, n'est pas exportée hors de `reglages-de-vue.ts` (`f3b3be6`), qui importe `ErreurPersistance` de `nom-de-base.ts` pour son refus. Un changement de vue ou de largeur n'écrit que sa section, calculée sur la section relue : `sectionDeLaVue` et `sectionDuTableau` (`vues-de-table/reglages.ts`) ne remplacent que leur clé et gardent celles que cette version ne connaît pas (AC41, H4, `c499561`). `useReglages` (`vues-de-table/use-reglages.ts`) relit les réglages sous la clé qui les désigne quand l'espace ou la table changent : une table tenue en mémoire (AC14) peut s'afficher avant que le stockage ne dise son espace, sans clé et à ses valeurs par défaut, et ses réglages enregistrés sont relus dès que l'espace est connu (`d56969b`). Une largeur réglée s'ajoute aux largeurs relues de la section enregistrée (`largeursLues`, `reglages.ts`) : celles qu'un autre onglet a écrites pour d'autres colonnes restent (H4, `d34043c`).
+- **Interface** : `interface/table-ouverte.ts` (`useTablesOuvertes`, `useTableOuverte`) ouvre la session de la table sélectionnée ; `useSynchronisationDeLEspace` et `etatAvecLeDocumentOuvert` (`etat-d-enregistrement.ts`) acceptent une table à la place de la page ; le rappel `fermerLesDocuments` d'`EspaceOuvert` ferme les documents de page et de table des identifiants supprimés ailleurs, et `useAffichageDuDocument` donne à la synchronisation la page ou la table affichée (noms depuis `b725399`), ou `afficherAucun()` sans l'une ni l'autre. `ZonePrincipale` reçoit de l'application la raison de lecture seule (`raisonDeLectureSeule`) et la passe telle quelle à `EcranDeTable`, sans importer `messages-synchronisation.ts` ; son booléen `lectureSeule` reste pour l'éditeur, et `Application.tsx` donne les deux d'une même valeur (`c6b72d5`).
+- **Focus rendu à l'annulation, écart à la lettre de F-018-AC21** (complément du 2026-10-22, accepté par le dev le 2026-10-22) : AC21 veut le focus rendu « à la commande d'origine » quand la suppression d'une colonne est annulée. Le code le rend à la cellule d'en-tête de la colonne, et non au bouton « Actions de la colonne … » qui a ouvert le menu : ce bouton porte `tabIndex={-1}` (`EnTetes.tsx`), hors de l'ordre de tabulation, puisque la grille ne compte que pour un seul arrêt (tabindex itinérant, AC33) ; l'entrée de menu disparaît avec le menu ; la cellule est le seul arrêt de la grille d'où le clavier repart. La règle vaut pour toute boîte ouverte depuis une entrée de menu de la grille : son origine est la cellule qui a ouvert le menu (`menu.origine`), une boîte ouverte hors d'un menu rendant le focus à l'élément qui l'avait (`useBoiteOuverte`, `vues-de-table/use-vue-tableau.ts`, dont le commentaire renvoie à cet addendum depuis `a4e3e1b`). `test/vues-de-table/colonnes.test.tsx` (« F-018-AC21 … Annuler ne modifie rien et rend le focus à l'origine ») constate un focus sur un `columnheader`. Décision du dev du 2026-10-22 (`e544bf2`) : cette lecture de la « commande d'origine » est acceptée ; le focus n'est pas porté sur le bouton lui-même.
+
+## Conséquences
+
+- Deux modules parallèles, `page/` et `table/`, ont la même mécanique de documents conservés (environ cent cinquante lignes) : une factorisation est possible quand F-005 aura fini de toucher `page/`, au prix d'une feature à elle.
+- Le module de persistance cesse d'être le seul module IndexedDB pur : il porte aussi un fichier `localStorage`. La règle ESLint garde chaque support à un fichier (`indexedDB` dans les fichiers de base, `localStorage` dans `reglages-de-vue.ts`).
+- Le format des réglages devient un contrat entre versions de l'application sur un même appareil (deux onglets, F-023) : ne jamais retirer une section connue, ne jamais réécrire une version inconnue. Passer à des vues partagées (H3 c) se fera par une version du document de table, les réglages servant de valeur initiale.
+- Sur un appareil partagé, les réglages d'une personne servent à la suivante (H3, limite acceptée) ; l'effacement de la copie locale d'un espace les retire.
+- Sans bibliothèque, l'accessibilité de la grille (rôles, indices, tabindex itinérant, annonces) et ses tests sont entièrement au projet ; ils l'auraient été aussi avec TanStack Table, sans tête. Retenir la bibliothèque plus tard : `pnpm --filter @notionlike/web add --save-exact @tanstack/react-table@<version de la veille>`, sans changer les règles.
+- Une table affichée qui reçoit une version inconnue est enregistrée telle quelle et devient illisible sur l'appareil jusqu'à la mise à jour de l'application ; rien n'en est retiré.
+- La vérification de version d'une table relit toute la table (`ouvrirDocumentTable(…).lire()`) ; sur la passe de fond, aucun juge de version n'est appliqué (comme pour les pages, ADR-0014).

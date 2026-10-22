@@ -22,7 +22,13 @@ import {
   type ClientBrut,
   type EspaceDEssai,
 } from "./aides-synchro.ts";
-import { laisseDesStructuresEnAttente } from "../src/synchro-stockage.ts";
+import { laisseDesStructuresEnAttente, versionAdmiseApres } from "../src/synchro-stockage.ts";
+import {
+  CAS_DE_VERSION_FORGEE,
+  documentEnVersionDeux,
+  elevationADeux,
+  miseAJourSurUneCopie,
+} from "./aides-versions.ts";
 import { demarrerServeurDEssai, type ServeurDEssai } from "./fabrique.ts";
 
 const TEMOIN = "TEMOIN-DU-CONTENU-7f3a";
@@ -398,6 +404,55 @@ describe("mise à jour incomplète (F-012-AC20)", () => {
     },
     DELAI_SYNCHRO_MS,
   );
+});
+
+describe("lecture de la version d'un document d'espace (F-018-AC57, AC58)", () => {
+  it.each(CAS_DE_VERSION_FORGEE)(
+    "F-018-AC58 $cas : refusée sur un document en version 2, qui reste intact",
+    ({ forger }) => {
+      const document = documentEnVersionDeux();
+      const avant = Y.encodeStateAsUpdate(document);
+
+      expect(versionAdmiseApres(document, miseAJourSurUneCopie(document, forger))).toBe(false);
+      expect(Y.encodeStateAsUpdate(document)).toEqual(avant);
+      document.destroy();
+    },
+  );
+
+  it.each<[string, (doc: Y.Doc) => void]>([
+    ["la première table, meta.version à 2 et 2 inscrit dans versions", elevationADeux],
+    ["2 inscrit dans versions sans meta.version", (doc) => doc.getArray("versions").push([2])],
+    ["meta.version à 2 sans versions", (doc) => doc.getMap("meta").set("version", 2)],
+    [
+      "meta.version à 1 écrite par la création de l'espace",
+      (doc) => doc.getMap("meta").set("version", 1),
+    ],
+  ])("F-018-AC57 %s : admise sur un document en version 1", (_cas, ecrire) => {
+    const document = new Y.Doc();
+
+    expect(versionAdmiseApres(document, miseAJourSurUneCopie(document, ecrire))).toBe(true);
+    document.destroy();
+  });
+
+  it("F-018-AC57 une seconde table, deux tables créées en même temps (versions [2, 2]) et une page sans version : admises sur un document en version 2", () => {
+    const document = documentEnVersionDeux();
+    const concurrente = miseAJourSurUneCopie(new Y.Doc(), elevationADeux);
+
+    expect(versionAdmiseApres(document, miseAJourSurUneCopie(document, elevationADeux))).toBe(true);
+    expect(versionAdmiseApres(document, concurrente)).toBe(true);
+    const deuxTables = new Y.Doc();
+    Y.applyUpdate(deuxTables, Y.encodeStateAsUpdate(document));
+    Y.applyUpdate(deuxTables, concurrente);
+    expect(deuxTables.getArray("versions").toArray()).toEqual([2, 2]);
+    deuxTables.destroy();
+    expect(
+      versionAdmiseApres(
+        document,
+        miseAJourSurUneCopie(document, (doc) => doc.getMap("pages").set("p", new Y.Map())),
+      ),
+    ).toBe(true);
+    document.destroy();
+  });
 });
 
 describe("taille et quota (F-012-AC23, AC24)", () => {

@@ -5,6 +5,7 @@
 import type { CSSProperties, ReactElement, ReactNode, Ref } from "react";
 
 import { CORBEILLE } from "./compte.classes.ts";
+import { MarqueDeTable } from "./Rangee.tsx";
 
 export interface LigneDeCorbeille {
   readonly cle: string;
@@ -13,6 +14,8 @@ export interface LigneDeCorbeille {
   /** 1 pour une racine ; sa descendance compte à partir de 2. */
   readonly niveau: number;
   readonly commandes: ReactNode;
+  /** Le mot qui marque une table (F-018-AC11 : « Table »), comme dans la barre latérale. */
+  readonly marqueDeTable?: string | undefined;
 }
 
 export interface RacineDeCorbeille extends LigneDeCorbeille {
@@ -32,7 +35,10 @@ interface Proprietes {
 function Ligne({ ligne }: { readonly ligne: LigneDeCorbeille }): ReactElement {
   return (
     <div className={CORBEILLE.ligne}>
-      <span className={CORBEILLE.titre}>{ligne.titre}</span>
+      <span className={CORBEILLE.titre}>
+        {ligne.marqueDeTable !== undefined && <MarqueDeTable nom={ligne.marqueDeTable} />}
+        {ligne.titre}
+      </span>
       <span className={CORBEILLE.detail}>{ligne.detail}</span>
       <span className={CORBEILLE.actions}>{ligne.commandes}</span>
     </div>

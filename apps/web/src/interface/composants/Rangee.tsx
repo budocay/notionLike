@@ -77,6 +77,11 @@ export interface ProprietesRangee {
   readonly surTouche?: ((evenement: KeyboardEvent<HTMLElement>) => void) | undefined;
   /** Absent : la rangée ne se glisse pas. */
   readonly glisser?: GlisserDeRangee | undefined;
+  /**
+   * Le mot qui marque une table (F-018-AC11 : « Table ») : le pictogramme de table devant le titre,
+   * et ce mot au début du nom accessible du lien. Absent pour une page.
+   */
+  readonly marqueDeTable?: string | undefined;
 }
 
 function CommandeDeRepli({ repli }: { readonly repli: RepliDeRangee | undefined }): ReactElement {
@@ -135,8 +140,27 @@ const AU_REPOS = { survol: false, focus: false };
 
 type ProprietesLien = Pick<
   ProprietesRangee,
-  "titre" | "adresse" | "courante" | "description" | "refLien" | "surDoubleClic" | "glisser"
+  | "titre"
+  | "adresse"
+  | "courante"
+  | "description"
+  | "refLien"
+  | "surDoubleClic"
+  | "glisser"
+  | "marqueDeTable"
 >;
+
+/** Pictogramme et début du nom accessible d'une page marquée (F-018-AC11). */
+export function MarqueDeTable({ nom }: { readonly nom: string }): ReactElement {
+  return (
+    <>
+      <span className={RANGEE.marque}>
+        <Pictogramme nom="table" />
+      </span>
+      <span className={RANGEE.nomDeMarque}>{nom}</span>{" "}
+    </>
+  );
+}
 
 /** Identifiants des descriptions du lien : sa place dans l'arbre, puis les instructions du geste. */
 function descriptionsDuLien(
@@ -201,6 +225,7 @@ function LienDeRangee(props: ProprietesLien): ReactElement {
         onBlur={(evenement) => garderJusquALaSortie(evenement, () => setCoupe(SANS_FOCUS))}
         onDoubleClick={props.surDoubleClic}
       >
+        {props.marqueDeTable !== undefined && <MarqueDeTable nom={props.marqueDeTable} />}
         {titre}
       </a>
       {description !== undefined && (

@@ -32,6 +32,7 @@ import {
   SUPPRIMER_DEFINITIVEMENT,
   texteDeLaConfirmation,
 } from "./messages-corbeille.ts";
+import { MARQUE_DE_TABLE } from "./messages-tables.ts";
 import { touchesDeBoite, useBoite } from "./outils-espaces.ts";
 
 /** Issue d'une suppression : le message d'un refus, ou l'effacement des bases qui suit. */
@@ -97,6 +98,7 @@ function ligneDe(page: PageLue, niveau: number, commandes: Commandes): LigneDeCo
     titre,
     detail: nombreDeSousPages(compterLaDescendance(page)),
     niveau,
+    marqueDeTable: page.type === "table" ? MARQUE_DE_TABLE : undefined,
     commandes: (
       <>
         {niveau === NIVEAU_D_UNE_RACINE && (

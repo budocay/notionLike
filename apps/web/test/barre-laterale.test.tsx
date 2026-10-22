@@ -253,6 +253,8 @@ describe("barre latérale", () => {
 
     expect(noms).toEqual([
       "Nouvelle page",
+      // F-018-AC10 : création d'une table à la racine.
+      "Nouvelle table",
       "Sous-pages de « Parent »",
       "Ajouter une sous-page à « Parent »",
       "Actions de la page « Parent »",

@@ -10,6 +10,10 @@ const TRACES = {
   tiroir: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
   fermer: "M4 4l8 8M12 4l-8 8",
   alerte: "M8 4.5v4M8 11.25h.01",
+  // F-018 : marque d'une table, une grille de deux rangées et deux colonnes.
+  table: "M2.5 3.5h11v9h-11zM2.5 7.5h11M7 3.5v9",
+  // F-018-AC31 : l'option courante d'une liste de choix.
+  coche: "M3.5 8.5l3 3l6-7",
 } as const;
 
 export type NomDePictogramme = keyof typeof TRACES;
