@@ -379,7 +379,8 @@ describe("effacer les tables supprimées définitivement (F-018-AC49)", () => {
 });
 
 describe("couture du module de persistance (F-018-AC50)", () => {
-  it("F-018-AC14 F-018-AC50 F-030-AC19 la session de table traite chaque état de la persistance, dont le retour de la coupure à l'état actif : ses abonnés sont prévenus à chaque passage", async () => {
+  it("F-018-AC14 F-018-AC50 F-030-AC19 la session de table traite chaque état de la persistance, dont le retour de la coupure à l'état actif : ses abonnés sont prévenus à chaque passage, sans erreur non interceptée ni rejet non géré pendant la connexion fermée de force", async () => {
+    const relevees = ecouterLesErreursNonInterceptees();
     const connexions = suivreLesConnexionsTenues();
     const tables = creerTablesOuvertes();
     const session = tables.ouvrir(TABLE_A_DE_L_ESPACE_A);
@@ -402,6 +403,7 @@ describe("couture du module de persistance (F-018-AC50)", () => {
       "pret, non enregistré",
       "pret, enregistré",
     ]);
+    expect(relevees()).toEqual([]);
     tables.fermer();
   });
 
