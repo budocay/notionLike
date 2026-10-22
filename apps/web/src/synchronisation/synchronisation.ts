@@ -8,7 +8,7 @@ import type * as Y from "yjs";
 
 import {
   type Droit,
-  effacerLesPages,
+  effacerLesDocuments,
   type EntreeDuRegistre,
   inscrireLEntree,
   lireLEntree,
@@ -34,12 +34,16 @@ import {
 } from "./etat.ts";
 import { effacerLaCopie, type IssueDEffacement as IssueDeLEffacement } from "./stockage.ts";
 import { PageSynchronisee, type PageAffichee } from "./page-affichee.ts";
-import { ecart } from "./pages-de-l-espace.ts";
+import { type TableAffichee, TableSynchronisee } from "./table-affichee.ts";
+import { ecart, type TypeDePage } from "./pages-de-l-espace.ts";
 import { lancerLaPasse, type Passe, type Suite } from "./passe-de-fond.ts";
 import { ATTENTE_APRES_TROP_DE_REQUETES_MS, creerReprise, type Reprise } from "./reprise.ts";
 import { correspondance } from "./noms.ts";
 
-export type { PageAffichee };
+export type { PageAffichee, TableAffichee };
+
+/** Le document affiché que la synchronisation tient : la page de l'éditeur, ou la table (F-018). */
+type DocumentAffiche = PageSynchronisee | TableSynchronisee;
 
 /** L'état du compte, tenu par le module de F-010 et lu ici sans rien d'autre que son statut. */
 export interface SourceDuCompte {
@@ -58,10 +62,18 @@ export interface OptionsDeSynchronisation {
    * abonnée de la façade du document (ADR-0007) ; `undefined` si elle ne les lit pas (version).
    */
   readonly lirePages: () => ReadonlySet<string> | undefined;
+  /**
+   * Le type lu de chaque identifiant de `lirePages` (F-018-AC51, ADR-0019) : une table est échangée
+   * sous son document de table. Absent, ou pour un identifiant qu'il ne lit pas : une page.
+   */
+  readonly typeDe?: ((id: string) => TypeDePage | undefined) | undefined;
   readonly compte: SourceDuCompte;
   readonly serveur: ServeurDesEspaces;
-  /** Avant l'effacement des bases de pages supprimées ailleurs : fermer leurs documents (AC37). */
-  readonly surPagesSupprimees?: ((idPages: readonly string[]) => void) | undefined;
+  /**
+   * Avant l'effacement des bases des pages et des tables supprimées ailleurs : fermer leurs
+   * documents (AC37, F-018-AC53).
+   */
+  readonly surDocumentsSupprimes?: ((ids: readonly string[]) => void) | undefined;
   /** Un autre onglet efface la copie locale de cet espace (AC24) : tout fermer, puis recharger. */
   readonly surEffacement?: ((etape: "demande" | "faite") => void) | undefined;
 }
@@ -69,8 +81,12 @@ export interface OptionsDeSynchronisation {
 export interface Synchronisation {
   lireEtat(): EtatDeSynchronisation;
   abonner(rappel: () => void): () => void;
-  /** La page affichée, entièrement relue ; `undefined` quand aucune ne l'est. */
-  afficherPage(page: PageAffichee | undefined): void;
+  /** La page affichée, entièrement relue ; aucune affichée : `afficherAucun`. */
+  afficherPage(page: PageAffichee): void;
+  /** La table affichée, entièrement relue (F-018-AC51) ; elle prend la place de la page affichée. */
+  afficherTable(table: TableAffichee): void;
+  /** Plus aucun document affiché, ni page ni table (F-018-AC51). */
+  afficherAucun(): void;
   adopter(nom: string): Promise<IssueDAdoption>;
   /** « Réessayer » de la zone : connexion refusée (AC19) ou espace détaché (AC23). */
   reessayer(): void;
@@ -102,6 +118,8 @@ export function demarrerSynchronisation(options: OptionsDeSynchronisation): Sync
     lireEtat: orchestre.lireEtat,
     abonner: orchestre.abonner,
     afficherPage: orchestre.afficherPage,
+    afficherTable: orchestre.afficherTable,
+    afficherAucun: orchestre.afficherAucun,
     adopter: orchestre.adopter,
     reessayer: orchestre.reessayer,
     reessayerLeDocument: orchestre.reessayerLeDocument,
@@ -127,7 +145,7 @@ class Orchestre {
   readonly #reprise: Reprise;
   readonly #abonnes = new Set<() => void>();
   readonly #arrets: (() => void)[] = [];
-  readonly #partantes = new Set<PageSynchronisee>();
+  readonly #partantes = new Set<DocumentAffiche>();
   readonly #erreursDePasse = new Map<string, CauseDErreur>();
   /** Envois bloqués jusqu'à un geste ou au rechargement, par page ; `""` : le document d'espace. */
   readonly #bloques = new Map<string, CauseDErreur>();
@@ -138,7 +156,8 @@ class Orchestre {
   #relectureDuRegistreMs = PREMIERE_RELECTURE_DU_REGISTRE_MS;
   #annulerLaRelecture: (() => void) | undefined;
   #prise: HocuspocusProviderWebsocket | undefined;
-  #page: PageSynchronisee | undefined;
+  /** Le document affiché, page ou table (F-018-AC51). */
+  #affiche: DocumentAffiche | undefined;
   #passe: Passe | undefined;
   #passeAchevee = false;
   #ids: ReadonlySet<string>;
@@ -196,6 +215,11 @@ class Orchestre {
   }
 
   readonly lireEtat = (): EtatDeSynchronisation => this.#etat;
+
+  // Le type lu d'un identifiant ; une page par défaut, règle permanente du format (F-018-AC2).
+  #typeDe(id: string): TypeDePage {
+    return this.#options.typeDe?.(id) ?? "page";
+  }
 
   readonly abonner = (rappel: () => void): (() => void) => {
     if (this.#fermee) {
@@ -386,7 +410,7 @@ class Orchestre {
       this.#avancerEnPrudence();
     } else {
       this.#espace.ouvrir();
-      this.#page?.suivi.ouvrir();
+      this.#affiche?.suivi.ouvrir();
     }
     this.#publier();
   }
@@ -443,19 +467,21 @@ class Orchestre {
   }
 
   #suspects(): string[] {
-    const suivis = [this.#espace, this.#page?.suivi].filter(
+    const suivis = [this.#espace, this.#affiche?.suivi].filter(
       (suivi): suivi is DocumentSuivi =>
         suivi !== undefined && (suivi.estEnCoursDOuverture() || suivi.aDesModificationsEnAttente()),
     );
     const pages = this.#passe?.enCours() ?? [];
     return [
       ...suivis.map((suivi) => suivi.nom),
-      ...pages.map((idPage) => correspondanceDUnePage(this.#options.idEspace, idPage)),
+      ...pages.map(
+        (id) => correspondance(this.#typeDe(id), this.#options.idEspace, id).nomDeDocument,
+      ),
     ];
   }
 
   #avancerEnPrudence(): void {
-    for (const suivi of [this.#espace, this.#page?.suivi]) {
+    for (const suivi of [this.#espace, this.#affiche?.suivi]) {
       if (suivi === undefined || suivi.erreur()?.reessayable === true) {
         continue;
       }
@@ -476,13 +502,14 @@ class Orchestre {
   }
 
   #bloquerLeDocument(nom: string, cause: CauseDErreur): void {
-    const suivi = [this.#espace, this.#page?.suivi].find((un) => un?.nom === nom);
+    const suivi = [this.#espace, this.#affiche?.suivi].find((un) => un?.nom === nom);
     if (suivi !== undefined) {
       suivi.bloquer(cause);
       return;
     }
     const lu = schemaNomDeDocument.safeParse(nom);
-    if (lu.success && lu.data.type === "page") {
+    // F-018-AC51 : une table de la passe se bloque comme une page.
+    if (lu.success && (lu.data.type === "page" || lu.data.type === "table")) {
       const { idDocument } = lu.data;
       this.#bloques.set(idDocument, cause);
       this.#passe?.oublier([idDocument]);
@@ -493,7 +520,7 @@ class Orchestre {
     this.#annulerLAttente?.();
     this.#annulerLAttente = undefined;
     this.#espace.defaire();
-    this.#page?.suivi.defaire();
+    this.#affiche?.suivi.defaire();
     // Connexion coupée, une page quittée n'attend pas l'accusé : la passe de fond l'enverra (AC17).
     this.#partantes.forEach((partante) => partante.fermer());
     this.#partantes.clear();
@@ -507,7 +534,7 @@ class Orchestre {
     const enAttente =
       this.#connexion.etat() === "etablie" &&
       (this.#espace.aDesModificationsEnAttente() ||
-        this.#page?.suivi.aDesModificationsEnAttente() === true);
+        this.#affiche?.suivi.aDesModificationsEnAttente() === true);
     if (enAttente && this.#annulerLAttente === undefined) {
       this.#annulerLAttente = this.#options.environnement.horloge.programmer(() => {
         this.#annulerLAttente = undefined;
@@ -563,8 +590,8 @@ class Orchestre {
     }
     const exclues = new Set([
       ...this.#bloques.keys(),
-      ...(this.#page === undefined ? [] : [this.#page.idPage]),
-      ...[...this.#partantes].map((partante) => partante.idPage),
+      ...(this.#affiche === undefined ? [] : [this.#affiche.idDocument]),
+      ...[...this.#partantes].map((partante) => partante.idDocument),
     ]);
     this.#erreursDePasse.clear();
     this.#reprisesDePasse.clear();
@@ -572,6 +599,7 @@ class Orchestre {
     this.#passe = lancerLaPasse(
       {
         idEspace: this.#options.idEspace,
+        typeDe: (id) => this.#typeDe(id),
         prise,
         horloge: this.#options.environnement.horloge,
         parallelisme: this.#prudence ? 1 : undefined,
@@ -637,7 +665,7 @@ class Orchestre {
     }
     const { ajoutees, retirees } = ecart(avant, apres);
     if (retirees.length > 0) {
-      this.#effacerLesPagesSupprimees(retirees);
+      this.#effacerLesDocumentsSupprimes(retirees);
     }
     if (ajoutees.length > 0 && this.#passe !== undefined) {
       this.#passe.ajouter(ajoutees);
@@ -647,49 +675,70 @@ class Orchestre {
     }
   }
 
-  #effacerLesPagesSupprimees(idPages: readonly string[]): void {
+  #effacerLesDocumentsSupprimes(idPages: readonly string[]): void {
     this.#passe?.oublier(idPages);
-    if (this.#page !== undefined && idPages.includes(this.#page.idPage)) {
-      this.#page.fermer();
-      this.#page = undefined;
+    if (this.#affiche !== undefined && idPages.includes(this.#affiche.idDocument)) {
+      this.#affiche.fermer();
+      this.#affiche = undefined;
     }
     for (const idPage of idPages) {
       this.#erreursDePasse.delete(idPage);
       this.#divergentesDePasse.delete(idPage);
       this.#bloques.delete(idPage);
     }
-    this.#options.surPagesSupprimees?.(idPages);
-    void effacerLesPages(this.#options.idEspace, idPages);
+    this.#options.surDocumentsSupprimes?.(idPages);
+    void effacerLesDocuments(this.#options.idEspace, idPages);
     this.#publier();
   }
 
   // ---------------------------------------------------------------------------------------------
   // Page affichée (AC17, AC34, AC36).
 
-  readonly afficherPage = (page: PageAffichee | undefined): void => {
-    const courante = this.#page;
-    if (this.#fermee || (courante?.idPage === page?.idPage && courante?.lie === page?.doc)) {
+  readonly afficherPage = (page: PageAffichee): void =>
+    this.#afficher({ id: page.idPage, doc: page.doc }, () =>
+      PageSynchronisee.creer({
+        page,
+        idEspace: this.#options.idEspace,
+        environnement: this.#options.environnement,
+        contexte: this.#contexte,
+      }),
+    );
+
+  // F-018-AC51 : la table affichée prend la place de la page affichée, son document échangé tel
+  // quel (ADR-0019).
+  readonly afficherTable = (table: TableAffichee): void =>
+    this.#afficher({ id: table.idTable, doc: table.doc }, () =>
+      TableSynchronisee.creer({
+        table,
+        idEspace: this.#options.idEspace,
+        environnement: this.#options.environnement,
+        contexte: this.#contexte,
+      }),
+    );
+
+  readonly afficherAucun = (): void => this.#afficher(undefined, () => undefined);
+
+  #afficher(
+    affiche: { readonly id: string; readonly doc: Y.Doc } | undefined,
+    creer: () => DocumentAffiche | undefined,
+  ): void {
+    const courante = this.#affiche;
+    if (this.#fermee || (courante?.idDocument === affiche?.id && courante?.lie === affiche?.doc)) {
       return;
     }
-    this.#page = undefined;
+    this.#affiche = undefined;
     if (courante !== undefined) {
       this.#quitter(courante);
     }
-    if (page !== undefined) {
-      this.#suivreLaPage(page);
+    if (affiche !== undefined) {
+      this.#suivreLeDocument(affiche.id, creer());
     }
     this.#publier();
-  };
+  }
 
-  #suivreLaPage(page: PageAffichee): void {
-    const suivie = PageSynchronisee.creer({
-      page,
-      idEspace: this.#options.idEspace,
-      environnement: this.#options.environnement,
-      contexte: this.#contexte,
-    });
-    this.#page = suivie;
-    this.#passe?.oublier([page.idPage]);
+  #suivreLeDocument(id: string, suivie: DocumentAffiche | undefined): void {
+    this.#affiche = suivie;
+    this.#passe?.oublier([id]);
     if (this.#prudence) {
       this.#avancerEnPrudence();
     } else {
@@ -698,7 +747,7 @@ class Orchestre {
   }
 
   // La page quittée garde son ouverture jusqu'à l'accusé de ses modifications en attente (AC17).
-  #quitter(page: PageSynchronisee): void {
+  #quitter(page: DocumentAffiche): void {
     if (this.#connexion.etat() === "etablie" && page.suivi.aDesModificationsEnAttente()) {
       this.#partantes.add(page);
     } else {
@@ -757,8 +806,8 @@ class Orchestre {
   readonly reessayerLeDocument = (idPage: string | undefined): void => {
     if (idPage === undefined) {
       this.#espace.reessayer();
-    } else if (this.#page?.idPage === idPage) {
-      this.#page.suivi.reessayer();
+    } else if (this.#affiche?.idDocument === idPage) {
+      this.#affiche.suivi.reessayer();
     } else {
       this.#bloques.delete(idPage);
       this.#erreursDePasse.delete(idPage);
@@ -786,7 +835,7 @@ class Orchestre {
   };
 
   readonly toutEstAcquitte = (): boolean => {
-    const page = this.#page?.suivi;
+    const page = this.#affiche?.suivi;
     return (
       this.#connexion.etat() === "etablie" &&
       this.#espace.estAcquis() &&
@@ -803,7 +852,7 @@ class Orchestre {
     if (doc === this.#options.doc) {
       return this.#espace.estAcquis() && !this.#espace.aDesModificationsEnAttente();
     }
-    return this.#page?.lie === doc && this.#page.estAcquittee();
+    return this.#affiche?.lie === doc && this.#affiche.estAcquittee();
   };
 
   readonly fermer = (): void => {
@@ -817,8 +866,8 @@ class Orchestre {
     this.#annulerLaRelecture?.();
     this.#reprise.annuler();
     this.#defaireTout();
-    this.#page?.fermer();
-    this.#page = undefined;
+    this.#affiche?.fermer();
+    this.#affiche = undefined;
     this.#connexion.fermer();
     this.#espace.fermer();
     this.#arrets.splice(0).forEach((arreter) => arreter());
@@ -856,12 +905,12 @@ class Orchestre {
   }
 
   #documentsEnErreur(): DocumentEnErreur[] {
-    const erreurs = [this.#espace.erreur(), this.#page?.suivi.erreur()].filter(
+    const erreurs = [this.#espace.erreur(), this.#affiche?.suivi.erreur()].filter(
       (erreur): erreur is DocumentEnErreur => erreur !== undefined,
     );
     // Les pages bloquées qui ne sont pas affichées, puis les erreurs de la dernière passe.
     for (const [idPage, cause] of this.#bloques) {
-      if (idPage !== ESPACE && idPage !== this.#page?.idPage) {
+      if (idPage !== ESPACE && idPage !== this.#affiche?.idDocument) {
         erreurs.push({ idPage, cause, reessayable: true });
       }
     }
@@ -876,8 +925,8 @@ class Orchestre {
     if (this.#espace.estDivergent()) {
       divergentes.unshift(undefined);
     }
-    if (this.#page?.suivi.estDivergent() === true) {
-      divergentes.push(this.#page.idPage);
+    if (this.#affiche?.suivi.estDivergent() === true) {
+      divergentes.push(this.#affiche.idDocument);
     }
     return divergentes;
   }
@@ -885,13 +934,13 @@ class Orchestre {
   #modificationsEnAttente(): boolean {
     return (
       this.#espace.aDesModificationsEnAttente() ||
-      this.#page?.suivi.aDesModificationsEnAttente() === true ||
+      this.#affiche?.suivi.aDesModificationsEnAttente() === true ||
       this.#partantes.size > 0
     );
   }
 
   #ouverturesAcquises(): boolean {
-    const page = this.#page?.suivi;
+    const page = this.#affiche?.suivi;
     return this.#espace.estAcquis() && (page === undefined || page.estAcquis());
   }
 
@@ -927,10 +976,6 @@ class Orchestre {
 
 function correspondanceDeLEspace(idEspace: string): string {
   return correspondance("espace", idEspace).nomDeDocument;
-}
-
-function correspondanceDUnePage(idEspace: string, idPage: string): string {
-  return correspondance("page", idEspace, idPage).nomDeDocument;
 }
 
 function postSurCanal(canal: CanalEntreOnglets | undefined, message: MessageDuRegistre): void {

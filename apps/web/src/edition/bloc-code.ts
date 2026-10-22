@@ -13,11 +13,21 @@ import {
   TextSelection,
   type Transaction,
 } from "@tiptap/pm/state";
+import { keydownHandler } from "@tiptap/pm/keymap";
 import { AttrStep } from "@tiptap/pm/transform";
 import type { EditorView } from "@tiptap/pm/view";
 
 import { langageAdmis } from "./langages.ts";
 import { BLOC_CODE } from "./commandes-de-bloc.ts";
+import {
+  appliquer,
+  type Modification,
+  modificationDEntree,
+  modificationsDeMajTab,
+  modificationsDeTab,
+  type SelectionDuBlocCode,
+  selectionDuBlocCode,
+} from "./indentation.ts";
 import { estAppliqueeDepuisYjs } from "./liaison.ts";
 
 const ATTRIBUT_DU_LANGAGE = "language";
@@ -224,6 +234,129 @@ function sortieParLeBas(editeur: Editor): boolean {
   });
 }
 
+// ——— Indentation et sortie au clavier (F-033-AC15 à AC22) ———
+
+/**
+ * Sortie armée (F-033-AC22, H8) : état du greffon de la page, ouvert par Échap dans un bloc code ;
+ * Tab ou Maj+Tab qui suit n'indente pas et laisse le navigateur déplacer le focus.
+ */
+const CLE_DE_LA_PAGE = new PluginKey<boolean>("blocCodeDeLaPage");
+
+function sortieArmee(etat: EditorState): boolean {
+  return CLE_DE_LA_PAGE.getState(etat) === true;
+}
+
+function armerLaSortie(vue: EditorView, armee: boolean): void {
+  if (sortieArmee(vue.state) !== armee) {
+    vue.dispatch(vue.state.tr.setMeta(CLE_DE_LA_PAGE, armee));
+  }
+}
+
+/** Un clic ou la perte du focus désarme ; l'événement suit son cours. */
+function desarmer(vue: EditorView): boolean {
+  armerLaSortie(vue, false);
+  return false;
+}
+
+/** Vrai si la sélection n'a pas bougé d'un état à l'autre, lue dans un bloc code. */
+function memeSelection(avant: EditorState, apres: EditorState): boolean {
+  const [une, autre] = [selectionDuBlocCode(avant), selectionDuBlocCode(apres)];
+  return (
+    une !== undefined &&
+    autre !== undefined &&
+    une.debut === autre.debut &&
+    une.ancre === autre.ancre &&
+    une.tete === autre.tete
+  );
+}
+
+// Tab et Maj+Tab, reconnues par les noms de liaison de l'éditeur, sans lire la touche (F-004-AC31).
+const EST_UNE_TABULATION = keydownHandler({ Tab: () => true, "Shift-Tab": () => true });
+// Une touche de modification seule (Maj, Ctrl, Alt, Méta) se tient à gauche ou à droite du clavier :
+// elle ne désarme pas, sans quoi Maj+Tab ne sortirait jamais.
+const EMPLACEMENTS_DES_MODIFICATEURS = new Set([1, 2]);
+
+/** Toute autre touche que Tab ou Maj+Tab, hors modificateur seul, désarme la sortie. */
+function desarmerSurUneTouche(vue: EditorView, evenement: { readonly location: number }): boolean {
+  if (
+    sortieArmee(vue.state) &&
+    !EMPLACEMENTS_DES_MODIFICATEURS.has(evenement.location) &&
+    !EST_UNE_TABULATION(vue, evenement as Parameters<typeof EST_UNE_TABULATION>[1])
+  ) {
+    armerLaSortie(vue, false);
+  }
+  return false;
+}
+
+/**
+ * La sélection, si la touche du bloc code s'y applique : éditeur modifiable, aucune composition en
+ * cours (garde de l'application, en plus de celle de la vue), sélection entière dans un même bloc
+ * code. Sinon la touche garde son comportement d'avant (F-033-AC20).
+ */
+function selectionPrise(editeur: Editor): SelectionDuBlocCode | undefined {
+  if (!editeur.isEditable || editeur.view.composing) {
+    return undefined;
+  }
+  return selectionDuBlocCode(editeur.state);
+}
+
+type Calcul = (texte: string, de: number, a: number) => readonly Modification[];
+
+/**
+ * Tab et Maj+Tab : sortie armée, la touche est laissée au navigateur ; sinon une seule transaction,
+ * et la touche est prise même sans rien à modifier : le focus reste (F-033-AC17, AC19).
+ */
+function indenter(editeur: Editor, calculer: Calcul): boolean {
+  const lue = selectionPrise(editeur);
+  if (lue === undefined) {
+    return false;
+  }
+  if (sortieArmee(editeur.state)) {
+    armerLaSortie(editeur.view, false);
+    return false;
+  }
+  const modifications = calculer(
+    lue.bloc.textContent,
+    Math.min(lue.ancre, lue.tete),
+    Math.max(lue.ancre, lue.tete),
+  );
+  if (modifications.length === 0) {
+    return true;
+  }
+  return editeur.commands.command(({ tr }) => {
+    appliquer(tr, lue, modifications);
+    return true;
+  });
+}
+
+/**
+ * Entrée : un saut de ligne qui reprend l'indentation, en une transaction (F-033-AC18). Rien ne
+ * dépend de l'événement : l'Entrée synthétique qu'Android et iOS font rappeler suit ce chemin.
+ */
+function sautDeLigneIndente(editeur: Editor): boolean {
+  const lue = selectionPrise(editeur);
+  if (lue === undefined) {
+    return false;
+  }
+  const [de, a] = [Math.min(lue.ancre, lue.tete), Math.max(lue.ancre, lue.tete)];
+  const modification = modificationDEntree(lue.bloc.textContent, de, a);
+  return editeur.commands.command(({ tr }) => {
+    appliquer(tr, lue, [modification]);
+    const apres = lue.debut + de + modification.insere.length;
+    tr.setSelection(TextSelection.create(tr.doc, apres)).scrollIntoView();
+    return true;
+  });
+}
+
+/** Échap : arme la sortie, sans rien écrire ni déplacer le curseur (F-033-AC22). */
+function armerParEchap(editeur: Editor): boolean {
+  if (selectionPrise(editeur) === undefined) {
+    return false;
+  }
+  armerLaSortie(editeur.view, true);
+  return true;
+}
+
 const RACCOURCI_RETIRE = "Mod-Alt-c";
 
 export const BlocCode = CodeBlock.extend({
@@ -247,6 +380,11 @@ export const BlocCode = CodeBlock.extend({
       ...Object.fromEntries(raccourcis),
       Backspace: () => blocVideEnParagraphe(this.editor),
       ArrowDown: () => sortieParLeBas(this.editor),
+      // F-033 : Tab indente, Maj+Tab désindente, Entrée reprend l'indentation, Échap arme la sortie.
+      Tab: () => indenter(this.editor, modificationsDeTab),
+      "Shift-Tab": () => indenter(this.editor, modificationsDeMajTab),
+      Enter: () => sautDeLigneIndente(this.editor),
+      Escape: () => armerParEchap(this.editor),
     };
   },
 
@@ -264,19 +402,33 @@ export const BlocCode = CodeBlock.extend({
   addProseMirrorPlugins() {
     const { type } = this;
     return [
-      new Plugin({
-        key: new PluginKey("blocCodeDeLaPage"),
+      new Plugin<boolean>({
+        key: CLE_DE_LA_PAGE,
+        // Sortie armée : posée par Échap, retirée par une autre touche, un clic, la perte du focus
+        // ou un changement de la sélection (F-033-AC22).
+        state: {
+          init: () => false,
+          apply: (transaction, armee, avant, apres) => {
+            const demandee: unknown = transaction.getMeta(CLE_DE_LA_PAGE);
+            return typeof demandee === "boolean" ? demandee : armee && memeSelection(avant, apres);
+          },
+        },
         appendTransaction: (transactions, _avant, etat) =>
           langagesHorsListeRetires(transactions, etat),
         props: {
           handlePaste: (vue, evenement) => collerDUnEditeurDeCode(type, vue, evenement),
+          handleDOMEvents: {
+            keydown: desarmerSurUneTouche,
+            mousedown: desarmer,
+            blur: desarmer,
+          },
         },
       }),
     ];
   },
 }).configure({
-  // F-005-AC3 : Entrée insère toujours un saut de ligne ; F-005-AC5 : Tab reste la touche de
-  // navigation (H6).
+  // F-005-AC3 : Entrée insère toujours un saut de ligne, sans sortie par Entrée répétée ; Tab et
+  // Maj+Tab sont ceux de l'application (F-033-AC15 à AC17, H3), pas l'indentation de l'extension.
   exitOnTripleEnter: false,
   enableTabIndentation: false,
 });

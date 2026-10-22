@@ -1,7 +1,8 @@
 // Stockage des documents synchronisés (F-012-AC9, AC17 à AC21, AC23, AC24, AC35, AC38, H3, H13,
-// H15) : le seul module du serveur qui lit ou écrit un instantané, et le seul qui lit une mise à
-// jour Yjs (sa taille, et la clé de version d'un document d'espace). Le serveur n'ouvre aucune
-// transaction sur un document servi : il encode son état, et éprouve une mise à jour sur une copie.
+// H15, F-018-AC57, AC58) : le seul module du serveur qui lit ou écrit un instantané, et le seul qui
+// lit une mise à jour Yjs (sa taille, et la version d'un document d'espace). Le serveur n'ouvre
+// aucune transaction sur un document servi : il encode son état, et éprouve une mise à jour sur une
+// copie.
 import "./stockage-local-neutre.ts";
 
 import {
@@ -71,20 +72,81 @@ export interface Stockage {
   essayerLesRelances(): Promise<void>;
 }
 
-// F-012-AC38 : une clé absente vaut la version 1 (ADR-0002).
-function versionDe(doc: Y.Doc): unknown {
-  const meta = doc.getMap(VERSION_DU_DOCUMENT_D_ESPACE.typeRacine);
-  return meta.has(VERSION_DU_DOCUMENT_D_ESPACE.cle)
-    ? meta.get(VERSION_DU_DOCUMENT_D_ESPACE.cle)
-    : VERSION_DU_DOCUMENT_D_ESPACE.admises[0];
+const { typeRacine, cle, typeRacineDesVersions, admises } = VERSION_DU_DOCUMENT_D_ESPACE;
+
+// Règle permanente du format : un document sans clé `version` ni entrée dans `versions` est de
+// version 1 (ADR-0002).
+const VERSION_ABSENTE = 1;
+
+// La version lue d'un document d'espace, par la règle de l'étape 1 de la lecture (amendement F-018
+// de l'ADR-0002, celle que le paquet du document applique) : le plus grand de `meta.version` et des
+// entrées de `versions`, 1 en leur absence. `bienFormee` est faux si `meta.version` est présente
+// sans être un entier supérieur ou égal à 1, si `meta` porte un contenu de liste (l'écriture d'un
+// tableau, d'un texte ou d'un fragment sous ce nom, décision du dev du 2026-10-19), ou si `versions`
+// porte une entrée nommée (l'écriture d'un autre type partagé sous ce nom), un élément de liste non
+// compté (un attribut de mise en forme d'un texte, décision du dev du 2026-10-19) ou une entrée qui
+// n'est pas un tel entier. `parMeta` : `meta.version`, 1 si la clé est absente, la barrière des
+// applications de version 1 (n'a de sens que pour un document bien formé).
+interface VersionLue {
+  readonly lue: number;
+  readonly parMeta: number;
+  readonly bienFormee: boolean;
 }
 
-function estAdmise(version: unknown): version is number {
-  return (VERSION_DU_DOCUMENT_D_ESPACE.admises as readonly unknown[]).includes(version);
+function estUneVersionEntiere(valeur: unknown): valeur is number {
+  return typeof valeur === "number" && Number.isInteger(valeur) && valeur >= VERSION_ABSENTE;
+}
+
+function estAdmise(version: number): boolean {
+  return (admises as readonly number[]).includes(version);
+}
+
+// Le contenu vivant d'un type de liste, élément par élément : `undefined` dès qu'un élément non
+// supprimé n'est pas compté, ce que `toArray` passerait sous silence.
+function contenuCompte(type: Y.Array<unknown>): unknown[] | undefined {
+  const contenu: unknown[] = [];
+  for (let element = type._start; element !== null; element = element.right) {
+    if (element.deleted) {
+      continue;
+    }
+    if (!element.countable) {
+      return undefined;
+    }
+    for (const valeur of element.content.getContent() as unknown[]) {
+      contenu.push(valeur);
+    }
+  }
+  return contenu;
+}
+
+function versionDe(doc: Y.Doc): VersionLue {
+  const meta = doc.getMap<unknown>(typeRacine);
+  const versions = doc.getArray<unknown>(typeRacineDesVersions);
+  const deMeta: unknown = meta.has(cle) ? meta.get(cle) : VERSION_ABSENTE;
+  const inscrites = contenuCompte(versions);
+  const valeurs = [deMeta, ...(inscrites ?? [])];
+  const lue = valeurs
+    .filter(estUneVersionEntiere)
+    .reduce((plusGrande, version) => Math.max(plusGrande, version), VERSION_ABSENTE);
+  return {
+    lue,
+    parMeta: estUneVersionEntiere(deMeta) ? deMeta : VERSION_ABSENTE,
+    bienFormee:
+      meta._start === null &&
+      versions._map.size === 0 &&
+      inscrites !== undefined &&
+      valeurs.every(estUneVersionEntiere),
+  };
 }
 
 // La mise à jour est éprouvée sur une copie du document : le document servi n'est pas touché tant
-// qu'elle n'est pas admise. Une copie illisible, ou un type racine `meta` d'une autre nature, refuse.
+// qu'elle n'est pas admise. Elle l'est si, après elle, le document est bien formé, que sa version
+// lue est dans la liste publiée, et que ni elle ni `meta.version` (clé retirée comprise) n'ont
+// baissé : la barrière des applications de version 1 ne se lève pas, même quand `versions` garde
+// la version (décision du dev du 2026-10-16, F-018-AC58). Une copie illisible, un type racine
+// `meta` ou `versions` d'une autre nature, ou un type racine déjà lu sous un autre type partagé,
+// refuse. Un document déjà mal formé n'a pas de version à
+// défendre : seul l'après compte.
 export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): boolean {
   const copie = new Y.Doc({ gc: true });
   try {
@@ -92,7 +154,8 @@ export function versionAdmiseApres(document: Y.Doc, miseAJour: Uint8Array): bool
     const avant = versionDe(copie);
     Y.applyUpdate(copie, miseAJour);
     const apres = versionDe(copie);
-    return estAdmise(apres) && (typeof avant !== "number" || apres >= avant);
+    const sansBaisse = apres.lue >= avant.lue && apres.parMeta >= avant.parMeta;
+    return apres.bienFormee && estAdmise(apres.lue) && (!avant.bienFormee || sansBaisse);
   } catch {
     return false;
   } finally {

@@ -59,6 +59,31 @@ const IMPORTATEURS_DU_DOCUMENT = [
   // F-013 : la réplique lit la version d'une page, la synchronisation les pages de l'arborescence.
   "src/synchronisation/miroir.ts",
   "src/synchronisation/pages-de-l-espace.ts",
+  // F-018 : la session de table ouvre la façade du document de table.
+  "src/table/session-table.ts",
+  // F-018 : le module des vues de table lit la table par la façade que la session lui donne.
+  "src/vues-de-table/Boites.tsx",
+  "src/vues-de-table/ChoixDeCellule.tsx",
+  "src/vues-de-table/EcranDeTable.tsx",
+  "src/vues-de-table/EnTetes.tsx",
+  "src/vues-de-table/PanneauDesOptions.tsx",
+  "src/vues-de-table/Rangees.tsx",
+  "src/vues-de-table/Separateur.tsx",
+  "src/vues-de-table/actions.ts",
+  "src/vues-de-table/affichage.ts",
+  "src/vues-de-table/courante.ts",
+  "src/vues-de-table/ecritures.ts",
+  "src/vues-de-table/grille.ts",
+  "src/vues-de-table/lignes-affichees.ts",
+  "src/vues-de-table/menu-de-grille.ts",
+  "src/vues-de-table/menus.ts",
+  "src/vues-de-table/reglages.ts",
+  "src/vues-de-table/saisie.ts",
+  "src/vues-de-table/use-reglages.ts",
+  "src/vues-de-table/use-courante.ts",
+  "src/vues-de-table/use-edition.ts",
+  "src/vues-de-table/use-vue-tableau.ts",
+  "src/vues-de-table/valider.ts",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin
@@ -70,6 +95,8 @@ const CONSTRUCTEURS_DE_Y_DOC = [
   // F-013 : la réplique de la page affichée (H8), le document d'une page de la passe de fond.
   "src/synchronisation/miroir.ts",
   "src/synchronisation/passe-de-fond.ts",
+  // F-018 : les tables ouvertes portent des documents de table, ramasse-miettes posé (H13).
+  "src/table/tables-ouvertes.ts",
 ];
 
 function sources(): string[] {
@@ -178,5 +205,6 @@ describe("ramasse-miettes des documents d'espace", () => {
     expect(constructeurs).toEqual(CONSTRUCTEURS_DE_Y_DOC);
     expect(sources().filter((chemin) => coupeLeRamasseMiettes(lire(chemin)))).toEqual([]);
     expect(lire("src/espace/session-espace.ts")).toMatch(/new Y\.Doc\(\{ gc: true \}\)/);
+    expect(lire("src/table/tables-ouvertes.ts")).toMatch(/new Y\.Doc\(\{ gc: true \}\)/);
   });
 });

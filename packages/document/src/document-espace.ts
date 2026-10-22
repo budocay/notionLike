@@ -10,6 +10,7 @@ import {
   memeArborescence,
   type PageLue,
   trouverPage,
+  type TypeDePage,
 } from "./arbre.ts";
 import { ErreurDocument } from "./erreurs.ts";
 import {
@@ -20,6 +21,7 @@ import {
   ecrireRestauration,
   ecrireTitre,
   ecrireVersion,
+  eleverPourLesTables,
   estDeVersionPriseEnCharge,
   lireEntrees,
   LONGUEUR_MAX_TITRE,
@@ -46,6 +48,11 @@ export interface DocumentEspace {
   lire(): Arborescence;
   abonner(rappel: () => void): () => void;
   creerPage(titre: string, ou?: Emplacement): IdPage;
+  /**
+   * Inscrit une page de type `table` (F-018) : mêmes contrôles, dans le même ordre, que `creerPage`.
+   * La première table élève la version du document à 2, dans la transaction de son inscription.
+   */
+  creerTable(titre: string, ou?: Emplacement): IdPage;
   renommerPage(id: IdPage, titre: string): void;
   deplacerPage(id: IdPage, ou: Emplacement): void;
   mettreALaCorbeille(id: IdPage): void;
@@ -132,7 +139,11 @@ export function ouvrirDocumentEspaceBorne(doc: Y.Doc, borne: number): DocumentEs
     },
     creerPage: (titre, ou = A_LA_RACINE) => {
       exigerFacadeOuverte();
-      return creerPage(doc, borne, titre, ou);
+      return creerPage(doc, borne, { titre, type: "page" }, ou);
+    },
+    creerTable: (titre, ou = A_LA_RACINE) => {
+      exigerFacadeOuverte();
+      return creerPage(doc, borne, { titre, type: "table" }, ou);
     },
     renommerPage: (id, titre) => {
       exigerFacadeOuverte();
@@ -194,7 +205,14 @@ function exigerVersionPriseEnCharge(doc: Y.Doc): void {
   }
 }
 
-function creerPage(doc: Y.Doc, borne: number, titre: string, ou: Emplacement): IdPage {
+// Un seul chemin pour les deux types (F-018-AC1) : seule l'écriture diffère, par l'élévation de la
+// version et le champ `type` d'une table.
+function creerPage(
+  doc: Y.Doc,
+  borne: number,
+  { titre, type }: { readonly titre: string; readonly type: TypeDePage },
+  ou: Emplacement,
+): IdPage {
   exigerVersionPriseEnCharge(doc);
   exigerTitreAdmis(titre);
   const etat = lireEtat(doc, borne);
@@ -205,7 +223,10 @@ function creerPage(doc: Y.Doc, borne: number, titre: string, ou: Emplacement): I
   const place = admettrePlace({ parent: ou.parent, rang: insertion.rang }, borne);
   const id = crypto.randomUUID();
   doc.transact(() => {
-    ecrireNouvellePage(doc, { id, titre, place });
+    if (type === "table") {
+      eleverPourLesTables(doc);
+    }
+    ecrireNouvellePage(doc, { id, titre, type, place });
     ecrirePlaces(doc, places);
   });
   return id;

@@ -515,7 +515,10 @@ describe("la fermeture de l'un ne vaut pas fermeture d'un autre", () => {
 
     expect([ecouteurs(doc), observateursDesTypes(doc)]).toEqual([0, 1]);
     expect(codeDuRefus(() => espace.creerPage("a"))).toBe("facade-fermee");
-    expect(codeDuRefus(() => page.eleverVersion(VERSION_PAGE_PRISE_EN_CHARGE))).toBeUndefined();
+    // Depuis F-018, le document d'espace lit aussi le type racine `versions` (amendement F-018 de
+    // l'ADR-0002), que le document de page partage sous le même nom : la sonde n'y inscrit rien,
+    // pour que la façade d'espace rouverte reste à une version qu'elle prend en charge.
+    expect(codeDuRefus(() => page.eleverVersion(1))).toBeUndefined();
 
     const espaceRouvert = ouvrirFacade(doc);
     page.fermer();

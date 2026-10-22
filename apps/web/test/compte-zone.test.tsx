@@ -17,6 +17,7 @@ import {
   etatEncode,
   nomDuRepli,
   rendreApplication,
+  saisirTitre,
   titresParFratrie,
   versionInconnueVenueDAilleurs,
 } from "./aides-coquille.tsx";
@@ -315,6 +316,8 @@ describe("l'espace local ne dépend pas du compte", () => {
     const serveur = serveurAvecSession();
     const { utilisateur } = await ouvrirAvecCompte(serveur);
     await creerPageNommee(utilisateur, "Une page");
+    // F-018-AC40 : une table, sa base, et ses réglages de vue après l'élargissement d'une colonne.
+    await creerUneTableElargie(utilisateur);
 
     await sInscrire(utilisateur);
     await attendreLEtat("Connecté");
@@ -333,6 +336,7 @@ describe("l'espace local ne dépend pas du compte", () => {
     expect(entrees.filter((entree) => !estDeclaree(entree))).toEqual([]);
     // Le contenu des bases est bien lu : le titre de la page y est, le compte non.
     expect(entrees.some(({ contenu }) => contenu.includes("Une page"))).toBe(true);
+    expect(entrees.filter(({ nom }) => /^notionlike:(vue|table):/.test(nom))).toHaveLength(2);
     for (const secret of [JETON, COMPTE.courriel, COMPTE.nom, COMPTE.id, MOT_DE_PASSE]) {
       expect(entrees.filter(({ nom, contenu }) => `${nom} ${contenu}`.includes(secret))).toEqual(
         [],
@@ -378,7 +382,32 @@ const ENTREES_DECLAREES: readonly {
     motif: new RegExp(`^notionlike:page:${UUID}:${UUID}$`),
     feature: "F-003",
   },
+  // F-018-AC40 : la base d'une table, et ses réglages de vue (identifiants de colonne et largeurs).
+  {
+    support: "indexedDB",
+    motif: new RegExp(`^notionlike:table:${UUID}:${UUID}$`),
+    feature: "F-018",
+  },
+  {
+    support: "localStorage",
+    motif: new RegExp(`^notionlike:vue:${UUID}:${UUID}$`),
+    feature: "F-018",
+  },
 ];
+
+/** Crée une table, lui ajoute une colonne et l'élargit : sa base et ses réglages de vue existent. */
+async function creerUneTableElargie(utilisateur: UserEvent): Promise<void> {
+  await utilisateur.click(screen.getByRole("button", { name: "Nouvelle table" }));
+  await saisirTitre(utilisateur, "Une table");
+  await utilisateur.click(await screen.findByRole("button", { name: "Ajouter une colonne" }));
+  const boite = await screen.findByRole("dialog", { name: "Nouvelle colonne" });
+  await utilisateur.type(within(boite).getByRole("textbox", { name: "Nom de la colonne" }), "Nom");
+  await utilisateur.click(within(boite).getByRole("button", { name: "Créer la colonne" }));
+  const separateur = await screen.findByRole("separator", { name: "Largeur de la colonne Nom" });
+  act(() => separateur.focus());
+  await utilisateur.keyboard("{ArrowRight}");
+  await act(() => laisserIndexedDbTravailler());
+}
 
 type Support = "localStorage" | "sessionStorage" | "indexedDB" | "caches" | "cookie";
 

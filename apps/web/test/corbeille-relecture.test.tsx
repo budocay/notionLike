@@ -90,6 +90,21 @@ async function espaceAuxEntreesRetirees(): Promise<CoquilleRendue & Identifiants
 /** Ce que le module donne à lire, sur l'espace courant ; l'identifiant retiré y est introuvable. */
 type Lecture = (coquille: CoquilleRendue, ids: Identifiants) => Promise<unknown> | unknown;
 
+// Le module des vues de table compte pour un : on n'y entre que par son interface (`index.ts`,
+// F-018-AC54), et ses fichiers ne lisent que le document d'une table. Une seule lecture l'exerce.
+const MODULE_DES_VUES = "src/vues-de-table/";
+
+function moduleDe(chemin: string): string {
+  return chemin.startsWith(MODULE_DES_VUES) ? MODULE_DES_VUES : chemin;
+}
+
+// L'adresse d'une entrée retirée n'affiche aucun écran de table.
+const lectureDesVues: Lecture = (_coquille, { retiree }) => {
+  aller(`#/page/${retiree}`);
+  expect(titrePrincipal()).toBe("Page introuvable");
+  return [screen.queryByRole("grid"), screen.queryByText("Chargement de la table…")];
+};
+
 const LECTURES: Readonly<Record<string, Lecture>> = {
   "src/espace/garde-version.ts": (coquille) => {
     const facade = ouvrirFacade(docDe(coquille.session));
@@ -169,12 +184,25 @@ const LECTURES: Readonly<Record<string, Lecture>> = {
   },
   // La réplique ne lit que le document d'une page : rien de ce que l'espace a retiré n'y entre.
   "src/synchronisation/miroir.ts": () => versionAdmise(new Y.Doc()),
+  // F-018 : la session de table lit le document d'une table, pas celui de l'espace : l'adresse
+  // d'une entrée retirée n'ouvre aucune session, donc aucune base de table.
+  "src/table/session-table.ts": async (_coquille, { retiree }) => {
+    aller(`#/page/${retiree}`);
+    await act(() => laisserIndexedDbTravailler());
+    const bases = (await nomsDesBases()).filter((nom) => nom.includes(`:table:`));
+    expect(bases).toEqual([]);
+    return bases;
+  },
+  // F-018 : l'écran de table ne paraît que pour une table de l'arborescence lue ; le module des vues
+  // de table ne lit que le document d'une table.
+  [MODULE_DES_VUES]: lectureDesVues,
 };
 
 function importateursDuDocument(): string[] {
-  return lister("src")
+  const chemins = lister("src")
     .filter((chemin) => /\.tsx?$/.test(chemin))
     .filter((chemin) => /from\s+"@notionlike\/document"/.test(lire(chemin)));
+  return [...new Set(chemins.map(moduleDe))].sort();
 }
 
 describe("relecture d'un document aux entrées retirées, module par module", () => {

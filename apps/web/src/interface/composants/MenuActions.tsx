@@ -5,6 +5,11 @@ import { Raccourci } from "./Raccourci.tsx";
 
 export interface EntreeDeMenu {
   readonly libelle: string;
+  /**
+   * Nom accessible, quand il cite ce que l'entrée vise (F-018-AC34 : la colonne ou la ligne) ;
+   * absent, le libellé visible nomme l'entrée.
+   */
+  readonly nom?: string | undefined;
   /** Combinaison affichée, si l'action en a une dans la déclaration des raccourcis. */
   readonly touches?: readonly string[] | undefined;
   /** La même combinaison pour `aria-keyshortcuts` : elle n'entre pas dans le nom de l'entrée. */
@@ -53,26 +58,29 @@ export function MenuActions({ nom, entrees, ref }: Proprietes): ReactElement {
       tabIndex={-1}
       onKeyDown={surFleche}
     >
-      {entrees.map(({ libelle, touches, raccourci, surActivation, raison }, rang) => (
-        <button
-          key={libelle}
-          type="button"
-          role="menuitem"
-          className={MENU.entree}
-          aria-keyshortcuts={raccourci}
-          disabled={raison !== undefined}
-          aria-describedby={raison === undefined ? undefined : `${idRaisons}-${String(rang)}`}
-          onClick={surActivation}
-        >
-          {libelle}
-          {touches !== undefined && <Raccourci touches={touches} />}
-          {raison !== undefined && (
-            <span id={`${idRaisons}-${String(rang)}`} hidden>
-              {raison}
-            </span>
-          )}
-        </button>
-      ))}
+      {entrees.map(
+        ({ libelle, nom: nomDeLEntree, touches, raccourci, surActivation, raison }, rang) => (
+          <button
+            key={libelle}
+            type="button"
+            role="menuitem"
+            className={MENU.entree}
+            aria-label={nomDeLEntree}
+            aria-keyshortcuts={raccourci}
+            disabled={raison !== undefined}
+            aria-describedby={raison === undefined ? undefined : `${idRaisons}-${String(rang)}`}
+            onClick={surActivation}
+          >
+            {libelle}
+            {touches !== undefined && <Raccourci touches={touches} />}
+            {raison !== undefined && (
+              <span id={`${idRaisons}-${String(rang)}`} hidden>
+                {raison}
+              </span>
+            )}
+          </button>
+        ),
+      )}
     </div>
   );
 }

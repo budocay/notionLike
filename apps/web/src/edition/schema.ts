@@ -16,6 +16,7 @@ import type * as Y from "yjs";
 import { CLASSE_DU_CURSEUR_DE_DEPOT } from "../interface/composants/Edition.tsx";
 import { INVITE_DU_BLOC_VIDE } from "../interface/messages.ts";
 import { BlocCode } from "./bloc-code.ts";
+import { colorationDuBlocCode } from "./coloration.ts";
 import { depotDeLEditeur, type OptionsDuDepot } from "./depot.ts";
 import { inviteDuBlocVide } from "./invite.ts";
 import { Lien } from "./lien.ts";
@@ -56,8 +57,9 @@ function dansUnBlocCode(editeur: Editor): boolean {
   return bornesLues(editeur.state.selection).$from.parent.type.name === BLOC_CODE;
 }
 
-// Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3) et Tab ne
-// modifie rien (F-005-AC5, H6) : les raccourcis de l'élément de liste n'y agissent pas.
+// Dans un bloc code d'un élément de liste, Entrée insère un saut de ligne (F-005-AC3), Tab et
+// Maj+Tab indentent le texte du bloc (F-033-AC15) : les raccourcis de l'élément de liste n'y
+// agissent pas, l'élément n'est ni imbriqué ni remonté.
 const ElementDeListe = ListItem.extend({
   addKeyboardShortcuts() {
     const raccourcis = this.parent?.() ?? {};
@@ -90,6 +92,8 @@ export function extensionsDeLEditeur(
     OrderedList,
     ElementDeListe,
     BlocCode,
+    // F-033 : coloration du bloc code, par des décorations de la vue seule (F-033-AC5).
+    colorationDuBlocCode,
     Gras,
     Italique,
     Lien,

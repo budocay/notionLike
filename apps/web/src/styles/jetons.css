@@ -21,6 +21,13 @@
   --primitif-or-200: #f6d179;
   --primitif-or-300: #f1bf4b;
   --primitif-cuivre-400: #e17f47;
+  --primitif-lilas-300: #c4a7ff;
+  --primitif-tilleul-300: #a8dc8f;
+  --primitif-abricot-300: #ffaf80;
+  --primitif-ardoise-300: #9aa8b8;
+  --primitif-azur-300: #7fbaff;
+  --primitif-menthe-300: #6fd6c8;
+  --primitif-rose-300: #f5a3c7;
 
   /* Surfaces : des fonds, tous teintés, du plus renfoncé au plus relevé ; le filet sépare. */
   --color-surface-retrait: var(--primitif-encre-950);
@@ -37,6 +44,16 @@
   --color-texte-discret: var(--primitif-brume-500);
   --color-texte-erreur: var(--primitif-corail-300);
   --color-texte-avertissement: var(--primitif-or-200);
+
+  /* Rôles syntaxiques du bloc code (F-033-AC13, H5) : un jeton par rôle, chacun lisible sur chaque
+     surface ; la couleur n'y porte rien que le texte ne porte pas. */
+  --color-texte-syntaxe-mot-cle: var(--primitif-lilas-300);
+  --color-texte-syntaxe-chaine: var(--primitif-tilleul-300);
+  --color-texte-syntaxe-nombre: var(--primitif-abricot-300);
+  --color-texte-syntaxe-commentaire: var(--primitif-ardoise-300);
+  --color-texte-syntaxe-fonction: var(--primitif-azur-300);
+  --color-texte-syntaxe-type: var(--primitif-menthe-300);
+  --color-texte-syntaxe-propriete: var(--primitif-rose-300);
 
   /* Repères : éléments non textuels qui portent une information. */
   --color-repere-focus: var(--primitif-givre-300);

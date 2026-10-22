@@ -141,6 +141,8 @@ export type ActionDeRangeeVisee = "renommer" | "ajouter-une-sous-page" | "mettre
 export const ENTREES_DU_MENU = [
   "Renommer",
   "Ajouter une sous-page",
+  // F-018-AC10 : une table sous la page, après la sous-page.
+  "Ajouter une table",
   "Mettre à la corbeille",
   "Monter",
   "Descendre",

@@ -293,7 +293,7 @@ describe("refus des deux opérations", () => {
       misesAJour: 0,
     });
 
-    espace.doc.getMap("meta").set("version", 2);
+    espace.doc.getMap("meta").set("version", 3);
     for (const operation of [
       () => espace.restaurerPage(parent),
       () => espace.supprimerDefinitivement(parent),
@@ -420,10 +420,14 @@ const EXPORTS_ATTENDUS = [
   "ValeurDeCellule",
   "creerDocumentTable",
   "ouvrirDocumentTable",
+  // F-018 : type des pages lues.
+  "TypeDePage",
 ];
 const METHODES_ATTENDUES: Readonly<Record<string, number>> = {
   abonner: 1,
   creerPage: 1,
+  // F-018 : création d'une table.
+  creerTable: 1,
   deplacerPage: 2,
   fermer: 0,
   lire: 0,
@@ -459,12 +463,12 @@ const TESTS_DE_F001: Readonly<Record<string, string>> = {
   "operations.test.ts": "87a1da35b578674a82aea93f9c7b443d3ca3ac63d4d9350267d67653b41ea7e3",
   "abonnement.test.ts": "064870765bec51128943655b36d20bccb6f24ed642435476fb3e6fc4393f80a0",
   "convergence.test.ts": "f94ad5f5d1f9216eb5da5219fbe3716342289e2ce68230b7b2a0e427c7321c7c",
-  "robustesse.test.ts": "f854147e6235a4e021deb916f96c9701b465e4d22c8f0110f9ca869a849f0fbb",
+  "robustesse.test.ts": "1cb8f327b902ef6a8f48cb65c65ea9519bedf1868f8331b9a07606c75b9ea373",
   "structure.test.ts": "4c87a48aa438251ab81fb272e796577fdf13b7a9adc504671ea0f3710d77741a",
 };
 
 describe("contrat du paquet", () => {
-  it("F-007-AC24 les exports sont ceux des features livrées, la façade a ses sept membres d'avant plus restaurerPage et supprimerDefinitivement, et le seul code nouveau est page-hors-corbeille", () => {
+  it("F-007-AC24 F-018-AC8 les exports sont ceux des features livrées, la façade a ses sept membres d'avant plus restaurerPage et supprimerDefinitivement (et creerTable de F-018), et le seul code nouveau est page-hors-corbeille", () => {
     const exportes = [
       ...texteDe("../src/index.ts").matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/g),
     ].flatMap(([, clause = ""]) =>

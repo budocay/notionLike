@@ -640,6 +640,12 @@ const LECTEURS_D_UN_CODE_DU_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/interface/Application.tsx": "passe le code à messages.ts",
   "apps/web/src/interface/messages.ts": "traduit chaque code",
   "apps/web/src/page/session-page.ts": "ne lit que « version-non-prise-en-charge »",
+  // F-018 : refus du document de table, à l'ouverture et à la réception.
+  "apps/web/src/table/session-table.ts":
+    "ne lit que « version-non-prise-en-charge » et « pas-un-document-de-table »",
+  // F-018-AC37 : l'écran de table passe le code à messages.ts, et dit lui-même la date refusée.
+  "apps/web/src/vues-de-table/ecritures.ts":
+    "passe le code à messages.ts ; ne distingue que « valeur-non-conforme » d'une date",
 };
 const PORTEURS_D_UN_AUTRE_CODE: Readonly<Record<string, string>> = {
   "apps/web/src/persistance/nom-de-base.ts": "ErreurPersistance porte son propre code",
@@ -869,6 +875,33 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   // F-013 : la réplique de la page affichée lit sa version ; la synchronisation, les pages lues.
   "apps/web/src/synchronisation/miroir.ts": "apps/web/test/corbeille-relecture.test.tsx",
   "apps/web/src/synchronisation/pages-de-l-espace.ts": "apps/web/test/corbeille-relecture.test.tsx",
+  // F-018 : la session de table ouvre la façade du document de table.
+  "apps/web/src/table/session-table.ts": "apps/web/test/table-session.test.ts",
+  // F-018 : l'écran de table, rendu par la zone principale.
+  "apps/web/src/vues-de-table/EcranDeTable.tsx": "apps/web/test/table-ecran.test.tsx",
+  // F-018 : le module des vues de table, atteint par l'écran de table rendu par ses tests.
+  "apps/web/src/vues-de-table/actions.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/affichage.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Boites.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/ChoixDeCellule.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/courante.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/ecritures.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/EnTetes.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/grille.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/lignes-affichees.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/menu-de-grille.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/menus.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/PanneauDesOptions.tsx":
+    "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Rangees.tsx": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/reglages.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/saisie.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-courante.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-edition.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/use-vue-tableau.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/valider.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
+  "apps/web/src/vues-de-table/Separateur.tsx": "apps/web/test/vues-de-table/reglages.test.tsx",
+  "apps/web/src/vues-de-table/use-reglages.ts": "apps/web/test/vues-de-table/reglages.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {
@@ -933,6 +966,12 @@ describe("modules d'apps/web qui lisent le document d'espace", () => {
       "apps/web/src/synchronisation/passe-de-fond.ts",
       "apps/web/src/synchronisation/stockage.ts",
       "apps/web/src/synchronisation/synchronisation.ts",
+      // F-018-AC51 : la table affichée, échangée sur son document de table.
+      "apps/web/src/synchronisation/table-affichee.ts",
+      // F-018 : la session de table et les tables ouvertes, dont yjs est une dépendance permise
+      // (web-table-liste-blanche) ; aucun type partagé n'y est lu ni écrit.
+      "apps/web/src/table/session-table.ts",
+      "apps/web/src/table/tables-ouvertes.ts",
     ]);
     expect(importeLePaquet(statique("import", "type * as Y", "yjs"), "yjs")).toBe(true);
     for (const [chemin, texte] of sourcesDeLApplication()) {

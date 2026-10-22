@@ -21,6 +21,11 @@ import {
 import { MARQUEUR_DE_DEMONSTRATION } from "../src/demonstration/marqueur.ts";
 import { PageDemonstration } from "../src/demonstration/PageDemonstration.tsx";
 import { BARRE } from "../src/interface/composants/barre.classes.ts";
+import {
+  CLASSES_DE_ROLE,
+  CodeColore,
+  type RoleSyntaxique,
+} from "../src/interface/composants/Edition.tsx";
 import { messageErreur } from "../src/interface/messages.ts";
 import { lireJetons } from "../src/styles/lecture-jetons.ts";
 import { lire, lireDossier } from "./aides-disque.ts";
@@ -28,6 +33,13 @@ import { type Aretes, atteintsDepuis, graphe } from "./aides-graphe.ts";
 import { FEUILLE_D_ENTREE, FEUILLE_DE_DEMONSTRATION } from "./aides-styles.ts";
 
 const sources = lireDossier("src");
+
+/** Les rôles de la liste fermée qu'aucun élément de ce conteneur ne porte (F-033-AC14). */
+function rolesAbsents(conteneur: Element): RoleSyntaxique[] {
+  return (Object.keys(CLASSES_DE_ROLE) as RoleSyntaxique[]).filter(
+    (role) => conteneur.getElementsByClassName(CLASSES_DE_ROLE[role]).length === 0,
+  );
+}
 const jetons = lire("src/styles/jetons.css");
 const PAGE = "src/demonstration/PageDemonstration.tsx";
 const ENTREE_DE_PRODUCTION = "src/main.tsx";
@@ -159,23 +171,39 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "BoutonIcone",
       "CadreDeBarre",
       "CadreDeCompte",
+      // F-018 : composants de l'écran de table.
+      "CaseDeCellule",
+      "CelluleDeGrille",
+      "ChampDeCellule",
       "ChampDeCompte",
+      "ChampDeFormulaire",
       "ChampTitre",
       "Chargement",
       "CheminDePage",
       "Choix",
+      // F-033 : bloc code coloré.
+      "CodeColore",
       "Coquille",
       "CorpsDePage",
       "EcranBloquant",
       "EcranDEspaces",
+      // F-018 : écran de table.
+      "EcranDeTableCadre",
       "EcranPlein",
       "EntetePage",
       "Formulaire",
       "FormulaireDeCompte",
+      "Grille",
+      "InvitationDeTable",
       "Lien",
       "LienEnLecture",
+      "LigneDOption",
+      "ListeDOptions",
+      "ListeDeChoix",
       // F-007 : liste de l'écran de la corbeille.
       "ListeDeCorbeille",
+      // F-018 : marque d'une table, dans la barre latérale et la corbeille.
+      "MarqueDeTable",
       "MenuActions",
       // F-005 : menu slash.
       "MenuDeCommandes",
@@ -189,10 +217,16 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "Principale",
       "Raccourci",
       "Rangee",
+      "RangeeDEnTetes",
+      "RangeeDeGrille",
       "Sceau",
+      "SelecteurDeVues",
+      "SeparateurDeColonne",
+      "SurfaceFlottante",
       "Tableau",
       "TeteDeBarre",
       "Texte",
+      "TexteDeCellule",
       "ZoneDEdition",
       "ZoneDeSaisie",
       "ZoneEtat",
@@ -280,6 +314,61 @@ describe("page de démonstration : ce qu'elle montre", () => {
     expect(container.textContent).not.toMatch(
       /Enregistré sur cet appareil|Modifications enregistrées/,
     );
+  });
+
+  it("F-033-AC14 F-004-AC50 elle montre un bloc code coloré de chacun des dix langages, et chacun des sept rôles de la liste fermée y est porté par au moins un élément", () => {
+    render(<PageDemonstration jetons={jetons} />);
+    const section = screen.getByRole("heading", { name: "Coloration du bloc code" })
+      .parentElement as HTMLElement;
+    const codes = [...section.querySelectorAll("pre > code")];
+    const classes = codes.flatMap((code) =>
+      [...code.querySelectorAll("[class]")].map((element) => element.className),
+    );
+
+    expect(codes).toHaveLength(10);
+    expect(Object.keys(CLASSES_DE_ROLE)).toHaveLength(7);
+    expect(rolesAbsents(section)).toEqual([]);
+    expect(
+      classes.filter((classe) => !Object.values<string>(CLASSES_DE_ROLE).includes(classe)),
+    ).toEqual([]);
+    // Les étiquettes des spécimens : un par langage, puis celui de la barre.
+    expect(
+      [...section.querySelectorAll(":scope > div > span")].map(
+        (etiquette) => etiquette.textContent,
+      ),
+    ).toEqual([
+      "Bash",
+      "CSS",
+      "HTML",
+      "JavaScript",
+      "JSON",
+      "Markdown",
+      "Python",
+      "SQL",
+      "TypeScript",
+      "YAML",
+      "Barre de blocs d'un bloc code : aide et mention",
+    ]);
+  });
+
+  it("F-033-AC14 un rôle que la page ne porte nulle part est nommé", () => {
+    const { container } = render(
+      <CodeColore
+        portions={[
+          { texte: "def", role: "motCle" },
+          { texte: " f(): " },
+          { texte: '"x"', role: "chaine" },
+        ]}
+      />,
+    );
+
+    expect(rolesAbsents(container)).toEqual([
+      "nombre",
+      "commentaire",
+      "fonction",
+      "type",
+      "propriete",
+    ]);
   });
 
   it("F-004-AC50 elle montre chaque jeton de couleur, chaque dégradé et chaque taille de texte", () => {

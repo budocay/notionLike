@@ -335,3 +335,27 @@
 - Tests: 4237 tests sur 197 fichiers — état: verts — preuve: checks.txt (empreinte `d7e7ce6f3984`) ; bout en bout `bloc-code.spec.ts` et `glisser-deposer.spec.ts` verts en Chromium
 - Gates: passages 1 à 4 : SECURITY PASS et CRAFT PASS à chaque fois, reviewer-frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-036) ; passage 5 sur `d7e7ce6f3984` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
 - Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés 5 défauts réels et une vingtaine de points de structure · coût non mesuré
+
+## [2026-10-21] F-033 Bloc code : coloration syntaxique et indentation au clavier
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web/src/edition/` (`coloration.ts`, `colorable.ts`, `indentation.ts`, `bloc-code.ts`, `barre.ts`, `schema.ts`), jetons et classes de rôle, page de démonstration, `.dependency-cruiser.cjs` (deux règles), `apps/web/package.json` et `pnpm-lock.yaml` (lowlight 3.3.0, highlight.js 11.11.2) — agents: agent-planif, agent-veille, agent-architecte-conception, agent-frontend, orchestrateur — commits: 9fcde30..b9f511e
+- Détail: coloration par décorations des dix langages, bornée (10 000 unités, lignes de 500 au plus) ; Tab, Maj+Tab, Entrée indentent ; sortie par Échap puis Tab. Demande du dev du 2026-10-19 ; spec validée puis retouchée trois fois le 2026-10-21 (veille, conception, code). Correctif avant gates : la mémoire de coloration ne retient plus de texte hors bornes.
+- Dette: aucune nouvelle ; part manuelle d'AC26 au dev
+- ADR: aucune (rien de difficile à défaire, note de conception)
+- Tests: 4349 tests — état: verts — preuve: checks.txt (empreinte `74e77aea2c7a`) ; bout en bout `bloc-code-coloration.spec.ts` 2 sur 2 en Chromium
+- Gates: passage 1 sur `74e77aea2c7a` : reviewer-frontend APPROVED · SECURITY PASS · ARCHITECTURE PASS · CRAFT PASS
+- Mesures: boucles 1 passage, 0 tour de correctifs après gates (1 défaut relevé par l'architecte avant) · coût non mesuré
+
+## [2026-10-22] F-018 Vue tableau d'une base de données
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `packages/document` (document d'espace v2, type de page `table`, refus des formes forgées partagé par trois formats), `packages/contrats` et `apps/server` (versions admises, refus de baisse et de formes forgées), `apps/web/src/table/`, `apps/web/src/vues-de-table/`, `persistance/reglages-de-vue.ts`, synchronisation des tables, interface (barre, corbeille, écran de table), `.dependency-cruiser.cjs` et `eslint.config.mjs` — agents: agent-veille, agent-architecte-conception, agent-frontend (tours 3 et 4 par woz:code), agent-backend, agent-planif, orchestrateur
+- Détail: tables créées depuis la barre latérale, vue « Tableau » sur une grille écrite par le projet, réglages de vue par appareil, synchronisation des documents de table. Décisions du dev : AC58 (aucune baisse de `meta.version`), ADR-0019 et amendements d'ADR-0002, 0009, 0016 acceptés, AC21 (focus rendu à la cellule d'en-tête). Correctifs après gates : réglages qui n'écrivent que leur section, focus gardé au champ d'une saisie refusée, clé React en double, renommages « documents » de la synchronisation, code mort retiré.
+- Dette: introduite D-039 (reprise après trois rejets, levée) ; limites dans `MEMORY/features/F-018.md`
+- ADR: ADR-0019 (acceptée) ; amendements F-012 et F-018 d'ADR-0002, F-018 d'ADR-0009 et d'ADR-0016 (acceptés)
+- Tests: 4743 tests sur 227 fichiers — état: verts — preuve: checks.txt (empreinte `d72717ae7f87`) ; bout en bout `tables.spec.ts` vert en Chromium
+- Gates: passages 1 à 3 : API, backend APPROVED, SECURITY et CRAFT PASS, frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-039) ; passage 4 : mêmes refus ; passage 5 sur `d72717ae7f87` : les six gates verts
+- Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés : 5 défauts réels (focus perdu à AC35, réglages écrasés entre onglets, clavier bloqué après une saisie refusée, saisie effacée au double clic, case basculée pendant une saisie refusée) et une trentaine de points de tests, de noms et de doc · coût non mesuré

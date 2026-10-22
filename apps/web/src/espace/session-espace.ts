@@ -9,6 +9,8 @@ import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 type OperationsEspace = Pick<
   DocumentEspace,
   | "creerPage"
+  // F-018 : une table est une page de type `table` (AC10).
+  | "creerTable"
   | "renommerPage"
   | "deplacerPage"
   | "mettreALaCorbeille"
@@ -229,6 +231,7 @@ function notifierSousGarde(notifier: () => void): void {
 function operationsDe(facade: DocumentEspace): OperationsEspace {
   return {
     creerPage: facade.creerPage,
+    creerTable: facade.creerTable,
     renommerPage: facade.renommerPage,
     // F-006 : premier appelant de `deplacerPage` depuis un écran (H4).
     deplacerPage: facade.deplacerPage,

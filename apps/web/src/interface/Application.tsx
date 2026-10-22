@@ -5,6 +5,7 @@ import {
   ErreurDocument,
   type IdPage,
   type PageLue,
+  type TypeDePage,
 } from "@notionlike/document";
 import {
   type ReactElement,
@@ -19,6 +20,7 @@ import {
 import type { Compte } from "../compte/index.ts";
 import type { EtatPret, SessionEspace } from "../espace/session-espace.ts";
 import type { PagesOuvertes } from "../page/pages-ouvertes.ts";
+import type { TablesOuvertes } from "../table/tables-ouvertes.ts";
 import { allerA } from "../navigation/fragment.ts";
 import { fragmentDEcran, type Route } from "../navigation/route.ts";
 import { BarreLaterale } from "./BarreLaterale.tsx";
@@ -36,7 +38,7 @@ import {
 import { EcranDuCompte } from "./EcranDuCompte.tsx";
 import { placeApres } from "./destination-de-page.ts";
 import { AvertissementDEnregistrement, ZoneDEnregistrement } from "./Enregistrement.tsx";
-import { etatAvecLaPage } from "./etat-d-enregistrement.ts";
+import { etatAvecLeDocumentOuvert } from "./etat-d-enregistrement.ts";
 import { FilDAriane } from "./FilDAriane.tsx";
 import {
   CHARGEMENT,
@@ -62,6 +64,7 @@ import {
 } from "./messages-synchronisation.ts";
 import { type NavigationDeLEspace, useNavigationDeLEspace } from "./navigation-espaces.ts";
 import { usePageOuverte, usePagesOuvertes } from "./page-ouverte.ts";
+import { type EtatDeLaTable, useTableOuverte, useTablesOuvertes } from "./table-ouverte.ts";
 import { estDansLaDescendance, trouverPage } from "./pages.ts";
 import type { ActionsBarre, EcranBarre } from "./RangeePage.tsx";
 import { useRepli } from "./repli.ts";
@@ -69,7 +72,7 @@ import { type Tiroir, useTiroir } from "./tiroir.ts";
 import { ZoneDeCompte } from "./ZoneDeCompte.tsx";
 import { ZoneDesEspaces } from "./ZoneDesEspaces.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
-import { idsDesPages } from "../synchronisation/index.ts";
+import { idsDesPages, typesDesPages } from "../synchronisation/index.ts";
 import {
   type FabriqueDeSynchronisation,
   type SynchronisationDeLEspace,
@@ -140,6 +143,18 @@ interface ProprietesEspacePret {
   readonly fabrique: FabriqueDeSynchronisation | undefined;
 }
 
+// Le document ouvert pour la page sélectionnée : une page ouvre son document de page, une table
+// son document de table, jamais l'autre (F-018-AC12, AC9).
+function useDocumentDeLaSelection(idEspace: EtatPret["idEspace"], page: PageLue | undefined) {
+  const idTable = page?.type === "table" ? page.id : undefined;
+  const idPage = idTable === undefined ? page?.id : undefined;
+  const pages = usePagesOuvertes();
+  const etatDeLaPage = usePageOuverte(pages, idEspace, idPage);
+  const tables = useTablesOuvertes();
+  const etatDeLaTable = useTableOuverte(tables, idEspace, idTable);
+  return { idPage, idTable, pages, tables, etatDeLaPage, etatDeLaTable };
+}
+
 // Ce que l'écran de l'espace tient : navigation, sélection, page ouverte, synchronisation.
 function useEspacePret(props: ProprietesEspacePret) {
   const { etat, compte } = props;
@@ -147,38 +162,66 @@ function useEspacePret(props: ProprietesEspacePret) {
   const selection = selectionDe(navigation.route, etat.arborescence);
   useTitreOnglet(selection);
   const page = selection.type === "page" ? selection.page : undefined;
-  const pages = usePagesOuvertes();
-  const etatDeLaPage = usePageOuverte(pages, etat.idEspace, page?.id);
+  const { idPage, idTable, pages, tables, etatDeLaPage, etatDeLaTable } = useDocumentDeLaSelection(
+    etat.idEspace,
+    page,
+  );
   const synchronisation = useSynchronisationDeLEspace(
     {
       fabrique: props.fabrique,
       idEspace: etat.idEspace,
       doc: props.session.doc,
-      idPage: page?.id,
+      idPage,
       page: etatDeLaPage,
+      idTable,
+      table: etatDeLaTable,
       lirePages: () => pagesDeLaSession(props.session),
-      fermerLesPages: (idPages) => void pages.effacer(undefined, idPages),
-      toutFermer: () => toutFermer(pages, props.session),
+      typeDe: (id) => typeDansLaSession(props.session, id),
+      // F-018-AC53 : les documents de page et de table des identifiants supprimés ailleurs.
+      fermerLesDocuments: (idPages) => {
+        void pages.effacer(undefined, idPages);
+        void tables.effacer(undefined, idPages);
+      },
+      toutFermer: () => toutFermer({ pages, tables }, props.session),
     },
     LECTURE_SEULE,
   );
   const barre = useBarreLaterale(etat, navigation.route, selection, synchronisation.lectureSeule);
-  return { navigation, selection, page, pages, etatDeLaPage, synchronisation, barre };
+  const documents: Documents = { pages, tables };
+  return {
+    navigation,
+    selection,
+    page,
+    documents,
+    etatDeLaPage,
+    etatDeLaTable,
+    synchronisation,
+    barre,
+  };
+}
+
+/** Les documents de page et de table que l'onglet tient pour l'espace ouvert. */
+interface Documents {
+  readonly pages: PagesOuvertes;
+  readonly tables: TablesOuvertes;
 }
 
 function EspacePret(props: ProprietesEspacePret): ReactElement {
   const { etat, compte } = props;
   const { racines } = etat.arborescence;
-  const { navigation, selection, page, pages, etatDeLaPage, synchronisation, barre } =
-    useEspacePret(props);
+  const espace = useEspacePret(props);
+  const { navigation, selection, page, documents, synchronisation, barre } = espace;
   const tiroir = useTiroir();
   const idBarre = useId();
-  const enregistrement = etatAvecLaPage(etat, etatDeLaPage);
+  const enregistrement = etatAvecLeDocumentOuvert(
+    etat,
+    espace.etatDeLaPage ?? espace.etatDeLaTable,
+  );
   if (synchronisation.effaceeAilleurs) {
     return <EffaceeAilleurs />;
   }
   const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, () =>
-    toutFermer(pages, props.session),
+    toutFermer(documents, props.session),
   );
   return (
     <Coquille
@@ -203,9 +246,10 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
         etat={etat}
         compte={compte}
         navigation={navigation}
-        pages={pages}
+        documents={documents}
         selection={selection}
-        page={etatDeLaPage}
+        page={espace.etatDeLaPage}
+        table={espace.etatDeLaTable}
         lectureSeule={synchronisation.lectureSeule}
         etroit={tiroir.etroit}
       />
@@ -220,9 +264,28 @@ function pagesDeLaSession(session: SessionEspace): ReadonlySet<string> | undefin
   return lu.phase === "pret" ? idsDesPages(lu.arborescence) : undefined;
 }
 
+// Les types des pages, calculés une fois par arborescence lue : la passe de fond demande le type de
+// chaque document, et l'état de la session garde la même arborescence tant que rien ne change.
+const TYPES_PAR_ARBORESCENCE = new WeakMap<Arborescence, ReadonlyMap<string, TypeDePage>>();
+
+// Le type lu d'un identifiant de l'arborescence ou de la corbeille (F-018-AC51).
+function typeDansLaSession(session: SessionEspace, id: string): TypeDePage | undefined {
+  const lu = session.lireEtat();
+  if (lu.phase !== "pret") {
+    return undefined;
+  }
+  let types = TYPES_PAR_ARBORESCENCE.get(lu.arborescence);
+  if (types === undefined) {
+    types = typesDesPages(lu.arborescence);
+    TYPES_PAR_ARBORESCENCE.set(lu.arborescence, types);
+  }
+  return types.get(id);
+}
+
 // Avant l'effacement de la copie locale, plus rien de l'onglet ne tient une base (AC24).
-function toutFermer(pages: PagesOuvertes, session: SessionEspace): void {
+function toutFermer({ pages, tables }: Documents, session: SessionEspace): void {
   pages.fermer();
+  tables.fermer();
   session.fermer();
 }
 
@@ -283,9 +346,11 @@ function ZoneAffichee(props: {
   readonly etat: EtatPret;
   readonly compte: Compte | undefined;
   readonly navigation: NavigationDeLEspace;
-  readonly pages: PagesOuvertes;
+  readonly documents: Documents;
   readonly selection: Selection;
   readonly page: ReturnType<typeof usePageOuverte>;
+  /** État de la table sélectionnée (F-018-AC12) ; `undefined` si la sélection n'en est pas une. */
+  readonly table: EtatDeLaTable;
   readonly lectureSeule: string | undefined;
   /** Écran étroit : pas de poignée de bloc, le geste à la souris est celui d'un écran large. */
   readonly etroit: boolean;
@@ -303,7 +368,7 @@ function ZoneAffichee(props: {
       <Principale ref={zone}>
         <EcranDeLaCorbeille
           corbeille={etat.arborescence.corbeille}
-          operations={operationsDeLaCorbeille(etat, props.pages, props.lectureSeule)}
+          operations={operationsDeLaCorbeille(etat, props.documents, props.lectureSeule)}
           lectureSeule={props.lectureSeule}
         />
       </Principale>
@@ -315,7 +380,10 @@ function ZoneAffichee(props: {
       selection={props.selection}
       espaceVide={etat.arborescence.racines.length === 0}
       page={props.page}
+      table={props.table}
+      idEspace={etat.idEspace}
       lectureSeule={props.lectureSeule !== undefined}
+      raisonDeLectureSeule={props.lectureSeule}
       poignees={!props.etroit}
     />
   );
@@ -329,7 +397,7 @@ function ZoneAffichee(props: {
  */
 function operationsDeLaCorbeille(
   etat: EtatPret,
-  pages: PagesOuvertes,
+  documents: Documents,
   lectureSeule: string | undefined,
 ): OperationsDeLaCorbeille {
   if (lectureSeule !== undefined) {
@@ -340,7 +408,7 @@ function operationsDeLaCorbeille(
       const { refus } = essayer(() => etat.operations.restaurerPage(page.id));
       return refus === undefined ? undefined : messageErreur(refus);
     },
-    supprimer: (page) => supprimerDefinitivement(etat, pages, page.id),
+    supprimer: (page) => supprimerDefinitivement(etat, documents, page.id),
   };
 }
 
@@ -349,7 +417,7 @@ function operationsDeLaCorbeille(
 // tenté : son issue est un échec, que l'écran signale (F-007-AC21).
 function supprimerDefinitivement(
   etat: EtatPret,
-  pages: PagesOuvertes,
+  { pages, tables }: Documents,
   id: IdPage,
 ): IssueDeSuppression {
   const essai = essayer(() => etat.operations.supprimerDefinitivement(id));
@@ -359,7 +427,15 @@ function supprimerDefinitivement(
   // Les documents des pages retirées sont fermés et détruits dans tous les cas ; seul l'effacement
   // des bases est omis quand il ne peut pas être tenté.
   const idEspace = etat.enregistre ? etat.idEspace : undefined;
-  return { refus: undefined, effacement: pages.effacer(idEspace, essai.valeur) };
+  // F-018-AC49 : quel que soit son type, chaque identifiant retiré perd sa base de page, sa base de
+  // table et ses réglages de vue ; le type d'une entrée retirée n'est plus lisible (H11).
+  return {
+    refus: undefined,
+    effacement: Promise.all([
+      pages.effacer(idEspace, essai.valeur),
+      tables.effacer(idEspace, essai.valeur),
+    ]).then((issues) => (issues.every((issue) => issue === "effacee") ? "effacee" : "echec")),
+  };
 }
 
 function barreLateraleDe(
@@ -556,7 +632,13 @@ function actionsDeLaBarre(
   return {
     creerPage: (parent) => {
       if (ecrit) {
-        creerPage(moyens, parent);
+        creerPageOuTable(moyens, parent, "page");
+      }
+    },
+    // F-018-AC10 : comme une page, au titre vide, en dernière position sous le parent visé.
+    creerTable: (parent) => {
+      if (ecrit) {
+        creerPageOuTable(moyens, parent, "table");
       }
     },
     ouvrirSaisie: (idPage) => {
@@ -616,8 +698,9 @@ function deplacerLaPage(
   return true;
 }
 
-function creerPage(moyens: Moyens, parent: IdPage | null): void {
-  const resultat = essayer(() => moyens.operations.creerPage("", { parent }));
+function creerPageOuTable(moyens: Moyens, parent: IdPage | null, type: TypeDePage): void {
+  const creer = type === "table" ? moyens.operations.creerTable : moyens.operations.creerPage;
+  const resultat = essayer(() => creer("", { parent }));
   if (resultat.refus !== undefined) {
     moyens.setErreur(messageErreur(resultat.refus));
     return;
