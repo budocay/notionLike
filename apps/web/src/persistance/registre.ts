@@ -14,7 +14,7 @@ import {
   estUneEntree,
 } from "./cles-de-l-appareil.ts";
 import { CLE_ESPACE_LOCAL } from "./espace-local.ts";
-import { operer } from "./memoire-de-l-appareil.ts";
+import { operer } from "./transaction-de-l-appareil.ts";
 
 export type { Droit, EntreeDuRegistre };
 
