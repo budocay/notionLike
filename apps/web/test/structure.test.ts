@@ -81,6 +81,8 @@ describe("frontières du module de persistance", () => {
       "nomDeBase",
       // F-032 : dernier nom connu (AC3).
       "noterLesNoms",
+      // F-032 : un espace inscrit au registre, ouvert depuis sa base (AC10).
+      "ouvrirEspaceInscrit",
       "ouvrirEspaceLocal",
       "ouvrirPersistance",
       // F-032 : relevé de la base d'espace quand l'énumération manque (AC20).

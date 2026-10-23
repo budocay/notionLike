@@ -1,4 +1,9 @@
-export { ouvrirEspaceLocal, type PersistanceEspaceLocal } from "./espace-local.ts";
+export {
+  // F-032 : un espace inscrit au registre, ouvert depuis sa base.
+  ouvrirEspaceInscrit,
+  ouvrirEspaceLocal,
+  type PersistanceEspaceLocal,
+} from "./espace-local.ts";
 export { ouvrirPersistance, type Persistance } from "./indexeddb.ts";
 export { type DesignationDocument, ErreurPersistance, nomDeBase } from "./nom-de-base.ts";
 export { type EtatPersistance } from "./suivi.ts";

@@ -1,7 +1,12 @@
 import type * as Y from "yjs";
 
 import { estUuidCanonique } from "../identifiants/uuid-canonique.ts";
-import { type Ouverture, ouvrirSousEcheance, type Persistance } from "./indexeddb.ts";
+import {
+  type Ouverture,
+  ouvrirPersistance,
+  ouvrirSousEcheance,
+  type Persistance,
+} from "./indexeddb.ts";
 import { cleDuRegistre, estUneEntree } from "./cles-de-l-appareil.ts";
 import { enumererLesBases } from "./enumeration.ts";
 import { nomDeBase } from "./nom-de-base.ts";
@@ -38,6 +43,18 @@ export function ouvrirEspaceLocal(doc: Y.Doc, idCandidat: string): PersistanceEs
     }),
   );
   return { ...persistance, idEspace: () => idRetenu };
+}
+
+/**
+ * Persistance du document d'un espace inscrit au registre de l'appareil (F-032) : son identifiant
+ * est celui qu'on lui donne, contrôlé par la fonction de nommage, et sa base est ouverte telle
+ * quelle, sans être vidée ni renommée (F-032-AC9). Aucune réparation : seul l'espace de l'appareil
+ * en connaît une (F-030-AC23).
+ */
+export function ouvrirEspaceInscrit(doc: Y.Doc, idEspace: string): PersistanceEspaceLocal {
+  nomDeLEspace(idEspace);
+  const persistance = ouvrirPersistance(doc, { type: "espace", idEspace });
+  return { ...persistance, idEspace: () => idEspace };
 }
 
 function nomDeLEspace(idEspace: string): string {

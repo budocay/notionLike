@@ -332,6 +332,8 @@ describe("ce que l'onglet tient sur une page supprimée", () => {
 
 // Appelants de production de l'interface de persistance (F-030-AC19) et de la nouvelle opération.
 const APPELANTS_DE_LA_PERSISTANCE = [
+  // F-032-AC19 : la mémoire de l'appareil, par le magasin de l'appareil.
+  "src/espace/appareil.ts",
   "src/espace/garde-onglet.ts",
   "src/espace/session-espace.ts",
   "src/page/pages-ouvertes.ts",

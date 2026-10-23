@@ -91,3 +91,64 @@ export function retirerLEnumeration(): void {
 export function rendreLEnumeration(): void {
   Reflect.deleteProperty(indexedDB, "databases");
 }
+
+/** Une base de document qui porte cette mise à jour, rangée comme la bibliothèque la range. */
+export async function poserUneBaseQuiPorte(nom: string, miseAJour: Uint8Array): Promise<void> {
+  const demande = indexedDB.open(nom);
+  demande.onupgradeneeded = () => {
+    demande.result.createObjectStore("updates", { autoIncrement: true }).put(miseAJour);
+    demande.result.createObjectStore("custom");
+  };
+  (await attendre(demande)).close();
+}
+
+/** Le nom de la base du document d'un espace, écrit en toutes lettres pour les témoins. */
+export function baseDEspace(idEspace: string): string {
+  return `notionlike:espace:${idEspace}`;
+}
+
+interface CanalSimule {
+  postMessage(message: unknown): void;
+  close(): void;
+  onmessage: ((evenement: MessageEvent) => void) | null;
+}
+
+/**
+ * Des canaux entre onglets simulés, reliés par leur nom comme `BroadcastChannel` les relie : un
+ * message va, au tour suivant, à chaque autre canal ouvert du même nom ; un envoi sur un canal
+ * fermé lève, comme dans le navigateur (veille F-032, point 7).
+ */
+export function canauxRelies(): {
+  ouvrirUnCanal: (nom: string) => CanalSimule;
+  ouverts: () => number;
+} {
+  const parNom = new Map<string, Set<CanalSimule>>();
+  const ouvrirUnCanal = (nom: string): CanalSimule => {
+    const freres = parNom.get(nom) ?? new Set<CanalSimule>();
+    parNom.set(nom, freres);
+    let ferme = false;
+    const canal: CanalSimule = {
+      onmessage: null,
+      postMessage: (message) => {
+        if (ferme) {
+          throw new DOMException("canal fermé", "InvalidStateError");
+        }
+        for (const autre of freres) {
+          if (autre !== canal) {
+            setTimeout(() => autre.onmessage?.(new MessageEvent("message", { data: message })), 0);
+          }
+        }
+      },
+      close: () => {
+        ferme = true;
+        freres.delete(canal);
+      },
+    };
+    freres.add(canal);
+    return canal;
+  };
+  return {
+    ouvrirUnCanal,
+    ouverts: () => [...parNom.values()].reduce((total, freres) => total + freres.size, 0),
+  };
+}
