@@ -11,7 +11,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { estUnNomDEspace } from "../compte/regles-espaces.ts";
 import type { Droit, EtatDeLAppareil, MagasinDeLAppareil } from "../espace/appareil.ts";
-import type { CibleDeSession, PiloteDeLOnglet } from "../espace/espace-ouvert.ts";
+import { type CibleDeSession, memeCible, type PiloteDeLOnglet } from "../espace/espace-ouvert.ts";
 import { confirmationArmee } from "../espace/garde-onglet.ts";
 import { allerA } from "../navigation/fragment.ts";
 import type {
@@ -252,12 +252,4 @@ function attendreAvantDeChanger(synchro: Synchronisation | undefined): Promise<I
   return synchro
     .attendreLAcquittement(ATTENTE_DU_CHANGEMENT_MS)
     .catch((): IssueDeLAttente => "non-acquitte");
-}
-
-/** Vrai si les deux cibles désignent le même espace de l'appareil. */
-export function memeCible(une: CibleDeSession, autre: CibleDeSession): boolean {
-  if (une.sorte === "appareil" || autre.sorte === "appareil") {
-    return une.sorte === autre.sorte;
-  }
-  return une.idEspace === autre.idEspace;
 }

@@ -5,10 +5,10 @@
 import type { ReactElement } from "react";
 
 import type { Role } from "../compte/regles-espaces.ts";
-import type { CibleDeSession } from "../espace/espace-ouvert.ts";
+import { type CibleDeSession, memeCible } from "../espace/espace-ouvert.ts";
 import type { AjoutALAppareil } from "./ajout-a-l-appareil.ts";
 import { cibleSurLAppareil, estOuvert, useAppareilDesEcrans } from "./appareil-des-ecrans.ts";
-import { memeCible, useChangementOffert } from "./changement-d-espace.ts";
+import { useChangementOffert } from "./changement-d-espace.ts";
 import { libelleDeLAppareil, peut } from "./commandes-espaces.ts";
 import { Actions, Bouton, Texte } from "./composants/Espaces.tsx";
 import { ESPACE_COURANT, nomOuvrirCetEspace, OUVRIR_CET_ESPACE } from "./messages-espaces.ts";

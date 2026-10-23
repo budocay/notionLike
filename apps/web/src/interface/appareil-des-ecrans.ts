@@ -4,8 +4,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 
 import type { EspaceDeLAppareil, EtatDeLAppareil, MagasinDeLAppareil } from "../espace/appareil.ts";
-import type { CibleDeSession } from "../espace/espace-ouvert.ts";
-import { memeCible } from "./changement-d-espace.ts";
+import { type CibleDeSession, memeCible } from "../espace/espace-ouvert.ts";
 
 export interface AppareilDesEcrans {
   readonly magasin: MagasinDeLAppareil;

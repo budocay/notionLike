@@ -224,7 +224,8 @@ export function espaceRetenuOuvrable(appareil: EtatDeLAppareil): string | undefi
   return retenu;
 }
 
-function memeCible(une: CibleDeSession, autre: CibleDeSession): boolean {
+/** Vrai si les deux cibles désignent le même espace de l'appareil. */
+export function memeCible(une: CibleDeSession, autre: CibleDeSession): boolean {
   if (une.sorte === "appareil" || autre.sorte === "appareil") {
     return une.sorte === autre.sorte;
   }
