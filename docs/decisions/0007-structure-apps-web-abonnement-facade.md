@@ -173,7 +173,7 @@ Contexte : F-006 (`6869a82`, `4adbe79`) fait appeler `deplacerPage` depuis la ba
 - **Module de plus** : `src/glisser/` (cinq fichiers, interface `index.ts`), qui n'importe que lui-même, `react` et `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`. `interface/` l'atteint par son seul `index.ts` (`BarreLaterale.tsx`, `RangeePage.tsx`). Contrats `dnd-kit-confine`, `web-glisser-liste-blanche` et `web-glisser-par-son-interface` (commit du dev `f9a5d63`) ; `web-src-liste-blanche` l'exclut, comme les autres modules à liste blanche propre.
 - **Raccourcis** : `interface/raccourcis.ts` déclare six combinaisons de plus (Alt+Maj+Flèche) et les touches du geste au clavier (`TOUCHES_DU_GLISSER`) ; le module d'édition et le module de glisser-déposer ne l'importent pas, ils reçoivent un prédicat ou des valeurs en propriétés.
 
-### Amendement F-032 (2026-10-21, proposé ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e`) : session ouverte par espace, pilote de l'onglet, remontage à chaque changement
+### Amendement F-032 (2026-10-21, accepté par le dev le 2026-10-23 ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e` puis `01c7020`) : session ouverte par espace, pilote de l'onglet, remontage à chaque changement
 
 Contexte : F-032 lève la borne « un espace par appareil » (F-002 H1) : l'onglet ouvre l'espace retenu au lancement et passe d'un espace de l'appareil à un autre sans rechargement (`specs/F-032.md`, H1, H2, AC10, AC14, AC15, AC17). La session d'espace, jusqu'ici ouverte une fois pour la vie de l'onglet sur l'espace local, doit pouvoir être fermée puis rouverte sur un autre espace, sans que rien de l'espace quitté ne survive. Détail dans `docs/decisions/F-032-conception.md`.
 

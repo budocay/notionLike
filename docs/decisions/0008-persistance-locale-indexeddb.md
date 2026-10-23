@@ -167,7 +167,7 @@ Contexte : la décision annonçait « F-013 ajoutera son registre à cette base 
 - **Pages effacées sur un autre appareil** : une suppression définitive reçue efface les bases de ces pages sur l'appareil qui la reçoit (ADR-0001, amendement du 2026-10-16), par `effacerBaseDePage`.
 - **Dette D-010 inchangée** : la lecture brute reste sans borne ; ni F-029 ni F-012 ne l'ont bornée.
 
-### Amendement F-032 (2026-10-21, proposé ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e`) : ce que l'appareil retient de chaque espace, bases d'un espace, levée de D-009
+### Amendement F-032 (2026-10-21, accepté par le dev le 2026-10-23 ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e` puis `01c7020`) : ce que l'appareil retient de chaque espace, bases d'un espace, levée de D-009
 
 Contexte : avec F-032, un appareil détient plusieurs espaces (`specs/F-032.md`). Il doit retenir, hors ligne, le dernier nom de chacun, une marque de première synchronisation et l'espace à rouvrir au lancement (AC3, AC8, AC17, AC19, H3) ; il doit pouvoir effacer toutes les bases d'un espace et aucune autre (AC20, H8) ; et la réparation de l'identifiant de l'espace local ne peut plus adopter n'importe quelle base d'espace (AC23, H7, D-009). Détail dans `docs/decisions/F-032-conception.md`.
 

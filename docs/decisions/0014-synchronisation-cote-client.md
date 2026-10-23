@@ -57,7 +57,7 @@ Registre :
 - **État visible** (`etat.ts`) : un état et un seul parmi huit (`detache`, `erreur`, `local`, `pause`, `hors-ligne`, `connexion`, `en-cours`, `synchronise`), le premier dont la condition est vraie ; « Synchronisé » exige les ouvertures acquises, aucune modification en attente d'accusé et la passe achevée. Le droit retenu au registre met l'espace en lecture seule : commandes désactivées avec leur raison, opérations refusées, éditeur non modifiable.
 - **Garde d'onglet** : la confirmation avant de quitter n'est plus demandée pour une modification non enregistrée sur l'appareil mais acquittée par le serveur, document par document (`brancherLAcquittement`, `espace/garde-onglet.ts`).
 
-### Amendement F-032 (2026-10-21, proposé ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e`) : changement d'espace, attente d'acquittement, retrait d'un espace
+### Amendement F-032 (2026-10-21, accepté par le dev le 2026-10-23 ; écarts au code corrigés le 2026-10-23, d'après `cac2c2e` puis `01c7020`) : changement d'espace, attente d'acquittement, retrait d'un espace
 
 Contexte : F-032 ouvre dans l'onglet un espace choisi parmi ceux de l'appareil, et en retire (`specs/F-032.md`, AC12, AC15, AC20, AC21, H6). La synchronisation reste celle du seul espace ouvert. Détail dans `docs/decisions/F-032-conception.md`.
 
