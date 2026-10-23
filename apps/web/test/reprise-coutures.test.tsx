@@ -102,6 +102,10 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/synchronisation/passe.test.ts",
   // F-018-AC51, AC53 : bases de table écrites et relues contre le serveur réel.
   "test/synchronisation/tables.test.ts",
+  // F-032 : mémoire de l'appareil, bases d'un espace, réparation restreinte par le registre.
+  "test/appareil-bases.test.ts",
+  "test/appareil-memoire.test.ts",
+  "test/appareil-reparation.test.ts",
 ];
 
 // Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,
