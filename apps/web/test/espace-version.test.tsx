@@ -4,11 +4,12 @@
 // refusé n'est jamais inscrit comme espace retenu ; l'écran de l'espace de l'appareil reste celui de
 // F-002-AC17, sans commande. Pilote, magasin et persistance réels sur l'appareil simulé.
 import { screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   ESPACE_DE_CET_APPAREIL,
   espaceOuvert,
+  nomOuvrirCetEspace,
   OUVRIR_L_ESPACE_DE_CET_APPAREIL,
 } from "../src/interface/messages-espaces.ts";
 import { TITRE_VERSION_NON_PRISE_EN_CHARGE } from "../src/interface/messages.ts";
@@ -19,8 +20,8 @@ import {
   ECRITURE,
   poserDansLAppareil,
 } from "./aides-appareil.ts";
-import { essai } from "./aides-commandes-d-essai.tsx";
 import { tabulerJusqua } from "./aides-coquille.tsx";
+import { aller } from "./aides-espaces.tsx";
 import {
   ajoute,
   APPAREIL,
@@ -33,10 +34,6 @@ import {
   synchronisationSimulee,
 } from "./aides-onglet.tsx";
 import { laisserIndexedDbTravailler } from "./aides-persistance.ts";
-
-vi.mock("../src/interface/ZoneDeCompte.tsx", async (reel) =>
-  (await import("./aides-commandes-d-essai.tsx")).avecLesCommandesDEssai(await reel()),
-);
 
 const ALPHA = ajoute(E_ALPHA);
 
@@ -62,11 +59,13 @@ async function poserAlphaRefuse(): Promise<void> {
 describe("document d'une version non prise en charge (F-032-AC35)", () => {
   it("F-032-AC35 (a) depuis l'espace de l'appareil, sans espace retenu, passer sur un espace refusé pour sa version : écran bloquant et sa commande, clé `espace-retenu` restée absente, et le lancement suivant ouvre l'espace de l'appareil", async () => {
     await poserAlphaRefuse();
-    essai.commandes = [{ libelle: "Vers Alpha", cible: ALPHA, nom: "Alpha" }];
     const onglet = lancerLOnglet({ synchronisation: synchronisationSimulee().fabrique });
     await screen.findByRole("link", { name: "Témoin de l'appareil" });
+    aller("#/espaces");
 
-    await onglet.utilisateur.click(screen.getByRole("button", { name: "Vers Alpha" }));
+    await onglet.utilisateur.click(
+      await screen.findByRole("button", { name: nomOuvrirCetEspace("Alpha") }),
+    );
 
     expect(await ecranBloquant()).toBeDefined();
     expect(laCommande()).toBeDefined();

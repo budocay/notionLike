@@ -1,10 +1,10 @@
 // F-032, bloc 4 : l'interface à plusieurs espaces, lancée comme l'entrée la lance (pilote et
 // magasin réels, persistance réelle sur l'appareil simulé), avec une synchronisation simulée sauf
-// pour F-032-AC18. Sélecteur d'espace (AC4), changement d'espace (AC10), aucune frappe perdue
+// pour F-032-AC18. Chaque changement est demandé par « Ouvrir cet espace » de l'écran des espaces. Sélecteur d'espace (AC4), changement d'espace (AC10), aucune frappe perdue
 // (AC11), confirmations (AC12, AC13, horloge injectée), adresse (AC16), local d'abord (AC18),
 // lecture seule dès l'ouverture (AC25), clavier et focus (AC29), aucune erreur non gérée (AC31).
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { ESPACE_DE_CET_APPAREIL } from "../src/interface/messages-espaces.ts";
@@ -15,8 +15,10 @@ import {
   espaceOuvert,
   modificationsEnregistreesNullePart,
   modificationsNonTransmises,
+  ESPACE_COURANT,
   NOM_INCONNU_SUR_CET_APPAREIL,
   nomDuSelecteur,
+  nomOuvrirCetEspace,
   RESTER_SUR_CET_ESPACE,
 } from "../src/interface/messages-espaces.ts";
 import { LECTURE_SEULE } from "../src/interface/messages-synchronisation.ts";
@@ -39,9 +41,10 @@ import {
   LECTURE,
   poserDansLAppareil,
 } from "./aides-appareil.ts";
-import { essai } from "./aides-commandes-d-essai.tsx";
 import { jamais } from "./aides-compte.tsx";
 import { boutonNouvellePage } from "./aides-coquille.tsx";
+import { partie } from "./aides-ecrans-des-espaces.tsx";
+import { aller, estDesactive } from "./aides-espaces.tsx";
 import { ecouteurs, ouvrirFacade } from "./aides-facade.ts";
 import {
   ajoute,
@@ -65,26 +68,24 @@ import {
 } from "./aides-reprise.ts";
 import { attendreLaZoneDeSaisie, entrerDansLEditeur, taper } from "./edition/aides-edition.tsx";
 
-vi.mock("../src/interface/ZoneDeCompte.tsx", async (reel) =>
-  (await import("./aides-commandes-d-essai.tsx")).avecLesCommandesDEssai(await reel()),
-);
-
 const ALPHA = ajoute(E_ALPHA);
 const BETA = ajoute(E_BETA);
-const VERS_ALPHA = { libelle: "Vers Alpha", cible: ALPHA, nom: "Alpha" };
-const VERS_BETA = { libelle: "Vers Bêta", cible: BETA, nom: "Bêta" };
-const VERS_L_APPAREIL = {
-  libelle: "Vers l'appareil",
-  cible: APPAREIL,
-  nom: ESPACE_DE_CET_APPAREIL,
-};
 
-function commandes(...liste: (typeof VERS_ALPHA)[]): void {
-  essai.commandes = liste;
+/** « Ouvrir cet espace » de l'espace de ce nom, sur l'écran affiché. */
+function commande(nom: string): HTMLElement {
+  return screen.getByRole("button", { name: nomOuvrirCetEspace(nom) });
 }
 
-function commande(libelle: string): HTMLElement {
-  return screen.getByRole("button", { name: libelle });
+/**
+ * « Ouvrir cet espace » de l'espace de ce nom sur l'écran des espaces, où le sélecteur mène
+ * (F-032-AC4), ouvert au besoin : la commande réelle du changement d'espace (F-032-AC10).
+ */
+async function ouvrirCetEspace(nom: string): Promise<HTMLElement> {
+  if (window.location.hash !== "#/espaces") {
+    aller("#/espaces");
+  }
+  await screen.findByRole("heading", { level: 1, name: "Espaces" });
+  return screen.findByRole("button", { name: nomOuvrirCetEspace(nom) });
 }
 
 /** Les régions d'état qui portent ce texte. */
@@ -152,17 +153,22 @@ describe("sélecteur d'espace (F-032-AC4)", () => {
       [`registre:${E_BETA}`]: ECRITURE,
       [`nom:${E_BETA}`]: "   ",
     });
-    commandes(VERS_ALPHA, VERS_BETA);
     const onglet = lancerLOnglet();
     await boutonNouvellePage();
     expect(selecteur().textContent).toBe(ESPACE_DE_CET_APPAREIL);
     expect(selecteur().getAttribute("aria-label")).toBe(nomDuSelecteur(ESPACE_DE_CET_APPAREIL));
 
-    await onglet.utilisateur.click(commande(VERS_ALPHA.libelle));
+    // Les deux rangées portent le même nom, dans l'ordre des clés du registre : Alpha, puis Bêta.
+    aller("#/espaces");
+    const [versAlpha] = await screen.findAllByRole("button", {
+      name: nomOuvrirCetEspace(NOM_INCONNU_SUR_CET_APPAREIL),
+    });
+    await onglet.utilisateur.click(versAlpha as HTMLElement);
+    await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA));
     await waitFor(() => expect(selecteur().textContent).toBe(NOM_INCONNU_SUR_CET_APPAREIL));
 
     // Alpha est adopté et l'onglet n'a pas de synchronisation : rien n'est acquitté (F-032-AC12).
-    await onglet.utilisateur.click(await screen.findByRole("button", { name: VERS_BETA.libelle }));
+    await onglet.utilisateur.click(await ouvrirCetEspace(NOM_INCONNU_SUR_CET_APPAREIL));
     await onglet.utilisateur.click(await screen.findByRole("button", { name: CHANGER_D_ESPACE }));
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(BETA));
     await waitFor(() => expect(selecteur().textContent).toBe(NOM_INCONNU_SUR_CET_APPAREIL));
@@ -182,7 +188,6 @@ describe("sélecteur d'espace (F-032-AC4)", () => {
 describe("changement d'espace (F-032-AC10, AC29)", () => {
   it("F-032-AC10 F-032-AC29 depuis l'espace de l'appareil `local`, sans attente ni confirmation : synchronisation, pages et session de l'espace quitté fermées avant l'ouverture de l'espace choisi, accueil, nom au sélecteur, focus sur lui, annonce, espace retenu inscrit une fois la session prête ; retour à l'espace de l'appareil, espace retenu retiré", async () => {
     await poserDeuxEspaces();
-    commandes(VERS_ALPHA, VERS_L_APPAREIL);
     const journal: string[] = [];
     const simulee = synchronisationSimulee(journal);
     simulee.etats.set(E_ALPHA, ETAT_ADOPTE);
@@ -194,9 +199,10 @@ describe("changement d'espace (F-032-AC10, AC29)", () => {
     await attendreLaZoneDeSaisie();
     expect(window.location.hash).toMatch(/^#\/page\//);
     const quittee = ouvertMaintenant(onglet.pilote).session;
+    const versAlpha = await ouvrirCetEspace("Alpha");
     journal.splice(0);
 
-    await onglet.utilisateur.click(commande(VERS_ALPHA.libelle));
+    await onglet.utilisateur.click(versAlpha);
 
     expect(await screen.findByRole("link", { name: "Page d'Alpha" })).toBeDefined();
     expect(screen.queryByRole("link", { name: "Témoin de l'appareil" })).toBeNull();
@@ -214,7 +220,7 @@ describe("changement d'espace (F-032-AC10, AC29)", () => {
     await waitFor(() => expect(annonces(espaceOuvert("Alpha"))).toHaveLength(1));
     await waitFor(async () => expect((await contenuDeLAppareil())["espace-retenu"]).toBe(E_ALPHA));
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL));
 
     expect(await screen.findByRole("link", { name: "Témoin de l'appareil" })).toBeDefined();
     await waitFor(() => expect(selecteur().textContent).toBe(ESPACE_DE_CET_APPAREIL));
@@ -225,21 +231,19 @@ describe("changement d'espace (F-032-AC10, AC29)", () => {
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL);
   });
 
-  it("F-032-AC10 un changement vers l'espace déjà ouvert ne fait rien : ni retour à l'accueil, ni session neuve", async () => {
+  it("F-032-AC10 l'espace déjà ouvert n'offre pas « Ouvrir cet espace », seulement « Espace courant » : aller à l'écran des espaces ne change ni l'espace ni sa session", async () => {
     await poserDeuxEspaces();
-    commandes({ ...VERS_L_APPAREIL, libelle: "Rester ici" });
     const onglet = lancerLOnglet();
-    await onglet.utilisateur.click(
-      await screen.findByRole("link", { name: "Témoin de l'appareil" }),
-    );
+    await screen.findByRole("link", { name: "Témoin de l'appareil" });
     const avant = ouvertMaintenant(onglet.pilote);
-    const adresse = window.location.hash;
 
-    await onglet.utilisateur.click(commande("Rester ici"));
+    await ouvrirCetEspace("Alpha");
     await act(() => laisserIndexedDbTravailler());
 
+    const appareil = partie(ESPACE_DE_CET_APPAREIL);
+    expect(within(appareil).queryByRole("button", { name: /^Ouvrir cet espace/ })).toBeNull();
+    expect(appareil.textContent).toContain(ESPACE_COURANT);
     expect(ouvertMaintenant(onglet.pilote)).toBe(avant);
-    expect(window.location.hash).toBe(adresse);
   });
 });
 
@@ -247,8 +251,11 @@ describe("aucune frappe perdue (F-032-AC11)", () => {
   it("F-032-AC11 (premier test) le titre d'une page et le contenu d'une autre, modifiés dans la même tâche que la demande de changement, se relisent dans un document vierge depuis chaque base de l'espace quitté", async () => {
     const [idA, idB] = await poserUnEspace(E_APPAREIL, ["Page A", "Page B"]);
     await poserUnEspace(E_ALPHA, ["Page d'Alpha"]);
-    await poserDansLAppareil({ "espace-local": E_APPAREIL, [`registre:${E_ALPHA}`]: ECRITURE });
-    commandes(VERS_ALPHA);
+    await poserDansLAppareil({
+      "espace-local": E_APPAREIL,
+      [`registre:${E_ALPHA}`]: ECRITURE,
+      [`nom:${E_ALPHA}`]: "Alpha",
+    });
     const onglet = lancerLOnglet();
     await onglet.utilisateur.click(await screen.findByRole("link", { name: "Page B" }));
     await attendreLaZoneDeSaisie();
@@ -259,10 +266,14 @@ describe("aucune frappe perdue (F-032-AC11)", () => {
     entrerDansLEditeur();
     const operations = operationsDe(ouvertMaintenant(onglet.pilote).session);
 
-    // Une seule tâche : le titre, la dernière frappe, la demande.
-    act(() => operations.renommerPage(idA as string, "Titre modifié"));
+    // La frappe dans le contenu de la page B, puis l'écran des espaces dans la même tâche : la
+    // commande du changement n'est offerte que là.
     taper("frappe de la fin");
-    fireEvent.click(commande(VERS_ALPHA.libelle));
+    aller("#/espaces");
+    const versAlpha = await ouvrirCetEspace("Alpha");
+    // Une seule tâche : le titre de la page A, dernière frappe, et la demande.
+    act(() => operations.renommerPage(idA as string, "Titre modifié"));
+    fireEvent.click(versAlpha);
 
     expect(await screen.findByRole("link", { name: "Page d'Alpha" })).toBeDefined();
     await act(() => laisserIndexedDbTravailler());
@@ -276,26 +287,35 @@ describe("aucune frappe perdue (F-032-AC11)", () => {
 describe("modifications non acquittées (F-032-AC12, AC29)", () => {
   async function ouvrirAlphaEnAttente(connexion: { etablie: boolean; enAttente: boolean }) {
     await poserDeuxEspaces();
-    await poserDansLAppareil({ "espace-retenu": E_ALPHA });
-    commandes(VERS_L_APPAREIL, VERS_BETA);
+    await poserUnEspace(E_BETA, ["Page de Bêta"]);
+    await poserDansLAppareil({
+      "espace-retenu": E_ALPHA,
+      [`registre:${E_BETA}`]: ECRITURE,
+      [`nom:${E_BETA}`]: "Bêta",
+    });
     const journal: string[] = [];
     const simulee = synchronisationSimulee(journal);
     simulee.etats.set(E_ALPHA, ETAT_ADOPTE);
     simulee.connexions.set(E_ALPHA, connexion);
     const onglet = lancerLOnglet({ synchronisation: simulee.fabrique, journal });
     await screen.findByRole("link", { name: "Page d'Alpha" });
+    await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL);
     return { onglet, simulee };
   }
 
   it("F-032-AC12 connexion établie : « Changement d'espace… » pendant 2 secondes au plus (horloge injectée), les autres demandes sont ignorées, et le changement a lieu dès l'acquittement, sans boîte", async () => {
     const { onglet, simulee } = await ouvrirAlphaEnAttente({ etablie: true, enAttente: true });
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
     expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
     expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1);
     act(() => simulee.avancer(1999));
-    await onglet.utilisateur.click(commande(VERS_BETA.libelle));
+    // La commande d'un autre espace est désactivée avec sa raison ; l'activer ne fait rien.
+    const versBeta = commande("Bêta");
+    expect(estDesactive(versBeta)).toBe(true);
+    expect(descriptionDe(versBeta)).toBe(CHANGEMENT_D_ESPACE_EN_COURS);
+    await onglet.utilisateur.click(versBeta);
     await act(() => laisserIndexedDbTravailler());
     expect(simulee.attentes).toHaveLength(1);
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
@@ -310,7 +330,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
 
   it("F-032-AC12 F-032-AC29 non acquittées à l'échéance de 2 secondes : boîte d'alerte qui cite l'espace, focus sur « Rester sur cet espace » ; Échap reste, rien ne change, le focus revient à la commande ; « Changer d'espace » change", async () => {
     const { onglet, simulee } = await ouvrirAlphaEnAttente({ etablie: true, enAttente: true });
-    const origine = commande(VERS_L_APPAREIL.libelle);
+    const origine = commande(ESPACE_DE_CET_APPAREIL);
     origine.focus();
     await onglet.utilisateur.keyboard("{Enter}");
 
@@ -330,7 +350,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
-    await waitFor(() => expect(document.activeElement).toBe(commande(VERS_L_APPAREIL.libelle)));
+    await waitFor(() => expect(document.activeElement).toBe(commande(ESPACE_DE_CET_APPAREIL)));
 
     await onglet.utilisateur.keyboard("{Enter}");
     act(() => simulee.avancer(2000));
@@ -354,7 +374,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
   it("F-032-AC12 connexion non établie : la boîte d'alerte s'ouvre sans attendre l'échéance", async () => {
     const { onglet, simulee } = await ouvrirAlphaEnAttente({ etablie: false, enAttente: true });
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
     expect(await screen.findByRole("alertdialog")).toBeDefined();
     expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
@@ -368,7 +388,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
       const { onglet, simulee } = await ouvrirAlphaEnAttente({ etablie: false, enAttente: false });
       act(() => simulee.poser(E_ALPHA, { affiche }));
 
-      await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+      await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
       expect(await screen.findByRole("link", { name: "Témoin de l'appareil" })).toBeDefined();
       expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
@@ -380,7 +400,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
   it("F-032-AC12 connexion établie, rien en attente : changement aussitôt, sans boîte", async () => {
     const { onglet } = await ouvrirAlphaEnAttente({ etablie: true, enAttente: false });
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
     expect(await screen.findByRole("link", { name: "Témoin de l'appareil" })).toBeDefined();
     expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -391,7 +411,6 @@ describe("modifications enregistrées nulle part (F-032-AC13, AC29)", () => {
   it("F-032-AC13 F-032-AC29 la demande de confirmation avant de quitter étant armée : boîte d'AC13 à la place de celle d'AC12, sans attente, focus sur « Rester sur cet espace », focus retenu ; le changement n'a lieu qu'après « Changer quand même »", async () => {
     await poserDeuxEspaces();
     await poserDansLAppareil({ "espace-retenu": E_ALPHA });
-    commandes(VERS_L_APPAREIL);
     const simulee = synchronisationSimulee();
     simulee.etats.set(E_ALPHA, ETAT_ADOPTE);
     simulee.connexions.set(E_ALPHA, { etablie: true, enAttente: true });
@@ -405,7 +424,7 @@ describe("modifications enregistrées nulle part (F-032-AC13, AC29)", () => {
     act(() => void operationsDe(ouvertMaintenant(onglet.pilote).session).creerPage("Nulle part"));
     await waitFor(() => expect(tenterDeQuitter().defaultPrevented).toBe(true));
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL));
 
     const boite = await screen.findByRole("alertdialog");
     expect(within(boite).getByText(modificationsEnregistreesNullePart("Alpha"))).toBeDefined();
@@ -417,9 +436,9 @@ describe("modifications enregistrées nulle part (F-032-AC13, AC29)", () => {
     expect(document.activeElement).toBe(rester);
     await onglet.utilisateur.click(rester);
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
-    await waitFor(() => expect(document.activeElement).toBe(commande(VERS_L_APPAREIL.libelle)));
+    await waitFor(() => expect(document.activeElement).toBe(commande(ESPACE_DE_CET_APPAREIL)));
 
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
     const seconde = await screen.findByRole("alertdialog");
     await onglet.utilisateur.click(
       within(seconde).getByRole("button", { name: CHANGER_QUAND_MEME }),
@@ -493,7 +512,6 @@ describe("local d'abord au changement (F-032-AC18)", () => {
     "F-032-AC18 %s : l'arborescence de l'espace choisi s'affiche dès la relecture de sa base",
     async (_, moi, tentatives) => {
       await poserDeuxEspaces();
-      commandes(VERS_ALPHA);
       const prise = priseMuette();
       const onglet = lancerLOnglet({
         moi: moi === "jamais" ? jamais : undefined,
@@ -525,7 +543,7 @@ describe("local d'abord au changement (F-032-AC18)", () => {
       });
       await screen.findByRole("link", { name: "Témoin de l'appareil" });
 
-      await onglet.utilisateur.click(commande(VERS_ALPHA.libelle));
+      await onglet.utilisateur.click(await ouvrirCetEspace("Alpha"));
 
       expect(await screen.findByRole("link", { name: "Page d'Alpha" })).toBeDefined();
       expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -603,19 +621,19 @@ describe("aucune erreur non gérée (F-032-AC31)", () => {
   it("F-032-AC31 changements d'espace aller et retour, base de l'appareil qui refuse de s'ouvrir pour l'inscription de l'espace retenu : le changement a lieu dans l'onglet, sans erreur non interceptée ni rejet non géré", async () => {
     const relevees = ecouterLesErreursNonInterceptees();
     await poserDeuxEspaces();
-    commandes(VERS_ALPHA, VERS_L_APPAREIL);
     const simulee = synchronisationSimulee();
     simulee.etats.set(E_ALPHA, ETAT_ADOPTE);
     simulee.connexions.set(E_ALPHA, { etablie: true, enAttente: false });
     const onglet = lancerLOnglet({ synchronisation: simulee.fabrique });
     await screen.findByRole("link", { name: "Témoin de l'appareil" });
+    const versAlpha = await ouvrirCetEspace("Alpha");
     refuserLOuvertureDe("notionlike:appareil");
 
-    await onglet.utilisateur.click(commande(VERS_ALPHA.libelle));
+    await onglet.utilisateur.click(versAlpha);
     expect(await screen.findByRole("link", { name: "Page d'Alpha" })).toBeDefined();
     await act(() => laisserIndexedDbTravailler());
     // Sans la base de l'appareil, l'espace de l'appareil s'ouvre comme F-030 le prescrit, coupé.
-    await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+    await onglet.utilisateur.click(await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL));
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL));
     await boutonNouvellePage();
     await act(() => laisserIndexedDbTravailler());
