@@ -23,14 +23,19 @@ import {
   ListeDEspaces,
   Partie,
   type RangeeDEspace,
+  Tableau,
   Texte,
 } from "./composants/Espaces.tsx";
 import {
   AUCUN_AUTRE_ESPACE,
   AUCUN_ESPACE_DU_SERVEUR,
+  COLONNE_ACTION,
+  COLONNE_NOM,
+  COLONNE_ROLE,
   detailsDeLaRangee,
   ESPACE_COURANT,
   ESPACE_DE_CET_APPAREIL,
+  ESPACES_DU_SERVEUR,
   libelleDuRole,
   MENTION_DETACHE,
   MENTION_LOCAL,
@@ -208,24 +213,29 @@ export function RangeesDuServeur(props: {
       <Texte>{props.liste.length === 0 ? AUCUN_ESPACE_DU_SERVEUR : TOUS_SUR_CET_APPAREIL}</Texte>
     );
   }
+  // Un tableau, comme la liste de F-014 : chaque espace du serveur y est une ligne nommée par son
+  // nom et le libellé de son rôle (F-014-AC1, AC40 ; F-032-AC32 : leurs scénarios inchangés).
   return (
-    <ListeDEspaces
-      refGroupe={groupe}
-      rangees={espaces.map(({ idEspace, nom, role }) => ({
-        cle: idEspace,
-        nom,
-        lien: lienDe(idEspace, nom, role),
-        details: libelleDuRole(role),
-        commandes: (
-          <OuvrirDuServeur
-            idEspace={idEspace}
-            nom={nom}
-            role={role}
-            ajout={props.ajout}
-            repli={groupe}
-          />
-        ),
-      }))}
-    />
+    <ListeDEspaces refGroupe={groupe} rangees={[]}>
+      <Tableau
+        legende={ESPACES_DU_SERVEUR}
+        colonnes={[COLONNE_NOM, COLONNE_ROLE, COLONNE_ACTION]}
+        lignes={espaces.map(({ idEspace, nom, role }) => ({
+          cle: idEspace,
+          cellules: [
+            lienDe(idEspace, nom, role) ?? nom,
+            libelleDuRole(role),
+            <OuvrirDuServeur
+              key="ouvrir"
+              idEspace={idEspace}
+              nom={nom}
+              role={role}
+              ajout={props.ajout}
+              repli={groupe}
+            />,
+          ],
+        }))}
+      />
+    </ListeDEspaces>
   );
 }

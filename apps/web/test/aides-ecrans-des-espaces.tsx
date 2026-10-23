@@ -79,18 +79,29 @@ export function partie(nom: string): HTMLElement {
   return screen.getByRole("region", { name: nom });
 }
 
+/**
+ * Les rangées d'une partie : ses éléments de liste, ou les lignes de son tableau (les espaces du
+ * serveur, comme la liste de F-014), sans la ligne des en-têtes.
+ */
+function rangeesDeLaPartie(nom: string): HTMLElement[] {
+  return [
+    ...within(partie(nom)).queryAllByRole("listitem"),
+    ...within(partie(nom))
+      .queryAllByRole("row")
+      .filter((ligne) => within(ligne).queryAllByRole("cell").length > 0),
+  ];
+}
+
 /** Le texte de chaque rangée d'une partie, dans l'ordre. */
 export function rangeesDe(nom: string): string[] {
-  return within(partie(nom))
-    .queryAllByRole("listitem")
-    .map((rangee) => rangee.textContent);
+  return rangeesDeLaPartie(nom).map((rangee) => rangee.textContent);
 }
 
 /** Le texte de la rangée de cette partie dont le titre est ce nom. */
 export function rangee(nomDeLaPartie: string, nom: string): HTMLElement {
-  const trouvee = within(partie(nomDeLaPartie))
-    .queryAllByRole("listitem")
-    .find((element) => element.firstElementChild?.textContent === nom);
+  const trouvee = rangeesDeLaPartie(nomDeLaPartie).find(
+    (element) => element.firstElementChild?.textContent === nom,
+  );
   if (trouvee === undefined) {
     throw new Error(`Aucune rangée « ${nom} » sous « ${nomDeLaPartie} ».`);
   }

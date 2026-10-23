@@ -43,6 +43,8 @@ export const INVITATIONS_NON_LUES = "Les invitations de cet espace n'ont pas pu 
 export const NOMBRE_DE_MEMBRES_INCONNU = "Le nombre de membres de l'espace n'est pas encore connu.";
 export const COLONNE_NOM = "Nom";
 export const COLONNE_ROLE = "Votre rôle";
+// F-032-AC5 : la commande d'ajout d'un espace du serveur à l'appareil.
+export const COLONNE_ACTION = "Action";
 
 // Plusieurs espaces sur un appareil (F-032) : sélecteur, changement d'espace et ses confirmations.
 export const NOM_INCONNU_SUR_CET_APPAREIL = "Nom inconnu sur cet appareil";
