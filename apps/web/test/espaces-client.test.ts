@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cheminDe, creerClientDesEspaces } from "../src/compte/client-espaces.ts";
 import { estUnJetonDInvitation, estUnNomDEspace } from "../src/compte/regles-espaces.ts";
 import { tirerIdentifiantDEspace } from "../src/espace/identifiant-d-espace.ts";
-import { COMMANDES } from "../src/interface/commandes-espaces.ts";
+import { COMMANDES, COMMANDES_DE_L_APPAREIL } from "../src/interface/commandes-espaces.ts";
 import { enveloppe, jamais, json, pageHtml, serveurSimule } from "./aides-compte.tsx";
 import { lire, lister } from "./aides-disque.ts";
 import {
@@ -229,9 +229,12 @@ describe("coutures du client des espaces", () => {
     expect([...actionsDesCommandes].sort()).toEqual([...citees].sort());
   });
 
-  it("F-014-AC26 chaque commande rendue par les écrans est nommée par COMMANDES, et chaque commande de COMMANDES est employée", () => {
+  // F-032 H10, test de F-014-AC26 amendé par F-032-AC28 : les écrans des espaces comptent les
+  // fichiers de F-032 qui rendent leurs commandes, et une commande y est soit rattachée à une action
+  // (`peut`), soit dans la liste fermée des commandes de l'appareil (`libelleDeLAppareil`).
+  it("F-014-AC26 F-032-AC28 chaque commande rendue par les écrans est nommée par COMMANDES ou par la liste fermée des commandes de l'appareil, et chacune des deux listes est employée", () => {
     const ecrans = [...sources].filter(([chemin]) =>
-      /^src\/interface\/(ActionsDeLEspace|MembresDeLEspace|InvitationsDeLEspace|contexte-espace|EcranDesEspaces)\./.test(
+      /^src\/interface\/(ActionsDeLEspace|MembresDeLEspace|InvitationsDeLEspace|contexte-espace|EcranDesEspaces|EcranDUnEspace|EcranDInvitation|EspacesDeLAppareil|OuvertureDUnEspace|RetraitDeLAppareil)\./.test(
         chemin,
       ),
     );
@@ -241,6 +244,19 @@ describe("coutures du client des espaces", () => {
       ),
     );
     expect([...employees].sort()).toEqual(Object.keys(COMMANDES).sort());
+    const deLAppareil = new Set(
+      ecrans.flatMap(([, texte]) =>
+        [...texte.matchAll(/libelleDeLAppareil\(\s*"([a-z-]+)"\s*\)/g)].map(([, nom]) => nom),
+      ),
+    );
+    expect([...COMMANDES_DE_L_APPAREIL]).toEqual([
+      "ouvrir-sur-l-appareil",
+      "retirer-de-l-appareil",
+    ]);
+    expect([...deLAppareil].sort()).toEqual([...COMMANDES_DE_L_APPAREIL].sort());
+    for (const commande of COMMANDES_DE_L_APPAREIL) {
+      expect(Object.keys(COMMANDES)).not.toContain(commande);
+    }
   });
 
   it("F-014-AC43 le code courriel-non-verifie n'est pas publié par les contrats : son test sera livré par F-026, fusionnée en second (H16)", () => {

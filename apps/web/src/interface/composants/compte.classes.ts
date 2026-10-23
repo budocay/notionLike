@@ -56,6 +56,16 @@ export const ESPACES = {
     "relative flex max-h-full w-full max-w-ecran flex-col gap-moyen overflow-y-auto rounded-grand bg-surface-relief p-ample shadow-menu filet",
   lienLu:
     "contour-interieur min-h-cible w-full rounded-petit bg-surface-retrait px-petit text-interface text-texte-principal contour-champ",
+  // F-032-AC30 : rangées de l'écran des espaces à trois parties ; chaque commande garde la cible de
+  // 44 pixels de `CIBLE`, compacte seulement par `etroit:pointer-fine:`, et le titre d'une rangée
+  // tient sur une ligne, coupé par des points de suspension.
+  groupe: "contour-interieur flex flex-col gap-moyen rounded-moyen",
+  liste: "flex flex-col gap-moyen",
+  rangee: "flex flex-col gap-mince filet-bas pb-moyen",
+  titreDeRangee: "truncate text-interface font-moyen text-texte-principal",
+  lienDeRangee: `${CIBLE} w-auto max-w-full font-moyen text-texte-principal underline hover:bg-surface-active`,
+  titreCoupe: "extensible truncate",
+  detailDeRangee: "wrap-anywhere text-petit text-texte-secondaire",
 } as const;
 
 // Classes de l'écran de la corbeille (F-007) : mêmes jetons et mêmes surfaces que les écrans des

@@ -9,7 +9,13 @@ import { afterEach, expect } from "vitest";
 import * as Y from "yjs";
 
 import type { Compte } from "../src/compte/index.ts";
-import { type MagasinDeLAppareil, ouvrirLeMagasinDeLAppareil } from "../src/espace/appareil.ts";
+import {
+  type CanalDeLAppareil,
+  lireLesPagesDeLaBase,
+  type MagasinDeLAppareil,
+  ouvrirLeMagasinDeLAppareil,
+  type RetraitDeLAppareil,
+} from "../src/espace/appareil.ts";
 import {
   type CibleDeSession,
   type EtatDuPilote,
@@ -17,18 +23,26 @@ import {
   type PiloteDeLOnglet,
 } from "../src/espace/espace-ouvert.ts";
 import { EspaceDeLOnglet } from "../src/interface/EspaceDeLOnglet.tsx";
+import { avecLesNoms } from "../src/interface/noms-des-espaces.ts";
 import type {
   EspaceASynchroniser,
   FabriqueDeSynchronisation,
 } from "../src/interface/synchronisation-ouverte.ts";
-import type {
-  EtatDeSynchronisation,
-  IssueDeLAttente,
-  PageAffichee,
-  Synchronisation,
+import {
+  type EtatDeSynchronisation,
+  type IssueDeLAttente,
+  type PageAffichee,
+  retirerDeLAppareil,
+  type Synchronisation,
 } from "../src/synchronisation/index.ts";
 import { baseDEspace, poserUneBaseQuiPorte } from "./aides-appareil.ts";
-import { compteSimule, moi200, ROUTES, serveurSimule } from "./aides-compte.tsx";
+import {
+  compteSimule,
+  moi200,
+  ROUTES,
+  type ServeurSimule,
+  serveurSimule,
+} from "./aides-compte.tsx";
 import { creerFacade, demarrerSession } from "./aides-facade.ts";
 import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
 
@@ -46,6 +60,9 @@ export interface Onglet {
   /** Démarrages de session et fermetures de synchronisation, dans l'ordre. */
   readonly journal: string[];
   readonly utilisateur: UserEvent;
+  /** Le compte de l'onglet, son client des espaces enveloppé comme l'entrée le fait (F-032-AC3). */
+  readonly compte: Compte;
+  readonly serveur: ServeurSimule;
   readonly fermer: () => void;
 }
 
@@ -72,12 +89,23 @@ export interface OptionsDuLancement {
   /** Routes de plus du serveur simulé. */
   readonly routes?: Record<string, Reponse> | undefined;
   readonly journal?: string[] | undefined;
+  /** Le serveur simulé de l'onglet ; sans, un serveur neuf qui répond `moi` et `routes`. */
+  readonly serveur?: ServeurSimule | undefined;
+  /** Délai de réponse du client des espaces (F-014-AC31 : 10 secondes sans lui). */
+  readonly delaiMs?: number | undefined;
+  /**
+   * Canaux entre onglets du magasin et du retrait (F-032-AC20, AC22) ; avec eux, le retrait de
+   * l'appareil est celui de l'entrée, par la synchronisation.
+   */
+  readonly ouvrirUnCanal?: ((nom: string) => CanalDeLAppareil) | undefined;
+  /** Un retrait de l'appareil à la place de celui de l'entrée (échec simulé, F-007-AC21). */
+  readonly retrait?: RetraitDeLAppareil | undefined;
 }
 
 /** Lance l'onglet comme l'entrée le fait, sous `StrictMode`, sans attendre la fin du chargement. */
 export function lancerLOnglet(options: OptionsDuLancement = {}): Onglet {
   const journal = options.journal ?? [];
-  const magasin = ouvrirLeMagasinDeLAppareil();
+  const magasin = magasinDeLOnglet(options.ouvrirUnCanal, options.retrait);
   const pilote = piloterLOnglet({
     magasin,
     demarrerSession: (cible) => {
@@ -85,9 +113,11 @@ export function lancerLOnglet(options: OptionsDuLancement = {}): Onglet {
       return demarrerSession(cible);
     },
   });
-  const compte = compteSimule(
-    serveurSimule({ [ROUTES.moi]: options.moi ?? (() => moi200()), ...options.routes }),
-  );
+  const serveur =
+    options.serveur ??
+    serveurSimule({ [ROUTES.moi]: options.moi ?? (() => moi200()), ...options.routes });
+  const simule = compteSimule(serveur, options.delaiMs);
+  const compte: Compte = { ...simule, espaces: avecLesNoms(simule.espaces, magasin) };
   render(
     <StrictMode>
       <EspaceDeLOnglet
@@ -103,6 +133,8 @@ export function lancerLOnglet(options: OptionsDuLancement = {}): Onglet {
     magasin,
     journal,
     utilisateur: userEvent.setup(),
+    compte,
+    serveur,
     fermer: () => {
       pilote.fermer();
       magasin.fermer();
@@ -110,6 +142,26 @@ export function lancerLOnglet(options: OptionsDuLancement = {}): Onglet {
   };
   ouverts.push(onglet);
   return onglet;
+}
+
+/** Le magasin de l'appareil comme l'entrée l'ouvre ; sans canaux, ni prévenu ni retrait. */
+export function magasinDeLOnglet(
+  ouvrirUnCanal: ((nom: string) => CanalDeLAppareil) | undefined,
+  retrait?: RetraitDeLAppareil,
+): MagasinDeLAppareil {
+  if (ouvrirUnCanal === undefined) {
+    return ouvrirLeMagasinDeLAppareil({ retirerDeLAppareil: retrait });
+  }
+  return ouvrirLeMagasinDeLAppareil({
+    ouvrirUnCanal,
+    retirerDeLAppareil:
+      retrait ??
+      ((idEspace) =>
+        retirerDeLAppareil(idEspace, {
+          environnement: { ouvrirUnCanal },
+          lireLesPages: lireLesPagesDeLaBase,
+        })),
+  });
 }
 
 /** Fermeture de l'onglet, puis un onglet neuf sur les mêmes bases (rechargement). */

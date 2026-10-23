@@ -58,6 +58,8 @@ export interface ChangementDEspace {
    * d'espace… », F-032-AC12) ; `undefined` hors de l'attente.
    */
   readonly attente: string | undefined;
+  /** L'espace dont la demande attend l'acquittement : sa commande reste active (F-032-AC12). */
+  readonly cibleEnAttente: CibleDeSession | undefined;
 }
 
 /** L'API du changement, offerte aux écrans des espaces par l'écran de l'espace ouvert. */
@@ -137,7 +139,7 @@ export function useChangementDEspace(moyens: MoyensDuChangement): {
   derniers.current = moyens;
   const repli = useRef<HTMLElement | null>(null);
   const boite = useBoite<Attendue>(repli);
-  const [enAttente, setEnAttente] = useState(false);
+  const [enAttente, setEnAttente] = useState<CibleDeSession | undefined>(undefined);
   const occupe = useRef(false);
   const monte = useMonte();
   const changer = (demande: DemandeDeChangement): void => {
@@ -151,7 +153,8 @@ export function useChangementDEspace(moyens: MoyensDuChangement): {
   return {
     changement: {
       demander: (demande) => examiner(examen, demande),
-      attente: enAttente ? CHANGEMENT_D_ESPACE_EN_COURS : undefined,
+      attente: enAttente === undefined ? undefined : CHANGEMENT_D_ESPACE_EN_COURS,
+      cibleEnAttente: enAttente,
     },
     confirmation:
       ouverte === undefined
@@ -178,7 +181,7 @@ interface Examen {
   /** Vrai d'une demande acceptée à la fin de son examen : les autres sont ignorées. */
   readonly occupe: { current: boolean };
   readonly monte: { readonly current: boolean };
-  readonly setEnAttente: (enAttente: boolean) => void;
+  readonly setEnAttente: (enAttente: CibleDeSession | undefined) => void;
   readonly changer: (demande: DemandeDeChangement) => void;
 }
 
@@ -201,12 +204,12 @@ function examiner(examen: Examen, demande: DemandeDeChangement): void {
     return;
   }
   examen.occupe.current = true;
-  examen.setEnAttente(true);
+  examen.setEnAttente(demande.cible);
   void attendreAvantDeChanger(synchro).then((issue) => {
     if (!examen.monte.current) {
       return;
     }
-    examen.setEnAttente(false);
+    examen.setEnAttente(undefined);
     if (issue === "acquitte") {
       examen.occupe.current = false;
       examen.changer(demande);
@@ -251,7 +254,8 @@ function attendreAvantDeChanger(synchro: Synchronisation | undefined): Promise<I
     .catch((): IssueDeLAttente => "non-acquitte");
 }
 
-function memeCible(une: CibleDeSession, autre: CibleDeSession): boolean {
+/** Vrai si les deux cibles désignent le même espace de l'appareil. */
+export function memeCible(une: CibleDeSession, autre: CibleDeSession): boolean {
   if (une.sorte === "appareil" || autre.sorte === "appareil") {
     return une.sorte === autre.sorte;
   }

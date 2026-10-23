@@ -12,6 +12,7 @@ import {
   type RefObject,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -95,6 +96,8 @@ import {
   useChangementDEspace,
 } from "./changement-d-espace.ts";
 import { ConfirmationDeChangement } from "./ConfirmationDeChangement.tsx";
+import { type AppareilDesEcrans, ContexteDeLAppareil } from "./appareil-des-ecrans.ts";
+import { usePremiereSynchronisation } from "./premiere-synchronisation.ts";
 
 type Saisie = EcranBarre["saisie"];
 
@@ -290,6 +293,10 @@ interface EspacesDeLEcran {
   /** L'API offerte aux écrans des espaces ; `undefined` sans pilote. */
   readonly changement: ChangementDEspace | undefined;
   readonly confirmation: ConfirmationOuverte | undefined;
+  /** Le magasin et l'espace ouvert, offerts aux écrans des espaces ; `undefined` sans pilote. */
+  readonly appareil: AppareilDesEcrans | undefined;
+  /** Vrai tant que la marque de première synchronisation de l'espace ouvert vaut (F-032-AC8). */
+  readonly premiereSynchronisation: boolean;
 }
 
 function useEspacesDeLEcran(
@@ -312,6 +319,13 @@ function useEspacesDeLEcran(
       selecteur.current?.focus();
     }
   }, [arrivee]);
+  const offert = useAppareilOffert(espaces);
+  const premiereSynchronisation = usePremiereSynchronisation(
+    espaces?.magasin,
+    appareil,
+    espaces?.cible,
+    synchronisation.etat,
+  );
   const { changement, confirmation } = useChangementDEspace({
     espaces,
     synchro: synchronisation.synchro,
@@ -331,7 +345,21 @@ function useEspacesDeLEcran(
     arrivee,
     changement: espaces === undefined ? undefined : changement,
     confirmation,
+    appareil: offert,
+    premiereSynchronisation,
   };
+}
+
+/** Le magasin et l'espace ouvert offerts aux écrans des espaces (F-032-AC1, AC20), stables. */
+function useAppareilOffert(
+  espaces: EspacesDeLApplication | undefined,
+): AppareilDesEcrans | undefined {
+  const magasin = espaces?.magasin;
+  const cible = espaces?.cible;
+  return useMemo(
+    () => (magasin === undefined || cible === undefined ? undefined : { magasin, ouvert: cible }),
+    [magasin, cible],
+  );
 }
 
 /** Les documents de page et de table que l'onglet tient pour l'espace ouvert. */
@@ -353,9 +381,11 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
   if (synchronisation.effaceeAilleurs) {
     return <EffaceeAilleurs />;
   }
-  const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, () =>
-    toutFermer(documents, props.session),
-  );
+  const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, {
+    avantLEffacement: () => toutFermer(documents, props.session),
+    premiereSynchronisation: espaces.premiereSynchronisation,
+    prevenirLesOnglets: props.espaces?.magasin.prevenir,
+  });
   return avecLesEspaces(
     espaces,
     <Coquille
@@ -376,6 +406,7 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
         table={espace.etatDeLaTable}
         lectureSeule={synchronisation.lectureSeule}
         etroit={tiroir.etroit}
+        premiereSynchronisation={espaces.premiereSynchronisation}
       />
     </Coquille>,
   );
@@ -406,10 +437,12 @@ function barreDuHautDe(
 function avecLesEspaces(espaces: EspacesDeLEcran, coquille: ReactElement): ReactElement {
   return (
     <ContexteDuChangement.Provider value={espaces.changement}>
-      {coquille}
-      {espaces.confirmation !== undefined && (
-        <ConfirmationDeChangement confirmation={espaces.confirmation} />
-      )}
+      <ContexteDeLAppareil.Provider value={espaces.appareil}>
+        {coquille}
+        {espaces.confirmation !== undefined && (
+          <ConfirmationDeChangement confirmation={espaces.confirmation} />
+        )}
+      </ContexteDeLAppareil.Provider>
     </ContexteDuChangement.Provider>
   );
 }
@@ -466,12 +499,19 @@ function toutesLesPages(etat: EtatPret): PageLue[] {
   return aVoir;
 }
 
+/** Ce que la zone de synchronisation reçoit de l'écran de l'espace ouvert, en plus de son état. */
+interface MoyensDeLaZone {
+  readonly avantLEffacement: () => void;
+  readonly premiereSynchronisation: boolean;
+  readonly prevenirLesOnglets: (() => void) | undefined;
+}
+
 // La zone de synchronisation (F-013), à côté de la zone de compte : absente sans synchronisation.
 function zoneDeSynchronisation(
   synchronisation: SynchronisationDeLEspace,
   etat: EtatPret,
   stockageDisponible: boolean,
-  avantLEffacement: () => void,
+  moyens: MoyensDeLaZone,
 ): ReactElement | undefined {
   const { synchro, etat: etatSynchro } = synchronisation;
   if (synchro === undefined || etatSynchro === undefined) {
@@ -489,7 +529,9 @@ function zoneDeSynchronisation(
       }
       nombreDePages={pagesLues.length}
       stockageDisponible={stockageDisponible}
-      avantLEffacement={avantLEffacement}
+      avantLEffacement={moyens.avantLEffacement}
+      premiereSynchronisation={moyens.premiereSynchronisation}
+      prevenirLesOnglets={moyens.prevenirLesOnglets}
     />
   );
 }
@@ -511,6 +553,8 @@ function ZoneAffichee(props: {
   readonly lectureSeule: string | undefined;
   /** Écran étroit : pas de poignée de bloc, le geste à la souris est celui d'un écran large. */
   readonly etroit: boolean;
+  /** F-032-AC8 : l'accueil vide dit que les pages n'ont pas encore été téléchargées. */
+  readonly premiereSynchronisation: boolean;
 }): ReactElement {
   const { zone, etat, compte, navigation } = props;
   if (compte !== undefined && navigation.ecran !== undefined) {
@@ -536,6 +580,7 @@ function ZoneAffichee(props: {
       ref={zone}
       selection={props.selection}
       espaceVide={etat.arborescence.racines.length === 0}
+      premiereSynchronisation={props.premiereSynchronisation}
       page={props.page}
       table={props.table}
       idEspace={etat.idEspace}

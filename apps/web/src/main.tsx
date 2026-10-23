@@ -3,12 +3,13 @@ import "./styles/entree.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { ouvrirLeCompte } from "./compte/index.ts";
+import { type Compte, ouvrirLeCompte } from "./compte/index.ts";
 import { lireLesPagesDeLaBase, ouvrirLeMagasinDeLAppareil } from "./espace/appareil.ts";
 import { piloterLOnglet } from "./espace/espace-ouvert.ts";
 import { demarrerSessionEspace } from "./espace/session-espace.ts";
 import { serveurDesEspaces, sourceDuCompte } from "./interface/branchement-synchronisation.ts";
 import { EspaceDeLOnglet } from "./interface/EspaceDeLOnglet.tsx";
+import { avecLesNoms } from "./interface/noms-des-espaces.ts";
 import type { FabriqueDeSynchronisation } from "./interface/synchronisation-ouverte.ts";
 import {
   demarrerSynchronisation,
@@ -25,7 +26,7 @@ if (racine === null) {
 // Le compte, le magasin de l'appareil et le pilote de l'onglet naissent hors de React : `StrictMode`
 // ne double aucune ouverture (ADR-0007) ni aucune requête `moi`. Le compte ne retarde rien : la
 // coquille s'affiche sans attendre sa réponse (F-010-AC1).
-const compte = ouvrirLeCompte();
+const compteSansNoms = ouvrirLeCompte();
 const environnement = environnementDuNavigateur();
 // F-032 : ce que l'onglet sait des espaces de l'appareil, tenu à jour entre les onglets (AC22) ; le
 // retrait d'un espace passe par la synchronisation, qui prévient les onglets ouverts sur lui (AC20).
@@ -34,6 +35,12 @@ const magasin = ouvrirLeMagasinDeLAppareil({
   retirerDeLAppareil: (idEspace) =>
     retirerDeLAppareil(idEspace, { environnement, lireLesPages: lireLesPagesDeLaBase }),
 });
+// F-032-AC3 : le client des espaces est enveloppé ici, une fois, avant de servir aux écrans et à
+// l'adoption ; chaque réponse conforme qui porte le nom d'un espace de l'appareil le fait retenir.
+const compte: Compte = {
+  ...compteSansNoms,
+  espaces: avecLesNoms(compteSansNoms.espaces, magasin),
+};
 // L'entrée reste le seul module qui nomme le démarrage de la session (F-002-AC31) : elle le donne
 // au pilote, qui démarre aussitôt celle de l'espace de l'appareil, puis ouvre l'espace retenu
 // (F-032-AC17) et chaque espace choisi (AC10).

@@ -134,6 +134,28 @@ describe("appelants du registre et de la mémoire de l'appareil (F-032-AC32)", (
       quiAppellent(
         /(?<!#)\b(lireLAppareil|ajouterALAppareil|inscrireLEspaceRetenu|noterLesNoms|retirerLaMarque)\(/,
       ).filter((chemin) => !chemin.startsWith("src/persistance/")),
+    ).toEqual(
+      [
+        "src/espace/appareil.ts",
+        // F-032-AC8 : la marque de l'espace ouvert est retirée au premier « Synchronisé », par le
+        // magasin (`magasin.retirerLaMarque(`).
+        "src/interface/premiere-synchronisation.ts",
+        // F-032-AC3 : les noms rendus par le client des espaces passent au magasin
+        // (`magasin.noterLesNoms(`).
+        "src/interface/noms-des-espaces.ts",
+      ].sort(),
+    );
+    // Hors du magasin, ces deux écritures ne passent que par lui, chacune par un seul fichier.
+    expect(quiAppellent(/\bmagasin\.retirerLaMarque\(/)).toEqual([
+      "src/interface/premiere-synchronisation.ts",
+    ]);
+    expect(quiAppellent(/\bmagasin\.noterLesNoms\(/)).toEqual([
+      "src/interface/noms-des-espaces.ts",
+    ]);
+    expect(
+      quiAppellent(/(?<![.#])\b(noterLesNoms|retirerLaMarque)\(/).filter(
+        (chemin) => !chemin.startsWith("src/persistance/"),
+      ),
     ).toEqual(["src/espace/appareil.ts"]);
   });
 

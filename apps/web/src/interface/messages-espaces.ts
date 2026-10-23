@@ -26,8 +26,6 @@ export const TITRE_DES_ESPACES = "Espaces";
 export const ESPACE_DE_CET_APPAREIL = "Espace de cet appareil";
 export const ESPACE_COURANT = "Espace courant";
 export const CET_APPAREIL = "Cet appareil";
-export const PAS_ENCORE_DANS_L_EDITEUR =
-  "Les espaces du serveur ne s'ouvrent pas encore dans l'éditeur.";
 export const ESPACES_DU_SERVEUR = "Espaces du serveur";
 export const AUCUN_ESPACE_DU_SERVEUR = "Vous n'êtes membre d'aucun espace du serveur.";
 export const CHARGEMENT_DES_ESPACES = "Chargement des espaces…";
@@ -54,6 +52,61 @@ export const RESTER_SUR_CET_ESPACE = "Rester sur cet espace";
 export const CHANGER_D_ESPACE = "Changer d'espace";
 export const CHANGER_QUAND_MEME = "Changer quand même";
 export const OUVRIR_L_ESPACE_DE_CET_APPAREIL = "Ouvrir l'espace de cet appareil";
+
+// Écran des espaces à trois parties (F-032-AC1, AC2, AC26) : au plus une mention par espace de
+// l'appareil, toujours dite par un texte (AC29).
+export const SUR_CET_APPAREIL = "Sur cet appareil";
+export const AUCUN_AUTRE_ESPACE = "Aucun autre espace sur cet appareil.";
+export const TOUS_SUR_CET_APPAREIL = "Chacun de vos espaces du serveur est déjà sur cet appareil.";
+export const MENTION_LOCAL = "Sur cet appareil uniquement";
+export const MENTION_PREMIERE_SYNCHRONISATION = "Première synchronisation inachevée";
+export const MENTION_DETACHE = "Ne se synchronise plus avec ce compte";
+export const OUVRIR_CET_ESPACE = "Ouvrir cet espace";
+export const RETIRER_DE_CET_APPAREIL = "Retirer de cet appareil";
+export const RETRAIT_DE_L_ESPACE_OUVERT =
+  "Ouvrez un autre espace pour retirer celui-ci de cet appareil.";
+export const RETRAIT_EN_COURS = "Retrait en cours.";
+
+// Ajout à l'appareil (F-032-AC5, AC6).
+export const PAS_ENCORE_TELECHARGE =
+  "Cet espace n'a pas encore été téléchargé sur cet appareil : connectez-vous au serveur pour l'ouvrir.";
+export const AJOUT_SANS_STOCKAGE =
+  "Cet espace n'a pas pu être ajouté à cet appareil : son stockage ne répond pas.";
+
+/** Nom accessible de « Ouvrir cet espace » : il commence par le libellé visible (F-032-AC29). */
+export function nomOuvrirCetEspace(nom: string): string {
+  return `${OUVRIR_CET_ESPACE} : ${nom}`;
+}
+
+/** Nom accessible de « Retirer de cet appareil » (F-032-AC29). */
+export function nomRetirerDeCetAppareil(nom: string): string {
+  return `${RETIRER_DE_CET_APPAREIL} : ${nom}`;
+}
+
+/** Les éléments d'une rangée d'espace, dans l'ordre : rôle, mention, « Espace courant ». */
+export function detailsDeLaRangee(details: readonly string[]): string {
+  return details.join(" · ");
+}
+
+// Retrait de l'appareil (F-032-AC20) : la boîte cite l'espace, dit que le retrait est
+// irréversible sur cet appareil, que les modifications non transmises seront perdues, et que
+// l'espace reste sur le serveur pour ses membres.
+export function titreDuRetraitDeLAppareil(nom: string): string {
+  return `Retirer ${titreEntreGuillemets(nom)} de cet appareil ?`;
+}
+export function texteDuRetraitDeLAppareil(nom: string): readonly string[] {
+  return [
+    `${titreEntreGuillemets(nom)} et toutes ses pages seront effacés de cet appareil. Le retrait est irréversible sur cet appareil : les modifications qui n'ont pas été transmises au serveur seront perdues.`,
+    "L'espace reste sur le serveur pour ses membres : un membre pourra le rouvrir ici depuis la liste des espaces.",
+  ];
+}
+export function espaceRetireDeLAppareil(nom: string): string {
+  return `${titreEntreGuillemets(nom)} a été retiré de cet appareil`;
+}
+/** Un effacement a échoué ou n'a pas abouti à temps (F-007-AC21) : l'espace est oublié quand même. */
+export function retraitIncomplet(nom: string): string {
+  return `${titreEntreGuillemets(nom)} a été retiré de cet appareil, mais une partie de son contenu n'a pas pu en être effacée.`;
+}
 
 /** Nom accessible du sélecteur d'espace (F-032-AC4). */
 export function nomDuSelecteur(nom: string): string {
