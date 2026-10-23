@@ -686,9 +686,12 @@ class Orchestre {
     }
     const avant = this.#ids;
     this.#ids = apres;
-    if (!recue) {
-      return;
+    if (recue) {
+      this.#suivreLEcart(avant, apres);
     }
+  }
+
+  #suivreLEcart(avant: ReadonlySet<string>, apres: ReadonlySet<string>): void {
     const { ajoutees, retirees } = ecart(avant, apres);
     if (retirees.length > 0) {
       this.#effacerLesDocumentsSupprimes(retirees);
