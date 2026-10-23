@@ -42,6 +42,15 @@ function ouvrir(dependances: DependancesDuMagasin = {}): MagasinDeLAppareil {
   return magasin;
 }
 
+/**
+ * Les canaux simulés livrent par `setTimeout(…, 0)`, que les tours de `setImmediate` peuvent
+ * devancer : une minuterie posée après eux ne se déclenche qu'une fois leurs messages livrés.
+ */
+async function laisserLesCanauxLivrer(): Promise<void> {
+  await laisserIndexedDbTravailler();
+  await new Promise<void>((resoudre) => setTimeout(resoudre, 5));
+}
+
 function noms(magasin: MagasinDeLAppareil): Record<string, string | undefined> {
   const { espaceDeLAppareil, autres } = magasin.lireEtat();
   return Object.fromEntries(
@@ -226,17 +235,17 @@ describe("onglets du même navigateur (F-032-AC22)", () => {
 
     temoin.postMessage({ sorte: "autre" });
     temoin.postMessage(null);
-    await laisserIndexedDbTravailler();
+    await laisserLesCanauxLivrer();
     expect(vus).toEqual([]);
 
     magasin.prevenir();
-    await laisserIndexedDbTravailler();
+    await laisserLesCanauxLivrer();
     expect(recus).toEqual([{ sorte: "change" }]);
 
     magasin.fermer();
     magasin.prevenir();
     temoin.postMessage({ sorte: "change" });
-    await laisserIndexedDbTravailler();
+    await laisserLesCanauxLivrer();
     expect(recus).toHaveLength(1);
     expect(vus).toEqual([]);
     expect(canaux.ouverts()).toBe(1);
