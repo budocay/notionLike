@@ -421,6 +421,98 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
   };
 }
 
+/** F-032-AC14 : un canal entre onglets ouvert par la synchronisation, et s'il a été fermé. */
+export interface CanalSuivi {
+  readonly nom: string;
+  ferme: boolean;
+}
+
+/** Le canal entre onglets de cet appareil : un navigateur ne le partage qu'entre ses onglets. */
+export function ouvrirUnCanalSur(appareil: Appareil, nom: string): CanalEntreOnglets {
+  return canalLie(new BroadcastChannel(`${appareil.navigateur}|${nom}`));
+}
+
+/** Ce que la synchronisation d'un espace reçoit d'un onglet d'essai, et de son appareil. */
+export interface OptionsDeLaSynchronisation {
+  readonly serveur: ServeurDEssai;
+  readonly cookie: string;
+  readonly appareil: Appareil;
+  readonly reseau: Reseau;
+  readonly horloge: HorlogeDEssai;
+  readonly compte: CompteDEssai;
+  readonly alea?: (() => number) | undefined;
+  readonly idEspace: string;
+  readonly doc: Y.Doc;
+  readonly lirePages: () => ReadonlySet<string> | undefined;
+  readonly typeDe: (id: string) => ReturnType<ReturnType<typeof typesDesPages>["get"]>;
+  readonly surDocumentsSupprimes?: ((ids: readonly string[]) => void) | undefined;
+  readonly surEffacement?: ((etape: "demande" | "faite") => void) | undefined;
+  /** F-032-AC14 : chaque canal entre onglets ouvert, inscrit ici. */
+  readonly canaux?: CanalSuivi[] | undefined;
+}
+
+/**
+ * Démarre la synchronisation d'un espace sur le serveur réel, comme l'entrée de l'application le
+ * fait (environnement, compte, client des espaces de production), sur l'appareil de l'onglet.
+ */
+export function synchroniserSurLAppareil(options: OptionsDeLaSynchronisation): {
+  readonly synchro: Synchronisation;
+  readonly signaler: (signal: Signal) => void;
+} {
+  const { appareil, compte } = options;
+  const ecouteurs = new Set<(signal: Signal) => void>();
+  const environnement: Environnement = {
+    WebSocket: options.reseau.WebSocket,
+    adresse: options.serveur.urlDeSynchro,
+    horloge: options.horloge,
+    alea: options.alea ?? (() => 0.5),
+    ecouter: (rappel) => {
+      ecouteurs.add(rappel);
+      return () => ecouteurs.delete(rappel);
+    },
+    ouvrirUnCanal: (nom) => {
+      const canal = ouvrirUnCanalSur(appareil, nom);
+      const suivi: CanalSuivi = { nom, ferme: false };
+      options.canaux?.push(suivi);
+      return {
+        postMessage: (message) => canal.postMessage(message),
+        close: () => {
+          suivi.ferme = true;
+          canal.close();
+        },
+        get onmessage() {
+          return canal.onmessage;
+        },
+        set onmessage(ecouteur) {
+          canal.onmessage = ecouteur;
+        },
+      };
+    },
+  };
+  const brute = appareil.sur(() =>
+    demarrerSynchronisation({
+      environnement,
+      idEspace: options.idEspace,
+      doc: options.doc,
+      lirePages: options.lirePages,
+      typeDe: options.typeDe,
+      // Ce que le test pose sur le compte parvient à la synchronisation sur son appareil.
+      compte: {
+        lire: compte.lire,
+        abonner: (rappel) => compte.abonner(() => appareil.sur(rappel)),
+        reverifier: compte.reverifier,
+      },
+      serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
+      surDocumentsSupprimes: options.surDocumentsSupprimes,
+      surEffacement: options.surEffacement,
+    }),
+  );
+  return {
+    synchro: surLAppareil(appareil, brute),
+    signaler: (signal) => appareil.sur(() => ecouteurs.forEach((rappel) => rappel(signal))),
+  };
+}
+
 /**
  * Ouvre l'espace comme la session d'espace le fait (base relue d'abord, H14), puis démarre sa
  * synchronisation sur le serveur réel.
@@ -439,50 +531,34 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
       : ouvrirEspaceLocal(facade.doc, options.idEspace),
   );
   await attendreQue(() => persistance.lireEtat() !== "relecture", 12_000, "relecture de l'espace");
-  const ecouteurs = new Set<(signal: Signal) => void>();
-  const environnement: Environnement = {
-    WebSocket: reseau.WebSocket,
-    adresse: options.serveur.urlDeSynchro,
+  const { synchro, signaler } = synchroniserSurLAppareil({
+    serveur: options.serveur,
+    cookie: options.cookie,
+    appareil,
+    reseau,
     horloge,
-    alea: options.alea ?? (() => 0.5),
-    ecouter: (rappel) => {
-      ecouteurs.add(rappel);
-      return () => ecouteurs.delete(rappel);
+    compte,
+    alea: options.alea,
+    idEspace: options.idEspace,
+    doc: facade.doc,
+    lirePages: () => {
+      try {
+        return idsDesPages(facade.lire());
+      } catch {
+        return undefined;
+      }
     },
-    ouvrirUnCanal: (nom) => canalLie(new BroadcastChannel(`${appareil.navigateur}|${nom}`)),
-  };
-  const brute = appareil.sur(() =>
-    demarrerSynchronisation({
-      environnement,
-      idEspace: options.idEspace,
-      doc: facade.doc,
-      lirePages: () => {
-        try {
-          return idsDesPages(facade.lire());
-        } catch {
-          return undefined;
-        }
-      },
-      // F-018-AC51 : le type lu de chaque identifiant, comme l'interface le donne.
-      typeDe: (id) => {
-        try {
-          return typesDesPages(facade.lire()).get(id);
-        } catch {
-          return undefined;
-        }
-      },
-      // Ce que le test pose sur le compte parvient à la synchronisation sur son appareil.
-      compte: {
-        lire: compte.lire,
-        abonner: (rappel) => compte.abonner(() => appareil.sur(rappel)),
-        reverifier: compte.reverifier,
-      },
-      serveur: serveurDesEspacesDEssai(options.serveur, options.cookie),
-      surDocumentsSupprimes: options.surDocumentsSupprimes,
-      surEffacement: options.surEffacement,
-    }),
-  );
-  const synchro = surLAppareil(appareil, brute);
+    // F-018-AC51 : le type lu de chaque identifiant, comme l'interface le donne.
+    typeDe: (id) => {
+      try {
+        return typesDesPages(facade.lire()).get(id);
+      } catch {
+        return undefined;
+      }
+    },
+    surDocumentsSupprimes: options.surDocumentsSupprimes,
+    surEffacement: options.surEffacement,
+  });
   const onglet: Onglet = {
     idEspace: options.idEspace,
     persistance,
@@ -491,7 +567,7 @@ export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
     reseau,
     compte,
     horloge,
-    signaler: (signal) => appareil.sur(() => ecouteurs.forEach((rappel) => rappel(signal))),
+    signaler,
     appareil,
   };
   ouverts.add(onglet);
@@ -617,6 +693,31 @@ export function lireMessage(octets: Uint8Array): MessageLu {
 
 export function messagesDe(liste: readonly Uint8Array[]): MessageLu[] {
   return liste.map(lireMessage);
+}
+
+/** Sous-messages d'un message de synchronisation (y-protocols) : état connu, réponse, mise à jour. */
+export const SORTES_DE_SYNCHRONISATION = { etatConnu: 0, reponse: 1, miseAJour: 2 } as const;
+
+export interface SynchronisationLue {
+  readonly nom: string;
+  readonly sorte: number;
+  /** L'état connu (sorte 0) ou la mise à jour portée (sortes 1 et 2). */
+  readonly charge: Uint8Array;
+}
+
+/** F-032-AC7 : le sous-message d'un message de synchronisation ; `undefined` pour un autre type. */
+export function lireSynchronisation(octets: Uint8Array): SynchronisationLue | undefined {
+  if (octets.length === 1) {
+    return undefined;
+  }
+  const position = { n: 0 };
+  const nom = lireChaine(octets, position);
+  if (lireEntier(octets, position) !== TYPES_DE_MESSAGE.synchronisation) {
+    return undefined;
+  }
+  const sorte = lireEntier(octets, position);
+  const longueur = lireEntier(octets, position);
+  return { nom, sorte, charge: octets.slice(position.n, position.n + longueur) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -760,27 +861,86 @@ function demander<T>(demande: IDBRequest<T>): Promise<T> {
   });
 }
 
+const decodeur = new TextDecoder();
+const enTexte = (valeur: unknown): string =>
+  valeur instanceof Uint8Array
+    ? decodeur.decode(valeur)
+    : JSON.stringify(valeur, (_, interne: unknown) =>
+        interne instanceof Uint8Array ? decodeur.decode(interne) : interne,
+      );
+
+/** Nom, clés et valeurs de chaque magasin d'une base de l'appareil, octets décodés en texte. */
+export async function contenuDeLaBase(appareil: Appareil, name: string): Promise<string> {
+  const textes: string[] = [];
+  const connexion = await demander(appareil.idb.open(name));
+  for (const magasin of connexion.objectStoreNames) {
+    const lecture = connexion.transaction(magasin).objectStore(magasin);
+    const [cles, valeurs] = await Promise.all([
+      demander(lecture.getAllKeys()),
+      demander(lecture.getAll()),
+    ]);
+    textes.push(name, magasin, ...cles.map(enTexte), ...valeurs.map(enTexte));
+  }
+  connexion.close();
+  return textes.join("\n");
+}
+
 /** Nom, clés et valeurs de chaque magasin de chaque base de l'appareil, octets décodés en texte. */
 export async function contenuDeLAppareil(appareil: Appareil): Promise<string> {
-  const decodeur = new TextDecoder();
-  const enTexte = (valeur: unknown): string =>
-    valeur instanceof Uint8Array
-      ? decodeur.decode(valeur)
-      : JSON.stringify(valeur, (_, interne: unknown) =>
-          interne instanceof Uint8Array ? decodeur.decode(interne) : interne,
-        );
   const textes: string[] = [];
   for (const { name = "" } of await appareil.idb.databases()) {
-    const connexion = await demander(appareil.idb.open(name));
-    for (const magasin of connexion.objectStoreNames) {
-      const lecture = connexion.transaction(magasin).objectStore(magasin);
-      const [cles, valeurs] = await Promise.all([
-        demander(lecture.getAllKeys()),
-        demander(lecture.getAll()),
-      ]);
-      textes.push(name, magasin, ...cles.map(enTexte), ...valeurs.map(enTexte));
-    }
-    connexion.close();
+    textes.push(await contenuDeLaBase(appareil, name));
   }
   return textes.join("\n");
+}
+
+// ---------------------------------------------------------------------------------------------
+// F-032 : bases d'un espace ajouté, ouvertes, posées et relues comme la persistance le fait.
+
+/** Une page ouverte comme l'éditeur l'ouvre : son document, sur sa base relue d'abord (H14). */
+export interface PageOuverte {
+  readonly idPage: string;
+  readonly doc: Y.Doc;
+  readonly persistance: Persistance;
+}
+
+export async function ouvrirLaBaseDUnePage(
+  appareil: Appareil,
+  idEspace: string,
+  idPage: string,
+): Promise<PageOuverte> {
+  const doc = new Y.Doc();
+  const persistance = appareil.sur(() =>
+    ouvrirPersistance(doc, { type: "page", idEspace, idPage }),
+  );
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "base de page");
+  return { idPage, doc, persistance };
+}
+
+/**
+ * F-032-AC9 : la base du document d'espace porte cet état, écrit par le module de persistance sans
+ * rien inscrire au registre.
+ */
+export async function poserLaBaseDEspace(
+  appareil: Appareil,
+  idEspace: string,
+  miseAJour: Uint8Array,
+): Promise<void> {
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, miseAJour);
+  const persistance = appareil.sur(() => ouvrirPersistance(doc, { type: "espace", idEspace }));
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "base d'espace posée");
+  await attendreQue(() => !persistance.aDesModificationsNonEnregistrees(), 12_000);
+  await pause(50);
+  persistance.fermer();
+  doc.destroy();
+}
+
+/** Le document d'espace tel que sa base sur l'appareil le porte, relu dans un document vierge. */
+export async function lireLaBaseDEspace(appareil: Appareil, idEspace: string): Promise<Y.Doc> {
+  const doc = new Y.Doc();
+  const persistance = appareil.sur(() => ouvrirPersistance(doc, { type: "espace", idEspace }));
+  await attendreQue(() => persistance.lireEtat() === "active", 12_000, "relecture d'espace");
+  persistance.fermer();
+  return doc;
 }
