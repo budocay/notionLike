@@ -120,14 +120,10 @@ export function effacerLesReglagesDeLEspace(idEspace: string): void {
     }
   }
   try {
-    const cles: string[] = [];
-    for (let rang = 0; rang < localStorage.length; rang += 1) {
-      const cle = localStorage.key(rang);
-      if (cle !== null && cle.startsWith(prefixe) && estUuidCanonique(cle.slice(prefixe.length))) {
-        cles.push(cle);
-      }
-    }
-    cles.forEach((cle) => localStorage.removeItem(cle));
+    // Les clés sont relevées avant d'être retirées : le stockage se réindexe à chaque retrait.
+    Object.keys(localStorage)
+      .filter((cle) => cle.startsWith(prefixe) && estUuidCanonique(cle.slice(prefixe.length)))
+      .forEach((cle) => localStorage.removeItem(cle));
   } catch {
     // Stockage absent ou qui lève : il n'y a rien à retirer de l'appareil.
   }
