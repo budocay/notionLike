@@ -146,3 +146,30 @@ describe("appelants du registre et de la mémoire de l'appareil (F-032-AC32)", (
     ).toEqual(["src/main.tsx"]);
   });
 });
+
+describe("appelants du pilote, du magasin et du changement d'espace (F-032-AC32)", () => {
+  const horsDefinition = (definition: string) => (chemin: string) => chemin !== definition;
+
+  it("F-032-AC32 F-032-AC10 le pilote et le magasin de l'appareil ne sont créés que par l'entrée, qui seule rend l'espace de l'onglet ; seul l'espace de l'onglet donne ses espaces à l'application", () => {
+    expect(
+      quiAppellent(/\bpiloterLOnglet\(/).filter(horsDefinition("src/espace/espace-ouvert.ts")),
+    ).toEqual(["src/main.tsx"]);
+    expect(
+      quiAppellent(/\bouvrirLeMagasinDeLAppareil\(/).filter(
+        horsDefinition("src/espace/appareil.ts"),
+      ),
+    ).toEqual(["src/main.tsx"]);
+    expect(quiAppellent(/<EspaceDeLOnglet\b/)).toEqual(["src/main.tsx"]);
+    expect(quiAppellent(/<Application\b/)).toEqual(["src/interface/EspaceDeLOnglet.tsx"]);
+    expect(quiAppellent(/\bimport\b[^;]*\bfrom "\.\/interface\/Application\.tsx"/)).toEqual([]);
+  });
+
+  it("F-032-AC32 F-032-AC12 F-032-AC13 le changement du pilote, la confirmation armée et l'attente d'acquittement ne sont appelés, hors de leur module, que par le crochet du changement d'espace", () => {
+    const crochet = "src/interface/changement-d-espace.ts";
+    expect(quiAppellent(/\.changer\(\s*demande\.cible|\bpilote\.changer\(/)).toEqual([crochet]);
+    expect(
+      quiAppellent(/\bconfirmationArmee\(/).filter(horsDefinition("src/espace/garde-onglet.ts")),
+    ).toEqual([crochet]);
+    expect(quiAppellent(/\.attendreLAcquittement\(/)).toEqual([crochet]);
+  });
+});

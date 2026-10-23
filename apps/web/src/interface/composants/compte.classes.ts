@@ -9,6 +9,8 @@ export const COMPTE = {
   actions: "flex flex-col gap-infime",
   action: `${CIBLE} text-left text-texte-principal hover:bg-surface-active`,
   actionCourante: `${CIBLE} bg-surface-active text-left font-moyen text-texte-principal`,
+  // F-032-AC4 : le nom de l'espace ouvert, sur une ligne, coupé par des points de suspension.
+  libelleCoupe: "extensible truncate",
   enveloppe: "flex w-full justify-center px-normal pt-vaste pb-grand",
   formulaire:
     "flex w-full max-w-ecran flex-col gap-moyen rounded-grand bg-surface-relief p-ample shadow-relief filet",

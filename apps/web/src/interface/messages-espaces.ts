@@ -5,6 +5,7 @@
 import type { ErreurDEspaces } from "../compte/index.ts";
 import { messageDuCode } from "../compte/messages-erreur.ts";
 import { NOM_D_ESPACE_MAX, QUOTAS, type Role } from "../compte/regles-espaces.ts";
+import { titreEntreGuillemets } from "./messages.ts";
 import {
   IDENTIFIANT_POUR_LE_SUPPORT,
   SERVEUR_INJOIGNABLE,
@@ -44,6 +45,35 @@ export const INVITATIONS_NON_LUES = "Les invitations de cet espace n'ont pas pu 
 export const NOMBRE_DE_MEMBRES_INCONNU = "Le nombre de membres de l'espace n'est pas encore connu.";
 export const COLONNE_NOM = "Nom";
 export const COLONNE_ROLE = "Votre rôle";
+
+// Plusieurs espaces sur un appareil (F-032) : sélecteur, changement d'espace et ses confirmations.
+export const NOM_INCONNU_SUR_CET_APPAREIL = "Nom inconnu sur cet appareil";
+export const CHANGEMENT_D_ESPACE_EN_COURS = "Changement d'espace…";
+export const TITRE_DU_CHANGEMENT = "Changer d'espace ?";
+export const RESTER_SUR_CET_ESPACE = "Rester sur cet espace";
+export const CHANGER_D_ESPACE = "Changer d'espace";
+export const CHANGER_QUAND_MEME = "Changer quand même";
+export const OUVRIR_L_ESPACE_DE_CET_APPAREIL = "Ouvrir l'espace de cet appareil";
+
+/** Nom accessible du sélecteur d'espace (F-032-AC4). */
+export function nomDuSelecteur(nom: string): string {
+  return `Espaces — espace courant : ${nom}`;
+}
+
+/** Annonce d'arrivée après un changement d'espace (F-032-AC10, AC29). */
+export function espaceOuvert(nom: string): string {
+  return `Espace ${titreEntreGuillemets(nom)} ouvert`;
+}
+
+/** Modifications en attente que le serveur n'a pas acquittées à l'échéance (F-032-AC12). */
+export function modificationsNonTransmises(nom: string): string {
+  return `Des modifications de ${titreEntreGuillemets(nom)} n'ont pas encore été transmises au serveur. Elles restent sur cet appareil et partiront la prochaine fois que vous ouvrirez cet espace ici.`;
+}
+
+/** Modifications ni enregistrées sur l'appareil ni acquittées (F-032-AC13). */
+export function modificationsEnregistreesNullePart(nom: string): string {
+  return `Des modifications de ${titreEntreGuillemets(nom)} ne sont enregistrées nulle part pour l'instant : elles seront perdues si vous changez d'espace.`;
+}
 
 // Création (F-014-AC7, AC8, AC42).
 export const NOUVEL_ESPACE = "Nouvel espace";
