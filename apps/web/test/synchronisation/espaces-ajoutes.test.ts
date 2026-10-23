@@ -14,7 +14,13 @@ import type { Synchronisation } from "../../src/synchronisation/index.ts";
 import { correspondance } from "../../src/synchronisation/noms.ts";
 import { changerLaCleDUnePage } from "../aides-format.ts";
 import { ouvrirFacade } from "../aides-facade.ts";
-import { fermerLesOngletsReels, lancerUnOnglet, type OngletReel } from "./aides-onglet.ts";
+import { estEnLectureSeule } from "../../src/interface/synchronisation-ouverte.ts";
+import {
+  fermerLesOngletsReels,
+  lancerUnOnglet,
+  type OngletReel,
+  type SessionPrete,
+} from "./aides-onglet.ts";
 import {
   adopterEtAttendre,
   type Appareil,
@@ -480,12 +486,45 @@ describe("étanchéité entre espaces, par un changement réel (F-032-AC14)", ()
   });
 });
 
+/** Les opérations de la session prête de l'espace ouvert, relues à chaque appel. */
+function operationsDeLOnglet(onglet: OngletReel): SessionPrete["operations"] {
+  const lu = onglet.ouvert().espace.session.lireEtat();
+  if (lu.phase !== "pret") {
+    throw new Error("La session n'est pas prête.");
+  }
+  return lu.operations;
+}
+
+/**
+ * Chaque action qui écrit, tentée comme l'interface la permet : seulement si la règle de lecture
+ * seule de l'interface (F-013-AC25, F-032-AC25) ne la désactive pas à cet instant. Une règle qui
+ * laisserait passer une action écrirait dans le document, et le test le constaterait.
+ */
+function tenterSousLaRegle(
+  onglet: OngletReel,
+  enLecture: () => boolean,
+  actions: readonly ((operations: SessionPrete["operations"]) => unknown)[],
+): void {
+  onglet.appareil.sur(() => {
+    for (const action of actions) {
+      if (!enLecture()) {
+        action(operationsDeLOnglet(onglet));
+      }
+    }
+  });
+}
+
 describe("lecture seule dès l'ajout (F-032-AC25)", () => {
-  it("F-032-AC25 ajouté en `lecteur`, réseau coupé avant l'établissement de la connexion : le droit `lecture` est lu au registre dès l'ouverture, et l'état encodé de chaque document est inchangé, octet pour octet", async () => {
+  it("F-032-AC25 ajouté en `lecteur`, réseau coupé avant l'établissement de la connexion : la règle de l'interface tient l'espace en lecture seule dès sa première publication ; chaque action qui écrit, tentée sous cette règle hors ligne puis les pages reçues, laisse l'état encodé du document d'espace et de la page inchangé, octet pour octet, sans copie divergente ni changement au serveur", async () => {
     const espace = await espaceDuServeur("lecteur", [
       { titre: "Page du serveur", contenu: "contenu du serveur" },
+      { titre: "Seconde page", contenu: "seconde" },
+      { titre: "Jetée", contenu: "jetée" },
     ]);
-    const { idEspace } = espace;
+    const { idEspace, chez } = espace;
+    const [idPage, idSeconde, idJetee] = espace.pages as [string, string, string];
+    chez.appareil.sur(() => chez.facade.mettreALaCorbeille(idJetee));
+    await attendreQue(() => chez.synchro.toutEstAcquitte());
     const onglet = await ongletNeuf(espace.membre.cookie);
     const { appareil, reseau } = onglet;
 
@@ -493,22 +532,71 @@ describe("lecture seule dès l'ajout (F-032-AC25)", () => {
 
     expect(issue.sorte).toBe("inscrit");
     // Dès la première publication de l'espace ouvert, avant toute connexion.
+    const { droit } = onglet.ouvert().espace;
     expect(onglet.ouvert().espace).toMatchObject({ cible: ajoute(idEspace), droit: "lecture" });
     const pret = await onglet.attendreLaSession();
     const synchro = await onglet.attendreLaSynchronisation();
-    await attendreQue(() => synchro.lireEtat().registreLu, 15_000);
-    expect(synchro.lireEtat()).toMatchObject({ rattachement: "adopte", droit: "lecture" });
+    const enLecture = (): boolean => estEnLectureSeule(synchro.lireEtat(), droit);
+    const releves = [enLecture()];
+    const desabonner = synchro.abonner(() => releves.push(enLecture()));
     expect(pret.arborescence.racines).toEqual([]);
     const doc = onglet.ouvert().espace.session.doc as Y.Doc;
     const etatAvant = Y.encodeStateAsUpdate(doc);
     const basesAvant = await contenuDeLAppareil(appareil);
 
-    await pause(2500);
+    // Hors ligne, l'arborescence est vide : seules les créations sont offertes.
+    tenterSousLaRegle(onglet, enLecture, [
+      (operations) => operations.creerPage("Créée hors ligne"),
+      (operations) => operations.creerTable("Table hors ligne"),
+    ]);
+    await attendreQue(() => synchro.lireEtat().registreLu, 15_000);
+    expect(synchro.lireEtat()).toMatchObject({ rattachement: "adopte", droit: "lecture" });
+    await pause(1000);
 
     expect(synchro.lireEtat().affiche).not.toBe("synchronise");
     expect(Y.encodeStateAsUpdate(doc)).toEqual(etatAvant);
     expect(await contenuDeLAppareil(appareil)).toEqual(basesAvant);
     expect(reseau.emis).toEqual([]);
+
+    // Le réseau rendu, les pages du serveur arrivent ; chaque action qui écrit est tentée encore.
+    reseau.retablir();
+    await attendreLEtatAffiche(synchro, "synchronise");
+    await attendreQue(() => titresDe(onglet).length === 2, 30_000);
+    const page = await onglet.afficherLaPage(idPage);
+    await attendreQue(() => texteDeLaPage(page.doc).includes("contenu du serveur"), 30_000);
+    await attendreLEtatAffiche(synchro, "synchronise");
+    const docs = [doc, page.doc];
+    const avant = docs.map((un) => Y.encodeStateAsUpdate(un));
+
+    tenterSousLaRegle(onglet, enLecture, [
+      (operations) => operations.creerPage("Créée"),
+      (operations) => operations.creerTable("Table"),
+      (operations) => operations.creerPage("Sous-page", { parent: idPage }),
+      (operations) => operations.renommerPage(idPage, "Renommée"),
+      (operations) => operations.deplacerPage(idSeconde, { parent: idPage }),
+      (operations) => operations.mettreALaCorbeille(idSeconde),
+      (operations) => operations.restaurerPage(idJetee),
+      (operations) => operations.supprimerDefinitivement(idJetee),
+      () => ecrireDansLaPage(page.doc, "FRAPPE-REFUSEE"),
+    ]);
+    await pause(1500);
+    desabonner();
+
+    expect(releves.length).toBeGreaterThan(1);
+    expect(releves.every(Boolean)).toBe(true);
+    expect(docs.map((un) => Y.encodeStateAsUpdate(un))).toEqual(avant);
+    expect(synchro.lireEtat()).toMatchObject({ droit: "lecture", divergentes: [] });
+    // Le serveur porte exactement les opérations des documents de l'onglet, restés inchangés.
+    await attendreQue(async () => {
+      const espaceAuServeur = await serveur.lireInstantane(nomDeLEspace(idEspace));
+      const pageAuServeur = await serveur.lireInstantane(nomDeLaPage(idEspace, idPage));
+      return (
+        espaceAuServeur !== undefined &&
+        pageAuServeur !== undefined &&
+        memesOperations(espaceAuServeur, avant[0] as Uint8Array) &&
+        memesOperations(pageAuServeur, avant[1] as Uint8Array)
+      );
+    }, 15_000);
   });
 });
 

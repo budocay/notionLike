@@ -164,11 +164,23 @@ export function useSynchronisationDeLEspace(
     idTable: espace.idTable,
     etat: espace.table,
   });
-  // F-032-AC25 : lecture seule dès le premier rendu, avant toute ouverture acquise et hors ligne
-  // compris, d'après le droit lu à l'ouverture ; le registre lu par la synchronisation l'emporte.
-  const enLecture =
-    (etat?.rattachement === "adopte" && etat.droit === "lecture") ||
-    (etat?.registreLu !== true && espace.droitALOuverture === "lecture");
-  const lectureSeule = enLecture ? raisonDeLectureSeule : undefined;
+  const lectureSeule = estEnLectureSeule(etat, espace.droitALOuverture)
+    ? raisonDeLectureSeule
+    : undefined;
   return { synchro, etat, lectureSeule, effaceeAilleurs };
+}
+
+/**
+ * La règle qui désactive chaque action qui écrit (F-013-AC25) : lecture seule dès le premier rendu,
+ * avant toute ouverture acquise et hors ligne compris, d'après le droit lu à l'ouverture
+ * (F-032-AC25) ; le registre lu par la synchronisation l'emporte.
+ */
+export function estEnLectureSeule(
+  etat: EtatDeSynchronisation | undefined,
+  droitALOuverture: Droit | undefined,
+): boolean {
+  return (
+    (etat?.rattachement === "adopte" && etat.droit === "lecture") ||
+    (etat?.registreLu !== true && droitALOuverture === "lecture")
+  );
 }

@@ -23,7 +23,14 @@ import {
 } from "../src/interface/messages-espaces.ts";
 import { LECTURE_SEULE } from "../src/interface/messages-synchronisation.ts";
 import { NOUVELLE_TABLE } from "../src/interface/messages-tables.ts";
-import { TITRE_DE_LA_PAGE } from "../src/interface/messages.ts";
+import { ENTREE_CORBEILLE } from "../src/interface/messages-corbeille.ts";
+import {
+  nomActionsDeLaPage,
+  nomAjouterSousPage,
+  nomRestaurer,
+  nomSupprimer,
+  TITRE_DE_LA_PAGE,
+} from "../src/interface/messages.ts";
 import { EXPLICATION_PAGE_INTROUVABLE, PAGE_INTROUVABLE } from "../src/interface/messages.ts";
 import {
   demarrerSynchronisation,
@@ -37,15 +44,17 @@ import {
   E_ALPHA,
   E_APPAREIL,
   E_BETA,
+  E_GAMMA,
   ECRITURE,
   LECTURE,
   poserDansLAppareil,
+  poserUneBaseQuiPorte,
 } from "./aides-appareil.ts";
 import { jamais } from "./aides-compte.tsx";
 import { boutonNouvellePage } from "./aides-coquille.tsx";
-import { partie } from "./aides-ecrans-des-espaces.tsx";
+import { GAMMA_SERVEUR, partie, serveurDesEspacesListes } from "./aides-ecrans-des-espaces.tsx";
 import { aller, estDesactive } from "./aides-espaces.tsx";
-import { ecouteurs, ouvrirFacade } from "./aides-facade.ts";
+import { creerFacade, ecouteurs, ouvrirFacade } from "./aides-facade.ts";
 import {
   ajoute,
   APPAREIL,
@@ -605,6 +614,84 @@ describe("lecture seule dès l'ouverture (F-032-AC25, part jsdom)", () => {
     await waitFor(async () =>
       expect((await boutonNouvellePage()).hasAttribute("disabled")).toBe(false),
     );
+  });
+
+  it("F-032-AC25 F-032-AC5 ajouté en `lecteur` par « Ouvrir cet espace », connexion jamais établie (hors ligne) : chaque action qui écrit est désactivée avec « Lecture seule » ou n'ouvre rien, et l'état encodé du document d'espace, de la page affichée et de la base de l'espace est inchangé, octet pour octet", async () => {
+    // Gamma, du serveur, n'a pas d'entrée au registre : l'appareil ne le détient pas. Ses bases
+    // sont restées d'un retrait dont l'effacement a échoué (F-032-AC20) : l'espace ajouté a des
+    // pages à renommer, déplacer et jeter hors ligne, et une page dans sa corbeille.
+    await poserUnEspace(E_APPAREIL, ["Témoin de l'appareil"]);
+    const gamma = creerFacade();
+    gamma.creerPage("Page de Gamma");
+    gamma.creerPage("Seconde de Gamma");
+    gamma.mettreALaCorbeille(gamma.creerPage("Jetée"));
+    await poserUneBaseQuiPorte(baseDEspace(E_GAMMA), Y.encodeStateAsUpdate(gamma.doc));
+    gamma.fermer();
+    await poserDansLAppareil({ "espace-local": E_APPAREIL });
+    const simulee = synchronisationSimulee();
+    simulee.etats.set(E_GAMMA, {
+      ...ETAT_ADOPTE,
+      rattachement: "local",
+      registreLu: false,
+      affiche: "hors-ligne",
+    });
+    simulee.connexions.set(E_GAMMA, { etablie: false, enAttente: false });
+    const onglet = lancerLOnglet({
+      serveur: serveurDesEspacesListes([GAMMA_SERVEUR]),
+      synchronisation: simulee.fabrique,
+    });
+    await screen.findByRole("link", { name: "Témoin de l'appareil" });
+
+    await onglet.utilisateur.click(await ouvrirCetEspace("Gamma"));
+
+    expect(await screen.findByRole("link", { name: "Page de Gamma" })).toBeDefined();
+    expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_GAMMA));
+    expect((await contenuDeLAppareil())[`registre:${E_GAMMA}`]).toEqual(LECTURE);
+    const session = ouvertMaintenant(onglet.pilote).session;
+    const desactiveEnLecture = (element: HTMLElement): void => {
+      expect(element.hasAttribute("disabled"), element.textContent).toBe(true);
+      expect(descriptionDe(element), element.textContent).toBe(LECTURE_SEULE);
+    };
+    const creer = await boutonNouvellePage();
+    const table = screen.getByRole("button", { name: NOUVELLE_TABLE });
+    const sousPage = screen.getByRole("button", { name: nomAjouterSousPage("Page de Gamma") });
+    [creer, table, sousPage].forEach(desactiveEnLecture);
+    await onglet.utilisateur.click(screen.getByRole("link", { name: "Page de Gamma" }));
+    const saisie = await attendreLaZoneDeSaisie();
+    await waitFor(() => expect(simulee.pages.at(-1)).toBeDefined());
+    const docs = [session.doc as Y.Doc, (simulee.pages.at(-1) as PageAffichee).doc];
+    const avant = docs.map((doc) => Y.encodeStateAsUpdate(doc));
+    const baseAvant = await enregistrements(baseDEspace(E_GAMMA));
+
+    fireEvent.click(creer);
+    fireEvent.click(table);
+    fireEvent.click(sousPage);
+    fireEvent.doubleClick(screen.getByRole("link", { name: "Page de Gamma" }));
+    expect(screen.queryByRole("textbox", { name: TITRE_DE_LA_PAGE })).toBeNull();
+    // Le menu « ⋯ » : renommer, ajouter, mettre à la corbeille et chaque déplacement.
+    await onglet.utilisateur.click(
+      screen.getByRole("button", { name: nomActionsDeLaPage("Page de Gamma") }),
+    );
+    const entrees = screen.getAllByRole("menuitem");
+    expect(entrees.length).toBeGreaterThan(3);
+    entrees.forEach(desactiveEnLecture);
+    entrees.forEach((entree) => fireEvent.click(entree));
+    expect(screen.queryByRole("textbox", { name: TITRE_DE_LA_PAGE })).toBeNull();
+    expect(saisie.getAttribute("contenteditable")).toBe("false");
+    await onglet.utilisateur.type(saisie, "refusé");
+    await act(() => laisserIndexedDbTravailler());
+    // La corbeille : « Restaurer » et « Supprimer définitivement ».
+    await onglet.utilisateur.click(screen.getByRole("button", { name: ENTREE_CORBEILLE }));
+    const restaurer = await screen.findByRole("button", { name: nomRestaurer("Jetée") });
+    const supprimer = screen.getByRole("button", { name: nomSupprimer("Jetée") });
+    [restaurer, supprimer].forEach(desactiveEnLecture);
+    fireEvent.click(restaurer);
+    fireEvent.click(supprimer);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await act(() => laisserIndexedDbTravailler());
+
+    expect(docs.map((doc) => Y.encodeStateAsUpdate(doc))).toEqual(avant);
+    expect(await enregistrements(baseDEspace(E_GAMMA))).toEqual(baseAvant);
   });
 
   it("F-032-AC25 l'espace de l'appareil sans entrée au registre reste modifiable dès le premier affichage, comme avant F-032", async () => {
