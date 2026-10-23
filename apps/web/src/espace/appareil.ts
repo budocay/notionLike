@@ -166,10 +166,24 @@ class Magasin {
     const lecture = await lireLAppareil();
     if (!this.#fermee && numero === this.#numeroDeLecture && lecture.issue === "lue") {
       this.#lecture = lecture;
+      this.#oublierLesNomsHorsDeLAppareil(lecture);
       this.#recalculer();
     }
     return this.#etat;
   };
+
+  // Un nom reçu avant la première lecture n'est gardé en mémoire que pour un espace de l'appareil.
+  #oublierLesNomsHorsDeLAppareil(lecture: Extract<LectureDeLAppareil, { issue: "lue" }>): void {
+    const deLAppareil = new Set([
+      lecture.idEspaceLocal,
+      ...lecture.inscrits.map((un) => un.idEspace),
+    ]);
+    for (const idEspace of [...this.#nomsRecus.keys()]) {
+      if (!deLAppareil.has(idEspace)) {
+        this.#nomsRecus.delete(idEspace);
+      }
+    }
+  }
 
   readonly #ajouter = async (
     idEspace: string,

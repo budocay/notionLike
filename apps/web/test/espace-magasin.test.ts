@@ -160,6 +160,31 @@ describe("dernier nom connu (F-032-AC3)", () => {
     expect((await contenuDeLAppareil())[`nom:${E_ALPHA}`]).toBe("Ancien");
     expect(relever()).toEqual([]);
   });
+
+  it("F-032-AC3 un nom reçu avant la première lecture, dont l'inscription échoue, n'est gardé après la lecture que pour un espace de l'appareil", async () => {
+    await poserDansLAppareil({ "espace-local": E_APPAREIL, [`registre:${E_ALPHA}`]: ECRITURE });
+    const magasin = ouvrir();
+    refuserLOuvertureDe(BASE_DE_L_APPAREIL);
+    magasin.noterLesNoms(
+      new Map([
+        [E_ALPHA, "Alpha"],
+        [E_GAMMA, "Pas d'ici"],
+      ]),
+    );
+    await laisserIndexedDbTravailler();
+    vi.restoreAllMocks();
+    await magasin.relire();
+
+    // Gamma arrive plus tard sur l'appareil, sans nom : le nom reçu avant la lecture est oublié.
+    await poserDansLAppareil({ [`registre:${E_GAMMA}`]: ECRITURE });
+    await magasin.relire();
+
+    expect(noms(magasin)).toEqual({
+      [E_APPAREIL]: undefined,
+      [E_ALPHA]: "Alpha",
+      [E_GAMMA]: undefined,
+    });
+  });
 });
 
 describe("onglets du même navigateur (F-032-AC22)", () => {
