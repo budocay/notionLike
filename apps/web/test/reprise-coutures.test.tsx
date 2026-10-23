@@ -109,6 +109,8 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/appareil-bases.test.ts",
   "test/appareil-memoire.test.ts",
   "test/appareil-reparation.test.ts",
+  // F-032-AC20 : bases d'un espace posées puis retirées de l'appareil.
+  "test/synchronisation/retrait.test.ts",
 ];
 
 // Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,

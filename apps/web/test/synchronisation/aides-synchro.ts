@@ -128,6 +128,11 @@ export interface Reseau {
   readonly journal: { readonly sens: "emis" | "recu"; readonly octets: Uint8Array }[];
   /** Nombre de WebSocket ouvertes par ce réseau. */
   ouvertes(): number;
+  /**
+   * F-032-AC15 : pour chaque WebSocket construite, l'état (`readyState`) de chacune de celles qui
+   * n'avaient pas encore annoncé leur fermeture à cet instant.
+   */
+  readonly etatsDesPrecedentes: (readonly number[])[];
   couper(): void;
   retablir(): void;
   estCoupe(): boolean;
@@ -145,6 +150,7 @@ export function reseauDEssai(
   const recus: Uint8Array[] = [];
   const journal: Reseau["journal"][number][] = [];
   const adresses: string[] = [];
+  const etatsDesPrecedentes: (readonly number[])[] = [];
   const etat = { accusesPerdus: false };
   class PriseDEssai extends WebSocket {
     constructor(adresse: string) {
@@ -153,6 +159,7 @@ export function reseauDEssai(
         headers: { Cookie: cookie, Origin: origine },
       } as unknown as string[]);
       adresses.push(adresse);
+      etatsDesPrecedentes.push([...vivantes].map((prise) => prise.readyState));
       ouvertes += 1;
       vivantes.add(this);
       this.addEventListener("close", () => vivantes.delete(this));
@@ -210,6 +217,7 @@ export function reseauDEssai(
     recus,
     journal,
     ouvertes: () => ouvertes,
+    etatsDesPrecedentes,
     couper: () => {
       coupe = true;
       vivantes.forEach((prise) => prise.close());
@@ -368,6 +376,8 @@ export interface OptionsDOnglet {
   readonly autreEspace?: boolean;
   /** L'origine que la WebSocket annonce ; par défaut, l'URL publique du serveur. */
   readonly origine?: string;
+  /** F-032 : le réseau d'un onglet qui change d'espace ; par défaut, un réseau neuf. */
+  readonly reseau?: Reseau;
   /**
    * Vrai : l'appareil rejoint un espace qu'il n'a pas créé (H4) ; son document part vide, sans la
    * version que la création d'un espace inscrit.
@@ -404,6 +414,8 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
     reessayerLeDocument: (idPage) => appareil.sur(() => brute.reessayerLeDocument(idPage)),
     effacerLaCopieLocale: () => appareil.sur(() => brute.effacerLaCopieLocale()),
     toutEstAcquitte: brute.toutEstAcquitte,
+    // F-032-AC12 : l'échéance est programmée sur l'appareil de l'onglet.
+    attendreLAcquittement: (delaiMs) => appareil.sur(() => brute.attendreLAcquittement(delaiMs)),
     estAcquitte: brute.estAcquitte,
     fermer: () => appareil.sur(() => brute.fermer()),
   };
@@ -415,7 +427,7 @@ function surLAppareil(appareil: Appareil, brute: Synchronisation): Synchronisati
  */
 export async function ouvrirUnOnglet(options: OptionsDOnglet): Promise<Onglet> {
   const appareil = options.appareil ?? nouvelAppareil();
-  const reseau = reseauDEssai(options.serveur, options.cookie, options.origine);
+  const reseau = options.reseau ?? reseauDEssai(options.serveur, options.cookie, options.origine);
   const horloge = options.horloge ?? horlogeDEssai();
   const compte = options.compte ?? compteDEssai();
   const facade =

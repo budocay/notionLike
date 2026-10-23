@@ -96,12 +96,22 @@ export interface Synchronisation {
   /** Vrai : toute modification de l'espace ouvert est acquittée par le serveur (AC49). */
   toutEstAcquitte(): boolean;
   /**
+   * Avant un changement d'espace (F-032-AC12) : attend, `delaiMs` au plus sur l'horloge de
+   * l'environnement, que plus aucune modification de l'espace ouvert ne soit en attente. Connexion
+   * établie, `acquitte` aussitôt s'il n'y en a aucune ; `non-acquitte` aussitôt si la connexion n'est
+   * pas établie, et dès qu'elle se perd, à l'échéance ou à la fermeture. Jamais rejetée.
+   */
+  attendreLAcquittement(delaiMs: number): Promise<IssueDeLAttente>;
+  /**
    * Vrai : ce que porte ce document, celui de l'espace ou celui de la page affichée, est acquitté
    * par le serveur (F-013-AC49). Un autre document n'est jamais dit acquitté.
    */
   estAcquitte(doc: Y.Doc): boolean;
   fermer(): void;
 }
+
+/** Ce que l'attente d'acquittement d'un changement d'espace a constaté (F-032-AC12). */
+export type IssueDeLAttente = "acquitte" | "non-acquitte";
 
 /** Délai de F-013-AC33 : une modification en attente au-delà ferme la connexion. */
 export const ATTENTE_D_ACQUITTEMENT_MS = 30_000;
@@ -125,6 +135,7 @@ export function demarrerSynchronisation(options: OptionsDeSynchronisation): Sync
     reessayerLeDocument: orchestre.reessayerLeDocument,
     effacerLaCopieLocale: orchestre.effacerLaCopieLocale,
     toutEstAcquitte: orchestre.toutEstAcquitte,
+    attendreLAcquittement: orchestre.attendreLAcquittement,
     estAcquitte: orchestre.estAcquitte,
     fermer: orchestre.fermer,
   };
@@ -151,6 +162,8 @@ class Orchestre {
   readonly #bloques = new Map<string, CauseDErreur>();
   readonly #divergentesDePasse = new Set<string>();
   readonly #reprisesDePasse = new Map<string, number>();
+  /** Attentes d'acquittement d'un changement d'espace, réexaminées à chaque publication. */
+  readonly #attentesDAcquittement = new Set<() => void>();
   #canalDuRegistre: CanalEntreOnglets | undefined;
   #registre: Registre = { lu: false, entree: undefined };
   #relectureDuRegistreMs = PREMIERE_RELECTURE_DU_REGISTRE_MS;
@@ -845,6 +858,41 @@ class Orchestre {
     );
   };
 
+  readonly attendreLAcquittement = (delaiMs: number): Promise<IssueDeLAttente> => {
+    // Sans connexion établie, l'onglet ne sait pas ce qui reste à transmettre (F-032 H6) : rien ne
+    // dit que tout l'est.
+    if (this.#fermee || this.#connexion.etat() !== "etablie") {
+      return Promise.resolve("non-acquitte");
+    }
+    if (!this.#modificationsEnAttente()) {
+      return Promise.resolve("acquitte");
+    }
+    return new Promise((resoudre) => {
+      let annulerLEcheance = (): void => undefined;
+      const conclure = (issue: IssueDeLAttente): void => {
+        this.#attentesDAcquittement.delete(examiner);
+        annulerLEcheance();
+        resoudre(issue);
+      };
+      const examiner = (): void => {
+        if (this.#fermee || this.#connexion.etat() !== "etablie") {
+          conclure("non-acquitte");
+        } else if (!this.#modificationsEnAttente()) {
+          conclure("acquitte");
+        }
+      };
+      this.#attentesDAcquittement.add(examiner);
+      annulerLEcheance = this.#options.environnement.horloge.programmer(
+        () => conclure("non-acquitte"),
+        delaiMs,
+      );
+    });
+  };
+
+  #examinerLesAttentesDAcquittement(): void {
+    [...this.#attentesDAcquittement].forEach((examiner) => examiner());
+  }
+
   readonly estAcquitte = (doc: Y.Doc): boolean => {
     if (this.#fermee || this.#connexion.etat() !== "etablie") {
       return false;
@@ -874,6 +922,7 @@ class Orchestre {
     this.#canalDuRegistre?.close();
     this.#canalDuRegistre = undefined;
     this.#abonnes.clear();
+    this.#examinerLesAttentesDAcquittement();
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -883,6 +932,7 @@ class Orchestre {
     if (this.#fermee) {
       return;
     }
+    this.#examinerLesAttentesDAcquittement();
     this.#congedierLesPartantes();
     this.#surveillerLesAttentes();
     if (this.#prudence && this.#prise !== undefined) {

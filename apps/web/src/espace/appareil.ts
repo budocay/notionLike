@@ -10,8 +10,10 @@ import {
   type LectureDeLAppareil,
   lireLAppareil,
   noterLesNoms,
+  releverLaBase,
   retirerLaMarque,
 } from "../persistance/index.ts";
+import { arborescenceDuTemoin } from "./garde-version.ts";
 
 export type { Droit, EntreeDuRegistre };
 
@@ -345,4 +347,35 @@ export function droitInscrit(
     return etat.espaceDeLAppareil?.entree?.droit;
   }
   return etat.autres.find((espace) => espace.idEspace === idEspace)?.entree?.droit;
+}
+
+/**
+ * Repli du retrait quand le navigateur ne permet pas l'énumération des bases (F-032-AC20, H7, H8) :
+ * les identifiants des pages et des tables de l'arborescence et de la corbeille de l'espace, lus
+ * dans sa base par un témoin que rien n'affiche, détruit aussitôt. Une base absente, illisible ou
+ * d'une version refusée n'en donne aucun : seule la base du document d'espace sera effacée. Jamais
+ * rejetée.
+ */
+export async function lireLesPagesDeLaBase(idEspace: string): Promise<readonly string[]> {
+  const temoin = await releverLaBase({ type: "espace", idEspace });
+  if (temoin === undefined) {
+    return [];
+  }
+  try {
+    const arborescence = arborescenceDuTemoin(temoin);
+    if (arborescence === undefined) {
+      return [];
+    }
+    const ids: string[] = [];
+    const aVoir = [...arborescence.racines, ...arborescence.corbeille];
+    for (const page of aVoir) {
+      ids.push(page.id);
+      aVoir.push(...page.enfants);
+    }
+    return ids;
+  } catch {
+    return [];
+  } finally {
+    temoin.destroy();
+  }
 }
