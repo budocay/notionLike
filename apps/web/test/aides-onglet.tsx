@@ -334,10 +334,13 @@ export function synchronisationSimulee(journal: string[] = []): Simulee {
           const connexion = connexions.get(id) ?? { etablie: false, enAttente: false };
           const attente: Attente = { delaiMs, echeance: maintenant + delaiMs, resoudre };
           simulee.attentes.push(attente);
-          if (fermee || !connexion.etablie) {
+          // Comme le module : rien en attente, acquitté connexion établie ou non (F-032-AC12, H6).
+          if (fermee) {
             resoudre("non-acquitte");
           } else if (!connexion.enAttente) {
             resoudre("acquitte");
+          } else if (!connexion.etablie) {
+            resoudre("non-acquitte");
           } else {
             const attentes = enCours.get(id) ?? new Set<Attente>();
             enCours.set(id, attentes);

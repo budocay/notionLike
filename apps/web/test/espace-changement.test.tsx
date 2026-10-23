@@ -362,6 +362,21 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
   });
 
+  it.each(["hors-ligne", "pause"] as const)(
+    "F-032-AC12 F-032-AC24 adopté, connexion non établie (« %s »), rien en attente : changement aussitôt, sans boîte",
+    async (affiche) => {
+      const { onglet, simulee } = await ouvrirAlphaEnAttente({ etablie: false, enAttente: false });
+      act(() => simulee.poser(E_ALPHA, { affiche }));
+
+      await onglet.utilisateur.click(commande(VERS_L_APPAREIL.libelle));
+
+      expect(await screen.findByRole("link", { name: "Témoin de l'appareil" })).toBeDefined();
+      expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL);
+    },
+  );
+
   it("F-032-AC12 connexion établie, rien en attente : changement aussitôt, sans boîte", async () => {
     const { onglet } = await ouvrirAlphaEnAttente({ etablie: true, enAttente: false });
 

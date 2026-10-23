@@ -8,14 +8,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { StatutDuCompte } from "../../src/synchronisation/index.ts";
 import {
   adopterEtAttendre,
+  afficher,
   attendreLEtat,
   attendreQue,
   compteDEssai,
+  ecrireDansLaPage,
   fermerLesOnglets,
   horlogeDEssai,
   nouvelAppareil,
   type Onglet,
   ouvrirUnOnglet,
+  pageDEssai,
   pause,
   preparerLAppareil,
   requetesVues,
@@ -122,7 +125,65 @@ describe("attente d'acquittement avant un changement d'espace (F-032-AC12)", () 
     expect(await pendant).toBe("non-acquitte");
   });
 
-  it("F-032-AC12 connexion non établie : `non-acquitte` aussitôt, l'onglet ne sachant pas ce qui reste à transmettre (H6)", async () => {
+  it.each([
+    ["compte déconnecté", "compte"],
+    ["réseau coupé", "reseau"],
+  ] as const)(
+    "F-032-AC12 adopté, connexion non établie (%s), rien en attente, une modification acquittée avant la coupure : `acquitte` aussitôt, sans rien programmer, d'où un changement sans boîte",
+    async (_, coupure) => {
+      const membre = await serveur.inscrire();
+      const compte = compteDEssai();
+      const onglet = await ouvrirUnOnglet({
+        serveur,
+        cookie: membre.cookie,
+        idEspace: crypto.randomUUID(),
+        compte,
+      });
+      await adopterEtAttendre(onglet);
+      onglet.facade.creerPage("Acquittée avant la coupure");
+      await attendreQue(() => onglet.synchro.toutEstAcquitte());
+      await attendreLEtat(onglet, "synchronise");
+      if (coupure === "compte") {
+        compte.poser("deconnecte");
+        await attendreLEtat(onglet, "pause");
+      } else {
+        onglet.reseau.couper();
+        await attendreQue(() =>
+          ["hors-ligne", "connexion"].includes(onglet.synchro.lireEtat().affiche),
+        );
+      }
+      const programmes = onglet.horloge.delais.length;
+
+      expect(await onglet.synchro.attendreLAcquittement(ATTENTE_MS)).toBe("acquitte");
+      expect(onglet.horloge.delais.slice(programmes)).not.toContain(ATTENTE_MS);
+    },
+  );
+
+  it("F-032-AC12 page affichée modifiée sans connexion : `non-acquitte` aussitôt ; la connexion rétablie et la frappe acquittée, `acquitte`", async () => {
+    const membre = await serveur.inscrire();
+    const compte = compteDEssai();
+    const onglet = await ouvrirUnOnglet({
+      serveur,
+      cookie: membre.cookie,
+      idEspace: crypto.randomUUID(),
+      compte,
+    });
+    const page = pageDEssai(onglet.facade.creerPage("Affichée"));
+    await adopterEtAttendre(onglet);
+    afficher(onglet, page);
+    await attendreLEtat(onglet, "synchronise");
+    compte.poser("deconnecte");
+    await attendreLEtat(onglet, "pause");
+
+    onglet.appareil.sur(() => ecrireDansLaPage(page.doc, "FRAPPE-HORS-CONNEXION"));
+
+    expect(await onglet.synchro.attendreLAcquittement(ATTENTE_MS)).toBe("non-acquitte");
+    compte.poser("connecte");
+    await attendreLEtat(onglet, "synchronise");
+    expect(await onglet.synchro.attendreLAcquittement(ATTENTE_MS)).toBe("acquitte");
+  });
+
+  it("F-032-AC12 connexion non établie, document d'espace modifié depuis : `non-acquitte` aussitôt (H6)", async () => {
     const membre = await serveur.inscrire();
     const compte = compteDEssai();
     const onglet = await ouvrirUnOnglet({
