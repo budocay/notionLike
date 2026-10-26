@@ -23,12 +23,17 @@ import {
   ECRITURE,
   LECTURE,
   poserDansLAppareil,
+  poserUneBase,
   poserUneBaseQuiPorte,
 } from "./aides-appareil.ts";
 import { demarrerSession, ecouteurs } from "./aides-facade.ts";
 import { ecrireLaVersion, VERSION_NON_PRISE_EN_CHARGE } from "./aides-format.ts";
 import { laisserIndexedDbTravailler, retenirLesOuvertures } from "./aides-persistance.ts";
-import { ecouterLesErreursNonInterceptees, refuserLOuvertureDe } from "./aides-reprise.ts";
+import {
+  ecouterLesErreursNonInterceptees,
+  identifiantInscrit,
+  refuserLOuvertureDe,
+} from "./aides-reprise.ts";
 
 type SessionEspace = ReturnType<typeof demarrerSession>;
 type Ouvert = Extract<EtatDuPilote, { phase: "ouvert" }>;
@@ -315,6 +320,66 @@ describe("espace retenu inscrit au changement (F-032-AC17, AC35)", () => {
     const suivant = lancerLOnglet();
     expect((await ouvert(suivant.pilote)).cible).toEqual(APPAREIL);
   });
+
+  // F-032-AC17, cas exigé « y compris après une réparation de son identifiant par F-032-AC23 » :
+  // après le choix de l'espace de l'appareil, la valeur relue à la place de son identifiant devient
+  // illisible ; la réparation inscrit l'identifiant de sa base (seule non inscrite) ou un candidat
+  // (deux bases non inscrites). L'absence de la clé `espace-retenu` désigne toujours l'espace de
+  // l'appareil, quel que soit l'identifiant inscrit.
+  it.each([
+    ["sa base, seule non inscrite au registre, est retenue", false],
+    ["deux bases non inscrites, un candidat est inscrit", true],
+  ])(
+    "F-032-AC17 F-032-AC23 l'espace de l'appareil choisi après Alpha, puis son identifiant illisible et réparé (%s) : la clé `espace-retenu` reste absente, et chaque lancement suivant ouvre l'espace de l'appareil sous l'identifiant réparé",
+    async (_cas, deuxBasesNonInscrites) => {
+      await poserDansLAppareil({
+        "espace-local": E_APPAREIL,
+        [`registre:${E_ALPHA}`]: ECRITURE,
+        "espace-retenu": E_ALPHA,
+      });
+      const premier = lancerLOnglet();
+      expect((await ouvert(premier.pilote)).cible).toEqual(ALPHA);
+      changerVers(premier.pilote, APPAREIL, premier.journal);
+      const deLAppareil = premier.pilote.lireEtat() as Ouvert;
+      await prete(deLAppareil.session);
+      const lu = deLAppareil.session.lireEtat();
+      expect(lu.phase === "pret" ? lu.idEspace : undefined).toBe(E_APPAREIL);
+      await waitFor(async () =>
+        expect(Object.keys(await contenuDeLAppareil())).not.toContain("espace-retenu"),
+      );
+      premier.pilote.fermer();
+      if (deuxBasesNonInscrites) {
+        await poserUneBase(baseDEspace(E_BETA));
+      }
+      await poserDansLAppareil({ "espace-local": "illisible" });
+
+      const suivant = lancerLOnglet();
+      const etat = await ouvert(suivant.pilote);
+      expect(etat.cible).toEqual(APPAREIL);
+      expect(suivant.demarrees.map(({ cible }) => cible)).toEqual([APPAREIL]);
+      await prete(etat.session);
+      const repare = await identifiantInscrit();
+      const relu = etat.session.lireEtat();
+      expect(relu.phase === "pret" ? relu.idEspace : undefined).toBe(repare);
+      if (deuxBasesNonInscrites) {
+        expect([E_APPAREIL, E_ALPHA, E_BETA]).not.toContain(repare);
+      } else {
+        expect(repare).toBe(E_APPAREIL);
+      }
+      const contenu = await contenuDeLAppareil();
+      expect(Object.keys(contenu)).not.toContain("espace-retenu");
+      expect(contenu[`registre:${E_ALPHA}`]).toEqual(ECRITURE);
+      suivant.pilote.fermer();
+
+      const encore = lancerLOnglet();
+      const rouvert = await ouvert(encore.pilote);
+      expect(rouvert.cible).toEqual(APPAREIL);
+      await prete(rouvert.session);
+      const encoreLu = rouvert.session.lireEtat();
+      expect(encoreLu.phase === "pret" ? encoreLu.idEspace : undefined).toBe(repare);
+      expect(Object.keys(await contenuDeLAppareil())).not.toContain("espace-retenu");
+    },
+  );
 
   it("F-032-AC17 F-032-AC35 un espace dont le document est refusé pour sa version n'est jamais inscrit : l'espace retenu reste celui d'avant, et le lancement suivant ouvre l'espace de l'appareil", async () => {
     await poserDansLAppareil({ "espace-local": E_APPAREIL, [`registre:${E_ALPHA}`]: ECRITURE });
