@@ -3,12 +3,12 @@
 // d'espace réels (démarrée par la seule aide autorisée, F-002-AC31), et, pour chaque espace ouvert,
 // la synchronisation de production démarrée comme l'interface la démarre, une fois la session
 // prête. `document` et `window` sont deux `EventTarget` : la garde d'onglet de la session s'y abonne.
-// L'ajout à l'appareil suit le chemin de l'interface (F-032-AC5) : `GET /api/v1/espaces/:idEspace`
-// par le client des espaces de production, droit par `droitDuRole`, `magasin.ajouter`, changement.
+// L'ajout à l'appareil (F-032-AC5) et la fermeture de l'espace quitté (F-032-AC10, AC15) sont ceux
+// de l'interface : `lireEtInscrire` du crochet de l'ajout, sur le client des espaces de production,
+// puis le changement ; `fermerLEspaceQuitte`, le `avant()` d'`Application`, dans son ordre.
 import type { ServeurDEssai } from "@notionlike/server/essai";
 
 import { type ClientDesEspaces, creerClientDesEspaces } from "../../src/compte/client-espaces.ts";
-import type { EspaceLu, Resultat } from "../../src/compte/index.ts";
 import {
   lireLesPagesDeLaBase,
   type MagasinDeLAppareil,
@@ -20,9 +20,13 @@ import {
   type PiloteDeLOnglet,
   piloterLOnglet,
 } from "../../src/espace/espace-ouvert.ts";
+import {
+  type IssueDeLInscription,
+  lireEtInscrire,
+} from "../../src/interface/ajout-a-l-appareil.ts";
+import { fermerLEspaceQuitte } from "../../src/interface/changement-d-espace.ts";
 import { avecLesNoms } from "../../src/interface/noms-des-espaces.ts";
 import {
-  droitDuRole,
   idsDesPages,
   retirerDeLAppareil,
   type Synchronisation,
@@ -69,11 +73,6 @@ export interface Generation {
   readonly pages: PageOuverte[];
 }
 
-export type IssueDeLAjout =
-  | { readonly sorte: "inscrit"; readonly nom: string }
-  | { readonly sorte: "lecture-en-echec"; readonly lecture: Resultat<EspaceLu> }
-  | { readonly sorte: "non-inscrit" };
-
 export interface OngletReel {
   readonly appareil: Appareil;
   readonly reseau: Reseau;
@@ -96,14 +95,18 @@ export interface OngletReel {
   afficherLaPage(idPage: string): Promise<PageOuverte>;
   /**
    * Le changement d'espace du pilote, demandé dans la tâche de l'appelant, avec le `avant()` de
-   * l'interface : pages fermées (chacune une fois sa modification écrite), puis la synchronisation.
+   * l'interface (`fermerLEspaceQuitte`) : pages libérées tout de suite, comme `PagesOuvertes.fermer()`
+   * les libère, puis la synchronisation.
    */
   changer(cible: CibleDeSession, nom: string): void;
   /**
-   * L'ajout à l'appareil (F-032-AC5), comme l'interface le fait ; `avantLeChangement` est appelé
-   * une fois l'entrée inscrite, avant la demande de changement.
+   * L'ajout à l'appareil (F-032-AC5) par `lireEtInscrire` de l'interface ; `avantLeChangement` est
+   * appelé une fois l'entrée inscrite, avant la demande de changement.
    */
-  ajouter(idEspace: string, avantLeChangement?: () => Promise<void> | void): Promise<IssueDeLAjout>;
+  ajouter(
+    idEspace: string,
+    avantLeChangement?: () => Promise<void> | void,
+  ): Promise<IssueDeLInscription>;
   fermer(): void;
 }
 
@@ -130,23 +133,11 @@ function typeDe(
   return lu.phase === "pret" ? typesDesPages(lu.arborescence).get(id) : undefined;
 }
 
-// Comme les pages ouvertes de l'interface : une page dont une modification n'est pas encore écrite
-// reste tenue jusqu'à l'écriture, puis sa persistance est fermée.
-function fermerLaPage({ doc, persistance }: PageOuverte): void {
-  const liberer = (): void => {
-    persistance.fermer();
-    doc.destroy();
-  };
-  if (!persistance.aDesModificationsNonEnregistrees()) {
-    liberer();
-    return;
-  }
-  const cesser = persistance.abonner(() => {
-    if (persistance.lireEtat() === "fermee" || !persistance.aDesModificationsNonEnregistrees()) {
-      cesser();
-      liberer();
-    }
-  });
+// Comme `PagesOuvertes.fermer()` au changement d'espace : la page affichée et toute page conservée
+// sont libérées tout de suite, persistance fermée et `Y.Doc` détruit, sans attendre l'écriture.
+function libererLaPage({ doc, persistance }: PageOuverte): void {
+  persistance.fermer();
+  doc.destroy();
 }
 
 /** Lance l'onglet comme l'entrée de l'application le lance, sur l'appareil donné. */
@@ -226,8 +217,12 @@ export async function lancerUnOnglet(options: OptionsDeLOngletReel): Promise<Ong
     return derniere;
   };
   const quitter = (generation: Generation | undefined): void => {
-    generation?.pages.splice(0).forEach(fermerLaPage);
-    generation?.synchro?.fermer();
+    fermerLEspaceQuitte({
+      pages: { fermer: () => generation?.pages.splice(0).forEach(libererLaPage) },
+      // L'onglet d'essai n'ouvre aucune table.
+      tables: { fermer: () => undefined },
+      synchro: generation?.synchro,
+    });
   };
   const attendreLaSession = async (): Promise<SessionPrete> => {
     let pret: SessionPrete | undefined;
@@ -276,18 +271,14 @@ export async function lancerUnOnglet(options: OptionsDeLOngletReel): Promise<Ong
     },
     changer,
     ajouter: async (idEspace, avantLeChangement) => {
-      const lecture = await appareil.sur(() => client.lireEspace(idEspace));
-      if (!lecture.ok) {
-        return { sorte: "lecture-en-echec", lecture };
+      // Le compte de l'onglet d'essai : le client des espaces, sans suivi à revérifier.
+      const compte = { espaces: client, suivi: { reverifier: () => Promise.resolve() } };
+      const issue = await appareil.sur(() => lireEtInscrire(compte, magasin, idEspace));
+      if (issue.sorte === "inscrit") {
+        await avantLeChangement?.();
+        changer({ sorte: "ajoute", idEspace }, issue.nom);
       }
-      const { nom, role } = lecture.valeur;
-      const entree = { rattachement: "adopte", droit: droitDuRole(role) } as const;
-      if (!(await appareil.sur(() => magasin.ajouter(idEspace, entree, nom)))) {
-        return { sorte: "non-inscrit" };
-      }
-      await avantLeChangement?.();
-      changer({ sorte: "ajoute", idEspace }, nom);
-      return { sorte: "inscrit", nom };
+      return issue;
     },
     fermer: () => {
       if (ferme) {

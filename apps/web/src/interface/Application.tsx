@@ -92,6 +92,7 @@ import {
   type ConfirmationOuverte,
   ContexteDuChangement,
   type EspacesDeLApplication,
+  fermerLEspaceQuitte,
   nomDeLEspace,
   useChangementDEspace,
 } from "./changement-d-espace.ts";
@@ -333,11 +334,12 @@ function useEspacesDeLEcran(
     nomOuvert: nomOuvert ?? "",
     // F-032-AC10, AC14, AC15 : avant d'ouvrir l'espace choisi, rien de l'espace quitté ne reste
     // ouvert ; la fermeture de la synchronisation détruit sa WebSocket de façon synchrone.
-    avant: () => {
-      documents.pages.fermer();
-      documents.tables.fermer();
-      synchronisation.synchro?.fermer();
-    },
+    avant: () =>
+      fermerLEspaceQuitte({
+        pages: documents.pages,
+        tables: documents.tables,
+        synchro: synchronisation.synchro,
+      }),
   });
   return {
     nomOuvert,

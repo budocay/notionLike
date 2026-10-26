@@ -29,6 +29,25 @@ import { type Boite, useBoite } from "./outils-espaces.ts";
 /** Attente d'acquittement d'un espace adopté avant de le quitter (F-032-AC12). */
 export const ATTENTE_DU_CHANGEMENT_MS = 2000;
 
+/** Ce que l'espace quitté tient dans l'onglet. */
+export interface TenuParLEspace {
+  readonly pages: { fermer(): void };
+  readonly tables: { fermer(): void };
+  readonly synchro: { fermer(): void } | undefined;
+}
+
+/**
+ * Le `avant()` du changement d'espace (F-032-AC10, AC14, AC15) : les pages et les tables de
+ * l'espace quitté, puis sa synchronisation, dont la fermeture détruit la WebSocket de façon
+ * synchrone ; le pilote ouvre l'espace choisi ensuite. Sans React : l'onglet des preuves contre le
+ * serveur réel l'emploie aussi (`test/synchronisation/aides-onglet-reel.ts`).
+ */
+export function fermerLEspaceQuitte(tenu: TenuParLEspace): void {
+  tenu.pages.fermer();
+  tenu.tables.fermer();
+  tenu.synchro?.fermer();
+}
+
 /** Ce que l'entrée donne à l'application quand l'onglet a un pilote (F-032). */
 export interface EspacesDeLApplication {
   readonly pilote: PiloteDeLOnglet;

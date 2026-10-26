@@ -42,7 +42,16 @@ export interface OptionsDeLAjout {
   readonly surIntrouvable: () => void;
 }
 
-type Issue =
+/**
+ * Ce que l'ajout emploie du compte : la lecture d'un espace, et la revérification sur un 401, dont
+ * le résultat n'est pas attendu.
+ */
+export interface CompteDeLAjout {
+  readonly espaces: Pick<Compte["espaces"], "lireEspace">;
+  readonly suivi: { readonly reverifier: () => unknown };
+}
+
+export type IssueDeLInscription =
   | { readonly sorte: "inscrit"; readonly nom: string }
   | { readonly sorte: "introuvable" }
   | { readonly sorte: "echec"; readonly phrases: readonly string[] };
@@ -85,12 +94,18 @@ export function useAjoutALAppareil(options: OptionsDeLAjout): AjoutALAppareil {
   };
 }
 
-// Jamais rejetée (F-032-AC31) : le client des espaces ne lève pas, le magasin non plus.
-async function lireEtInscrire(
-  compte: Compte,
-  magasin: MagasinDeLAppareil,
+/**
+ * La lecture et l'inscription de l'ajout, hors du crochet (F-032-AC5, AC6) : relit l'espace au
+ * serveur une fois, puis inscrit au registre l'entrée `{ adopte, droit }` avec le nom et la marque ;
+ * rien de l'espace n'est ouvert ici. L'onglet des preuves contre le serveur réel l'emploie aussi
+ * (`test/synchronisation/aides-onglet-reel.ts`). Jamais rejetée (F-032-AC31) : le client des espaces
+ * ne lève pas, le magasin non plus.
+ */
+export async function lireEtInscrire(
+  compte: CompteDeLAjout,
+  magasin: Pick<MagasinDeLAppareil, "ajouter">,
   idEspace: string,
-): Promise<Issue> {
+): Promise<IssueDeLInscription> {
   const lecture = await compte.espaces.lireEspace(idEspace);
   if (!lecture.ok) {
     return echecDeLecture(compte, lecture);
@@ -104,9 +119,9 @@ async function lireEtInscrire(
 // F-032-AC6 : le réseau ou l'échéance de 10 secondes du client ; 404 (F-014-AC28) ; 401
 // (F-010-AC28, l'état du compte est revérifié) ; sinon la table des codes (F-014-AC30, AC31).
 function echecDeLecture(
-  compte: Compte,
+  compte: CompteDeLAjout,
   lecture: Extract<Resultat<EspaceLu>, { readonly ok: false }>,
-): Issue {
+): IssueDeLInscription {
   const { erreur } = lecture;
   if (erreur.type === "hors-ligne") {
     return { sorte: "echec", phrases: [PAS_ENCORE_TELECHARGE] };
