@@ -1,6 +1,6 @@
 # ADR-0009 — Document de page : contenu Tiptap dans un fragment Yjs, version à maximum, éditeur confiné
 
-Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-005 » : écrite le 2026-10-19, d'après le code de la branche `F-005` ; elle reporte une décision de l'ADR-0018 et en suit le statut (accepté) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : acceptée par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019
+Statut : accepté ; section « Amendement F-012 et F-013 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts) ; section « Amendement F-005 » : écrite le 2026-10-19, d'après le code de la branche `F-005` ; elle reporte une décision de l'ADR-0018 et en suit le statut (accepté) ; section « Amendement F-018 » : écrite le 2026-10-21, d'après le code de la branche `F-018` (`60258d0`), à la demande du gate d'architecture de F-018 : acceptée par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-0002 et l'ADR-0019 ; section « Amendement F-016 » : écrite le 2026-10-26, avant le code, avec l'ADR-0021 : proposé
 Date : 2026-10-12 (écrit après le code, sur `c2ac84d` ; la spec F-003 demandait cet ADR avant le premier commit de code, il ne l'a pas précédé) ; amendement F-012 et F-013 du 2026-10-16 ; écarts au code corrigés le 2026-10-19 ; amendement F-005 du 2026-10-19 ; amendement F-018 du 2026-10-21
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé par le gate d'architecture de F-003).
 
@@ -64,6 +64,18 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - **Seconde barrière inchangée** : la réplique de la page affichée (`apps/web/src/synchronisation/miroir.ts`, `lireVersionPage`) ne juge que le numéro ; un tel élément la passe, comme une entrée mal formée (amendement F-012 et F-013), et c'est la façade qui le refuse.
 - **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `document-page.ts` (F-018-AC58).
 
+### Amendement F-016 (2026-10-26) : type des commentaires, liaison importée par l'édition
+
+Statut : proposé, avec l'ADR-0021 ; écrit avant le code de F-016, à corriger d'après le diff livré (bloc 8 de `docs/decisions/F-016-conception.md`). Contexte : F-016 ajoute au document de page un type partagé, et le module d'édition doit traduire les positions de l'éditeur en positions Yjs. La décision est celle de l'ADR-0021, que cet amendement reporte pour la page.
+
+- **Type partagé nouveau** : `commentaires`, un `Y.Array` racine de `Y.Map`, nommé et ouvert par `format-page.ts` seul, lu et écrit par `commentaires.ts` seul. Ligne 4 de `TABLE_DES_VERSIONS_PAGE` (nœuds et marques de la ligne 3, `typesPartages: ["commentaires"]`) ; version prise en charge : 4.
+- **Un type des commentaires illisible ne refuse pas la page** : contrairement à `versions`, seule la lecture des commentaires est refusée (F-016-AC37) ; `estPriseEnCharge` et `lireFormeStockee` ne changent pas.
+- **Façade** : `DocumentPage` gagne les opérations sur les commentaires (lecture gardée, observation, création d'un fil, réponse, modification, résolution, réouverture, suppression). Chaque écriture élève la version dans sa propre transaction, par la fonction d'élévation de `eleverVersion` : la règle « au plus tard dans la transaction qui inscrit le premier élément nouveau » (Conséquences) reçoit son premier appelant hors de l'éditeur.
+- **Liaison importée par l'édition** : la décision ci-dessus disait qu'aucun fichier de `src/` n'importe `@tiptap/y-tiptap` ni `y-protocols`. Depuis F-016, `apps/web/src/edition/ancres.ts` importe `absolutePositionToRelativePosition`, `relativePositionToAbsolutePosition` et `ySyncPluginKey` de `@tiptap/y-tiptap` 3.0.9, déclarée exactement par `apps/web` ; `web-edition-liste-blanche` est élargie (commit du dev). `y-protocols` reste non importé.
+- **Interface du module d'édition** : `edition/index.ts` exporte en plus les types des passages commentés (`PassagesCommentes`, `AncreDeLEditeur`, `ActionsDesPassages`, `ResolutionDesPassages`), faits de données et de fonctions, sans type de la bibliothèque d'édition. `EditeurDePage` gagne la propriété facultative `passages`.
+- **Hors du contenu Tiptap** : les commentaires ne sont pas dans le fragment ; le surlignage est fait de décorations, hors du schéma et de l'historique d'annulation, et une écriture de commentaire n'entre pas dans cet historique.
+- **Ramasse-miettes** : les documents de page restent créés avec `gc` actif (F-016-AC38) ; aucun constructeur ne le désactive.
+
 ## Conséquences
 
 - Entorse à l'ADR-0003 : le paquet expose un type partagé, le fragment du contenu. Le reste du format (noms des types racines, forme de la version) n'en sort pas.
@@ -73,3 +85,4 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - Un document conservé par le client et par le serveur garde le tableau `versions` pour toujours ; il ne grandit que d'une entrée par version atteinte et par réplique qui l'élève.
 - Amendement F-012 et F-013 : la page affichée vit en deux `Y.Doc` dans l'onglet, le document lié et sa réplique, chacun avec l'état complet de la page ; la mémoire d'une page affichée double.
 - Amendement F-018 : un document de page qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la page) s'ouvrait avant F-018 et est désormais refusé par la façade, qui n'y retire rien. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue.
+- Amendement F-016 (proposé) : un document qui porte des commentaires est de version 4 et refusé en entier par une application qui ne prend en charge que la version 3. La fiche d'un fil reste dans le document après la suppression de ses commentaires (ADR-0021).
