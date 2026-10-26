@@ -14,6 +14,7 @@ import {
   ESPACES_DU_SERVEUR,
   espaceOuvert,
   espaceRetireDeLAppareil,
+  nomOuvrirCetEspace,
   PAS_ENCORE_TELECHARGE,
   PLUS_ACCESSIBLE,
   REQUETE_EN_COURS,
@@ -298,8 +299,22 @@ describe("échecs de l'ajout (F-032-AC6, AC31)", () => {
   });
 });
 
+/** La zone de synchronisation affichée. */
+function zoneDeSynchronisation(): HTMLElement {
+  return screen.getByRole("region", { name: "Synchronisation" });
+}
+
+/** « Ouvrir cet espace » de l'espace de ce nom, depuis l'écran des espaces (F-032-AC10). */
+async function changerVersLEspace(onglet: Onglet, nom: string): Promise<void> {
+  aller("#/espaces");
+  await screen.findByRole("heading", { level: 1, name: "Espaces" });
+  await onglet.utilisateur.click(
+    await screen.findByRole("button", { name: nomOuvrirCetEspace(nom) }),
+  );
+}
+
 describe("première synchronisation visible (F-032-AC8)", () => {
-  it("F-032-AC8 tant que la marque est là, la zone le dit en plus de son état et l'accueil vide dit que les pages manquent, rechargement compris ; au premier « Synchronisé », la marque et ses textes disparaissent", async () => {
+  it("F-032-AC8 tant que la marque est là, la zone le dit en plus de son état et l'accueil vide dit que les pages manquent, rechargement, changement d'espace et réouverture réseau coupé compris ; au premier « Synchronisé », la marque et ses textes disparaissent", async () => {
     await poserLAppareil();
     await poserDansLAppareil({
       [`registre:${E_GAMMA}`]: ECRITURE,
@@ -324,6 +339,39 @@ describe("première synchronisation visible (F-032-AC8)", () => {
         PREMIERE_SYNCHRONISATION,
       ),
     );
+
+    // Changement d'espace dans l'onglet : l'espace de l'appareil, sans marque, puis retour sur Gamma.
+    await changerVersLEspace(onglet, ESPACE_DE_CET_APPAREIL);
+    await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL));
+    await screen.findByRole("link", { name: TEMOIN_DE_L_APPAREIL });
+    expect(zoneDeSynchronisation().textContent).not.toContain(PREMIERE_SYNCHRONISATION);
+    expect(screen.queryByText(PAGES_PAS_ENCORE_TELECHARGEES)).toBeNull();
+    expect((await contenuDeLAppareil())[`premiere-synchronisation:${E_GAMMA}`]).toBe(true);
+    await changerVersLEspace(onglet, "Gamma");
+    await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_GAMMA)));
+    await waitFor(() =>
+      expect(zoneDeSynchronisation().textContent).toContain(PREMIERE_SYNCHRONISATION),
+    );
+    expect(zoneDeSynchronisation().textContent).toContain(TITRES_DES_ETATS["en-cours"]);
+    expect(await screen.findByText(PAGES_PAS_ENCORE_TELECHARGEES)).toBeTruthy();
+    expect(screen.queryByText(INVITATION_PREMIERE_PAGE)).toBeNull();
+    expect((await contenuDeLAppareil())[`premiere-synchronisation:${E_GAMMA}`]).toBe(true);
+
+    // Réouverture réseau coupé : le serveur ne répond plus, la synchronisation est hors ligne ;
+    // l'espace marqué se rouvre avec ses textes.
+    act(() => simulee.poser(E_GAMMA, { affiche: "hors-ligne" }));
+    onglet = relancer(onglet, {
+      ...options,
+      moi: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+    await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_GAMMA)));
+    await waitFor(() =>
+      expect(zoneDeSynchronisation().textContent).toContain(PREMIERE_SYNCHRONISATION),
+    );
+    expect(zoneDeSynchronisation().textContent).toContain(TITRES_DES_ETATS["hors-ligne"]);
+    expect(await screen.findByText(PAGES_PAS_ENCORE_TELECHARGEES)).toBeTruthy();
+    expect(screen.queryByText(INVITATION_PREMIERE_PAGE)).toBeNull();
+    expect((await contenuDeLAppareil())[`premiere-synchronisation:${E_GAMMA}`]).toBe(true);
 
     act(() => simulee.poser(E_GAMMA, { affiche: "synchronise" }));
     await waitFor(() =>
