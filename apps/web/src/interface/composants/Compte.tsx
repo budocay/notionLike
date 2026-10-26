@@ -40,7 +40,11 @@ interface ProprietesAction {
   readonly desactivee?: boolean | undefined;
   /** Vrai : l'action mène à l'écran affiché, marquée courante (F-007-AC1). */
   readonly courante?: boolean | undefined;
-  /** Nom accessible, quand il dit plus que le libellé (F-032-AC4) ; il commence par le libellé. */
+  /**
+   * Nom accessible, quand il dit plus que le libellé (F-032-AC4) ; il contient le libellé visible
+   * sans forcément commencer par lui : celui du sélecteur d'espace est « Espaces — espace courant :
+   * <nom> » pour le libellé « <nom> ».
+   */
   readonly nom?: string | undefined;
   /** Vrai : le libellé tient sur une ligne, coupé par des points de suspension (F-004-AC24). */
   readonly coupe?: boolean | undefined;
