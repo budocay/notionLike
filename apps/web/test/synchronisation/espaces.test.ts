@@ -2,10 +2,15 @@
 // changement d'espace, à horloge injectée (AC12) ; fermeture complète de l'espace quitté avant la
 // première ouverture de l'espace choisi, constatée par le serveur (AC15) ; aucune WebSocket pour un
 // espace `local` ni sans compte connecté, d'un espace à l'autre (AC24).
-import { demarrerServeurDEssai, type ServeurDEssai } from "@notionlike/server/essai";
+import {
+  demarrerServeurDEssai,
+  type LigneDeJournal,
+  type ServeurDEssai,
+} from "@notionlike/server/essai";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { StatutDuCompte } from "../../src/synchronisation/index.ts";
+import { fermerLesOngletsReels, lancerUnOnglet } from "./aides-onglet-reel.ts";
 import {
   adopterEtAttendre,
   afficher,
@@ -39,6 +44,7 @@ afterAll(async () => {
   await serveur.fermer();
 });
 afterEach(() => {
+  fermerLesOngletsReels();
   fermerLesOnglets();
 });
 
@@ -203,51 +209,58 @@ describe("attente d'acquittement avant un changement d'espace (F-032-AC12)", () 
 });
 
 describe("fermeture complète de l'espace quitté (F-032-AC15)", () => {
-  it("F-032-AC15 F-032-AC14 la connexion de l'espace quitté est fermée avant la première ouverture de l'espace choisi, et le serveur constate la fermeture dans les 2 secondes ; l'espace choisi s'ouvre sur une connexion neuve, établie après", async () => {
+  it("F-032-AC15 F-032-AC14 changement par le pilote réel, avec le `avant()` de l'interface : le serveur constate la fermeture de la connexion de l'espace quitté au plus 2 secondes après le changement, avant toute connexion de l'espace choisi, qui s'ouvre sur une connexion neuve", async () => {
     const membre = await serveur.inscrire();
     const appareil = nouvelAppareil();
     const reseau = reseauDEssai(serveur, membre.cookie);
-    const quitte = await ouvrirUnOnglet({
-      serveur,
-      cookie: membre.cookie,
-      idEspace: crypto.randomUUID(),
-      appareil,
-      reseau,
-    });
-    await adopterEtAttendre(quitte, "Quitté");
-    const choisi = crypto.randomUUID();
-    await preparerLAppareil(appareil, choisi);
+    const quitte = await serveur.creerEspace(membre.cookie);
+    const choisi = await serveur.creerEspace(membre.cookie);
+    await preparerLAppareil(appareil, crypto.randomUUID());
+    for (const idEspace of [quitte, choisi]) {
+      await preparerLAppareil(appareil, idEspace, { rattachement: "adopte", droit: "ecriture" });
+    }
+    const onglet = await lancerUnOnglet({ serveur, cookie: membre.cookie, appareil, reseau });
+    await onglet.attendreLaSession();
+    onglet.changer({ sorte: "ajoute", idEspace: quitte }, "Quitté");
+    const deLEspaceQuitte = await onglet.attendreLaSynchronisation();
+    await attendreQue(
+      () => deLEspaceQuitte.lireEtat().affiche === "synchronise",
+      30_000,
+      "espace quitté synchronisé",
+    );
+    expect(reseau.ouvertes()).toBeGreaterThan(0);
     const avantLeChangement = serveur.lignesDuJournal().length;
     const constructions = reseau.etatsDesPrecedentes.length;
+    const deCetOnglet = (): LigneDeJournal[] =>
+      serveur
+        .lignesDuJournal()
+        .slice(avantLeChangement)
+        .filter((ligne) => ligne.idCompte === membre.idCompte);
 
-    quitter(quitte);
-    const fin = Date.now();
-    const arrivee = await ouvrirUnOnglet({
-      serveur,
-      cookie: membre.cookie,
-      idEspace: choisi,
-      appareil,
-      reseau,
-      autreEspace: true,
-    });
-    await adopterEtAttendre(arrivee, "Choisi");
+    const instantDuChangement = Date.now();
+    onglet.changer({ sorte: "ajoute", idEspace: choisi }, "Choisi");
 
+    expect(onglet.ouvert().espace.cible).toEqual({ sorte: "ajoute", idEspace: choisi });
     await attendreQue(
-      () =>
-        serveur
-          .lignesDuJournal()
-          .slice(avantLeChangement)
-          .some((ligne) => ligne.type === "connexion-fermee"),
-      ATTENTE_MS,
+      () => deCetOnglet().some((ligne) => ligne.type === "connexion-fermee"),
+      ATTENTE_MS + 3000,
       "fermeture constatée par le serveur",
     );
-    expect(Date.now() - fin).toBeLessThan(ATTENTE_MS + 8000);
-    const types = serveur
-      .lignesDuJournal()
-      .slice(avantLeChangement)
+    const fermeture = deCetOnglet().find((ligne) => ligne.type === "connexion-fermee");
+    const ecartMs = Date.parse(String(fermeture?.time)) - instantDuChangement;
+    expect(ecartMs).toBeGreaterThanOrEqual(0);
+    expect(ecartMs).toBeLessThanOrEqual(ATTENTE_MS);
+    const deLEspaceChoisi = await onglet.attendreLaSynchronisation();
+    await attendreQue(
+      () => deLEspaceChoisi.lireEtat().affiche === "synchronise",
+      30_000,
+      "espace choisi synchronisé",
+    );
+    const types = deCetOnglet()
       .map((ligne) => ligne.type)
       .filter((type) => type === "connexion-fermee" || type === "connexion-etablie");
-    expect(types.indexOf("connexion-fermee")).toBeLessThan(types.indexOf("connexion-etablie"));
+    expect(types[0]).toBe("connexion-fermee");
+    expect(types).toContain("connexion-etablie");
     const premiereDeLEspaceChoisi = reseau.etatsDesPrecedentes[constructions];
     expect(premiereDeLEspaceChoisi).toBeDefined();
     expect(premiereDeLEspaceChoisi?.every((etat) => etat === FERMANTE || etat === FERMEE)).toBe(
