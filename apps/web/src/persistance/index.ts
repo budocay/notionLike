@@ -36,6 +36,7 @@ export {
   ajouterALAppareil,
   type EspaceInscrit,
   inscrireLEspaceRetenu,
+  type IssueDuRetrait,
   type LectureDeLAppareil,
   lireLAppareil,
   noterLesNoms,

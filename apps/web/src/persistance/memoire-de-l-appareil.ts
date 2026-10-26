@@ -15,6 +15,13 @@ import {
 import { CLE_ESPACE_LOCAL } from "./espace-local.ts";
 import { operer } from "./transaction-de-l-appareil.ts";
 
+/**
+ * Issue du retrait d'un espace de l'appareil (F-032-AC20) : `retire` si ses bases sont effacées et
+ * ce que l'appareil retient de lui oublié, sinon `echec`. Seule définition : la synchronisation, qui
+ * fait le retrait, et le magasin de l'appareil, qui le reçoit injecté, la lisent ici.
+ */
+export type IssueDuRetrait = "retire" | "echec";
+
 /** Un espace inscrit au registre de l'appareil, avec ce que l'appareil retient de lui. */
 export interface EspaceInscrit {
   readonly idEspace: string;

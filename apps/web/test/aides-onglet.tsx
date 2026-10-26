@@ -13,8 +13,8 @@ import {
   type CanalDeLAppareil,
   lireLesPagesDeLaBase,
   type MagasinDeLAppareil,
+  type FonctionDeRetrait,
   ouvrirLeMagasinDeLAppareil,
-  type RetraitDeLAppareil,
 } from "../src/espace/appareil.ts";
 import {
   type CibleDeSession,
@@ -99,7 +99,7 @@ export interface OptionsDuLancement {
    */
   readonly ouvrirUnCanal?: ((nom: string) => CanalDeLAppareil) | undefined;
   /** Un retrait de l'appareil à la place de celui de l'entrée (échec simulé, F-007-AC21). */
-  readonly retrait?: RetraitDeLAppareil | undefined;
+  readonly retrait?: FonctionDeRetrait | undefined;
 }
 
 /** Lance l'onglet comme l'entrée le fait, sous `StrictMode`, sans attendre la fin du chargement. */
@@ -147,7 +147,7 @@ export function lancerLOnglet(options: OptionsDuLancement = {}): Onglet {
 /** Le magasin de l'appareil comme l'entrée l'ouvre ; sans canaux, ni prévenu ni retrait. */
 export function magasinDeLOnglet(
   ouvrirUnCanal: ((nom: string) => CanalDeLAppareil) | undefined,
-  retrait?: RetraitDeLAppareil,
+  retrait?: FonctionDeRetrait,
 ): MagasinDeLAppareil {
   if (ouvrirUnCanal === undefined) {
     return ouvrirLeMagasinDeLAppareil({ retirerDeLAppareil: retrait });

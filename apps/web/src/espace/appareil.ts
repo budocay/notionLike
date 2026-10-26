@@ -7,6 +7,7 @@ import {
   type Droit,
   type EntreeDuRegistre,
   inscrireLEspaceRetenu,
+  type IssueDuRetrait,
   type LectureDeLAppareil,
   lireLAppareil,
   noterLesNoms,
@@ -15,7 +16,7 @@ import {
 } from "../persistance/index.ts";
 import { arborescenceDuTemoin } from "./garde-version.ts";
 
-export type { Droit, EntreeDuRegistre };
+export type { Droit, EntreeDuRegistre, IssueDuRetrait };
 
 /** Canal entre onglets du magasin : une écriture faite ici fait relire les autres onglets. */
 export const CANAL_DE_L_APPAREIL = "espaces-de-l-appareil";
@@ -52,10 +53,8 @@ export interface EtatDeLAppareil {
   readonly retenu: string | undefined;
 }
 
-export type IssueDuRetrait = "retire" | "echec";
-
 /** Retire un espace de l'appareil (F-032-AC20) : fourni par la synchronisation, par l'entrée. */
-export type RetraitDeLAppareil = (idEspace: string) => Promise<IssueDuRetrait>;
+export type FonctionDeRetrait = (idEspace: string) => Promise<IssueDuRetrait>;
 
 export interface MagasinDeLAppareil {
   lireEtat(): EtatDeLAppareil;
@@ -88,7 +87,7 @@ export interface DependancesDuMagasin {
   /** Ouvre le canal entre onglets ; absent, l'onglet ne prévient ni n'est prévenu. */
   readonly ouvrirUnCanal?: ((nom: string) => CanalDeLAppareil) | undefined;
   /** Absent : aucun retrait possible, chaque demande rend un échec. */
-  readonly retirerDeLAppareil?: RetraitDeLAppareil | undefined;
+  readonly retirerDeLAppareil?: FonctionDeRetrait | undefined;
 }
 
 const SIGNALEMENT_D_UN_ABONNE =

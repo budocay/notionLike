@@ -104,6 +104,8 @@ describe("frontières du module de persistance", () => {
       "type EspaceInscrit",
       "type EtatPersistance",
       "type IssueDEffacement",
+      // F-032 : issue du retrait (AC20), seule définition, lue par l'espace et la synchronisation.
+      "type IssueDuRetrait",
       "type LectureDeLAppareil",
       "type LectureDuRegistre",
       "type Persistance",

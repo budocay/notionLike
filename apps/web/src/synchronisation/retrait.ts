@@ -2,10 +2,11 @@
 // ouverts sur cet espace sont prévenus par le canal du registre, selon le protocole de F-013-AC24
 // (`effacement`, puis `efface`) : ils ferment tout et se rechargent, une version de F-013 comprise.
 import { estUuidCanonique } from "../identifiants/uuid-canonique.ts";
+import type { IssueDuRetrait } from "../persistance/index.ts";
 import type { CanalEntreOnglets, Environnement } from "./environnement.ts";
 import { effacerEtOublierLEspace } from "./stockage.ts";
 
-export type IssueDuRetrait = "retire" | "echec";
+export type { IssueDuRetrait };
 
 export interface OptionsDuRetrait {
   readonly environnement: Pick<Environnement, "ouvrirUnCanal">;
