@@ -13,6 +13,7 @@ import {
   type EntreeDuRegistre,
   inscrireAuRegistre,
   type IssueDEffacement,
+  type IssueDuRetrait,
   type LectureDuRegistre,
   lireLeRegistre,
   nomDeBase,
@@ -22,7 +23,15 @@ import {
 } from "../persistance/index.ts";
 import type * as Y from "yjs";
 
-export type { DesignationDocument, Droit, EntreeDuRegistre, IssueDEffacement, Persistance };
+// F-032 : `IssueDuRetrait` pour retrait.ts, le module n'entrant dans la persistance que par ce fichier.
+export type {
+  DesignationDocument,
+  Droit,
+  EntreeDuRegistre,
+  IssueDEffacement,
+  IssueDuRetrait,
+  Persistance,
+};
 
 /** Le nom de la base d'un document, par la fonction de nommage de la persistance (AC16). */
 export function nomDeLaBase(designation: DesignationDocument): string {
