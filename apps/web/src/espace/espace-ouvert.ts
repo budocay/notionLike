@@ -212,7 +212,7 @@ class Pilote {
  * rend pas d'autre), autre que l'espace de l'appareil et inscrit au registre. Sinon `undefined` :
  * l'espace de l'appareil s'ouvre comme avant F-032 (F-032-AC17).
  */
-export function espaceRetenuOuvrable(appareil: EtatDeLAppareil): string | undefined {
+function espaceRetenuOuvrable(appareil: EtatDeLAppareil): string | undefined {
   const { retenu, espaceDeLAppareil, autres } = appareil;
   if (
     retenu === undefined ||

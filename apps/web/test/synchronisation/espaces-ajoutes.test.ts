@@ -20,7 +20,7 @@ import {
   lancerUnOnglet,
   type OngletReel,
   type SessionPrete,
-} from "./aides-onglet.ts";
+} from "./aides-onglet-reel.ts";
 import {
   adopterEtAttendre,
   type Appareil,
