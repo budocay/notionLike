@@ -10,6 +10,7 @@ import { idDeCarte, idDePile } from "./identifiants.ts";
 import type { Carte, Pile } from "./piles.ts";
 import {
   AFFICHER_PLUS,
+  afficherPlusDans,
   libelleDePile,
   nomDeLaPile,
   nomDesActions,
@@ -97,7 +98,11 @@ function PiedDePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pil
         surActivation={() => vue.actions.creer(pile)}
       />
       {masquees && (
-        <Bouton libelle={AFFICHER_PLUS} surActivation={() => vue.limites.plus(pile.option)} />
+        <Bouton
+          libelle={AFFICHER_PLUS}
+          nom={afficherPlusDans(libelle)}
+          surActivation={() => vue.limites.plus(pile.option)}
+        />
       )}
     </>
   );

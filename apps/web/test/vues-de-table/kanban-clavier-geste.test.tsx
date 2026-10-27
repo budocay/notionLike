@@ -100,7 +100,7 @@ describe("commandes au clavier (F-020-AC13, AC15)", () => {
     expect(document.activeElement).toBe(carte("Écrire"));
   });
 
-  it("F-020-AC15 les flèches déplacent le focus de carte en carte et de pile en pile sans rien écrire ; un seul arrêt de tabulation", async () => {
+  it("F-020-AC15 les flèches déplacent le focus de carte en carte et de pile en pile sans rien écrire ; un seul arrêt de tabulation parmi les cartes", async () => {
     const { utilisateur, emises } = rendreLeKanban(REPARTITION);
     expect(cartes().filter((une) => une.tabIndex === 0)).toHaveLength(1);
 
@@ -233,6 +233,30 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     expect(nomsDesPiles()).toContain("En cours, 0 carte");
   });
 
+  it("F-020-AC12 la pile survolée retirée par une mise à jour reçue pendant le geste : le lâcher n'écrit rien", async () => {
+    const { table, contenu, emises } = rendreLeKanban(REPARTITION);
+    await glisser("Écrire", [620, 300]);
+    const avant = emises.length;
+    act(() => table.retirerOption(contenu.statut, contenu.options[2] ?? ""));
+    const apres = emises.length;
+    expect(apres).toBeGreaterThan(avant);
+    expect(nomsDesPiles().some((nom) => nom.startsWith("Fait"))).toBe(false);
+    await lacher(620, 300);
+    expect(emises).toHaveLength(apres);
+    expect(titresDeLaPile("À faire, 2 cartes")).toContain("Écrire");
+  });
+
+  it("F-020-AC21 F-020-AC12 lâcher une carte sur sa propre place la laisse en place, l'annonce le dit (et non un abandon) et rien n'est écrit", async () => {
+    const { emises } = rendreLeKanban(REPARTITION);
+    await glisser("Écrire", [230, 50]);
+    await lacher(230, 50);
+    expect(emises).toHaveLength(0);
+    expect(titresDeLaPile("À faire, 2 cartes")).toEqual(["Écrire", "Relire"]);
+    const dits = document.body.textContent ?? "";
+    expect(dits).toContain("Écrire laissée à sa place.");
+    expect(dits).not.toContain("déplacement abandonné");
+  });
+
   it("F-020-AC12 F-020-AC25 pendant la saisie d'un titre, aucun geste ne démarre", async () => {
     const { utilisateur, emises } = rendreLeKanban(REPARTITION);
     carte("Écrire").focus();
@@ -329,6 +353,28 @@ describe("lecture seule (F-020-AC23)", () => {
     }
     expect(emises).toHaveLength(0);
     expect(Buffer.from(Y.encodeStateAsUpdate(table.doc)).equals(Buffer.from(avant))).toBe(true);
+
+    // Chaque commande est désactivée et dit pourquoi : « Nouvelle carte », puis les entrées du menu.
+    const nouvelle = screen.getByRole("button", { name: "Nouvelle carte dans la pile À faire" });
+    expect((nouvelle as HTMLButtonElement).disabled).toBe(true);
+    const idRaison = nouvelle.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(idRaison)?.textContent).toBe("Lecture seule");
+    // Le menu ouvert plus haut est toujours là : ses entrées restent désactivées.
+    const entrees = within(screen.getByRole("menu")).getAllByRole("menuitem");
+    expect(entrees).toHaveLength(6);
+    for (const entree of entrees) {
+      const desactivee =
+        (entree as HTMLButtonElement).disabled || entree.getAttribute("aria-disabled") === "true";
+      expect(desactivee).toBe(true);
+      const decrit = entree.getAttribute("aria-describedby") ?? "";
+      expect(document.getElementById(decrit)?.textContent).toBe("Lecture seule");
+    }
+    await utilisateur.keyboard("{Escape}");
+    // Une commande au clavier n'écrit rien et l'alerte dit « Lecture seule ».
+    carte("Écrire").focus();
+    await utilisateur.keyboard(DESCENDRE);
+    expect(screen.getByRole("alert").textContent).toContain("Lecture seule");
+    expect(emises).toHaveLength(0);
 
     // La navigation et « Regrouper par » restent utilisables.
     carte("Écrire").focus();

@@ -263,7 +263,7 @@ interface DonneesDeCible {
 
 function depotDe(evenement: DragMoveEvent): DepotSurUnePile | undefined {
   const { over, active } = evenement;
-  if (over === null || over.id === active.id) {
+  if (over === null) {
     return undefined;
   }
   const donnees = (over.data.current ?? {}) as DonneesDeCible;
@@ -272,8 +272,15 @@ function depotDe(evenement: DragMoveEvent): DepotSurUnePile | undefined {
     return { sorte: "pile", actif, pile: String(over.id), cible: undefined, zone: undefined };
   }
   const conteneur = donnees.sortable?.containerId;
+  if (typeof conteneur !== "string") {
+    return undefined;
+  }
+  // Sur sa propre place : la carte y reste (ni abandon, ni déplacement).
+  if (over.id === active.id) {
+    return { sorte: "carte", actif, pile: conteneur, cible: actif, zone: undefined };
+  }
   const ordonnee = ordonneeDuGeste(evenement);
-  if (typeof conteneur !== "string" || ordonnee === undefined) {
+  if (ordonnee === undefined) {
     return undefined;
   }
   const zone = moitieDuPoint({ haut: over.rect.top, hauteur: over.rect.height }, ordonnee);
@@ -281,7 +288,7 @@ function depotDe(evenement: DragMoveEvent): DepotSurUnePile | undefined {
 }
 
 function survolDuDepot(depot: DepotSurUnePile | undefined): Survol | undefined {
-  return depot === undefined
+  return depot === undefined || depot.cible === depot.actif
     ? undefined
     : {
         actif: depot.actif,
@@ -348,7 +355,8 @@ function useSuiviDesPiles(props: ProprietesPilesGlissables) {
     lacher: (evenement: DragMoveEvent) => {
       suivre(evenement);
       setSurvol(undefined);
-      if (dernier.current !== undefined) {
+      // Sur sa propre place, la carte reste où elle est : rien à écrire.
+      if (dernier.current !== undefined && dernier.current.cible !== dernier.current.actif) {
         recues.current.surLacher(dernier.current);
       }
     },

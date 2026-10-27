@@ -10,6 +10,7 @@ import {
   carteAuDessus,
   carteDansLaPile,
   carteDeposee,
+  carteLaissee,
   carteRelachee,
   carteSaisie,
   deplacementAbandonne,
@@ -61,10 +62,15 @@ export function annoncesDuKanban(piles: readonly Pile[]): AnnoncesDesPiles {
         ? carteDansLaPile(titreDe(actif), libelle)
         : carteAuDessus(titreDe(actif), libelle, titreDe(depot.cible), depot.zone === "avant");
     },
-    depot: (actif, depot) =>
-      depot === undefined
-        ? carteRelachee(titreDe(actif))
-        : carteDeposee(titreDe(actif), libelleDe(pileDe(depot))),
+    depot: (actif, depot) => {
+      if (depot === undefined) {
+        return carteRelachee(titreDe(actif));
+      }
+      // Relâchée sur sa propre place : elle y reste, ce n'est pas un abandon.
+      return depot.cible === depot.actif
+        ? carteLaissee(titreDe(actif))
+        : carteDeposee(titreDe(actif), libelleDe(pileDe(depot)));
+    },
     abandon: (actif) => deplacementAbandonne(titreDe(actif)),
   };
 }

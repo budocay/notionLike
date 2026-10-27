@@ -39,17 +39,21 @@ function ecrireOuRefuser(operation: () => void): ResultatDeDeplacement | undefin
 }
 
 interface Plan {
+  readonly sorte: "plan";
   readonly changeDePile: boolean;
   /** Position finale de la ligne parmi les lignes de la table ; `undefined` : elle reste où elle est. */
   readonly position: number | undefined;
 }
+
+/** L'issue d'une planification : un plan à écrire, ou déjà le résultat (refus, absence d'effet). */
+type ResultatOuPlan = Plan | ResultatDeDeplacement;
 
 // Ce qu'il faut écrire pour atteindre la destination, ou le refus ou l'absence d'effet.
 function planDe(
   contexte: ContexteDeDeplacement,
   carte: IdLigne,
   destination: Destination,
-): Plan | ResultatDeDeplacement {
+): ResultatOuPlan {
   const { lue, lignes, regroupement } = contexte;
   const piles = regrouper(lue, lignes, regroupement);
   const rang = lue.colonnes.findIndex(({ id }) => id === regroupement.id);
@@ -68,6 +72,7 @@ function planDe(
   }
   const ordre = lue.lignes.map(({ id }) => id);
   return {
+    sorte: "plan",
     changeDePile: optionDeLaLigne(ligne, rang, regroupement) !== destination.option,
     position: positionDansLaTable(ordre, carte, cartes, destination.precedente),
   };
@@ -79,17 +84,24 @@ export function deplacerUneCarte(
   destination: Destination,
 ): ResultatDeDeplacement {
   const plan = planDe(contexte, carte, destination);
-  if ("sorte" in plan) {
+  if (plan.sorte !== "plan") {
     return plan;
   }
   const { table, regroupement } = contexte;
   const { changeDePile, position } = plan;
-  const refus =
-    (changeDePile
-      ? ecrireOuRefuser(() => table.ecrireCellule(carte, regroupement.id, destination.option))
-      : undefined) ??
-    (position === undefined
-      ? undefined
-      : ecrireOuRefuser(() => table.deplacerLigne(carte, position)));
-  return refus ?? (changeDePile || position !== undefined ? { sorte: "deplacee" } : SANS_EFFET);
+  if (changeDePile) {
+    const refus = ecrireOuRefuser(() =>
+      table.ecrireCellule(carte, regroupement.id, destination.option),
+    );
+    if (refus !== undefined) {
+      return refus;
+    }
+  }
+  if (position !== undefined) {
+    const refus = ecrireOuRefuser(() => table.deplacerLigne(carte, position));
+    if (refus !== undefined) {
+      return refus;
+    }
+  }
+  return changeDePile || position !== undefined ? { sorte: "deplacee" } : SANS_EFFET;
 }

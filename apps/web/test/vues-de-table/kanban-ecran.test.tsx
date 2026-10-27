@@ -288,8 +288,11 @@ describe("piles longues (F-020-AC8)", () => {
     }
     expect(cartes()).toHaveLength(400);
 
+    // F-020-AC21 : chaque commande cite sa pile, pour que les quatre ne portent pas le même nom.
+    const noms = document.querySelectorAll("button[aria-label^='Afficher 100 cartes de plus']");
+    expect(new Set([...noms].map((un) => un.getAttribute("aria-label"))).size).toBe(4);
     const plus = within(pile("À faire, 1250 cartes")).getByRole("button", {
-      name: "Afficher 100 cartes de plus",
+      name: "Afficher 100 cartes de plus dans la pile À faire",
     });
     await utilisateur.click(plus);
     expect(within(pile("À faire, 1250 cartes")).getAllByRole("listitem")).toHaveLength(200);
@@ -298,14 +301,16 @@ describe("piles longues (F-020-AC8)", () => {
 
   it("F-020-AC8 une pile qui tient dans la page n'offre pas la commande", () => {
     rendreLeKanban(REPARTITION);
-    expect(screen.queryByRole("button", { name: "Afficher 100 cartes de plus" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Afficher 100 cartes de plus/ })).toBeNull();
     expect(annonceDeLaVue()).toBe("");
     expect(Y.encodeStateAsUpdate).toBeDefined();
   });
 });
 
 describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
-  it("F-020-AC16 F-020-AC27 F-019 n'étant pas livrée, la vue présente exactement les lignes qu'elle reçoit, dans leur ordre : un sous-ensemble réordonné (filtre, tri) donne les cartes et leur place", () => {
+  // Préparation seulement : prouve que la vue garde l'ordre des lignes reçues. Le cas « Tri actif »
+  // (AC16 complet) viendra à la fusion avec F-019, quand un tri existera.
+  it("F-020-AC16 (préparation) F-020-AC27 F-019 n'étant pas livrée, la vue présente exactement les lignes qu'elle reçoit, dans leur ordre : un sous-ensemble réordonné (filtre, tri) donne les cartes et leur place", () => {
     const lue: TableLue = {
       colonnes: [
         { id: "titre", nom: "Titre", type: "texte", options: [] },

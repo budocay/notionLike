@@ -105,6 +105,14 @@ export function carteRelachee(titre: string) {
   return `${titreDeCarte(titre)} relâchée hors d'une pile : déplacement abandonné.`;
 }
 
+export function carteLaissee(titre: string) {
+  return `${titreDeCarte(titre)} laissée à sa place.`;
+}
+
+export function afficherPlusDans(libelle: string | null): string {
+  return `${AFFICHER_PLUS} dans la pile ${libelleDePile(libelle)}`;
+}
+
 export function deplacementAbandonne(titre: string) {
   return `Déplacement de la carte ${titreDeCarte(titre)} abandonné.`;
 }
