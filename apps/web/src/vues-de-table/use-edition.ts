@@ -5,6 +5,7 @@ import type { ColonneLue, DocumentTable, LigneLue } from "@notionlike/document";
 import { type RefObject, useRef, useState } from "react";
 
 import { texteDEdition } from "./affichage.ts";
+import { type Surveillance } from "./ecritures.ts";
 import type { Edition, Suite } from "./grille.ts";
 import type { Position } from "./navigation-grille.ts";
 import {
@@ -46,6 +47,8 @@ interface Options {
   readonly colonnes: readonly ColonneLue[];
   /** Raison de la lecture seule : aucun mode édition n'est ouvert (F-018-AC52). */
   readonly lectureSeule: string | undefined;
+  /** Les écritures de cellule passent par l'entonnoir `ecrire` avec cette surveillance (F-019-AC17). */
+  readonly surveillance: Surveillance;
   /** Après une validation : la cellule courante suit la suite demandée. */
   readonly apres: (suite: Suite) => void;
 }
@@ -168,7 +171,9 @@ function valider(ouverte: Edition | undefined, moyens: Moyens, suite: Suite): bo
   } else {
     const cible = moyens.cible(ouverte);
     refus =
-      cible === undefined ? undefined : validerLeChamp(moyens.options.table, cible, ouverte.texte);
+      cible === undefined
+        ? undefined
+        : validerLeChamp(moyens.options.table, cible, ouverte.texte, moyens.options.surveillance);
   }
   if (refus !== undefined) {
     moyens.poser({ ...ouverte, erreur: refus });
@@ -187,7 +192,7 @@ function choisir(ouverte: Edition | undefined, moyens: Moyens, rang: number): vo
   moyens.poser(undefined);
   if (cible !== undefined) {
     const option = rang === 0 ? undefined : cible.colonne.options[rang - 1];
-    ecrireLaValeur(moyens.options.table, cible, option?.id ?? null);
+    ecrireLaValeur(moyens.options.table, cible, option?.id ?? null, moyens.options.surveillance);
   }
   moyens.options.apres("rester");
 }

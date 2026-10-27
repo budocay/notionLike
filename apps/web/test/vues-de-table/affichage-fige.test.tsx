@@ -1,8 +1,8 @@
 // Lignes affichées sous une définition (F-019-AC15 à AC19, AC20) : fenêtre et navigation sur les
 // lignes affichées, mises à jour reçues, affichage figé, déplacement d'une ligne, rechargement.
-import type { DocumentTable } from "@notionlike/document";
+import { type DocumentTable, ErreurDocument } from "@notionlike/document";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EcranDeTable } from "../../src/vues-de-table/index.ts";
 import { ESPACE_A } from "../aides-persistance.ts";
@@ -25,7 +25,12 @@ import {
   TABLE_D_ESSAI,
 } from "./aides-grille.tsx";
 
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
+
+const REAPPLIQUER = "Réappliquer les filtres et les tris";
 
 function rouvrir(table: DocumentTable): void {
   cleanup();
@@ -199,6 +204,73 @@ describe("affichage figé (F-019-AC17, AC18)", () => {
     ).toBeNull();
   });
 
+  it("F-019-AC17 une écriture refusée par le document sous un filtre actif ne fige rien : les lignes restent recalculées", async () => {
+    const { table, utilisateur } = rendreLaTable(remplirSixLignes);
+    await filtrer(utilisateur, { depart: "Nom", cible: "Prix" }, "=", "7");
+    vi.spyOn(table, "ecrireCellule").mockImplementation(() => {
+      throw new ErreurDocument("valeur-non-conforme", "refus");
+    });
+    cellule(2, 3).focus();
+    await utilisateur.keyboard("8{Enter}");
+
+    expect(table.lire().lignes[2]?.cellules[1]).toBe(7);
+    expect(screen.queryByRole("button", { name: REAPPLIQUER })).toBeNull();
+    expect(horsFiltre()).toEqual([]);
+    // Pas figé : une ligne reçue qui satisfait le filtre apparaît aussitôt.
+    recevoirDansLaTable(table, (replique) => {
+      const prix = replique.lire().colonnes.find(({ nom }) => nom === "Prix");
+      replique.creerLigne(new Map([[prix?.id ?? "", 7]]));
+    });
+    expect(noms()).toEqual(["École", "ecole", ""]);
+  });
+
+  it.each([
+    ["vider une cellule (Suppr)", 3, "{Delete}"],
+    ["cocher une case (Espace)", 5, " "],
+  ])(
+    "F-019-AC17 %s depuis l'onglet fige l'affichage sous un filtre actif",
+    async (_geste, colonne, touches) => {
+      const { utilisateur } = rendreLaTable(remplirSixLignes);
+      await filtrer(utilisateur, { depart: "Nom", cible: "Nom" }, "contient", "ecole");
+      cellule(2, colonne).focus();
+      await utilisateur.keyboard(touches);
+      expect(screen.getByRole("button", { name: REAPPLIQUER })).toBeTruthy();
+    },
+  );
+
+  it("F-019-AC27 activer « Réappliquer » démonte le bouton : le focus va à « Ajouter un filtre »", async () => {
+    const { utilisateur } = await figee();
+    const reappliquer = within(barre("Filtres")).getByRole("button", { name: REAPPLIQUER });
+    reappliquer.focus();
+    await utilisateur.keyboard("{Enter}");
+
+    expect(screen.queryByRole("button", { name: REAPPLIQUER })).toBeNull();
+    expect(document.activeElement).toBe(
+      within(barre("Filtres")).getByRole("button", { name: "Ajouter un filtre" }),
+    );
+  });
+
+  it("F-019-AC18 la colonne des actions garde sa largeur de F-018 (72 px) et ne s'élargit à 144 px que pour la mention « Hors filtre »", async () => {
+    const { utilisateur } = rendreLaTable(remplirSixLignes);
+    expect(cellule(1, 1).style.width).toBe("72px");
+    await filtrer(utilisateur, { depart: "Nom", cible: "Prix" }, "=", "7");
+    expect(cellule(1, 1).style.width).toBe("72px");
+    expect(cellule(2, 1).style.width).toBe("72px");
+    const colonnes = 5 * 180;
+    expect(rangees()[1]?.style.width).toBe(`${String(72 + colonnes)}px`);
+
+    cellule(2, 3).focus();
+    await utilisateur.keyboard("8{Enter}");
+    expect(horsFiltre()).toHaveLength(1);
+    expect(cellule(1, 1).style.width).toBe("144px");
+    expect(cellule(2, 1).style.width).toBe("144px");
+    expect(cellule(3, 1).style.width).toBe("144px");
+    expect(rangees()[1]?.style.width).toBe(`${String(144 + colonnes)}px`);
+
+    await utilisateur.click(within(barre("Filtres")).getByRole("button", { name: REAPPLIQUER }));
+    expect(cellule(1, 1).style.width).toBe("72px");
+  });
+
   it("F-019-AC17 sans filtre ni tri actif, une modification ne fige rien", async () => {
     const { utilisateur } = rendreLaTable(remplirSixLignes);
     cellule(2, 3).focus();
@@ -270,6 +342,21 @@ describe("déplacer une ligne sous une définition (F-019-AC19)", () => {
       "Banane",
       "Cerise",
     ]);
+  });
+});
+
+describe("déplacer une ligne sous un affichage figé (F-019-AC19)", () => {
+  it("F-019-AC19 la ligne déplacée prend la place de la ligne affichée voisine dans la liste figée", async () => {
+    const rendue = rendreLaTable(remplirSixLignes);
+    await filtrer(rendue.utilisateur, { depart: "Nom", cible: "Prix" }, "=", "7");
+    cellule(2, 3).focus();
+    await rendue.utilisateur.keyboard("8{Enter}");
+    expect(noms()).toEqual(["École", "ecole"]);
+
+    cellule(3, 2).focus();
+    await rendue.utilisateur.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
+    expect(noms()).toEqual(["ecole", "École"]);
+    expect(screen.getByRole("button", { name: REAPPLIQUER })).toBeTruthy();
   });
 });
 

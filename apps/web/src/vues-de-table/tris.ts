@@ -1,7 +1,13 @@
 // Tris d'une définition (F-019-AC7 à AC10) : l'état d'un tri dans la table lue, et l'ordre de deux
 // lignes. Ordre total et identique sur tout appareil : les égalités passent au tri suivant, puis à
 // l'ordre manuel de la table lue. Sans langue ni fuseau de l'appareil (AC11).
-import type { ColonneLue, LigneLue, TableLue, ValeurDeCellule } from "@notionlike/document";
+import type {
+  ColonneLue,
+  IdColonne,
+  LigneLue,
+  TableLue,
+  ValeurDeCellule,
+} from "@notionlike/document";
 
 import {
   comparerLesTextes,
@@ -46,7 +52,7 @@ function comparerLesCles(a: NonNullable<Cle>, b: NonNullable<Cle>): number {
   return 0;
 }
 
-export interface TriCompile {
+interface TriCompile {
   readonly rang: number;
   readonly colonne: ColonneLue;
   readonly decroissant: boolean;
@@ -72,7 +78,25 @@ export function compilerLesTris(
   return compiles;
 }
 
-export interface LigneARanger {
+/** Le sens du tri d'une colonne et son rang parmi les tris actifs (1 : le principal, F-019-AC12). */
+export interface TriDeColonne {
+  readonly sens: "croissant" | "decroissant";
+  readonly rang: number;
+}
+
+/** Le tri actif de cette colonne dans `tris` (sortie de `compilerLesTris`), s'il y en a un. */
+export function triDeLaColonne(
+  tris: readonly TriCompile[],
+  colonne: IdColonne,
+): TriDeColonne | undefined {
+  const indice = tris.findIndex(({ colonne: une }) => une.id === colonne);
+  const tri = tris[indice];
+  return tri === undefined
+    ? undefined
+    : { sens: tri.decroissant ? "decroissant" : "croissant", rang: indice + 1 };
+}
+
+interface LigneARanger {
   readonly ligne: LigneLue;
   /** Place dans l'ordre manuel de la table lue : départage les égalités (AC10). */
   readonly ordre: number;

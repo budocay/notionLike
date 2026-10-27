@@ -24,9 +24,11 @@ import type { Moyens } from "./actions.ts";
 import type { Boite, Suite } from "./grille.ts";
 import { cleDeCellule } from "./courante.ts";
 import { DEFINITION_VIDE, type Definition } from "./definition.ts";
+import { SANS_SURVEILLANCE, type Surveillance } from "./ecritures.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "./menu-de-grille.ts";
 import { deplacer, type Position } from "./navigation-grille.ts";
 import { CELLULE_SUPPRIMEE } from "./textes.ts";
+import type { TriDeColonne } from "./tris.ts";
 import { type CouranteDeLaGrille, useCourante } from "./use-courante.ts";
 import { type EditionDeLaGrille, useEdition } from "./use-edition.ts";
 import { type FenetreDeLaGrille, useFenetre } from "./use-fenetre.ts";
@@ -44,11 +46,8 @@ export interface DefinitionDeLaVue {
   readonly triActif: boolean;
   /** Sens du tri d'une colonne et son rang parmi les tris actifs (1 : le principal, AC12). */
   readonly triDe: (colonne: IdColonne) => TriDeColonne | undefined;
-}
-
-export interface TriDeColonne {
-  readonly sens: "croissant" | "decroissant";
-  readonly rang: number;
+  /** Signale au calcul des lignes affichées les écritures de l'onglet (cellule, ligne créée ou déplacée, AC17). */
+  readonly surveillance: Surveillance;
 }
 
 const SANS_DEFINITION: DefinitionDeLaVue = {
@@ -60,6 +59,7 @@ const SANS_DEFINITION: DefinitionDeLaVue = {
   horsFiltre: new Set(),
   triActif: false,
   triDe: () => undefined,
+  surveillance: SANS_SURVEILLANCE,
 };
 
 export interface ProprietesVueTableau {
@@ -263,14 +263,15 @@ function useNavigationEtSaisie(proprietes: ProprietesVueTableau) {
   const courante = useCourante({ lignes, colonnes, grille: cadre, amener: fenetre.amener });
   const apres = (suite: Suite): void =>
     apresLaValidation(courante, fenetre, { lignes, colonnes }, suite);
-  const edition = useEdition({ table, lignes, colonnes, lectureSeule, apres });
+  const surveillance = proprietes.definition?.surveillance ?? SANS_SURVEILLANCE;
+  const edition = useEdition({ table, lignes, colonnes, lectureSeule, surveillance, apres });
   return { colonnes, cadre, fenetre, courante, edition };
 }
 
 // Ce dont les commandes ont besoin (`actions.ts`) : la table, sa lecture, où dire et focaliser.
 function moyensDe(
   { table, lue, lignes, lectureSeule }: ProprietesVueTableau,
-  triActif: boolean,
+  definition: DefinitionDeLaVue,
   courante: CouranteDeLaGrille,
   messages: ReturnType<typeof useMessages>,
   versLInvitation: RefObject<boolean>,
@@ -280,7 +281,8 @@ function moyensDe(
     lue,
     lignes,
     lectureSeule,
-    triActif,
+    triActif: definition.triActif,
+    surveillance: definition.surveillance,
     allerVers: courante.allerVers,
     annoncer: messages.annoncer,
     signaler: messages.signaler,
@@ -318,7 +320,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
     alerte: alerteAffichee(edition, messages.alerte),
     idAlerte: messages.idAlerte,
     invitation,
-    moyens: moyensDe(proprietes, definition.triActif, courante, messages, versLInvitation),
+    moyens: moyensDe(proprietes, definition, courante, messages, versLInvitation),
   };
 }
 

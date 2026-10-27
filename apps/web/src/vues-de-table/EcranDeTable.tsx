@@ -8,14 +8,14 @@ import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
 import { SelecteurDeVues } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
-import { aUnTriActif, nombreDeLignes } from "./lignes-affichees.ts";
+import { nombreDeLignes } from "./lignes-affichees.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
   SELECTEUR_DE_VUES,
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
-import { compilerLesTris } from "./tris.ts";
+import { compilerLesTris, triDeLaColonne } from "./tris.ts";
 import { useAffichage } from "./use-affichage.ts";
 import { useReglages } from "./use-reglages.ts";
 import { avecSelecteur, VUES } from "./vues.ts";
@@ -46,7 +46,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
   const reglages = useReglages(props, lue?.colonnes.map(({ id }) => id) ?? []);
   const { definition } = reglages;
-  const affichage = useAffichage(table, lue, definition, reglages.vueActive);
+  const affichage = useAffichage(lue, definition, reglages.vueActive);
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
@@ -54,7 +54,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
   return (
     <VueTableau
-      table={affichage.table}
+      table={table}
       lue={lue}
       lignes={affichage.lignes}
       definition={{
@@ -64,14 +64,9 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
         fige: affichage.fige,
         reappliquer: affichage.reappliquer,
         horsFiltre: affichage.horsFiltre,
-        triActif: aUnTriActif(lue, definition),
-        triDe: (colonne) => {
-          const rang = tris.findIndex(({ colonne: une }) => une.id === colonne);
-          const tri = tris[rang];
-          return tri === undefined
-            ? undefined
-            : { sens: tri.decroissant ? "decroissant" : "croissant", rang: rang + 1 };
-        },
+        triActif: tris.length > 0,
+        triDe: (colonne) => triDeLaColonne(tris, colonne),
+        surveillance: affichage.surveillance,
       }}
       titre={props.titre}
       lectureSeule={props.lectureSeule}

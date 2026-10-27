@@ -228,7 +228,7 @@ export const LIBELLES_DES_SENS: Readonly<Record<SensDeTri, string>> = {
 };
 
 /** La colonne visée par un élément, ou « la colonne supprimée » quand la table ne la porte plus. */
-export function colonneCitee(nom: string | undefined): string {
+function colonneCitee(nom: string | undefined): string {
   return nom === undefined ? "la colonne supprimée" : nomAffiche(nom);
 }
 export function nomDeLaColonneDuFiltre(nom: string | undefined): string {

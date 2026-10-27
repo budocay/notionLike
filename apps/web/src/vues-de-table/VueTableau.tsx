@@ -17,7 +17,8 @@ import { BoiteOuverte } from "./Boites.tsx";
 import { ChoixDeCellule } from "./ChoixDeCellule.tsx";
 import { surToucheDeLaGrille } from "./clavier.ts";
 import { RangeeDesEnTetes } from "./EnTetes.tsx";
-import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, LARGEUR_DES_ACTIONS } from "./grille.ts";
+import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, largeurDesActions } from "./grille.ts";
+import { filtresSansResultat } from "./lignes-affichees.ts";
 import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
 import {
@@ -79,7 +80,8 @@ function MenuOuvert({ vue }: { readonly vue: Vue }): ReactElement | null {
 function GrilleDeLaTable({ vue }: { readonly vue: Vue }): ReactElement {
   const { lignes, titre, largeurDe } = vue.proprietes;
   const largeur =
-    LARGEUR_DES_ACTIONS + vue.colonnes.reduce((somme, { id }) => somme + largeurDe(id), 0);
+    largeurDesActions(vue.definition.horsFiltre.size > 0) +
+    vue.colonnes.reduce((somme, { id }) => somme + largeurDe(id), 0);
   return (
     <Grille
       nom={nomDeLaGrille(titre)}
@@ -133,11 +135,10 @@ function Outils({ vue }: { readonly vue: Vue }): ReactElement | undefined {
   );
 }
 
-// Les filtres excluent toutes les lignes d'une table qui en a : l'affichage figé garde, lui, les
-// lignes qu'il portait (AC17).
-function filtresSansResultat(vue: Vue): boolean {
+// L'affichage figé garde, lui, les lignes qu'il portait (AC17) : l'état vide n'y est pas dit.
+function etatVide(vue: Vue): boolean {
   const { definition, total, fige } = vue.definition;
-  return vue.proprietes.lignes.length === 0 && total > 0 && !fige && definition.filtres.length > 0;
+  return !fige && filtresSansResultat(vue.proprietes.lignes.length, total, definition);
 }
 
 export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
@@ -166,7 +167,7 @@ export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
       ) : (
         <>
           <GrilleDeLaTable vue={vue} />
-          {filtresSansResultat(vue) && <InvitationDeTable texte={AUCUNE_LIGNE_CORRESPONDANTE} />}
+          {etatVide(vue) && <InvitationDeTable texte={AUCUNE_LIGNE_CORRESPONDANTE} />}
         </>
       )}
       <BoiteOuverte vue={vue} />

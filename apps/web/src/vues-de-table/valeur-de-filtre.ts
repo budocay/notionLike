@@ -10,7 +10,7 @@ import { LIMITE_DE_VALEUR, type ValeurDeFiltre } from "./definition.ts";
 import { analyserNombre } from "./saisie.ts";
 import { DATE_INVALIDE, NOMBRE_INVALIDE, VALEUR_DE_FILTRE_TROP_LONGUE } from "./textes.ts";
 
-export type AnalyseDeFiltre =
+type AnalyseDeFiltre =
   | { readonly sorte: "valeur"; readonly valeur: ValeurDeFiltre | undefined }
   | { readonly sorte: "refus"; readonly message: string };
 

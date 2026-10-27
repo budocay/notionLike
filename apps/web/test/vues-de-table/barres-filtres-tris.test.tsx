@@ -27,6 +27,7 @@ import {
 afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function libellesDuChoix(nom: string): string[] {
@@ -101,6 +102,41 @@ describe("barre « Filtres » (F-019-AC1, AC6)", () => {
     await ajouterUnFiltre(utilisateur);
 
     expect(noms()).toHaveLength(6);
+  });
+
+  it("F-019-AC1 un filtre ajouté à une table dont la première colonne est une case reste sans effet tant que l'utilisateur n'a pas choisi", async () => {
+    const { utilisateur } = rendreLaTable((une) => {
+      const fait = une.creerColonne("Fait", "case");
+      const nom = une.creerColonne("Nom", "texte");
+      une.creerLigne(
+        new Map<string, string | number | boolean>([
+          [fait, true],
+          [nom, "a"],
+        ]),
+      );
+      une.creerLigne(new Map([[nom, "b"]]));
+    });
+    await ajouterUnFiltre(utilisateur);
+
+    expect(rangees()).toHaveLength(3);
+    expect(barre("Filtres").textContent).toContain("1 filtre · 2 lignes sur 2");
+    // Le filtre est sur la première colonne qui demande une valeur : il attend sa saisie.
+    expect(screen.getByRole("textbox", { name: "Valeur du filtre sur Nom" })).toBeTruthy();
+    await utilisateur.type(
+      screen.getByRole("textbox", { name: "Valeur du filtre sur Nom" }),
+      "a{Enter}",
+    );
+    expect(rangees()).toHaveLength(2);
+  });
+
+  it("F-019-AC1 sur une table qui ne compte que des cases, le filtre ajouté est sur la première colonne", async () => {
+    const { utilisateur } = rendreLaTable((une) => {
+      une.creerColonne("Fait", "case");
+      une.creerColonne("Relu", "case");
+      une.creerLigne();
+    });
+    await ajouterUnFiltre(utilisateur);
+    expect(screen.getByRole("combobox", { name: "Colonne du filtre sur Fait" })).toBeTruthy();
   });
 
   it("F-019-AC6 filtrer sur une option affiche les lignes et le compte « N lignes sur M », annoncé ; modifier, retirer et « Tout effacer » recalculent aussitôt", async () => {
@@ -440,7 +476,6 @@ describe("clavier et réseau (F-019-AC27)", () => {
 
     expect(fetch).not.toHaveBeenCalled();
     expect(socket).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it("F-019-AC21 F-019-AC27 ajouter, modifier et retirer filtres et tris n'écrit rien dans le document de table, octet pour octet", async () => {

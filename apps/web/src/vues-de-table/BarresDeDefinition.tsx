@@ -24,6 +24,7 @@ import {
 } from "./definition.ts";
 import { BarreDesTris } from "./BarreDesTris.tsx";
 import { etatDuFiltre } from "./filtres.ts";
+import { filtresSansResultat } from "./lignes-affichees.ts";
 import {
   AFFICHAGE_FIGE,
   AJOUTER_UN_FILTRE,
@@ -251,11 +252,17 @@ function ValeurDuFiltre(props: PropsDeValeur): ReactElement {
   );
 }
 
-// Un filtre commence sur la première colonne, avec le premier opérateur de son type (AC1).
+// Un filtre commence sur la première colonne dont le premier opérateur demande une valeur, sinon
+// sur la première colonne : sans valeur, il reste sans effet jusqu'à ce que l'utilisateur choisisse
+// (AC1). Une colonne `case` n'en offre pas, son premier opérateur n'en demande aucune.
 function ajouterUnFiltre(vue: VueTableau): void {
   const { lue } = vue.proprietes;
   const { definition, changer } = vue.definition;
-  const colonne = lue.colonnes[0];
+  const colonne =
+    lue.colonnes.find(({ type }) => {
+      const premier = operateursDe(type)[0];
+      return premier !== undefined && demandeUneValeur(premier);
+    }) ?? lue.colonnes[0];
   const operateur = colonne === undefined ? undefined : operateursDe(colonne.type)[0];
   if (definition.filtres.length >= LIMITE_DE_FILTRES) {
     vue.moyens.signaler(TROP_DE_FILTRES);
@@ -271,7 +278,7 @@ function ajouterUnFiltre(vue: VueTableau): void {
 function BarreDesFiltres({ vue }: Props): ReactElement {
   const { lignes } = vue.proprietes;
   const { definition, changer, total, fige, reappliquer } = vue.definition;
-  const focus = useFocusDeLaListe(definition);
+  const focus = useFocusDeLaListe(definition, fige);
   return (
     <BarreDeDefinition
       nom={FILTRES}
@@ -295,7 +302,16 @@ function BarreDesFiltres({ vue }: Props): ReactElement {
               }}
             />
           )}
-          {fige && <Bouton libelle={REAPPLIQUER} surActivation={reappliquer} />}
+          {fige && (
+            <Bouton
+              libelle={REAPPLIQUER}
+              surActivation={() => {
+                // Le bouton activé disparaît avec l'affichage figé : le focus va à « Ajouter ».
+                focus.apres([AJOUTER]);
+                reappliquer();
+              }}
+            />
+          )}
         </>
       }
     >
@@ -320,7 +336,7 @@ function useAnnoncesDeLaDefinition(vue: VueTableau): void {
   const annoncerLeCompte = useEffectEvent(() => {
     const compte = lignesSurTotal(lignes.length, total);
     // Les filtres excluent toutes les lignes : l'état vide de la grille est dit avec le compte.
-    const vide = lignes.length === 0 && total > 0 && definition.filtres.length > 0;
+    const vide = filtresSansResultat(lignes.length, total, definition);
     vue.moyens.annoncer(vide ? `${compte}. ${AUCUNE_LIGNE_CORRESPONDANTE}` : compte);
   });
   const annoncerLAffichageFige = useEffectEvent(() => vue.moyens.annoncer(AFFICHAGE_FIGE));

@@ -19,7 +19,7 @@ import { estCochee, texteAffiche } from "./affichage.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
 import { cleDeCellule } from "./courante.ts";
 import { indicesRendus } from "./fenetre.ts";
-import { HAUTEUR_DE_RANGEE, LARGEUR_DES_ACTIONS } from "./grille.ts";
+import { HAUTEUR_DE_RANGEE, largeurDesActions } from "./grille.ts";
 import {
   HORS_FILTRE,
   nomActionsDeLaLigne,
@@ -133,7 +133,7 @@ function CelluleDActions(props: {
     <CelluleDeGrille
       role="rowheader"
       indiceDeColonne={1}
-      largeur={LARGEUR_DES_ACTIONS}
+      largeur={largeurDesActions(vue.definition.horsFiltre.size > 0)}
       courante={courante.rang === rang && courante.colonne === 0}
       refCellule={vue.courante.refCellule(cle)}
       surFocus={() => vue.courante.devenirCourante(place)}

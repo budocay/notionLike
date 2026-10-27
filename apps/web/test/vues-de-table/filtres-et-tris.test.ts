@@ -177,7 +177,7 @@ describe("tris (F-019-AC8, AC9, AC10)", () => {
     expect(ids(lignesAffichees(totalement, definition([], tri)))).toEqual(["l0", "l1", "l2"]);
   });
 
-  it("F-019-AC8 le sens décroissant inverse l'ordre sur la liste témoin, les cellules sans valeur restent derrière", () => {
+  it("F-019-AC8 F-019-AC11 le sens décroissant inverse l'ordre sur la liste témoin, les cellules sans valeur restent derrière", () => {
     const temoin = table(
       [colonne("t", "texte")],
       LISTE_TEMOIN.map((valeur) => [valeur]),
@@ -191,6 +191,31 @@ describe("tris (F-019-AC8, AC9, AC10)", () => {
     expect(rendu("decroissant")).toEqual([...valeurs.toReversed(), "", null]);
   });
 });
+
+const RACINES_DU_CALCUL = [
+  "lignes-affichees.ts",
+  "use-affichage.ts",
+  "valeur-de-filtre.ts",
+  "positions.ts",
+];
+
+/** Les fichiers du module des vues de table atteints depuis `racines` par leurs imports relatifs. */
+function fichiersAtteintsDepuis(racines: readonly string[]): Set<string> {
+  const vus = new Set<string>();
+  const afaire = [...racines];
+  for (let fichier = afaire.pop(); fichier !== undefined; fichier = afaire.pop()) {
+    if (vus.has(fichier)) {
+      continue;
+    }
+    vus.add(fichier);
+    for (const [, importe = ""] of lire(`src/vues-de-table/${fichier}`).matchAll(
+      /from\s+"\.\/([^"]+\.tsx?)"/g,
+    )) {
+      afaire.push(importe);
+    }
+  }
+  return vus;
+}
 
 describe("indépendance à la langue de l'appareil (F-019-AC11)", () => {
   it("F-019-AC11 la clé de comparaison retire les seuls signes U+0300 à U+036F, avec veille du 2026-10-27", () => {
@@ -209,15 +234,13 @@ describe("indépendance à la langue de l'appareil (F-019-AC11)", () => {
   });
 
   it("F-019-AC11 aucune source du calcul n'appelle Intl, localeCompare, toLocale… ni ne lit la langue ou le fuseau", () => {
-    const fichiers = [
-      "cle-de-comparaison.ts",
-      "date-du-calendrier.ts",
-      "definition.ts",
-      "filtres.ts",
-      "tris.ts",
-      "lignes-affichees.ts",
-      "positions.ts",
-    ];
+    // Les fichiers lus : ceux du calcul et de l'affichage figé, et tout ce qu'ils importent, de proche
+    // en proche ; un import ajouté plus tard est lu lui aussi.
+    const fichiers = [...fichiersAtteintsDepuis(RACINES_DU_CALCUL)];
+    expect(fichiers).toEqual(
+      expect.arrayContaining(["lignes-affichees.ts", "use-affichage.ts", "valeur-de-filtre.ts"]),
+    );
+    expect(fichiers.length).toBeGreaterThan(RACINES_DU_CALCUL.length);
     for (const fichier of fichiers) {
       const texte = lire(`src/vues-de-table/${fichier}`).replace(/\/\/.*$|\/\*[^]*?\*\//gm, "");
       expect(texte, fichier).not.toMatch(

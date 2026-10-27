@@ -31,14 +31,24 @@ export function lignesAffichees(
   return retenues.map(({ ligne }) => ligne);
 }
 
-/** Vrai si au moins un tri de la définition a un effet sur cette table lue : l'ordre manuel est masqué. */
-export function aUnTriActif(table: TableLue, definition: Definition): boolean {
-  return compilerLesTris(table, definition.tris).length > 0;
-}
-
 /** Vrai si au moins un filtre ou un tri de la définition a un effet sur cette table lue (AC17). */
 export function aUnElementActif(table: TableLue, definition: Definition): boolean {
-  return compilerLesFiltres(table, definition.filtres).length > 0 || aUnTriActif(table, definition);
+  return (
+    compilerLesFiltres(table, definition.filtres).length > 0 ||
+    compilerLesTris(table, definition.tris).length > 0
+  );
+}
+
+/**
+ * Vrai quand les filtres excluent toutes les lignes d'une table qui en a (AC6) : `affichees` lignes
+ * affichées sur `total` lignes lues. Une seule règle pour l'état vide de la grille et pour l'annonce.
+ */
+export function filtresSansResultat(
+  affichees: number,
+  total: number,
+  definition: Definition,
+): boolean {
+  return affichees === 0 && total > 0 && definition.filtres.length > 0;
 }
 
 /** Les lignes de la table lue qui ne satisfont plus les filtres actifs, parmi `affichees` (AC18). */
@@ -77,13 +87,24 @@ export function nombreDeLignes(table: TableLue): number {
   return table.lignes.length;
 }
 
-/** L'identifiant de la ligne qui occupe aujourd'hui cette position de l'ordre manuel. */
-export function identifiantALaPosition(table: TableLue, position: number): IdLigne | undefined {
-  return table.lignes[position]?.id;
-}
+/** Les identifiants des lignes d'un affichage figé, dans leur ordre ; `undefined` : l'affichage est calculé (AC17). */
+export type EtatFige = readonly IdLigne[] | undefined;
 
-/** `ids` où `ligne` prend la place qu'occupe `voisine`, comme le document place une ligne déplacée. */
-export function deplacerDansLaListe(
+/** Ce qui change l'affichage figé (AC17 à AC19) ; les écritures de l'onglet seules figent. */
+type EvenementLocal =
+  /** Avant une écriture de cellule ou une création de ligne : `ids` sont les lignes affichées, `actif` un filtre ou un tri a un effet. */
+  | { readonly sorte: "ecriture"; readonly ids: readonly IdLigne[]; readonly actif: boolean }
+  /** Une ligne créée dans l'onglet : en dernière place, même hors filtre. */
+  | { readonly sorte: "creee"; readonly ligne: IdLigne }
+  /** Une ligne déplacée prend la place de `voisine`, la ligne affichée voisine. */
+  | { readonly sorte: "deplacee"; readonly ligne: IdLigne; readonly voisine: IdLigne }
+  /** Le document a refusé l'écriture : l'état d'avant revient. */
+  | { readonly sorte: "refusee"; readonly avant: EtatFige }
+  /** « Réappliquer », définition modifiée, vue changée ou table rouverte : l'affichage est recalculé. */
+  | { readonly sorte: "recalcul" };
+
+/** `ids` où `ligne` prend la place qu'occupe `voisine`. */
+function deplacerDansLaListe(
   ids: readonly IdLigne[],
   ligne: IdLigne,
   voisine: IdLigne,
@@ -94,4 +115,22 @@ export function deplacerDansLaListe(
   }
   const sans = ids.filter((id) => id !== ligne);
   return [...sans.slice(0, destination), ligne, ...sans.slice(destination)];
+}
+
+/** La transition de l'affichage figé : pure, sans table ni React (AC17 à AC19, H6, H11). */
+export function etatFigeApres(etat: EtatFige, evenement: EvenementLocal): EtatFige {
+  switch (evenement.sorte) {
+    case "ecriture":
+      return etat ?? (evenement.actif ? evenement.ids : undefined);
+    case "creee":
+      return etat === undefined ? undefined : [...etat, evenement.ligne];
+    case "deplacee":
+      return etat === undefined
+        ? undefined
+        : deplacerDansLaListe(etat, evenement.ligne, evenement.voisine);
+    case "refusee":
+      return evenement.avant;
+    case "recalcul":
+      return undefined;
+  }
 }

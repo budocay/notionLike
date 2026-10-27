@@ -14,7 +14,7 @@ import {
 import { ChampDEdition } from "./ChampDEdition.tsx";
 import { Separateur } from "./Separateur.tsx";
 import { cleDeCellule } from "./courante.ts";
-import { HAUTEUR_DE_RANGEE, LARGEUR_DES_ACTIONS } from "./grille.ts";
+import { HAUTEUR_DE_RANGEE, largeurDesActions } from "./grille.ts";
 import {
   ACTIONS_DES_LIGNES,
   nomActionsDeLaColonne,
@@ -126,7 +126,7 @@ export function RangeeDesEnTetes({ vue }: { readonly vue: VueTableau }): ReactEl
       <CelluleDeGrille
         role="columnheader"
         indiceDeColonne={1}
-        largeur={LARGEUR_DES_ACTIONS}
+        largeur={largeurDesActions(vue.definition.horsFiltre.size > 0)}
         courante={place.rang === 0 && place.colonne === 0}
         refCellule={vue.courante.refCellule(cleDeCellule(null, null))}
         surFocus={() => vue.courante.devenirCourante({ rang: 0, colonne: 0 })}

@@ -16,10 +16,10 @@ import {
 } from "./definition.ts";
 
 type Cellule = ValeurDeCellule | null;
-export type MentionDInactif = "colonne-supprimee" | "option-supprimee";
+type MentionDInactif = "colonne-supprimee" | "option-supprimee";
 
 /** Un filtre actif connaît sa colonne et le rang de celle-ci dans la table lue. */
-export type EtatDuFiltre =
+type EtatDuFiltre =
   | { readonly actif: true; readonly colonne: ColonneLue; readonly rang: number }
   | { readonly actif: false; readonly mention: MentionDInactif | undefined };
 
@@ -28,7 +28,7 @@ function estUnTexteSaisi(valeur: ValeurDeFiltre | undefined): valeur is string {
 }
 
 /** Vrai si la valeur est de la forme que l'opérateur attend pour ce type de colonne (AC24). */
-export function valeurConformeAuType(colonne: ColonneLue, valeur: ValeurDeFiltre | undefined) {
+function valeurConformeAuType(colonne: ColonneLue, valeur: ValeurDeFiltre | undefined) {
   switch (colonne.type) {
     case "texte":
       return estUnTexteSaisi(valeur) && valeur.length <= LIMITE_DE_VALEUR;
@@ -166,7 +166,7 @@ function testSurLaValeur(
   return testDeLOrdre(operateur, valeur);
 }
 
-export interface FiltreCompile {
+interface FiltreCompile {
   readonly rang: number;
   readonly test: Test;
 }

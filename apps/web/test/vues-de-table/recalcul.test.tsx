@@ -1,18 +1,48 @@
 // Le calcul des lignes affichées n'est refait que si la table lue ou la définition change, pas au
 // défilement ni à la navigation (F-019-AC28).
 import { act, fireEvent, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as calcul from "../../src/vues-de-table/lignes-affichees.ts";
 import { ajouterUnTri, filtrer, remplirSixLignes } from "./aides-barres.tsx";
-import { cellule, rendreLaTable } from "./aides-grille.tsx";
+import { cellule, rangees, rendreLaTable } from "./aides-grille.tsx";
 
 vi.mock("../../src/vues-de-table/lignes-affichees.ts", async (originale) => {
   const module = await originale<typeof import("../../src/vues-de-table/lignes-affichees.ts")>();
   return { ...module, lignesAffichees: vi.fn(module.lignesAffichees) };
 });
 
-afterEach(() => localStorage.clear());
+const HAUTEUR_DE_LA_ZONE = 640;
+const defilements = new WeakMap<Element, number>();
+
+// jsdom n'a pas de mise en page (F-006 H11) : la zone défilante a une hauteur et un défilement
+// bouchonnés, comme dans `fenetre.test.tsx`, pour que la fenêtre des rangées bouge vraiment.
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get: () => HAUTEUR_DE_LA_ZONE,
+  });
+  Object.defineProperty(Element.prototype, "scrollTop", {
+    configurable: true,
+    get(this: Element) {
+      return defilements.get(this) ?? 0;
+    },
+    set(this: Element, valeur: number) {
+      defilements.set(this, valeur);
+    },
+  });
+});
+
+afterEach(() => {
+  localStorage.clear();
+  Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+  Reflect.deleteProperty(Element.prototype, "scrollTop");
+});
+
+/** L'indice ARIA de la première rangée de donnée rendue : il change quand la fenêtre bouge. */
+function premiereRangeeRendue(): number {
+  return Number(rangees()[1]?.getAttribute("aria-rowindex"));
+}
 
 describe("recalcul des lignes affichées (F-019-AC28)", () => {
   it("F-019-AC28 le défilement et la navigation au clavier d'une grande table ne rappellent pas le calcul ; un changement de définition ou de table le rappelle", async () => {
@@ -29,11 +59,19 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     const avant = espion.mock.calls.length;
     expect(avant).toBeGreaterThan(0);
 
-    const grille = screen.getByRole("grid");
-    for (const decalage of [200, 1500, 4000, 0]) {
-      fireEvent.scroll(grille, { target: { scrollTop: decalage } });
-      fireEvent.scroll(grille.parentElement as HTMLElement, { target: { scrollTop: decalage } });
+    const zone = screen.getByRole("grid").firstElementChild as HTMLElement;
+    const debut = premiereRangeeRendue();
+    let precedente = debut;
+    for (const decalage of [1500, 4000]) {
+      defilements.set(zone, decalage);
+      fireEvent.scroll(zone);
+      // La fenêtre a bougé : sans cela, ne pas rappeler le calcul ne prouverait rien.
+      expect(premiereRangeeRendue()).toBeGreaterThan(precedente);
+      precedente = premiereRangeeRendue();
     }
+    defilements.set(zone, 0);
+    fireEvent.scroll(zone);
+    expect(premiereRangeeRendue()).toBe(debut);
     cellule(2, 2).focus();
     await utilisateur.keyboard("{PageDown}{PageDown}{Control>}{End}{/Control}{PageUp}{ArrowDown}");
     expect(espion.mock.calls.length).toBe(avant);

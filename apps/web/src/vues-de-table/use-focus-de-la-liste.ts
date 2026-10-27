@@ -4,9 +4,11 @@
 // honorée au rendu qui suit le changement de la définition.
 import { useLayoutEffect, useRef } from "react";
 
+import type { Definition } from "./definition.ts";
+
 export const AJOUTER = "ajouter";
 
-export type ActionDeLigne = "retirer" | "monter" | "descendre";
+type ActionDeLigne = "retirer" | "monter" | "descendre";
 
 export function cleDuBouton(action: ActionDeLigne, rang: number): string {
   return `${action}:${String(rang)}`;
@@ -19,7 +21,11 @@ export interface FocusDeLaListe {
   readonly apres: (candidats: readonly string[]) => void;
 }
 
-export function useFocusDeLaListe(definition: unknown): FocusDeLaListe {
+/**
+ * La demande est honorée au rendu qui suit un changement de la définition, ou de l'affichage figé
+ * (« Réappliquer » démonte son bouton sans toucher à la définition).
+ */
+export function useFocusDeLaListe(definition: Definition, fige = false): FocusDeLaListe {
   const boutons = useRef(new Map<string, HTMLButtonElement>()).current;
   const demande = useRef<readonly string[] | undefined>(undefined);
   useLayoutEffect(() => {
@@ -29,7 +35,7 @@ export function useFocusDeLaListe(definition: unknown): FocusDeLaListe {
       ?.map((cle) => boutons.get(cle))
       .find((bouton) => bouton !== undefined && !bouton.disabled);
     cible?.focus();
-  }, [definition, boutons]);
+  }, [definition, fige, boutons]);
   return {
     bouton: (cle) => (element) => {
       if (element === null) {

@@ -5,8 +5,15 @@ import type { IdColonne, IdLigne } from "@notionlike/document";
 
 /** Hauteur de toutes les rangées, en pixels : celle du jeton `--spacing-rangee` (2rem). */
 export const HAUTEUR_DE_RANGEE = 32;
-/** Largeur de la colonne des actions de ligne, en pixels. */
-export const LARGEUR_DES_ACTIONS = 144;
+/** Largeur de la colonne des actions de ligne, en pixels : celle de toute table de F-018. */
+const LARGEUR_DES_ACTIONS = 72;
+/** Largeur de cette colonne tant qu'une ligne affichée porte la mention « Hors filtre » (F-019-AC18). */
+const LARGEUR_DES_ACTIONS_AVEC_MENTION = 144;
+
+/** La colonne des actions ne s'élargit que pour la mention : sans ligne hors filtre, la grille est celle de F-018. */
+export function largeurDesActions(avecMention: boolean): number {
+  return avecMention ? LARGEUR_DES_ACTIONS_AVEC_MENTION : LARGEUR_DES_ACTIONS;
+}
 /**
  * Hauteur de la zone défilante : celle du contenu, plus la place d'une barre de défilement
  * horizontale qui ne doit pas recouvrir la dernière rangée, bornée sous la fenêtre du navigateur.
