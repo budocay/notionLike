@@ -50,11 +50,7 @@ export function useRegroupement(designation: Designation, lue: TableLue): Regrou
       setTenu({ idEspace, idTable, choisie: colonne });
       const cle = cleDe(designation);
       ecrireReglagesDeVue(cle, {
-        [SECTION_KANBAN]: sectionDuKanban(
-          colonne,
-          choix[0]?.id,
-          lireReglagesDeVue(cle)[SECTION_KANBAN],
-        ),
+        [SECTION_KANBAN]: sectionDuKanban(colonne, lireReglagesDeVue(cle)[SECTION_KANBAN]),
       });
     },
   };

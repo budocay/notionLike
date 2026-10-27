@@ -3,21 +3,21 @@
 // suppression, les piles longues. La table est tenue par le test ; rien n'est simulé de la vue.
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
+import type { LigneLue, TableLue } from "@notionlike/document";
 import { describe, expect, it } from "vitest";
-import * as Y from "yjs";
 
 import { VueKanban } from "../../src/vues-de-table/kanban/VueKanban.tsx";
-import { rendreLaTable } from "./aides-grille.tsx";
 import {
   annonceDeLaVue,
   carte,
+  CLE_DES_REGLAGES,
   cartes,
   nomsDesPiles,
   pile,
   rendreLeKanban,
   titresDeLaPile,
 } from "./aides-ecran-kanban.tsx";
+import { tableInterdite } from "./aides-kanban.ts";
 
 const REPARTITION = [
   ["Écrire", 0],
@@ -76,17 +76,7 @@ describe("piles et cartes (F-020-AC1, AC2)", () => {
 });
 
 describe("table sans colonne Sélection (F-020-AC5)", () => {
-  function sansSelection() {
-    return rendreLaTable((table) => {
-      table.creerLigne(new Map([[table.creerColonne("Titre", "texte"), "A"]]));
-    });
-  }
-
   it("F-020-AC5 à la place des piles : le texte d'invitation et la commande « Ajouter une colonne Sélection », sans rien créer d'elle-même", () => {
-    localStorage.setItem(
-      "notionlike:vue:espace-a:tableau",
-      JSON.stringify({ version: 1, sections: { vue: { active: "kanban" } } }),
-    );
     const { table } = rendreLeKanban([], {
       remplir: ({ table: ouverte }) =>
         ouverte.supprimerColonne(ouverte.lire().colonnes[1]?.id ?? ""),
@@ -97,7 +87,6 @@ describe("table sans colonne Sélection (F-020-AC5)", () => {
     expect(screen.getByRole("button", { name: "Ajouter une colonne Sélection" })).toBeDefined();
     expect(nomsDesPiles()).toEqual([]);
     expect(table.lire().colonnes.map(({ type }) => type)).toEqual(["texte"]);
-    expect(sansSelection).toBeDefined();
   });
 
   it("F-020-AC5 la commande ouvre l'ajout de colonne avec le type « Sélection » choisi ; créée, les piles paraissent", async () => {
@@ -114,6 +103,27 @@ describe("table sans colonne Sélection (F-020-AC5)", () => {
     await utilisateur.click(within(boite).getByRole("button", { name: "Créer la colonne" }));
     expect(table.lire().colonnes.map(({ type }) => type)).toEqual(["texte", "selection"]);
     expect(nomsDesPiles()).toEqual(["Sans valeur, 1 carte"]);
+  });
+});
+
+describe("choix de la colonne de regroupement (F-020-AC4)", () => {
+  it("F-020-AC4 le choix explicite est gardé par identifiant de colonne, même quand il désigne la première colonne de sélection", async () => {
+    const { contenu, table, utilisateur } = rendreLeKanban(REPARTITION, {
+      remplir: ({ table: ouverte }) => void ouverte.creerColonne("Priorité", "selection"),
+    });
+    const seconde = table.lire().colonnes[2]?.id ?? "";
+    const enregistre = (): unknown =>
+      (JSON.parse(localStorage.getItem(CLE_DES_REGLAGES) ?? "{}") as { sections?: unknown })
+        .sections;
+    const choix = screen.getByRole("combobox", { name: "Regrouper par" });
+
+    await utilisateur.selectOptions(choix, seconde);
+    expect(enregistre()).toMatchObject({ kanban: { regroupement: seconde } });
+    await utilisateur.selectOptions(choix, contenu.statut);
+    expect(enregistre()).toMatchObject({
+      vue: { active: "kanban" },
+      kanban: { regroupement: contenu.statut },
+    });
   });
 });
 
@@ -267,7 +277,7 @@ describe("piles longues (F-020-AC8)", () => {
     const utilisateur = userEvent.setup();
     render(
       <VueKanban
-        table={{} as DocumentTable}
+        table={tableInterdite()}
         lue={lue}
         lignes={lue.lignes}
         titre="Grande"
@@ -299,11 +309,32 @@ describe("piles longues (F-020-AC8)", () => {
     expect(within(pile("Fait, 1250 cartes")).getAllByRole("listitem")).toHaveLength(100);
   });
 
+  it("F-020-AC8 F-020-AC15 la commande « Afficher 100 cartes de plus » est atteinte par les flèches, hors de l'ordre de tabulation ; Entrée présente la suite et le focus passe à la première carte qui paraît", async () => {
+    const cent_cinq = Array.from({ length: 105 }, (_, rang): [string, number] => [
+      `C${String(rang)}`,
+      0,
+    ]);
+    const { utilisateur } = rendreLeKanban(cent_cinq);
+    const nom = "Afficher 100 cartes de plus dans la pile À faire";
+    expect(screen.getByRole("button", { name: nom }).tabIndex).toBe(-1);
+
+    act(() => carte("C99").focus());
+    // Sous la centième carte : « Nouvelle carte », puis « Afficher 100 cartes de plus ».
+    await utilisateur.keyboard("{ArrowDown}{ArrowDown}");
+    const plus = screen.getByRole("button", { name: nom });
+    expect(document.activeElement).toBe(plus);
+    expect(plus.tabIndex).toBe(0);
+
+    await utilisateur.keyboard("{Enter}");
+    expect(within(pile("À faire, 105 cartes")).getAllByRole("listitem")).toHaveLength(105);
+    expect(screen.queryByRole("button", { name: nom })).toBeNull();
+    expect(document.activeElement).toBe(carte("C100"));
+  });
+
   it("F-020-AC8 une pile qui tient dans la page n'offre pas la commande", () => {
     rendreLeKanban(REPARTITION);
     expect(screen.queryByRole("button", { name: /Afficher 100 cartes de plus/ })).toBeNull();
     expect(annonceDeLaVue()).toBe("");
-    expect(Y.encodeStateAsUpdate).toBeDefined();
   });
 });
 
@@ -331,7 +362,7 @@ describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
     );
     render(
       <VueKanban
-        table={{} as DocumentTable}
+        table={tableInterdite()}
         lue={lue}
         lignes={affichees}
         titre="Filtrée"

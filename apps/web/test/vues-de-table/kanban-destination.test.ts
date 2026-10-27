@@ -1,6 +1,6 @@
 // Calcul de la destination et commandes au clavier (F-020-AC10, AC11, AC13, AC14) : fonctions sans
 // DOM, sur une table de cas tenue en un seul endroit.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   COMMANDES_DE_CARTE,
@@ -11,6 +11,7 @@ import {
   placeDeLaCarte,
   positionDansLaTable,
 } from "../../src/vues-de-table/kanban/destination.ts";
+import { actionsDeCarte } from "../../src/vues-de-table/kanban/actions-de-carte.ts";
 import { deplacerUneCarte } from "../../src/vues-de-table/kanban/deplacement.ts";
 import type { Pile } from "../../src/vues-de-table/kanban/piles.ts";
 import { contexteDe, pilesDe, tableDeKanban, titresParPile } from "./aides-kanban.ts";
@@ -21,6 +22,8 @@ const ORDRE = ["a", "b", "c", "d", "e", "f", "g"];
 const P1 = ["a", "c", "e"];
 const P2 = ["b", "f"];
 const P3 = ["d"];
+// « Sans valeur » : la ligne « g », qu'aucune option ne porte, y est la seule carte.
+const SANS_VALEUR = ["g"];
 
 interface Cas {
   readonly nom: string;
@@ -76,6 +79,20 @@ const CAS: readonly Cas[] = [
     pile: P3,
     precedente: "d",
     attendue: 3,
+  },
+  {
+    nom: "vers « Sans valeur », après sa seule carte",
+    carte: "e",
+    pile: SANS_VALEUR,
+    precedente: "g",
+    attendue: 6,
+  },
+  {
+    nom: "vers « Sans valeur », en tête de la pile",
+    carte: "a",
+    pile: SANS_VALEUR,
+    precedente: null,
+    attendue: 5,
   },
   {
     nom: "vers une pile vide : la ligne ne bouge pas",
@@ -212,6 +229,24 @@ describe("déplacer une carte sur le document (F-020-AC10, AC11)", () => {
 
 const COMMANDES: readonly CommandeDeCarte[] = COMMANDES_DE_CARTE;
 
+// Les commandes de carte de la vue, sur le document : ce que `actionsDeCarte().commander` fait.
+function commanderSur(une: ReturnType<typeof essai>) {
+  const focaliser = vi.fn<(carte: string) => void>();
+  const annoncer = vi.fn<(texte: string) => void>();
+  const signaler = vi.fn<(message: string | undefined) => void>();
+  const actions = actionsDeCarte({
+    ...contexteDe(une.table),
+    piles: pilesDe(une.table),
+    lectureSeule: undefined,
+    signaler,
+    annoncer,
+    focaliser,
+    limites: { limiteDe: () => 100, jusqua: vi.fn(), plus: vi.fn() },
+    saisirLeTitre: vi.fn(),
+  });
+  return { commander: actions.commander, focaliser, annoncer, signaler };
+}
+
 describe("commandes de carte (F-020-AC13)", () => {
   it("F-020-AC13 pile précédente et suivante : fin de la pile voisine ; monter et descendre : une place ; indisponibles aux bouts", () => {
     const { table, lignes } = essai();
@@ -236,15 +271,32 @@ describe("commandes de carte (F-020-AC13)", () => {
     expect(destinationDeLaCommande(piles, "inconnue", "monter")).toBeUndefined();
   });
 
-  it("F-020-AC13 une commande sans destination n'écrit rien : seule une destination est un déplacement", () => {
-    const { table, lignes, emises } = essai();
-    const piles = pilesDe(table);
-    for (const commande of ["monter", "pile-precedente"] as const) {
-      expect(destinationDeLaCommande(piles, lignes.get("a") ?? "", commande)).toSatisfy(
-        (destination) => destination === undefined || destination.option !== piles[1]?.option,
-      );
-    }
+  it("F-020-AC13 une commande sans destination, déclenchée sur la vue, n'écrit rien, ne déplace pas le focus et dit le bord ; une commande qui en a une écrit", () => {
+    const une = essai();
+    const { lignes, emises } = une;
+    const { commander, focaliser, annoncer, signaler } = commanderSur(une);
+    const id = (nom: string) => lignes.get(nom) ?? "";
+
+    commander(id("g"), "pile-precedente");
+    commander(id("a"), "monter");
+    commander(id("e"), "descendre");
+    commander(id("d"), "monter");
+    commander(id("d"), "descendre");
     expect(emises).toEqual([]);
+    expect(focaliser).not.toHaveBeenCalled();
+    expect(signaler).not.toHaveBeenCalled();
+    expect(annoncer.mock.calls.map(([texte]) => texte)).toEqual([
+      "Déjà dans la première pile.",
+      "Déjà la première carte de la pile.",
+      "Déjà la dernière carte de la pile.",
+      "Déjà la première carte de la pile.",
+      "Déjà la dernière carte de la pile.",
+    ]);
+
+    // Témoin : depuis la même place, une commande qui a une destination écrit et rend le focus.
+    commander(id("a"), "descendre");
+    expect(emises.length).toBeGreaterThan(0);
+    expect(focaliser).toHaveBeenCalledWith(id("a"));
   });
 });
 

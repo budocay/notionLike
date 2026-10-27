@@ -12,12 +12,7 @@ import {
   Formulaire,
 } from "../interface/composants/Espaces.tsx";
 import { ChampDeFormulaire } from "../interface/composants/Table.tsx";
-import {
-  ajouterUneColonne,
-  type Moyens,
-  supprimerUneColonne,
-  supprimerUneLigne,
-} from "./actions.ts";
+import { ajouterUneColonne, supprimerUneColonne, supprimerUneLigne } from "./actions.ts";
 import { touchesDeBoite } from "./boite.ts";
 import { PanneauDesOptions } from "./PanneauDesOptions.tsx";
 import {
@@ -68,7 +63,8 @@ function ChoixDuType(props: {
  * kanban l'ouvre avec le type « Sélection » choisi (F-020-AC5).
  */
 export function BoiteNouvelleColonne(props: {
-  readonly moyens: Moyens;
+  /** Crée la colonne ; rend le message du refus, ou `undefined` (la boîte se ferme). */
+  readonly ajouter: (nom: string, type: TypeDeColonne) => string | undefined;
   /** Ferme la boîte ; vrai : le focus revient à la commande d'origine. */
   readonly fermerLaBoite: (rendreLeFocus: boolean) => void;
   readonly typeInitial?: TypeDeColonne | undefined;
@@ -79,7 +75,7 @@ export function BoiteNouvelleColonne(props: {
   const champ = useRef<HTMLInputElement>(null);
   const fermer = (): void => props.fermerLaBoite(true);
   const creer = (): void => {
-    const refus = ajouterUneColonne(props.moyens, nom, type);
+    const refus = props.ajouter(nom, type);
     setFaute(refus);
     if (refus === undefined) {
       props.fermerLaBoite(false);
@@ -182,7 +178,12 @@ export function BoiteOuverte({ vue }: { readonly vue: VueTableau }): ReactElemen
     case undefined:
       return null;
     case "nouvelle-colonne":
-      return <BoiteNouvelleColonne moyens={vue.moyens} fermerLaBoite={vue.fermerBoite} />;
+      return (
+        <BoiteNouvelleColonne
+          ajouter={(nom, type) => ajouterUneColonne(vue.moyens, nom, type)}
+          fermerLaBoite={vue.fermerBoite}
+        />
+      );
     case "supprimer-colonne":
       return <SuppressionDeColonne vue={vue} id={boite.colonne} />;
     case "supprimer-ligne":

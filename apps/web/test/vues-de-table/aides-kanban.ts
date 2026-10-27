@@ -80,3 +80,15 @@ export function pilesDe(table: DocumentTable): readonly Pile[] {
 export function titresParPile(table: DocumentTable): string[][] {
   return pilesDe(table).map(({ cartes }) => cartes.map(({ titre }) => titre));
 }
+
+/**
+ * Un document de table qui lève au moindre appel : une vue qui l'écrirait ou le lirait sans action de
+ * l'utilisateur échoue au lieu de passer inaperçue (la vue ne lit que ses propriétés `lue` et `lignes`).
+ */
+export function tableInterdite(): DocumentTable {
+  return new Proxy({} as DocumentTable, {
+    get: (_cible, nom) => {
+      throw new Error(`Appel inattendu de table.${String(nom)} par la vue.`);
+    },
+  });
+}

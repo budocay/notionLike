@@ -8,12 +8,15 @@ import * as Y from "yjs";
 
 import { KANBAN } from "../../src/interface/composants/kanban.classes.ts";
 import {
+  abandonnerLeGeste,
   annonceDeLaVue,
   bouchonnerLaMiseEnPage,
   carte,
-  cartes,
+  glisserLaCarteDe,
+  lacherLaCarte,
   nomsDesPiles,
   rendreLeKanban,
+  saisirLaCarteDe,
   titresDeLaPile,
 } from "./aides-ecran-kanban.tsx";
 
@@ -23,6 +26,17 @@ const REPARTITION = [
   ["Sans statut", -1],
   ["Livrer", 2],
 ] as const;
+
+function plateau(): HTMLElement {
+  return screen.getByRole("group", { name: /^Kanban de la table/ });
+}
+
+// Tout ce qui, dans le plateau, est dans l'ordre de tabulation (F-020-AC15).
+function arretsDeTabulation(dans: HTMLElement): HTMLElement[] {
+  return [
+    ...dans.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]"),
+  ].filter((element) => element.tabIndex >= 0 && !element.hasAttribute("disabled"));
+}
 
 const DESCENDRE = "{Alt>}{Shift>}{ArrowDown}{/Shift}{/Alt}";
 const MONTER = "{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}";
@@ -100,22 +114,78 @@ describe("commandes au clavier (F-020-AC13, AC15)", () => {
     expect(document.activeElement).toBe(carte("Écrire"));
   });
 
-  it("F-020-AC15 les flèches déplacent le focus de carte en carte et de pile en pile sans rien écrire ; un seul arrêt de tabulation parmi les cartes", async () => {
+  it("F-020-AC15 les flèches déplacent le focus de carte en carte, de pile en pile et jusqu'aux commandes de pile, sans rien écrire", async () => {
     const { utilisateur, emises } = rendreLeKanban(REPARTITION);
-    expect(cartes().filter((une) => une.tabIndex === 0)).toHaveLength(1);
+    const nouvelle = (pile: string) =>
+      screen.getByRole("button", { name: `Nouvelle carte dans la pile ${pile}` });
 
     carte("Sans statut").focus();
     await utilisateur.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(carte("Écrire"));
     await utilisateur.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(carte("Relire"));
+    // Sous la dernière carte d'une pile : sa commande « Nouvelle carte », puis la pile voisine, vide.
+    await utilisateur.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(nouvelle("À faire"));
     await utilisateur.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(carte("Livrer"));
-    await utilisateur.keyboard("{ArrowLeft}{ArrowUp}");
+    expect(document.activeElement).toBe(nouvelle("En cours"));
+    await utilisateur.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(nouvelle("Fait"));
+    await utilisateur.keyboard("{ArrowUp}{ArrowLeft}");
+    expect(document.activeElement).toBe(nouvelle("En cours"));
+    await utilisateur.keyboard("{ArrowLeft}{ArrowUp}{Home}");
     expect(document.activeElement).toBe(carte("Écrire"));
+    await utilisateur.keyboard("{End}");
+    expect(document.activeElement).toBe(nouvelle("À faire"));
+    await utilisateur.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(nouvelle("À faire"));
 
     expect(emises).toHaveLength(0);
-    expect(cartes().filter((une) => une.tabIndex === 0)).toEqual([carte("Écrire")]);
+  });
+
+  it("F-020-AC15 la vue compte pour un seul arrêt de tabulation, toutes commandes comprises : Tab y entre, Tab en sort", async () => {
+    const { utilisateur, emises } = rendreLeKanban(REPARTITION);
+    const tableau = plateau();
+    expect(arretsDeTabulation(tableau)).toEqual([carte("Sans statut")]);
+
+    // Le sélecteur de vues précède le plateau : Tab de « Kanban » entre dans le plateau, une fois.
+    screen.getByRole("button", { name: "Kanban" }).focus();
+    await utilisateur.tab();
+    expect(document.activeElement).toBe(carte("Sans statut"));
+    await utilisateur.tab();
+    expect(tableau.contains(document.activeElement)).toBe(false);
+    await utilisateur.tab({ shift: true });
+    expect(document.activeElement).toBe(carte("Sans statut"));
+
+    // Le focus d'une commande de pile devient l'arrêt unique : Tab en sort aussi, et y revient.
+    await utilisateur.keyboard("{ArrowDown}");
+    const nouvelle = screen.getByRole("button", {
+      name: "Nouvelle carte dans la pile Sans valeur",
+    });
+    expect(document.activeElement).toBe(nouvelle);
+    expect(arretsDeTabulation(tableau)).toEqual([nouvelle]);
+    await utilisateur.tab();
+    expect(tableau.contains(document.activeElement)).toBe(false);
+    await utilisateur.tab({ shift: true });
+    expect(document.activeElement).toBe(nouvelle);
+    expect(emises).toHaveLength(0);
+  });
+
+  it("F-020-AC15 sans aucune carte, la première commande « Nouvelle carte » est l'arrêt unique, et Entrée la déclenche", async () => {
+    const { utilisateur, emises, table } = rendreLeKanban([]);
+    const nouvelle = screen.getByRole("button", {
+      name: "Nouvelle carte dans la pile Sans valeur",
+    });
+    expect(arretsDeTabulation(plateau())).toEqual([nouvelle]);
+
+    await utilisateur.tab();
+    await utilisateur.tab();
+    await utilisateur.tab();
+    expect(document.activeElement).toBe(nouvelle);
+    await utilisateur.keyboard("{Enter}");
+    expect(emises).toHaveLength(1);
+    expect(table.lire().lignes).toHaveLength(1);
+    expect(screen.getByRole("textbox", { name: "Titre de la carte Sans titre" })).toBeDefined();
   });
 
   it("F-020-AC15 la pile voisine d'une carte déplacée est amenée à l'écran", async () => {
@@ -140,47 +210,15 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
   });
   afterEach(() => retirer());
 
-  const attendre = () => act(() => new Promise<void>((suite) => setTimeout(suite, 40)));
-  function evenement(type: string, x: number, y: number): PointerEvent {
-    return new PointerEvent(type, {
-      bubbles: true,
-      cancelable: true,
-      clientX: x,
-      clientY: y,
-      button: 0,
-      pointerId: 1,
-      isPrimary: true,
-    });
-  }
-  async function glisser(titre: string, ...points: readonly (readonly [number, number])[]) {
-    const depart = carte(titre).closest("li") as HTMLElement;
-    await act(async () => {
-      depart.dispatchEvent(evenement("pointerdown", 10, 40));
-    });
-    for (const [x, y] of [[20, 40] as const, ...points]) {
-      await act(async () => {
-        document.dispatchEvent(evenement("pointermove", x, y));
-      });
-      await attendre();
-    }
-    return depart;
-  }
-  async function lacher(x: number, y: number) {
-    await act(async () => {
-      document.dispatchEvent(evenement("pointerup", x, y));
-    });
-    await attendre();
-  }
-
   it("F-020-AC12 F-020-AC9 lâcher une carte sur la moitié haute d'une carte d'une autre pile la place avant elle, par la fonction de déplacement : cellule puis ligne", async () => {
     const { table, contenu } = rendreLeKanban(REPARTITION);
-    const depart = await glisser("Sans statut", [220, 80]);
+    const depart = await glisserLaCarteDe("Sans statut", [220, 80]);
     // F-020-AC28 : pendant le geste, la carte ne porte en ligne que `transform`, sans transition.
     for (const rangee of document.querySelectorAll("li")) {
       expect(rangee.getAttribute("style") ?? "").toMatch(/^(transform:[^;]*;?)?$/);
     }
     expect(depart.isConnected).toBe(true);
-    await lacher(220, 80);
+    await lacherLaCarte(220, 80);
 
     expect(titresDeLaPile("À faire, 3 cartes")).toEqual(["Écrire", "Sans statut", "Relire"]);
     expect(titresDeLaPile("Sans valeur, 0 carte")).toEqual([]);
@@ -196,60 +234,55 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
 
   it("F-020-AC12 lâcher sur une pile vide, ou sous les cartes d'une pile, pose la carte en fin de pile", async () => {
     const { table } = rendreLeKanban(REPARTITION);
-    await glisser("Écrire", [420, 300]);
-    await lacher(420, 300);
+    await glisserLaCarteDe("Écrire", [420, 300]);
+    await lacherLaCarte(420, 300);
     expect(titresDeLaPile("En cours, 1 carte")).toEqual(["Écrire"]);
     expect(table.lire().lignes).toHaveLength(4);
   });
 
   it("F-020-AC12 Échap ou un lâcher hors de toute pile abandonne le geste sans rien écrire", async () => {
     const { emises } = rendreLeKanban(REPARTITION);
-    await glisser("Écrire", [420, 300]);
-    await act(async () => {
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }),
-      );
-    });
-    await attendre();
-    await lacher(420, 300);
+    await glisserLaCarteDe("Écrire", [420, 300]);
+    await abandonnerLeGeste();
+    await lacherLaCarte(420, 300);
     expect(emises).toHaveLength(0);
     expect(titresDeLaPile("En cours, 0 carte")).toEqual([]);
 
-    await glisser("Écrire", [900, 300]);
-    await lacher(900, 300);
+    await glisserLaCarteDe("Écrire", [900, 300]);
+    await lacherLaCarte(900, 300);
     expect(emises).toHaveLength(0);
   });
 
   it("F-020-AC12 la carte glissée supprimée par une mise à jour reçue pendant le geste : le lâcher n'écrit rien", async () => {
     const { table, contenu, emises } = rendreLeKanban(REPARTITION);
-    await glisser("Écrire", [420, 300]);
+    await glisserLaCarteDe("Écrire", [420, 300]);
     const avant = emises.length;
     const ligne = contenu.lignes.get("Écrire") ?? "";
     act(() => table.supprimerLigne(ligne));
     const apres = emises.length;
     expect(apres).toBeGreaterThan(avant);
-    await lacher(420, 300);
+    await lacherLaCarte(420, 300);
     expect(emises).toHaveLength(apres);
     expect(nomsDesPiles()).toContain("En cours, 0 carte");
   });
 
   it("F-020-AC12 la pile survolée retirée par une mise à jour reçue pendant le geste : le lâcher n'écrit rien", async () => {
     const { table, contenu, emises } = rendreLeKanban(REPARTITION);
-    await glisser("Écrire", [620, 300]);
+    await glisserLaCarteDe("Écrire", [620, 300]);
     const avant = emises.length;
     act(() => table.retirerOption(contenu.statut, contenu.options[2] ?? ""));
     const apres = emises.length;
     expect(apres).toBeGreaterThan(avant);
     expect(nomsDesPiles().some((nom) => nom.startsWith("Fait"))).toBe(false);
-    await lacher(620, 300);
+    await lacherLaCarte(620, 300);
     expect(emises).toHaveLength(apres);
     expect(titresDeLaPile("À faire, 2 cartes")).toContain("Écrire");
   });
 
   it("F-020-AC21 F-020-AC12 lâcher une carte sur sa propre place la laisse en place, l'annonce le dit (et non un abandon) et rien n'est écrit", async () => {
     const { emises } = rendreLeKanban(REPARTITION);
-    await glisser("Écrire", [230, 50]);
-    await lacher(230, 50);
+    await glisserLaCarteDe("Écrire", [230, 50]);
+    await lacherLaCarte(230, 50);
     expect(emises).toHaveLength(0);
     expect(titresDeLaPile("À faire, 2 cartes")).toEqual(["Écrire", "Relire"]);
     const dits = document.body.textContent ?? "";
@@ -262,9 +295,68 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     carte("Écrire").focus();
     await utilisateur.keyboard("{Enter}");
     expect(screen.getByRole("textbox")).toBeDefined();
-    await glisser("Livrer", [420, 300]);
-    await lacher(420, 300);
+    await glisserLaCarteDe("Livrer", [420, 300]);
+    await lacherLaCarte(420, 300);
     expect(emises).toHaveLength(0);
+  });
+});
+
+// La région d'annonces du module de glisser-déposer, distincte de la zone d'annonce de la vue.
+function annonceDuGeste(): string {
+  return document.querySelector("[aria-live='assertive']")?.textContent ?? "";
+}
+
+describe("annonces du geste, en français (F-020-AC21)", () => {
+  let retirer: () => void;
+  beforeEach(() => {
+    retirer = bouchonnerLaMiseEnPage();
+  });
+  afterEach(() => retirer());
+
+  it("F-020-AC21 la saisie, le survol d'une carte, le survol d'une pile et le dépôt nomment la carte et la pile ; Échap le dit", async () => {
+    rendreLeKanban(REPARTITION);
+    await saisirLaCarteDe("Sans statut", [905, 300], [900, 300]);
+    expect(annonceDuGeste()).toBe("Sans statut, pile Sans valeur, 1 sur 1. Carte saisie.");
+    await abandonnerLeGeste();
+
+    // Moitié haute de « Relire », deuxième carte de « À faire » : avant elle.
+    await glisserLaCarteDe("Sans statut", [220, 80]);
+    expect(annonceDuGeste()).toBe("Sans statut : avant la carte Relire, pile À faire.");
+    // Moitié basse de « Écrire » : après elle.
+    await glisserLaCarteDe("Sans statut", [220, 60]);
+    expect(annonceDuGeste()).toBe("Sans statut : après la carte Écrire, pile À faire.");
+    // Sous les cartes de « En cours », pile vide : la pile elle-même.
+    await glisserLaCarteDe("Sans statut", [420, 300]);
+    expect(annonceDuGeste()).toBe("Sans statut : dans la pile En cours.");
+
+    await lacherLaCarte(420, 300);
+    expect(annonceDuGeste()).toBe("Sans statut déposée dans la pile En cours.");
+    expect(titresDeLaPile("En cours, 1 carte")).toEqual(["Sans statut"]);
+
+    await glisserLaCarteDe("Écrire", [420, 300]);
+    await abandonnerLeGeste();
+    expect(annonceDuGeste()).toBe("Déplacement de la carte Écrire abandonné.");
+  });
+
+  it("F-020-AC21 lâcher hors de toute pile le dit, et une carte lâchée sur sa place y reste", async () => {
+    rendreLeKanban(REPARTITION);
+    await glisserLaCarteDe("Écrire", [900, 300]);
+    await lacherLaCarte(900, 300);
+    expect(annonceDuGeste()).toBe("Écrire relâchée hors d'une pile : déplacement abandonné.");
+  });
+
+  it("F-020-AC21 le texte d'instructions lu avec chaque carte est en français et dit les touches, la tabulation et la souris", () => {
+    rendreLeKanban(REPARTITION);
+    const instructions = document.getElementById(
+      carte("Écrire").getAttribute("aria-describedby") ?? "",
+    )?.textContent;
+    expect(instructions).toContain("Pour déplacer une carte au clavier");
+    expect(instructions).toContain("Alt+Maj+←");
+    expect(instructions).toContain("Alt+Maj+↑");
+    expect(instructions).toContain("Tab entre dans le plateau et en sort");
+    expect(instructions).toContain("« Nouvelle carte »");
+    expect(instructions).toContain("« Afficher 100 cartes de plus »");
+    expect(instructions).toContain("Échap abandonne le geste");
   });
 });
 
@@ -323,25 +415,8 @@ describe("lecture seule (F-020-AC23)", () => {
       await utilisateur.click(
         screen.getByRole("button", { name: "Nouvelle carte dans la pile À faire" }),
       );
-      await act(async () => {
-        const depart = carte("Livrer").closest("li") as HTMLElement;
-        for (const [type, x, y] of [
-          ["pointerdown", 410, 40],
-          ["pointermove", 420, 40],
-          ["pointermove", 20, 80],
-          ["pointerup", 20, 80],
-        ] as const) {
-          (type === "pointerdown" ? depart : document).dispatchEvent(
-            new PointerEvent(type, {
-              bubbles: true,
-              clientX: x,
-              clientY: y,
-              pointerId: 1,
-              button: 0,
-            }),
-          );
-        }
-      });
+      await glisserLaCarteDe("Livrer", [20, 80]);
+      await lacherLaCarte(20, 80);
       carte("Écrire").focus();
       await utilisateur.keyboard("{Shift>}{F10}{/Shift}");
       const menu = screen.getByRole("menu");
@@ -376,12 +451,30 @@ describe("lecture seule (F-020-AC23)", () => {
     expect(screen.getByRole("alert").textContent).toContain("Lecture seule");
     expect(emises).toHaveLength(0);
 
-    // La navigation et « Regrouper par » restent utilisables.
+    // La navigation et « Regrouper par » restent utilisables ; « Nouvelle carte », désactivée, n'est pas
+    // un arrêt : la carte reste l'arrêt unique de la vue.
+    expect(arretsDeTabulation(plateau())).toHaveLength(1);
     carte("Écrire").focus();
     await utilisateur.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(carte("Relire"));
     const regrouper = screen.getByRole("combobox", { name: "Regrouper par" });
     expect((regrouper as HTMLSelectElement).disabled).toBe(false);
+  });
+});
+
+describe("témoin du geste hors lecture seule (F-020-AC23)", () => {
+  it("F-020-AC23 le geste qu'on tente en lecture seule, répété hors lecture seule, déplace bien la carte : la lecture seule est ce qui l'empêche", async () => {
+    const retirer = bouchonnerLaMiseEnPage();
+    try {
+      const { table, emises } = rendreLeKanban(REPARTITION);
+      await glisserLaCarteDe("Livrer", [20, 80]);
+      await lacherLaCarte(20, 80);
+      expect(titresDeLaPile("Sans valeur, 2 cartes")).toEqual(["Sans statut", "Livrer"]);
+      expect(emises.length).toBeGreaterThan(0);
+      expect(table.lire().lignes).toHaveLength(4);
+    } finally {
+      retirer();
+    }
   });
 });
 

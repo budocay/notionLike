@@ -25,6 +25,7 @@ import { cleDeCellule } from "./courante.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "./menu-de-grille.ts";
 import { deplacer, type Position } from "./navigation-grille.ts";
 import { CELLULE_SUPPRIMEE } from "./textes.ts";
+import { useAnnonce } from "./use-annonce.ts";
 import { type CouranteDeLaGrille, useCourante } from "./use-courante.ts";
 import { type EditionDeLaGrille, useEdition } from "./use-edition.ts";
 import { type FenetreDeLaGrille, useFenetre } from "./use-fenetre.ts";
@@ -62,29 +63,6 @@ export interface VueTableau {
   readonly cadre: RefObject<HTMLDivElement | null>;
   readonly invitation: RefObject<HTMLButtonElement | null>;
   readonly moyens: Moyens;
-}
-
-/** Délai entre le vidage de la zone d'annonce et sa réécriture, pour qu'un texte identique soit relu. */
-const RELECTURE_D_ANNONCE_MS = 150;
-
-// La zone d'annonce (`role="status"`) ne relit pas un texte inchangé : une annonce identique à la
-// précédente (deux « Déjà la première ligne. » de suite) la vide, puis la réécrit un instant après.
-export function useAnnonce(): readonly [string, (texte: string) => void] {
-  const [annonce, setAnnonce] = useState("");
-  const derniere = useRef("");
-  const differee = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(differee.current), []);
-  const annoncer = (texte: string): void => {
-    window.clearTimeout(differee.current);
-    if (texte !== derniere.current) {
-      derniere.current = texte;
-      setAnnonce(texte);
-      return;
-    }
-    setAnnonce("");
-    differee.current = window.setTimeout(() => setAnnonce(texte), RELECTURE_D_ANNONCE_MS);
-  };
-  return [annonce, annoncer];
 }
 
 function focusSurLeCorps(): boolean {

@@ -1,10 +1,18 @@
 // Aides des tests de l'écran de la vue kanban (F-020) : la table d'essai rendue par l'écran de table,
 // la vue « Kanban » enregistrée comme vue active de l'appareil, les piles et les cartes lues par
 // leurs rôles, et une mise en page bouchonnée pour le geste au pointeur (veille du 2026-10-27).
-import { act, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 import { ESPACE_A } from "../aides-persistance.ts";
+import {
+  abandonnerLeGeste,
+  bouchonnerLaGeometrie,
+  glisserLaCarte,
+  lacherLaCarte,
+  rectangle,
+  saisirLaCarte,
+} from "../aides-pointeur.ts";
 import { cleDesReglages } from "../aides-table.ts";
 import { remplirLaTableDeKanban, type TableDeKanban } from "./aides-kanban.ts";
 import { rendreLaTable, TABLE_D_ESSAI, type TableRendue } from "./aides-grille.tsx";
@@ -82,21 +90,7 @@ export function annonceDeLaVue(): string {
 
 // ——— Mise en page bouchonnée : piles de 180 de large espacées de 200, cartes de 40 de haut espacées de 44 ———
 
-function rectangle(gauche: number, haut: number, largeur: number, hauteur: number): DOMRect {
-  return {
-    left: gauche,
-    top: haut,
-    width: largeur,
-    height: hauteur,
-    right: gauche + largeur,
-    bottom: haut + hauteur,
-    x: gauche,
-    y: haut,
-    toJSON: () => ({}),
-  } as DOMRect;
-}
-
-function rectangleDeLaMiseEnPage(element: Element): DOMRect | null {
+function miseEnPageDuKanban(element: Element): DOMRect | null {
   if (element.tagName === "SECTION") {
     const rang = [...document.querySelectorAll("section")].indexOf(element as HTMLElement);
     return rectangle(rang * 200, 0, 180, 600);
@@ -112,69 +106,33 @@ function rectangleDeLaMiseEnPage(element: Element): DOMRect | null {
 
 /** Pose la mise en page bouchonnée ; rend la fonction qui la retire. */
 export function bouchonnerLaMiseEnPage(): () => void {
-  const originale = Element.prototype.getBoundingClientRect;
-  Element.prototype.getBoundingClientRect = function (this: Element) {
-    return rectangleDeLaMiseEnPage(this) ?? originale.call(this);
-  };
-  for (const propriete of ["offsetHeight", "offsetWidth"] as const) {
-    Object.defineProperty(HTMLElement.prototype, propriete, {
-      configurable: true,
-      get(this: HTMLElement) {
-        const place = rectangleDeLaMiseEnPage(this);
-        return place === null ? 0 : propriete === "offsetHeight" ? place.height : place.width;
-      },
-    });
-  }
-  return () => {
-    Element.prototype.getBoundingClientRect = originale;
-    for (const propriete of ["offsetHeight", "offsetWidth"] as const) {
-      Reflect.deleteProperty(HTMLElement.prototype, propriete);
-    }
-  };
+  return bouchonnerLaGeometrie(miseEnPageDuKanban);
 }
 
-function evenement(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: x,
-    clientY: y,
-    button: 0,
-    pointerId: 1,
-    isPrimary: true,
-  });
-}
-
-const attendre = () => act(() => new Promise<void>((suite) => setTimeout(suite, 40)));
-
-/** Presse la carte, puis la déplace par les points donnés (le premier écart passe le seuil du capteur). */
-export async function glisserLaCarte(
-  depart: Element,
+/** Presse la carte de ce titre, puis la déplace par les points donnés. */
+export async function glisserLaCarteDe(
+  titre: string,
   ...points: readonly (readonly [number, number])[]
-): Promise<void> {
-  await act(async () => {
-    depart.dispatchEvent(evenement("pointerdown", 10, 80));
-  });
-  for (const [x, y] of [[20, 80] as const, ...points]) {
-    await act(async () => {
-      document.dispatchEvent(evenement("pointermove", x, y));
-    });
-    await attendre();
+): Promise<HTMLElement> {
+  const depart = carte(titre).closest("li");
+  if (depart === null) {
+    throw new Error(`La carte « ${titre} » n'est pas dans un élément de liste.`);
   }
+  await glisserLaCarte(depart, ...points);
+  return depart;
 }
 
-export async function lacherLaCarte(x: number, y: number): Promise<void> {
-  await act(async () => {
-    document.dispatchEvent(evenement("pointerup", x, y));
-  });
-  await attendre();
+/** Presse la carte de ce titre et l'écarte au point donné ; `presse` : où le pointeur est pressé (hors de toute pile, la saisie est seule annoncée). */
+export async function saisirLaCarteDe(
+  titre: string,
+  premierPoint: readonly [number, number],
+  presse?: readonly [number, number],
+) {
+  const depart = carte(titre).closest("li");
+  if (depart === null) {
+    throw new Error(`La carte « ${titre} » n'est pas dans un élément de liste.`);
+  }
+  await saisirLaCarte(depart, premierPoint, presse);
 }
 
-export async function abandonnerLeGeste(): Promise<void> {
-  await act(async () => {
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }),
-    );
-  });
-  await attendre();
-}
+export { abandonnerLeGeste, glisserLaCarte, lacherLaCarte };

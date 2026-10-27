@@ -167,6 +167,64 @@ describe("appelants du module de glisser-déposer (F-020-AC25)", () => {
   });
 });
 
+// ——— F-020-AC27 : appelants des briques que la vue kanban partage avec la vue « Tableau » ———
+//
+// `BoiteNouvelleColonne` prend `{ ajouter, fermerLaBoite, typeInitial? }` au lieu de `{ vue }`, et
+// `Confirmation` et `useAnnonce` sont exportés par leur module : leurs appelants sont énumérés, un
+// nouvel appelant fait échouer le test, et chacun est atteint par un test de son écran.
+
+// Le module des vues de table : `EcranDeLaCorbeille` a sa propre `Confirmation`, sans rapport.
+const SOURCES = new Map(
+  [...lireDossier("src")].filter(([chemin]) => chemin.startsWith("src/vues-de-table/")),
+);
+
+/** Fichiers de `src/` qui rendent ce composant ou appellent cette fonction, hors sa définition. */
+function appelantsDe(nom: string, sources: ReadonlyMap<string, string>): string[] {
+  const appel = new RegExp(`(<${nom}[\\s/>])|((?<!function )\\b${nom}\\()`);
+  return [...sources]
+    .filter(([, texte]) => appel.test(texte.replace(/\/\/.*$/gm, "")))
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+const TESTS_DES_ECRANS = [
+  "test/vues-de-table/colonnes.test.tsx",
+  "test/vues-de-table/kanban-ecran.test.tsx",
+];
+
+const BRIQUES_PARTAGEES: Readonly<Record<string, readonly string[]>> = {
+  BoiteNouvelleColonne: ["src/vues-de-table/Boites.tsx", "src/vues-de-table/kanban/VueKanban.tsx"],
+  Confirmation: ["src/vues-de-table/Boites.tsx", "src/vues-de-table/kanban/VueKanban.tsx"],
+  useAnnonce: [
+    "src/vues-de-table/kanban/use-vue-kanban.ts",
+    "src/vues-de-table/use-vue-tableau.ts",
+  ],
+};
+
+describe("appelants des briques partagées (F-020-AC27)", () => {
+  it.each(Object.entries(BRIQUES_PARTAGEES))(
+    "F-020-AC27 les appelants de %s sont exactement ceux qui sont déclarés, et chacun est atteint par un test d'écran",
+    async (nom, attendus) => {
+      expect(appelantsDe(nom, SOURCES)).toEqual(attendus);
+      const aretes = await graphe();
+      const hors = appelantsNonCouverts(aretes, attendus, TESTS_DES_ECRANS);
+      expect(hors).toEqual([]);
+    },
+    60_000,
+  );
+
+  it("F-020-AC27 cas fautif : un nouvel appelant est vu, une simple définition ne l'est pas", () => {
+    const sources = new Map([
+      ["src/a.tsx", "export function Confirmation() { return null; }"],
+      ["src/b.tsx", 'const x = <Confirmation titre="" />;'],
+      ["src/c.ts", "const [a] = useAnnonce();"],
+      ["src/d.ts", "// useAnnonce() cité en commentaire"],
+    ]);
+    expect(appelantsDe("Confirmation", sources)).toEqual(["src/b.tsx"]);
+    expect(appelantsDe("useAnnonce", sources)).toEqual(["src/c.ts"]);
+  });
+});
+
 // ——— F-020-AC24, AC28 : ni réseau ni animation dans les sources ———
 
 const RESEAU = /\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\b/;

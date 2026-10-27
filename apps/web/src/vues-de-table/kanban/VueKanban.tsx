@@ -1,7 +1,13 @@
 // Vue « Kanban » (F-020-AC1 à AC8) : une pile par option d'une colonne Sélection, les lignes en
 // cartes, le déplacement au pointeur et au clavier. Les lignes viennent de la fonction des lignes
 // affichées (F-018-AC45) ; le document n'est écrit que par la façade `DocumentTable`.
-import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
+import type {
+  ColonneLue,
+  DocumentTable,
+  LigneLue,
+  TableLue,
+  TypeDeColonne,
+} from "@notionlike/document";
 import { type ReactElement, type ReactNode, useRef, useState } from "react";
 
 import { Bouton, Choix } from "../../interface/composants/Espaces.tsx";
@@ -12,7 +18,7 @@ import {
   InvitationDeTable,
   SurfaceFlottante,
 } from "../../interface/composants/Table.tsx";
-import type { Moyens } from "../actions.ts";
+import { creerUneColonne } from "../actions.ts";
 import { BoiteNouvelleColonne, Confirmation } from "../Boites.tsx";
 import { nomAffiche, SUPPRIMER_LA_LIGNE, TEXTE_DE_LA_SUPPRESSION_DE_LIGNE } from "../textes.ts";
 import { surToucheDuKanban } from "./clavier-kanban.ts";
@@ -22,8 +28,8 @@ import {
   AJOUTER_UNE_COLONNE_SELECTION,
   INVITATION_SANS_SELECTION,
   nomDeLaVue,
+  nomDesActions,
   REGROUPER_PAR,
-  titreDeCarte,
   titreDeLaSuppression,
 } from "./textes.ts";
 import { type Regroupement, useRegroupement } from "./use-regroupement.ts";
@@ -78,7 +84,7 @@ function MenuDeCarte({ vue }: { readonly vue: Vue }): ReactElement | null {
     <SurfaceFlottante x={ancre.x} y={ancre.y} largeur={ancre.largeur} hauteur={ancre.hauteur}>
       <MenuActions
         ref={vue.menu.surface}
-        nom={`Actions de la carte ${titreDeCarte(carte.titre)}`}
+        nom={nomDesActions(carte.titre)}
         entrees={entreesDeCarte(vue.commandesDe(ligne, carte.titre))}
       />
     </SurfaceFlottante>
@@ -103,15 +109,18 @@ function SuppressionDeCarte({ vue }: { readonly vue: Vue }): ReactElement | null
 }
 
 function TableauDeKanban(
-  props: ProprietesVueKanban & { readonly regroupement: Regroupement },
-): ReactElement | null {
-  const { colonne } = props.regroupement;
+  props: ProprietesVueKanban & {
+    readonly regroupement: Regroupement;
+    /** La colonne de regroupement, déjà résolue : le plateau n'est rendu que s'il y en a une. */
+    readonly colonne: ColonneLue;
+  },
+): ReactElement {
+  const { colonne } = props;
   const vue = useVueKanban({
     table: props.table,
     lue: props.lue,
     lignes: props.lignes,
-    // Rendu seulement quand une colonne de regroupement existe (VueKanban).
-    regroupement: colonne as NonNullable<typeof colonne>,
+    regroupement: colonne,
     lectureSeule: props.lectureSeule,
   });
   return (
@@ -122,7 +131,7 @@ function TableauDeKanban(
       idAlerte={vue.idAlerte}
     >
       <PlateauDeKanban
-        nom={nomDeLaVue(props.titre, colonne?.nom ?? "")}
+        nom={nomDeLaVue(props.titre, colonne.nom)}
         refCadre={vue.cadre}
         surTouche={(evenement) => surToucheDuKanban(vue, evenement)}
         flottante={<MenuDeCarte vue={vue} />}
@@ -134,21 +143,20 @@ function TableauDeKanban(
   );
 }
 
+// Le message du refus de la création, ou `undefined` si la colonne est créée.
+function refusDeLaColonne(
+  moyens: Pick<ProprietesVueKanban, "table" | "lectureSeule">,
+  nom: string,
+  type: TypeDeColonne,
+): string | undefined {
+  const creee = creerUneColonne(moyens, nom, type);
+  return "refus" in creee ? creee.refus : undefined;
+}
+
 // Sans colonne Sélection, la vue invite à en ajouter une et n'en crée aucune d'elle-même (AC5).
 function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
   const [ouverte, setOuverte] = useState(false);
   const origine = useRef<HTMLButtonElement>(null);
-  const aucun = (): undefined => undefined;
-  const moyens: Moyens = {
-    table: props.table,
-    lue: props.lue,
-    lignes: props.lignes,
-    lectureSeule: props.lectureSeule,
-    allerVers: aucun,
-    annoncer: aucun,
-    signaler: aucun,
-    focaliserLInvitation: aucun,
-  };
   return (
     <EcranDeTableCadre outils={props.selecteur} annonce="">
       <InvitationDeTable texte={INVITATION_SANS_SELECTION}>
@@ -161,7 +169,7 @@ function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
       </InvitationDeTable>
       {ouverte && (
         <BoiteNouvelleColonne
-          moyens={moyens}
+          ajouter={(nom, type) => refusDeLaColonne(props, nom, type)}
           typeInitial="selection"
           fermerLaBoite={(rendre) => {
             setOuverte(false);
@@ -177,9 +185,10 @@ function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
 
 export function VueKanban(props: ProprietesVueKanban): ReactElement {
   const regroupement = useRegroupement(props.designation, props.lue);
-  return regroupement.colonne === undefined ? (
+  const { colonne } = regroupement;
+  return colonne === undefined ? (
     <SansColonneDeSelection {...props} />
   ) : (
-    <TableauDeKanban {...props} regroupement={regroupement} />
+    <TableauDeKanban {...props} regroupement={regroupement} colonne={colonne} />
   );
 }

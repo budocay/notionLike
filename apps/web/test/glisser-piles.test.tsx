@@ -2,7 +2,7 @@
 // AC12, AC21) : trois piles dont une vide, le geste au pointeur sous jsdom avec une mise en page
 // bouchonnée (veille du 2026-10-27, H6), la nature de la cible et la pile rendues au lâcher, les
 // annonces en français, l'abandon par Échap. Aucun type de la bibliothèque n'apparaît ici.
-import { act, cleanup, render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,13 @@ import {
   PilesGlissables,
   useElementGlissable,
 } from "../src/glisser/index.ts";
+import {
+  abandonnerLeGeste,
+  bouchonnerLaGeometrie,
+  glisserLaCarte as glisser,
+  lacherLaCarte as lacher,
+  rectangle,
+} from "./aides-pointeur.ts";
 
 // ——— Mise en page bouchonnée : piles de 180 de large espacées de 200, cartes de 40 de haut espacées de 44 ———
 
@@ -23,52 +30,19 @@ function rectangleDe(element: Element): DOMRect | null {
   const [gauche, haut, largeur, hauteur] = (element.getAttribute("data-rect") ?? "")
     .split(",")
     .map(Number);
-  if (
-    gauche === undefined ||
+  return gauche === undefined ||
     haut === undefined ||
     largeur === undefined ||
     hauteur === undefined
-  ) {
-    return null;
-  }
-  return {
-    left: gauche,
-    top: haut,
-    width: largeur,
-    height: hauteur,
-    right: gauche + largeur,
-    bottom: haut + hauteur,
-    x: gauche,
-    y: haut,
-    toJSON: () => ({}),
-  } as DOMRect;
+    ? null
+    : rectangle(gauche, haut, largeur, hauteur);
 }
 
-const originale = Element.prototype.getBoundingClientRect;
+let retirerLaGeometrie: () => void;
 beforeAll(() => {
-  Element.prototype.getBoundingClientRect = function (this: Element) {
-    return rectangleDe(this) ?? originale.call(this);
-  };
-  for (const propriete of ["offsetHeight", "offsetWidth"] as const) {
-    Object.defineProperty(HTMLElement.prototype, propriete, {
-      configurable: true,
-      get(this: HTMLElement) {
-        const rectangle = rectangleDe(this);
-        return rectangle === null
-          ? 0
-          : propriete === "offsetHeight"
-            ? rectangle.height
-            : rectangle.width;
-      },
-    });
-  }
+  retirerLaGeometrie = bouchonnerLaGeometrie(rectangleDe);
 });
-afterAll(() => {
-  Element.prototype.getBoundingClientRect = originale;
-  for (const propriete of ["offsetHeight", "offsetWidth"] as const) {
-    Reflect.deleteProperty(HTMLElement.prototype, propriete);
-  }
-});
+afterAll(() => retirerLaGeometrie());
 afterEach(cleanup);
 
 // ——— Montage ———
@@ -151,39 +125,6 @@ function monter(
 }
 
 // ——— Gestes au pointeur ———
-
-const attendre = () => act(() => new Promise<void>((suite) => setTimeout(suite, 40)));
-
-function evenement(type: string, x: number, y: number): PointerEvent {
-  return new PointerEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    clientX: x,
-    clientY: y,
-    button: 0,
-    pointerId: 1,
-    isPrimary: true,
-  });
-}
-
-async function glisser(depart: Element, ...points: readonly (readonly [number, number])[]) {
-  await act(async () => {
-    depart.dispatchEvent(evenement("pointerdown", 10, 80));
-  });
-  for (const [x, y] of [[20, 80] as const, ...points]) {
-    await act(async () => {
-      document.dispatchEvent(evenement("pointermove", x, y));
-    });
-    await attendre();
-  }
-}
-
-async function lacher(x: number, y: number) {
-  await act(async () => {
-    document.dispatchEvent(evenement("pointerup", x, y));
-  });
-  await attendre();
-}
 
 const region = (): string => document.querySelector("[aria-live]")?.textContent ?? "";
 
@@ -271,12 +212,7 @@ describe("tri entre plusieurs conteneurs (F-020-AC25)", () => {
   it("F-020-AC12 Échap abandonne le geste sans rien écrire et le dit", async () => {
     const { container, surLacher } = monter();
     await glisser(container.querySelector("#a2") as Element, [220, 52]);
-    await act(async () => {
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }),
-      );
-    });
-    await attendre();
+    await abandonnerLeGeste();
     await lacher(220, 52);
 
     expect(surLacher).not.toHaveBeenCalled();

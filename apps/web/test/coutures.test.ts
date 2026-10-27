@@ -913,12 +913,12 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/kanban/identifiants.ts":
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/moyens.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/kanban/navigation.ts":
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/kanban/piles.ts": "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/kanban/reglages-kanban.ts":
-    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
-  "apps/web/src/vues-de-table/kanban/use-focus-des-cartes.ts":
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/kanban/use-limites.ts":
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",

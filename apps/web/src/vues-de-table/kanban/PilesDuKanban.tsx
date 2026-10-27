@@ -7,6 +7,7 @@ import { CarteDeKanban, PileDeKanban } from "../../interface/composants/Kanban.t
 import { cleAria, TOUCHES_DE_LA_CARTE } from "../../interface/raccourcis.ts";
 import { ChampDEdition } from "../ChampDEdition.tsx";
 import { idDeCarte, idDePile } from "./identifiants.ts";
+import { arretNouvelleCarte, arretPlusDeCartes } from "./navigation.ts";
 import type { Carte, Pile } from "./piles.ts";
 import {
   AFFICHER_PLUS,
@@ -86,12 +87,21 @@ function UneCarte(props: {
   );
 }
 
+// « Nouvelle carte » et « Afficher 100 cartes de plus » sont des arrêts du plateau : hors de l'ordre de
+// tabulation, atteints par les flèches (AC15). Seul l'arrêt courant est dans cet ordre.
 function PiedDePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pile }) {
   const libelle = pile.option === null ? null : pile.libelle;
   const masquees = pile.cartes.length > vue.limites.limiteDe(pile);
+  const arret = (identifiant: string) => ({
+    arret: identifiant,
+    refBouton: vue.focus.refDe(identifiant),
+    tabIndex: vue.focus.courante === identifiant ? 0 : -1,
+    surFocus: () => vue.focus.surFocus(identifiant),
+  });
   return (
     <>
       <Bouton
+        {...arret(arretNouvelleCarte(pile))}
         nom={nouvelleCarteDans(libelle)}
         libelle={NOUVELLE_CARTE}
         raison={vue.proprietes.lectureSeule}
@@ -99,9 +109,10 @@ function PiedDePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pil
       />
       {masquees && (
         <Bouton
+          {...arret(arretPlusDeCartes(pile))}
           libelle={AFFICHER_PLUS}
           nom={afficherPlusDans(libelle)}
-          surActivation={() => vue.limites.plus(pile.option)}
+          surActivation={() => vue.actions.afficherPlus(pile)}
         />
       )}
     </>

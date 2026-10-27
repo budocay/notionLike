@@ -52,6 +52,16 @@ export const TOUCHES_DE_LA_CARTE = {
   descendre: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
   menu: { touche: "ContextMenu", modificateurs: [] },
   menuAutrement: { touche: "F10", modificateurs: ["Maj"] },
+  /** Le focus se déplace, sans rien écrire (F-020-AC15). */
+  haut: { touche: "ArrowUp", modificateurs: [] },
+  bas: { touche: "ArrowDown", modificateurs: [] },
+  gauche: { touche: "ArrowLeft", modificateurs: [] },
+  droite: { touche: "ArrowRight", modificateurs: [] },
+  debut: { touche: "Home", modificateurs: [] },
+  fin: { touche: "End", modificateurs: [] },
+  /** La saisie du titre (F-020-AC7). */
+  titre: { touche: "Enter", modificateurs: [] },
+  titreAutrement: { touche: "F2", modificateurs: [] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
 /**

@@ -1,73 +1,143 @@
-// Navigation entre les cartes (F-020-AC15) : sans DOM, depuis les piles et le nombre de cartes que
-// chacune présente. Les flèches haut et bas parcourent une pile, gauche et droite passent à la pile
-// voisine qui a des cartes, à la même place ou à sa dernière carte ; Début et Fin vont aux bouts.
+// Navigation entre les arrêts du plateau (F-020-AC15) : sans DOM, depuis les piles et le nombre de
+// cartes que chacune présente. Un arrêt est une carte ou l'une des commandes qui terminent une pile
+// (« Nouvelle carte », « Afficher 100 cartes de plus ») ; le plateau n'est qu'un seul arrêt de
+// tabulation, les flèches parcourent les autres. Haut et bas parcourent une pile, gauche et droite
+// passent à la pile voisine, à la même place ou à son dernier arrêt ; Début et Fin vont aux bouts.
 import type { IdLigne } from "@notionlike/document";
 
-import { placeDeLaCarte } from "./destination.ts";
+import { idDePile } from "./identifiants.ts";
 import type { Pile } from "./piles.ts";
 
 export type SensDeNavigation = "haut" | "bas" | "gauche" | "droite" | "debut" | "fin";
 
-/** Le nombre de cartes présentées par pile. */
-export type Limites = (pile: Pile) => number;
+/** Un arrêt : l'identifiant d'une ligne (carte), ou celui d'une commande de pile. */
+export type Arret = string;
 
-function visibles(pile: Pile | undefined, limite: Limites) {
-  return pile === undefined ? [] : pile.cartes.slice(0, limite(pile));
+/** Ce qui détermine les arrêts : cartes présentées par pile, et « Nouvelle carte » offerte ou non. */
+export interface Parcours {
+  readonly limite: (pile: Pile) => number;
+  /** Faux en lecture seule : le bouton est désactivé, il ne peut pas recevoir le focus. */
+  readonly creation: boolean;
 }
 
-function dansLaPile(cartes: readonly { readonly id: IdLigne }[], rang: number, sens: string) {
-  switch (sens) {
-    case "haut":
-      return cartes[rang - 1]?.id;
-    case "bas":
-      return cartes[rang + 1]?.id;
-    case "debut":
-      return cartes[0]?.id;
-    default:
-      return cartes.at(-1)?.id;
+const PREFIXE_NOUVELLE = "nouvelle:";
+const PREFIXE_PLUS = "plus:";
+
+export function arretNouvelleCarte(pile: Pile): Arret {
+  return `${PREFIXE_NOUVELLE}${idDePile(pile.option)}`;
+}
+
+export function arretPlusDeCartes(pile: Pile): Arret {
+  return `${PREFIXE_PLUS}${idDePile(pile.option)}`;
+}
+
+function visibles(pile: Pile, parcours: Parcours): readonly Arret[] {
+  return pile.cartes.slice(0, parcours.limite(pile)).map(({ id }) => id);
+}
+
+/** Les arrêts d'une pile, dans l'ordre : ses cartes présentées, puis ses commandes. */
+export function arretsDe(pile: Pile, parcours: Parcours): readonly Arret[] {
+  return [
+    ...visibles(pile, parcours),
+    ...(parcours.creation ? [arretNouvelleCarte(pile)] : []),
+    ...(pile.cartes.length > parcours.limite(pile) ? [arretPlusDeCartes(pile)] : []),
+  ];
+}
+
+/** La place d'un arrêt : sa pile et son rang parmi les arrêts de la pile. */
+export function placeDeLArret(
+  piles: readonly Pile[],
+  parcours: Parcours,
+  arret: Arret,
+): { readonly pile: number; readonly rang: number } | undefined {
+  for (const [pile, une] of piles.entries()) {
+    const rang = arretsDe(une, parcours).indexOf(arret);
+    if (rang >= 0) {
+      return { pile, rang };
+    }
   }
+  return undefined;
+}
+
+function estUneCarte(arret: Arret): boolean {
+  return !arret.startsWith(PREFIXE_NOUVELLE) && !arret.startsWith(PREFIXE_PLUS);
+}
+
+// Depuis une carte : la carte de même rang de la pile voisine, ou sa dernière carte, ou sa première
+// commande si elle n'a aucune carte. Depuis une commande : la commande de même sorte, sinon la première.
+function arretDeLaVoisine(arrets: readonly Arret[], depart: Arret, rang: number, cartes: number) {
+  if (estUneCarte(depart)) {
+    return cartes === 0 ? arrets[0] : arrets[Math.min(rang, cartes - 1)];
+  }
+  const prefixe = depart.startsWith(PREFIXE_NOUVELLE) ? PREFIXE_NOUVELLE : PREFIXE_PLUS;
+  return arrets.find((arret) => arret.startsWith(prefixe)) ?? arrets[0];
 }
 
 function dansUnePileVoisine(
   piles: readonly Pile[],
-  limite: Limites,
-  depart: { readonly pile: number; readonly rang: number },
+  parcours: Parcours,
+  depart: Arret,
+  place: { readonly pile: number; readonly rang: number },
   pas: -1 | 1,
-): IdLigne | undefined {
-  for (let rang = depart.pile + pas; rang >= 0 && rang < piles.length; rang += pas) {
-    const cartes = visibles(piles[rang], limite);
-    const carte = cartes[Math.min(depart.rang, cartes.length - 1)];
-    if (carte !== undefined) {
-      return carte.id;
+): Arret | undefined {
+  for (let rang = place.pile + pas; rang >= 0 && rang < piles.length; rang += pas) {
+    const pile = piles[rang];
+    const arrets = pile === undefined ? [] : arretsDe(pile, parcours);
+    const vers =
+      pile === undefined
+        ? undefined
+        : arretDeLaVoisine(arrets, depart, place.rang, visibles(pile, parcours).length);
+    if (vers !== undefined) {
+      return vers;
     }
   }
   return undefined;
 }
 
-/** La carte où va le focus, ou `undefined` au bord (le focus ne bouge pas). */
-export function carteVoisine(
+// Haut, bas, début, fin : les arrêts de la pile de l'arrêt courant.
+function dansLaPile(arrets: readonly Arret[], rang: number, sens: SensDeNavigation) {
+  switch (sens) {
+    case "haut":
+      return arrets[rang - 1];
+    case "bas":
+      return arrets[rang + 1];
+    case "debut":
+      return arrets[0];
+    default:
+      return arrets.at(-1);
+  }
+}
+
+/** L'arrêt où va le focus, ou `undefined` au bord (le focus ne bouge pas). */
+export function arretVoisin(
   piles: readonly Pile[],
-  limite: Limites,
-  carte: IdLigne,
+  parcours: Parcours,
+  arret: Arret,
   sens: SensDeNavigation,
-): IdLigne | undefined {
-  const place = placeDeLaCarte(piles, carte);
-  if (place === undefined) {
+): Arret | undefined {
+  const place = placeDeLArret(piles, parcours, arret);
+  const pile = piles[place?.pile ?? -1];
+  if (place === undefined || pile === undefined) {
     return undefined;
   }
   if (sens === "gauche" || sens === "droite") {
-    return dansUnePileVoisine(piles, limite, place, sens === "gauche" ? -1 : 1);
+    return dansUnePileVoisine(piles, parcours, arret, place, sens === "gauche" ? -1 : 1);
   }
-  return dansLaPile(visibles(piles[place.pile], limite), place.rang, sens);
+  return dansLaPile(arretsDe(pile, parcours), place.rang, sens);
 }
 
-/** La première carte présentée de la première pile qui en a : l'arrêt de tabulation par défaut. */
-export function premiereCarte(piles: readonly Pile[], limite: Limites): IdLigne | undefined {
+/** Le premier arrêt de tabulation : la première carte présentée, sinon le premier arrêt du plateau. */
+export function premierArret(piles: readonly Pile[], parcours: Parcours): Arret | undefined {
   for (const pile of piles) {
-    const premiere = visibles(pile, limite)[0];
+    const premiere = visibles(pile, parcours)[0];
     if (premiere !== undefined) {
-      return premiere.id;
+      return premiere;
     }
   }
-  return undefined;
+  return piles.flatMap((pile) => arretsDe(pile, parcours))[0];
+}
+
+/** La carte, si l'arrêt en est une (et non une commande de pile). */
+export function carteDeLArret(arret: Arret): IdLigne | undefined {
+  return estUneCarte(arret) ? arret : undefined;
 }

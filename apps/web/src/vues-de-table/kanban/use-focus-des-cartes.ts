@@ -1,20 +1,19 @@
-// Focus des cartes du kanban (F-020-AC15) : un seul arrêt de tabulation, la carte courante ; les
-// flèches déplacent le focus sans rien écrire. Une carte déplacée est remontée dans le DOM par sa
-// nouvelle pile : le focus lui est rendu après le rendu qui l'a replacée, et sa pile amenée à l'écran.
-import type { IdLigne } from "@notionlike/document";
+// Focus du plateau (F-020-AC15) : un seul arrêt de tabulation, l'arrêt courant (une carte, ou une
+// commande de pile quand le plateau n'a aucune carte) ; les flèches déplacent le focus sans rien
+// écrire. Une carte déplacée est remontée dans le DOM par sa nouvelle pile : le focus lui est rendu
+// après le rendu qui l'a replacée, et sa pile amenée à l'écran.
 import { useLayoutEffect, useRef, useState } from "react";
 
-import { placeDeLaCarte } from "./destination.ts";
-import { type Limites, premiereCarte } from "./navigation.ts";
+import { type Arret, type Parcours, placeDeLArret, premierArret } from "./navigation.ts";
 import type { Pile } from "./piles.ts";
 
 export interface FocusDesCartes {
-  /** La carte qui est l'arrêt de tabulation : celle qui a eu le focus, sinon la première. */
-  readonly courante: IdLigne | undefined;
-  readonly refDe: (carte: IdLigne) => (element: HTMLElement | null) => void;
-  /** Donne le focus à la carte, tout de suite si elle est à l'écran, sinon après le rendu. */
-  readonly focaliser: (carte: IdLigne) => void;
-  readonly surFocus: (carte: IdLigne) => void;
+  /** L'arrêt de tabulation : celui qui a eu le focus, sinon la première carte. */
+  readonly courante: Arret | undefined;
+  readonly refDe: (arret: Arret) => (element: HTMLElement | null) => void;
+  /** Donne le focus à l'arrêt, tout de suite s'il est à l'écran, sinon après le rendu. */
+  readonly focaliser: (arret: Arret) => void;
+  readonly surFocus: (arret: Arret) => void;
 }
 
 function amener(element: HTMLElement): void {
@@ -25,31 +24,31 @@ function amener(element: HTMLElement): void {
   }
 }
 
-export function useFocusDesCartes(piles: readonly Pile[], limite: Limites): FocusDesCartes {
-  const [choisie, setChoisie] = useState<IdLigne | undefined>(undefined);
-  const elements = useRef(new Map<IdLigne, HTMLElement>()).current;
-  const attendue = useRef<IdLigne | undefined>(undefined);
-  const presente = choisie !== undefined && placeDeLaCarte(piles, choisie) !== undefined;
+export function useFocusDesCartes(piles: readonly Pile[], parcours: Parcours): FocusDesCartes {
+  const [choisi, setChoisi] = useState<Arret | undefined>(undefined);
+  const elements = useRef(new Map<Arret, HTMLElement>()).current;
+  const attendu = useRef<Arret | undefined>(undefined);
+  const present = choisi !== undefined && placeDeLArret(piles, parcours, choisi) !== undefined;
   useLayoutEffect(() => {
-    const element = attendue.current === undefined ? undefined : elements.get(attendue.current);
+    const element = attendu.current === undefined ? undefined : elements.get(attendu.current);
     if (element !== undefined) {
-      attendue.current = undefined;
+      attendu.current = undefined;
       amener(element);
     }
   });
   return {
-    courante: presente ? choisie : premiereCarte(piles, limite),
-    refDe: (carte) => (element) => {
+    courante: present ? choisi : premierArret(piles, parcours),
+    refDe: (arret) => (element) => {
       if (element === null) {
-        elements.delete(carte);
+        elements.delete(arret);
       } else {
-        elements.set(carte, element);
+        elements.set(arret, element);
       }
     },
-    focaliser: (carte) => {
-      attendue.current = carte;
-      setChoisie(carte);
+    focaliser: (arret) => {
+      attendu.current = arret;
+      setChoisi(arret);
     },
-    surFocus: setChoisie,
+    surFocus: setChoisi,
   };
 }

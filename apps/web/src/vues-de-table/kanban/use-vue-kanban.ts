@@ -5,14 +5,15 @@ import type { ColonneLue, DocumentTable, IdLigne, LigneLue, TableLue } from "@no
 import { type RefObject, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { AnnoncesDesPiles } from "../../glisser/index.ts";
-import { type Moyens, supprimerUneLigne } from "../actions.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "../menu-de-grille.ts";
-import { useAnnonce } from "../use-vue-tableau.ts";
-import { type ActionsDeCarte, actionsDeCarte } from "./actions-de-carte.ts";
+import { useAnnonce } from "../use-annonce.ts";
+import { type ActionsDeCarte, actionsDeCarte, supprimerUneCarte } from "./actions-de-carte.ts";
 import { annoncesDuKanban } from "./annonces.ts";
 import { destinationDeLaCommande, placeDeLaCarte } from "./destination.ts";
 import type { CommandesDeCarte } from "./entrees.ts";
 import { idDeCarte, idDePile } from "./identifiants.ts";
+import type { MoyensDuKanban } from "./moyens.ts";
+import type { Parcours } from "./navigation.ts";
 import { type Pile, regrouper } from "./piles.ts";
 import { type FocusDesCartes, useFocusDesCartes } from "./use-focus-des-cartes.ts";
 import { type LimitesDesPiles, useLimites } from "./use-limites.ts";
@@ -37,6 +38,8 @@ export interface VueKanban {
   readonly piles: readonly Pile[];
   readonly limites: LimitesDesPiles;
   readonly focus: FocusDesCartes;
+  /** Les arrêts du plateau : cartes présentées, commandes de pile (AC15). */
+  readonly parcours: Parcours;
   readonly titre: TitreDeCarte;
   readonly menu: MenuDeGrille;
   readonly suppression: SuppressionDeCarte;
@@ -51,6 +54,8 @@ export interface VueKanban {
   /** Vrai : aucun geste ne démarre (lecture seule, saisie ouverte). */
   readonly desactivee: boolean;
   readonly proprietes: ProprietesDuPlateau;
+  /** Ce que les actions de la vue demandent à son environnement. */
+  readonly moyens: MoyensDuKanban;
   readonly commandesDe: (carte: IdLigne, titre: string) => CommandesDeCarte;
   readonly saisirLeTitre: (carte: IdLigne) => void;
   readonly confirmerLaSuppression: () => void;
@@ -106,7 +111,8 @@ function useBases(proprietes: ProprietesDuPlateau) {
   const [annonce, annoncer] = useAnnonce();
   const [alerte, signaler] = useState<string | undefined>(undefined);
   const limites = useLimites();
-  const focus = useFocusDesCartes(piles, limites.limiteDe);
+  const parcours = { limite: limites.limiteDe, creation: lectureSeule === undefined };
+  const focus = useFocusDesCartes(piles, parcours);
   const titre = useTitreDeCarte({
     table,
     lue,
@@ -119,66 +125,72 @@ function useBases(proprietes: ProprietesDuPlateau) {
   const suppression = useSuppression(menu);
   const idAlerte = useId();
   const cadre = useRef<HTMLDivElement>(null);
+  const moyens = { table, lue, lignes, lectureSeule, annoncer, signaler };
   return {
     piles,
     annonce,
-    annoncer,
     alerte,
-    signaler,
     idAlerte,
     cadre,
     limites,
+    parcours,
     focus,
     titre,
     menu,
     suppression,
+    moyens,
   };
 }
 
 type Bases = ReturnType<typeof useBases>;
 
-function moyensDe(proprietes: ProprietesDuPlateau, bases: Bases): Moyens {
-  const { table, lue, lignes, lectureSeule } = proprietes;
-  return {
-    table,
-    lue,
-    lignes,
-    lectureSeule,
-    allerVers: () => undefined,
-    annoncer: bases.annoncer,
-    signaler: bases.signaler,
-    focaliserLInvitation: () => undefined,
-  };
-}
-
-// Confirme la suppression : le focus passe à la carte voisine, ou au plateau s'il n'en reste aucune.
-function confirmer(proprietes: ProprietesDuPlateau, bases: Bases): void {
+// Confirme la suppression : le focus passe à la carte voisine, ou au plateau s'il n'en reste aucune ;
+// si la suppression est refusée, il revient à la carte.
+function confirmer(bases: Bases): void {
   const carte = bases.suppression.carte;
   if (carte === undefined) {
     return;
   }
   const voisine = voisineDe(bases.piles, carte);
   bases.suppression.fermer(false);
-  supprimerUneLigne(moyensDe(proprietes, bases), carte, null);
-  if (voisine === undefined) {
+  if (!supprimerUneCarte(bases.moyens, carte)) {
+    bases.focus.focaliser(carte);
+  } else if (voisine === undefined) {
     bases.cadre.current?.focus();
   } else {
     bases.focus.focaliser(voisine);
   }
 }
 
+// Les entrées du menu d'une carte : chacune se désactive avec sa raison (AC13, AC23).
+function commandesDeLaCarte(
+  bases: Bases,
+  actions: ActionsDeCarte,
+  saisirLeTitre: (carte: IdLigne) => void,
+): VueKanban["commandesDe"] {
+  const { piles, titre, suppression, moyens } = bases;
+  return (carte, titreDeLaCarte) => ({
+    titre: titreDeLaCarte,
+    lectureSeule: moyens.lectureSeule,
+    possible: (commande) => destinationDeLaCommande(piles, carte, commande) !== undefined,
+    titreModifiable: titre.possible,
+    fermer: bases.menu.fermer,
+    deplacer: (commande) => actions.commander(carte, commande),
+    modifierLeTitre: () => saisirLeTitre(carte),
+    supprimer: () => suppression.demander(carte),
+  });
+}
+
 export function useVueKanban(proprietes: ProprietesDuPlateau): VueKanban {
   const bases = useBases(proprietes);
-  const { piles, titre, focus, menu, suppression } = bases;
-  const { lectureSeule } = proprietes;
+  const { piles, titre, focus } = bases;
   // Entrée, F2 et la commande « Modifier le titre » : un refus (lecture seule, aucune colonne de titre)
   // est dit, la saisie ne s'ouvre pas.
   const saisirLeTitre = (carte: IdLigne): void => titre.commencer(carte, titreBrut(piles, carte));
   const actions = actionsDeCarte({
-    ...proprietes,
+    ...bases.moyens,
+    regroupement: proprietes.regroupement,
     piles,
-    signaler: bases.signaler,
-    annoncer: bases.annoncer,
     focaliser: focus.focaliser,
     limites: bases.limites,
     saisirLeTitre: (carte) =>
@@ -190,19 +202,10 @@ export function useVueKanban(proprietes: ProprietesDuPlateau): VueKanban {
     actions,
     annonces: useMemo(() => annoncesDuKanban(piles), [piles]),
     identifiants: identifiantsDe(piles, bases.limites),
-    desactivee: lectureSeule !== undefined || titre.saisie !== undefined,
+    desactivee: proprietes.lectureSeule !== undefined || titre.saisie !== undefined,
     proprietes,
     saisirLeTitre,
-    commandesDe: (carte, titreDeLaCarte) => ({
-      titre: titreDeLaCarte,
-      lectureSeule,
-      possible: (commande) => destinationDeLaCommande(piles, carte, commande) !== undefined,
-      titreModifiable: titre.possible,
-      fermer: menu.fermer,
-      deplacer: (commande) => actions.commander(carte, commande),
-      modifierLeTitre: () => saisirLeTitre(carte),
-      supprimer: () => suppression.demander(carte),
-    }),
-    confirmerLaSuppression: () => confirmer(proprietes, bases),
+    commandesDe: commandesDeLaCarte(bases, actions, saisirLeTitre),
+    confirmerLaSuppression: () => confirmer(bases),
   };
 }

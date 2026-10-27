@@ -276,7 +276,9 @@ describe("une seule voie d'écriture, aucun changement de format (F-020-AC9, AC2
     const une = base();
     const avant = une.table.lire();
     const racines = [...une.table.doc.share.keys()].sort();
-    const versions = JSON.stringify(une.table.doc.share.get("versions")?.toJSON());
+    // Le format de la table ne porte aucune racine « versions » (la version 1 est implicite : ADR-0016) :
+    // l'absence est constatée avant, et doit l'être encore après.
+    expect(racines).toEqual(["colonnes", "lignes"]);
     const hasard = mulberry32(5);
     for (let coup = 0; coup < 30; coup += 1) {
       const piles = pilesDe(une.table);
@@ -293,7 +295,12 @@ describe("une seule voie d'écriture, aucun changement de format (F-020-AC9, AC2
     }
     const apres = une.table.lire();
     expect([...une.table.doc.share.keys()].sort()).toEqual(racines);
-    expect(JSON.stringify(une.table.doc.share.get("versions")?.toJSON())).toBe(versions);
+    // La façade rouvre l'état encodé sans le refuser, et le lit comme la table d'origine.
+    const copie = new Y.Doc();
+    Y.applyUpdate(copie, Y.encodeStateAsUpdate(une.table.doc));
+    const rouverte = ouvrirDocumentTable(copie);
+    ouvertes.push(rouverte);
+    expect(rouverte.lire()).toEqual(apres);
     expect(apres.colonnes).toEqual(avant.colonnes);
     const sansRegroupement = (table: TableLue) =>
       table.lignes

@@ -221,9 +221,9 @@ export function ListeGlissable(props: ProprietesListeGlissable): ReactElement {
 // Un `DndContext`, un `SortableContext` par pile et chaque pile aussi zone de dépôt (H6, veille du
 // 2026-10-27). La bibliothèque ne déplace rien d'une pile à l'autre : ce module ne dit que la nature
 // de la cible (une carte ou une pile) et la pile ; le rang d'insertion est calculé par l'application
-// (indice de la carte pour une cible carte, fin de pile pour une cible pile). Au pointeur seul : la
-// touche de saisie de la bibliothèque est celle d'Entrée sur une carte, l'équivalent au clavier est
-// fait de commandes (F-020-AC13).
+// (indice de la carte pour une cible carte, fin de pile pour une cible pile). Au pointeur seul : aucun
+// capteur clavier n'est enregistré pour les piles, l'équivalent au clavier est fait de commandes
+// (F-020-AC13).
 
 /** Où la carte glissée tombe : sur une carte (avant ou après elle) ou sur une pile. */
 export interface DepotSurUnePile {
@@ -294,7 +294,6 @@ function survolDuDepot(depot: DepotSurUnePile | undefined): Survol | undefined {
         actif: depot.actif,
         cible: depot.cible ?? depot.pile,
         zone: depot.zone ?? "dans",
-        pile: depot.pile,
       };
 }
 

@@ -1,6 +1,6 @@
 // Liste ordonnée des vues livrées (F-018-AC44), tenue en ce seul endroit : F-020 (kanban) et F-021
 // (calendrier) y ajoutent la leur. Le sélecteur de vues paraît dès qu'elle en compte deux.
-import { KANBAN } from "./kanban/textes.ts";
+import { LIBELLE_KANBAN } from "./kanban/textes.ts";
 import { TABLEAU } from "./textes.ts";
 
 export interface VueLivree {
@@ -14,7 +14,7 @@ export const VUE_KANBAN = "kanban";
 
 export const VUES: readonly VueLivree[] = [
   { id: "tableau", libelle: TABLEAU },
-  { id: VUE_KANBAN, libelle: KANBAN },
+  { id: VUE_KANBAN, libelle: LIBELLE_KANBAN },
 ];
 
 export const IDS_DES_VUES: readonly string[] = VUES.map(({ id }) => id);

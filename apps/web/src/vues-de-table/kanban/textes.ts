@@ -3,11 +3,10 @@
 // (titre de carte, libellé d'option, nom de colonne) y est insérée comme du texte (F-020-AC22).
 import { libelleAffiche, nomAffiche } from "../textes.ts";
 
-export const KANBAN = "Kanban";
+export const LIBELLE_KANBAN = "Kanban";
 export const SANS_VALEUR = "Sans valeur";
 export const SANS_TITRE = "Sans titre";
 export const REGROUPER_PAR = "Regrouper par";
-export const PILES_DU_KANBAN = "Piles du kanban";
 export const INVITATION_SANS_SELECTION = "Le kanban regroupe les lignes par une colonne Sélection.";
 export const AJOUTER_UNE_COLONNE_SELECTION = "Ajouter une colonne Sélection";
 export const NOUVELLE_CARTE = "Nouvelle carte";
@@ -71,13 +70,18 @@ export function carteDeplacee(titre: string, libelle: string | null, rang: numbe
 export const COMMANDE_MONTER = "Monter";
 export const COMMANDE_DESCENDRE = "Descendre";
 
+/** Nom d'une commande fixe entre guillemets français (ce n'est pas un titre de page). */
+function entreGuillemets(nom: string): string {
+  return ["«", nom, "»"].join(" ");
+}
+
 /** Texte lu à la saisie d'une carte au pointeur : ce qu'elle permet, au clavier comme à la souris. */
 export function instructionsDuKanban(touches: {
   readonly piles: string;
   readonly places: string;
   readonly menu: string;
 }): string {
-  return `Pour déplacer une carte au clavier, ${touches.piles} la change de pile, ${touches.places} la monte ou la descend ; ${touches.menu} ouvre le menu de ses actions. À la souris, faites glisser la carte, Échap abandonne le geste.`;
+  return `Pour déplacer une carte au clavier, ${touches.piles} la change de pile, ${touches.places} la monte ou la descend ; ${touches.menu} ouvre le menu de ses actions. Tab entre dans le plateau et en sort ; les flèches parcourent les cartes puis, au bas de chaque pile, les commandes ${entreGuillemets(NOUVELLE_CARTE)} et ${entreGuillemets(AFFICHER_PLUS)}. À la souris, faites glisser la carte, Échap abandonne le geste.`;
 }
 
 export function carteSaisie(titre: string, libelle: string | null, rang: number, total: number) {

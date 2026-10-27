@@ -110,18 +110,22 @@ describe("colonne de regroupement (F-020-AC4)", () => {
     expect(colonneDeRegroupement(table.lire(), seconde)).toBeUndefined();
   });
 
-  it("F-020-AC4 la section kanban : lue si bien formée, écrite sans les autres clés perdues, retirée quand elle vaut la colonne par défaut", () => {
+  it("F-020-AC4 la section kanban : lue si bien formée, écrite sans perdre les autres clés, le choix explicite enregistré même quand il désigne la colonne par défaut", () => {
     expect(regroupementLu({ regroupement: "c1" })).toBe("c1");
     expect(regroupementLu({ regroupement: 3 })).toBeUndefined();
     expect(regroupementLu("x")).toBeUndefined();
     expect(regroupementLu(undefined)).toBeUndefined();
 
-    expect(sectionDuKanban("c2", "c1", undefined)).toEqual({ regroupement: "c2" });
-    expect(sectionDuKanban("c2", "c1", { regroupement: "c3", futur: true })).toEqual({
+    expect(sectionDuKanban("c2", undefined)).toEqual({ regroupement: "c2" });
+    expect(sectionDuKanban("c2", { regroupement: "c3", futur: true })).toEqual({
       futur: true,
       regroupement: "c2",
     });
-    expect(sectionDuKanban("c1", "c1", { regroupement: "c2" })).toBeUndefined();
-    expect(sectionDuKanban("c1", "c1", { regroupement: "c2", futur: 1 })).toEqual({ futur: 1 });
+    // Le choix de la colonne que l'ordre des colonnes désigne aujourd'hui est gardé tel quel.
+    expect(sectionDuKanban("c1", { regroupement: "c2" })).toEqual({ regroupement: "c1" });
+    expect(sectionDuKanban("c1", { regroupement: "c2", futur: 1 })).toEqual({
+      futur: 1,
+      regroupement: "c1",
+    });
   });
 });
