@@ -172,6 +172,7 @@ export const TRIS = "Tris";
 export const AJOUTER_UN_FILTRE = "Ajouter un filtre";
 export const AJOUTER_UN_TRI = "Ajouter un tri";
 export const TOUT_EFFACER = "Tout effacer";
+export const AUCUNE_LIGNE_CORRESPONDANTE = "Aucune ligne ne correspond aux filtres.";
 export const REAPPLIQUER = "Réappliquer les filtres et les tris";
 export const AFFICHAGE_FIGE =
   "Les lignes affichées ne sont plus recalculées. Activez « Réappliquer les filtres et les tris » pour les recalculer.";

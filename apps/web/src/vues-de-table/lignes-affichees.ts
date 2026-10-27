@@ -31,15 +31,17 @@ export function lignesAffichees(
   return retenues.map(({ ligne }) => ligne);
 }
 
-/** Vrai si au moins un filtre ou un tri de la définition a un effet sur cette table lue (AC17). */
-export function aUnElementActif(table: TableLue, definition: Definition): boolean {
-  return (
-    compilerLesFiltres(table, definition.filtres).length > 0 ||
-    compilerLesTris(table, definition.tris).length > 0
-  );
+/** Vrai si au moins un tri de la définition a un effet sur cette table lue : l'ordre manuel est masqué. */
+export function aUnTriActif(table: TableLue, definition: Definition): boolean {
+  return compilerLesTris(table, definition.tris).length > 0;
 }
 
-/** Les lignes de la table lue qui ne satisfont plus les filtres actifs, parmi `ids` (AC18). */
+/** Vrai si au moins un filtre ou un tri de la définition a un effet sur cette table lue (AC17). */
+export function aUnElementActif(table: TableLue, definition: Definition): boolean {
+  return compilerLesFiltres(table, definition.filtres).length > 0 || aUnTriActif(table, definition);
+}
+
+/** Les lignes de la table lue qui ne satisfont plus les filtres actifs, parmi `affichees` (AC18). */
 export function lignesHorsFiltre(
   table: TableLue,
   definition: Definition,

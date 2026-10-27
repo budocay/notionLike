@@ -18,7 +18,17 @@ export function comparerLesUnites(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-/** Ordre de deux textes : leurs clés, puis, à clés égales, les textes eux-mêmes (AC8). */
-export function comparerLesTextes(a: string, b: string): number {
-  return comparerLesUnites(cleDeComparaison(a), cleDeComparaison(b)) || comparerLesUnites(a, b);
+/** Un texte rangé : sa clé de comparaison, calculée une fois, et le texte brut (AC8). */
+export interface TexteRange {
+  readonly cle: string;
+  readonly brut: string;
+}
+
+export function rangerLeTexte(brut: string): TexteRange {
+  return { cle: cleDeComparaison(brut), brut };
+}
+
+/** Ordre de deux textes rangés : leurs clés, puis, à clés égales, les textes bruts (AC8). */
+export function comparerLesTextes(a: TexteRange, b: TexteRange): number {
+  return comparerLesUnites(a.cle, b.cle) || comparerLesUnites(a.brut, b.brut);
 }

@@ -1,6 +1,6 @@
 // Le calcul des lignes affichées n'est refait que si la table lue ou la définition change, pas au
 // défilement ni à la navigation (F-019-AC28).
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as calcul from "../../src/vues-de-table/lignes-affichees.ts";
@@ -41,7 +41,10 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     await ajouterUnTri(utilisateur);
     expect(espion.mock.calls.length).toBeGreaterThan(avant);
     const apresDefinition = espion.mock.calls.length;
-    table.ecrireCellule(table.lire().lignes[0]?.id ?? "", table.lire().colonnes[0]?.id ?? "", "x");
-    expect(espion.mock.calls.length).toBeGreaterThanOrEqual(apresDefinition);
+    // La table lue change : le calcul est rappelé, et les lignes rendues reflètent la valeur écrite.
+    const ligne = table.lire().lignes[0]?.id ?? "";
+    act(() => table.ecrireCellule(ligne, table.lire().colonnes[0]?.id ?? "", "Ligne écrite"));
+    expect(espion.mock.calls.length).toBeGreaterThan(apresDefinition);
+    expect(screen.getAllByText("Ligne écrite").length).toBeGreaterThan(0);
   });
 });

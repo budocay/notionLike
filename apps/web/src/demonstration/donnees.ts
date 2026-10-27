@@ -125,7 +125,7 @@ export const TABLE_FICTIVE = {
   aucuneOption: "Cette colonne n'a encore aucune option.",
   nouvelleOption: "Nouvelle option",
   faute: "Le libellé d'une option compte au plus 100 caractères.",
-  // Filtres et tris (F-019) : une barre, un filtre sans valeur, un tri, un filtre inactif.
+  // Filtres et tris (F-019) : une barre, deux filtres valués dont un inactif, une marque de tri, une ligne hors filtre.
   barreDesFiltres: {
     nom: "Filtres",
     resume: "2 filtres · 1 ligne sur 2",

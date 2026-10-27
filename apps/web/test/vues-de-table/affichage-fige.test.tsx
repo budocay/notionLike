@@ -2,9 +2,7 @@
 // lignes affichées, mises à jour reçues, affichage figé, déplacement d'une ligne, rechargement.
 import type { DocumentTable } from "@notionlike/document";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import * as Y from "yjs";
 
 import { EcranDeTable } from "../../src/vues-de-table/index.ts";
 import { ESPACE_A } from "../aides-persistance.ts";
@@ -137,7 +135,11 @@ describe("affichage figé (F-019-AC17, AC18)", () => {
     expect(table.lire().lignes[2]?.cellules[1]).toBe(8);
     expect(noms()).toEqual(["École", "ecole"]);
     expect(horsFiltre()).toHaveLength(1);
-    expect(within(rangees()[1] as HTMLElement).getByText("Hors filtre")).toBeTruthy();
+    const marque = within(rangees()[1] as HTMLElement).getByText("Hors filtre");
+    // AC18 : un texte à l'écran, pas seulement pour les lecteurs d'écran, et cité par la cellule.
+    expect(marque.closest(".sr-only")).toBeNull();
+    expect(marque.className).not.toContain("sr-only");
+    expect(marque.closest('[role="rowheader"]')?.getAttribute("aria-describedby")).toBe(marque.id);
     await annonce(
       "Les lignes affichées ne sont plus recalculées. Activez « Réappliquer les filtres et les tris » pour les recalculer.",
     );
@@ -294,11 +296,9 @@ describe("rechargement (F-019-AC20)", () => {
       CLE_DES_REGLAGES,
       JSON.stringify({ version: 1, sections: { "filtres-tris": { filtres: "x", tris: 3 } } }),
     );
-    userEvent.setup();
-    const { table } = rendreLaTable(remplirSixLignes);
+    rendreLaTable(remplirSixLignes);
 
     expect(noms()).toHaveLength(6);
     expect(barre("Filtres").textContent).toContain("Aucun filtre · 6 lignes sur 6");
-    expect(Y.encodeStateAsUpdate(table.doc).length).toBeGreaterThan(0);
   });
 });

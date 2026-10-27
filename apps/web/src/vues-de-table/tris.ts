@@ -3,12 +3,17 @@
 // l'ordre manuel de la table lue. Sans langue ni fuseau de l'appareil (AC11).
 import type { ColonneLue, LigneLue, TableLue, ValeurDeCellule } from "@notionlike/document";
 
-import { cleDeComparaison, comparerLesUnites } from "./cle-de-comparaison.ts";
+import {
+  comparerLesTextes,
+  comparerLesUnites,
+  rangerLeTexte,
+  type TexteRange,
+} from "./cle-de-comparaison.ts";
 import type { Tri } from "./definition.ts";
 import { estSansValeur } from "./filtres.ts";
 
 /** Ce par quoi une cellule se range, ou `null` pour une cellule sans valeur (AC9). */
-type Cle = number | string | { readonly cle: string; readonly brut: string } | null;
+type Cle = number | string | TexteRange | null;
 
 function cleDeTri(colonne: ColonneLue, cellule: ValeurDeCellule | null): Cle {
   if (cellule === null || estSansValeur(colonne, cellule)) {
@@ -16,7 +21,7 @@ function cleDeTri(colonne: ColonneLue, cellule: ValeurDeCellule | null): Cle {
   }
   switch (colonne.type) {
     case "texte":
-      return { cle: cleDeComparaison(String(cellule)), brut: String(cellule) };
+      return rangerLeTexte(String(cellule));
     case "nombre":
       return Number(cellule);
     case "case":
@@ -36,7 +41,7 @@ function comparerLesCles(a: NonNullable<Cle>, b: NonNullable<Cle>): number {
     return comparerLesUnites(a, b);
   }
   if (typeof a === "object" && typeof b === "object") {
-    return comparerLesUnites(a.cle, b.cle) || comparerLesUnites(a.brut, b.brut);
+    return comparerLesTextes(a, b);
   }
   return 0;
 }

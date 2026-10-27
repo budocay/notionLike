@@ -22,6 +22,7 @@ import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
 import {
   AJOUTER_UNE_COLONNE,
+  AUCUNE_LIGNE_CORRESPONDANTE,
   INVITATION_SANS_COLONNE,
   nomActionsDeLaColonne,
   nomActionsDeLaLigne,
@@ -132,6 +133,13 @@ function Outils({ vue }: { readonly vue: Vue }): ReactElement | undefined {
   );
 }
 
+// Les filtres excluent toutes les lignes d'une table qui en a : l'affichage figé garde, lui, les
+// lignes qu'il portait (AC17).
+function filtresSansResultat(vue: Vue): boolean {
+  const { definition, total, fige } = vue.definition;
+  return vue.proprietes.lignes.length === 0 && total > 0 && !fige && definition.filtres.length > 0;
+}
+
 export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
   const vue = useVueTableau(proprietes);
   return (
@@ -156,7 +164,10 @@ export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
           />
         </InvitationDeTable>
       ) : (
-        <GrilleDeLaTable vue={vue} />
+        <>
+          <GrilleDeLaTable vue={vue} />
+          {filtresSansResultat(vue) && <InvitationDeTable texte={AUCUNE_LIGNE_CORRESPONDANTE} />}
+        </>
       )}
       <BoiteOuverte vue={vue} />
     </EcranDeTableCadre>

@@ -36,7 +36,7 @@ export const TABLE = {
   // Ligne affichée qui ne satisfait plus les filtres (F-019-AC18) : texte atténué et en italique.
   rangeeHorsFiltre:
     "absolute left-nul top-nul flex text-interface text-texte-secondaire italic filet-bas",
-  horsFiltre: "sr-only",
+  horsFiltre: "flex-none text-petit text-texte-secondaire",
   marqueDeTri: "flex-none text-petit text-texte-secondaire",
   enTete: CELLULE,
   cellule: CELLULE,

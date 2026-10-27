@@ -117,8 +117,10 @@ function testDeLOrdre(operateur: OperateurDeFiltre, valeur: string | number): Te
     case "superieur":
     case "apres":
       return (cellule) => comparer(cellule) > 0;
-    default:
+    case "superieur-egal":
       return (cellule) => comparer(cellule) >= 0;
+    default:
+      return () => false;
   }
 }
 

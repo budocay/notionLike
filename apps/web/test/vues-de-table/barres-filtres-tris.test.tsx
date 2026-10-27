@@ -191,7 +191,7 @@ describe("barre « Tris » (F-019-AC7)", () => {
     expect(noms()).toEqual(["Zèbre", "abricot", "École", "ecole", "Banane", "Cerise"]);
   });
 
-  it("F-019-AC7 quand toutes les colonnes ont un tri, l'ajout est refusé avec un message", async () => {
+  it("F-019-AC25 le sixième tri est refusé avec un message qui cite la limite de 5 tris", async () => {
     const { utilisateur } = rendreLaTable(remplirSixLignes);
     for (let i = 0; i < 5; i += 1) {
       await ajouterUnTri(utilisateur);
@@ -199,6 +199,19 @@ describe("barre « Tris » (F-019-AC7)", () => {
     expect(within(barre("Tris")).getAllByRole("listitem")).toHaveLength(5);
     await ajouterUnTri(utilisateur);
     expect(screen.getByRole("alert").textContent).toBe("Une table compte au plus 5 tris.");
+  });
+
+  it("F-019-AC7 quand toutes les colonnes d'une table de moins de 5 colonnes ont un tri, l'ajout est refusé avec un message", async () => {
+    const { utilisateur } = rendreLaTable((une) => {
+      une.creerColonne("Nom", "texte");
+      une.creerColonne("Prix", "nombre");
+    });
+    await ajouterUnTri(utilisateur);
+    await ajouterUnTri(utilisateur);
+    expect(within(barre("Tris")).getAllByRole("listitem")).toHaveLength(2);
+    await ajouterUnTri(utilisateur);
+    expect(screen.getByRole("alert").textContent).toBe("Toutes les colonnes ont déjà un tri.");
+    expect(within(barre("Tris")).getAllByRole("listitem")).toHaveLength(2);
   });
 });
 

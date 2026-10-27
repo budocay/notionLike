@@ -52,7 +52,7 @@ export function EcranDeTableCadre(props: {
 
 export function InvitationDeTable(props: {
   readonly texte: string;
-  readonly children: ReactNode;
+  readonly children?: ReactNode | undefined;
 }): ReactElement {
   return (
     <div className={TABLE.invitation}>
@@ -245,7 +245,7 @@ export function TexteDeCellule({ texte }: { readonly texte: string }): ReactElem
   return <span className={TABLE.texte}>{texte}</span>;
 }
 
-/** Mention « Hors filtre » d'une ligne figée, lisible par les technologies d'assistance (F-019-AC18). */
+/** Mention « Hors filtre » d'une ligne figée : un texte visible, cité par la cellule qui le porte (F-019-AC18). */
 export function TexteHorsFiltre(props: {
   readonly id: string;
   readonly texte: string;

@@ -72,6 +72,11 @@ export interface Definition {
 
 export const DEFINITION_VIDE: Definition = { filtres: [], tris: [] };
 
-export function estUneDefinitionVide({ filtres, tris }: Definition): boolean {
-  return filtres.length === 0 && tris.length === 0;
+/** La liste où l'élément de ce rang est remplacé, ou retiré quand `element` est absent. */
+export function remplacerA<T>(
+  liste: readonly T[],
+  rang: number,
+  element: T | undefined,
+): readonly T[] {
+  return liste.flatMap((un, i) => (i === rang ? (element === undefined ? [] : [element]) : [un]));
 }

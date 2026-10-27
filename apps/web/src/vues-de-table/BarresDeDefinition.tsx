@@ -1,8 +1,8 @@
-// Barres « Filtres » et « Tris » (F-019-AC1, AC6, AC7, AC23 à AC27) : la définition de la table, la
-// même pour toutes ses vues. Un élément ajouté commence sur la première colonne libre et se règle sur
-// place : colonne, opérateur, valeur ; un filtre sans valeur est sans effet jusqu'à sa saisie. Les
-// annonces passent par la zone d'annonce de la vue, les refus par son alerte ; toute valeur est
-// rendue comme du texte (AC26).
+// Barres « Filtres » et « Tris » (F-019-AC1, AC6, AC18, AC23 à AC27) : la définition de la table, la
+// même pour toutes ses vues. Un filtre ajouté commence sur la première colonne et se règle sur place :
+// colonne, opérateur, valeur ; un filtre sans valeur est sans effet jusqu'à sa saisie. Les annonces
+// passent par la zone d'annonce de la vue, les refus par son alerte ; toute valeur est rendue comme
+// du texte (AC26). La barre « Tris » est dans `BarreDesTris.tsx`.
 import type { ColonneLue, TableLue } from "@notionlike/document";
 import { type ReactElement, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -18,51 +18,43 @@ import {
   demandeUneValeur,
   type Filtre,
   LIMITE_DE_FILTRES,
-  LIMITE_DE_TRIS,
   type OperateurDeFiltre,
   operateursDe,
-  type Tri,
+  remplacerA,
 } from "./definition.ts";
+import { BarreDesTris } from "./BarreDesTris.tsx";
 import { etatDuFiltre } from "./filtres.ts";
 import {
   AFFICHAGE_FIGE,
   AJOUTER_UN_FILTRE,
-  AJOUTER_UN_TRI,
+  AUCUNE_LIGNE_CORRESPONDANTE,
   CHOISIR_UNE_OPTION,
   COLONNE_INTROUVABLE,
   COLONNE_SUPPRIMEE,
-  DESCENDRE_UN_TRI,
-  descendreLeTri,
   FILTRES,
   LIBELLES_DES_OPERATEURS,
-  LIBELLES_DES_SENS,
   LISTE_DES_FILTRES,
-  LISTE_DES_TRIS,
   libelleAffiche,
   lignesSurTotal,
-  MONTER_UN_TRI,
-  monterLeTri,
   nomAffiche,
   nomDeLOperateur,
   nomDeLaColonneDuFiltre,
-  nomDeLaColonneDuTri,
   nomDeLaValeurDuFiltre,
-  nomDuSensDuTri,
   nombreDeFiltres,
-  nombreDeTris,
   OPTION_INTROUVABLE,
   OPTION_SUPPRIMEE,
   REAPPLIQUER,
   RETIRER_UN_ELEMENT,
   retirerLeFiltre,
-  retirerLeTri,
   TOUT_EFFACER,
-  TOUTES_LES_COLONNES_SONT_TRIEES,
-  TRIS,
   TROP_DE_FILTRES,
-  TROP_DE_TRIS,
 } from "./textes.ts";
-import { colonneDuTri } from "./tris.ts";
+import {
+  AJOUTER,
+  cleDuBouton,
+  type FocusDeLaListe,
+  useFocusDeLaListe,
+} from "./use-focus-de-la-liste.ts";
 import type { VueTableau } from "./use-vue-tableau.ts";
 import { analyserLaValeur, texteDeLaValeur } from "./valeur-de-filtre.ts";
 
@@ -72,15 +64,6 @@ const DATE_MAX = "9999-12-31";
 interface Props {
   readonly vue: VueTableau;
 }
-interface PropsDeRang extends Props {
-  readonly rang: number;
-}
-
-function remplacerA<T>(liste: readonly T[], rang: number, element: T | undefined): T[] {
-  return liste.flatMap((un, i) => (i === rang ? (element === undefined ? [] : [element]) : [un]));
-}
-
-// ── Filtres ──────────────────────────────────────────────────────────────────────────────────────
 
 type Remplacer = (filtre: Filtre | undefined) => void;
 
@@ -224,7 +207,12 @@ function ChoixDeColonneEtDOperateur(props: {
   );
 }
 
-function LigneDeFiltre({ vue, rang }: PropsDeRang): ReactElement | null {
+function LigneDeFiltre(props: {
+  readonly vue: VueTableau;
+  readonly rang: number;
+  readonly focus: FocusDeLaListe;
+}): ReactElement | null {
+  const { vue, rang, focus } = props;
   const { lue } = vue.proprietes;
   const { definition, changer } = vue.definition;
   const filtre = definition.filtres[rang];
@@ -244,7 +232,12 @@ function LigneDeFiltre({ vue, rang }: PropsDeRang): ReactElement | null {
       <Bouton
         libelle={RETIRER_UN_ELEMENT}
         nom={retirerLeFiltre(colonne?.nom)}
-        surActivation={() => remplacer(undefined)}
+        refBouton={focus.bouton(cleDuBouton("retirer", rang))}
+        surActivation={() => {
+          // Le focus passe au filtre qui prend la place de celui-ci, sinon au précédent.
+          focus.apres([cleDuBouton("retirer", rang), cleDuBouton("retirer", rang - 1), AJOUTER]);
+          remplacer(undefined);
+        }}
       />
     </ElementDeDefinition>
   );
@@ -258,34 +251,46 @@ function ValeurDuFiltre(props: PropsDeValeur): ReactElement {
   );
 }
 
+// Un filtre commence sur la première colonne, avec le premier opérateur de son type (AC1).
+function ajouterUnFiltre(vue: VueTableau): void {
+  const { lue } = vue.proprietes;
+  const { definition, changer } = vue.definition;
+  const colonne = lue.colonnes[0];
+  const operateur = colonne === undefined ? undefined : operateursDe(colonne.type)[0];
+  if (definition.filtres.length >= LIMITE_DE_FILTRES) {
+    vue.moyens.signaler(TROP_DE_FILTRES);
+  } else if (colonne !== undefined && operateur !== undefined) {
+    vue.moyens.signaler(undefined);
+    changer({
+      ...definition,
+      filtres: [...definition.filtres, { colonne: colonne.id, operateur }],
+    });
+  }
+}
+
 function BarreDesFiltres({ vue }: Props): ReactElement {
-  const { lue, lignes } = vue.proprietes;
+  const { lignes } = vue.proprietes;
   const { definition, changer, total, fige, reappliquer } = vue.definition;
-  const ajouter = (): void => {
-    const colonne = lue.colonnes[0];
-    const operateur = colonne === undefined ? undefined : operateursDe(colonne.type)[0];
-    if (definition.filtres.length >= LIMITE_DE_FILTRES) {
-      vue.moyens.signaler(TROP_DE_FILTRES);
-    } else if (colonne !== undefined && operateur !== undefined) {
-      vue.moyens.signaler(undefined);
-      changer({
-        ...definition,
-        filtres: [...definition.filtres, { colonne: colonne.id, operateur }],
-      });
-    }
-  };
+  const focus = useFocusDeLaListe(definition);
   return (
     <BarreDeDefinition
       nom={FILTRES}
       resume={`${nombreDeFiltres(definition.filtres.length)} · ${lignesSurTotal(lignes.length, total)}`}
       commandes={
         <>
-          <Bouton libelle={AJOUTER_UN_FILTRE} surActivation={ajouter} />
+          <Bouton
+            libelle={AJOUTER_UN_FILTRE}
+            refBouton={focus.bouton(AJOUTER)}
+            surActivation={() => ajouterUnFiltre(vue)}
+          />
           {definition.filtres.length > 0 && (
             <Bouton
               libelle={TOUT_EFFACER}
+              refBouton={focus.bouton(TOUT_EFFACER)}
               surActivation={() => {
+                // Le bouton activé disparaît avec le dernier filtre : le focus va à « Ajouter ».
                 vue.moyens.signaler(undefined);
+                focus.apres([AJOUTER]);
                 changer({ ...definition, filtres: [] });
               }}
             />
@@ -298,124 +303,7 @@ function BarreDesFiltres({ vue }: Props): ReactElement {
         <ListeDeDefinition nom={LISTE_DES_FILTRES}>
           {definition.filtres.map((_, rang) => (
             // Un filtre n'a pas d'identité propre : sa place dans la liste le désigne.
-            <LigneDeFiltre key={rang} vue={vue} rang={rang} />
-          ))}
-        </ListeDeDefinition>
-      )}
-    </BarreDeDefinition>
-  );
-}
-
-// ── Tris ─────────────────────────────────────────────────────────────────────────────────────────
-
-function ChoixDeColonneEtDeSens(props: {
-  readonly lue: TableLue;
-  readonly tris: readonly Tri[];
-  readonly tri: Tri;
-  readonly remplacer: (tri: Tri) => void;
-}): ReactElement {
-  const { lue, tris, tri, remplacer } = props;
-  const colonne = colonneDuTri(lue, tri);
-  // Une colonne n'a qu'un tri : celles qui en ont déjà un ne sont pas proposées (AC7).
-  const libres = lue.colonnes.filter(
-    ({ id }) => id === tri.colonne || !tris.some((autre) => autre.colonne === id),
-  );
-  return (
-    <>
-      <Choix
-        nom={nomDeLaColonneDuTri(colonne?.nom)}
-        valeur={tri.colonne}
-        options={[
-          ...(colonne === undefined ? [{ valeur: tri.colonne, libelle: COLONNE_INTROUVABLE }] : []),
-          ...libres.map(({ id, nom }) => ({ valeur: id, libelle: nomAffiche(nom) })),
-        ]}
-        surChoix={(id) => remplacer({ ...tri, colonne: id })}
-      />
-      <Choix
-        nom={nomDuSensDuTri(colonne?.nom)}
-        valeur={tri.sens}
-        options={(["croissant", "decroissant"] as const).map((sens) => ({
-          valeur: sens,
-          libelle: LIBELLES_DES_SENS[sens],
-        }))}
-        surChoix={(sens) => {
-          if (sens === "croissant" || sens === "decroissant") {
-            remplacer({ ...tri, sens });
-          }
-        }}
-      />
-    </>
-  );
-}
-
-function LigneDeTri({ vue, rang }: PropsDeRang): ReactElement | null {
-  const { lue } = vue.proprietes;
-  const { definition, changer } = vue.definition;
-  const tri = definition.tris[rang];
-  if (tri === undefined) {
-    return null;
-  }
-  const colonne = colonneDuTri(lue, tri);
-  const remplacer = (suivant: Tri | undefined): void =>
-    changer({ ...definition, tris: remplacerA(definition.tris, rang, suivant) });
-  const echanger = (vers: number): void => {
-    const autre = definition.tris[vers];
-    if (autre !== undefined) {
-      const tris = definition.tris.map((un, i) => (i === rang ? autre : i === vers ? tri : un));
-      changer({ ...definition, tris });
-    }
-  };
-  return (
-    <ElementDeDefinition mention={colonne === undefined ? COLONNE_SUPPRIMEE : undefined}>
-      <ChoixDeColonneEtDeSens lue={lue} tris={definition.tris} tri={tri} remplacer={remplacer} />
-      <Bouton
-        libelle={MONTER_UN_TRI}
-        nom={monterLeTri(colonne?.nom)}
-        desactive={rang === 0}
-        surActivation={() => echanger(rang - 1)}
-      />
-      <Bouton
-        libelle={DESCENDRE_UN_TRI}
-        nom={descendreLeTri(colonne?.nom)}
-        desactive={rang === definition.tris.length - 1}
-        surActivation={() => echanger(rang + 1)}
-      />
-      <Bouton
-        libelle={RETIRER_UN_ELEMENT}
-        nom={retirerLeTri(colonne?.nom)}
-        surActivation={() => remplacer(undefined)}
-      />
-    </ElementDeDefinition>
-  );
-}
-
-function BarreDesTris({ vue }: Props): ReactElement {
-  const { lue } = vue.proprietes;
-  const { definition, changer } = vue.definition;
-  const ajouter = (): void => {
-    const libre = lue.colonnes.find(({ id }) => !definition.tris.some((tri) => tri.colonne === id));
-    if (definition.tris.length >= LIMITE_DE_TRIS) {
-      vue.moyens.signaler(TROP_DE_TRIS);
-    } else if (libre === undefined) {
-      vue.moyens.signaler(TOUTES_LES_COLONNES_SONT_TRIEES);
-    } else {
-      vue.moyens.signaler(undefined);
-      changer({
-        ...definition,
-        tris: [...definition.tris, { colonne: libre.id, sens: "croissant" }],
-      });
-    }
-  };
-  return (
-    <BarreDeDefinition
-      nom={TRIS}
-      resume={nombreDeTris(definition.tris.length)}
-      commandes={<Bouton libelle={AJOUTER_UN_TRI} surActivation={ajouter} />}
-    >
-      {definition.tris.length > 0 && (
-        <ListeDeDefinition nom={LISTE_DES_TRIS}>
-          {definition.tris.map((tri, rang) => (
-            <LigneDeTri key={tri.colonne} vue={vue} rang={rang} />
+            <LigneDeFiltre key={rang} vue={vue} rang={rang} focus={focus} />
           ))}
         </ListeDeDefinition>
       )}
@@ -429,16 +317,19 @@ function useAnnoncesDeLaDefinition(vue: VueTableau): void {
   const { definition, fige, total } = vue.definition;
   const { lignes } = vue.proprietes;
   const precedente = useRef({ definition, fige });
-  const annoncerLeCompte = useEffectEvent(() =>
-    vue.moyens.annoncer(lignesSurTotal(lignes.length, total)),
-  );
-  const annoncerLeGel = useEffectEvent(() => vue.moyens.annoncer(AFFICHAGE_FIGE));
+  const annoncerLeCompte = useEffectEvent(() => {
+    const compte = lignesSurTotal(lignes.length, total);
+    // Les filtres excluent toutes les lignes : l'état vide de la grille est dit avec le compte.
+    const vide = lignes.length === 0 && total > 0 && definition.filtres.length > 0;
+    vue.moyens.annoncer(vide ? `${compte}. ${AUCUNE_LIGNE_CORRESPONDANTE}` : compte);
+  });
+  const annoncerLAffichageFige = useEffectEvent(() => vue.moyens.annoncer(AFFICHAGE_FIGE));
   useEffect(() => {
     if (precedente.current.definition !== definition) {
       annoncerLeCompte();
     }
     if (!precedente.current.fige && fige) {
-      annoncerLeGel();
+      annoncerLAffichageFige();
     }
     precedente.current = { definition, fige };
   }, [definition, fige]);

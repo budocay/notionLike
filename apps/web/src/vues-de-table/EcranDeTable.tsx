@@ -8,7 +8,7 @@ import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
 import { SelecteurDeVues } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
-import { nombreDeLignes } from "./lignes-affichees.ts";
+import { aUnTriActif, nombreDeLignes } from "./lignes-affichees.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
   SELECTEUR_DE_VUES,
@@ -64,7 +64,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
         fige: affichage.fige,
         reappliquer: affichage.reappliquer,
         horsFiltre: affichage.horsFiltre,
-        triActif: tris.length > 0,
+        triActif: aUnTriActif(lue, definition),
         triDe: (colonne) => {
           const rang = tris.findIndex(({ colonne: une }) => une.id === colonne);
           const tri = tris[rang];

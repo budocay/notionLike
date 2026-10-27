@@ -19,18 +19,18 @@ import {
   ElementDeDefinition,
   Grille,
   InvitationDeTable,
-  MarqueDeTri,
   LigneDOption,
   ListeDeChoix,
   ListeDeDefinition,
   ListeDOptions,
+  MarqueDeTri,
   RangeeDEnTetes,
   RangeeDeGrille,
   SelecteurDeVues,
   SeparateurDeColonne,
   SurfaceFlottante,
-  TexteHorsFiltre,
   TexteDeCellule,
+  TexteHorsFiltre,
 } from "../interface/composants/Table.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
 import {
