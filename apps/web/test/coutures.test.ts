@@ -903,9 +903,9 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/vues-de-table/Separateur.tsx": "apps/web/test/vues-de-table/reglages.test.tsx",
   "apps/web/src/vues-de-table/use-reglages.ts": "apps/web/test/vues-de-table/reglages.test.tsx",
   // F-021 : la vue calendrier de la table, atteinte par l'écran de table que ses tests rendent.
-  "apps/web/src/vues-de-table/commandes-calendrier.ts":
+  "apps/web/src/vues-de-table/ecritures-du-calendrier.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
-  "apps/web/src/vues-de-table/commandes-du-calendrier.ts":
+  "apps/web/src/vues-de-table/assemblage-des-commandes.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
   "apps/web/src/vues-de-table/modele-calendrier.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
@@ -926,6 +926,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/vues-de-table/use-vue-calendrier.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
   "apps/web/src/vues-de-table/VueCalendrier.tsx":
+    "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
+  "apps/web/src/vues-de-table/MenuDuCalendrier.tsx":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
 };
 

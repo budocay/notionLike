@@ -8,7 +8,7 @@ import {
   lundiDeLaSemaine,
   memeQuantiemeAilleurs,
 } from "./jours.ts";
-import type { PasDeJours } from "./commandes-calendrier.ts";
+import type { PasDeJours } from "./ecritures-du-calendrier.ts";
 
 type Frappe = Parameters<typeof estLaFrappe>[0];
 

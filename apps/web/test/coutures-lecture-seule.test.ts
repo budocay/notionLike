@@ -63,7 +63,7 @@ const COMPOSANTS_CHANGES: Readonly<
       // F-018-AC52 : les menus d'en-tête et de ligne de la grille ; leurs entrées portent la raison.
       "src/vues-de-table/VueTableau.tsx",
       // F-021 : les menus d'une case et d'une entrée du calendrier.
-      "src/vues-de-table/VueCalendrier.tsx",
+      "src/vues-de-table/MenuDuCalendrier.tsx",
     ],
     production: {
       "src/interface/RangeePage.tsx": "raison,",
@@ -89,7 +89,7 @@ const TYPES_CHANGES: Readonly<Record<string, readonly string[]>> = {
     // F-018 : les menus de la grille d'une table.
     "src/vues-de-table/menus.ts",
     // F-021 : les menus d'une case et d'une entrée du calendrier.
-    "src/vues-de-table/VueCalendrier.tsx",
+    "src/vues-de-table/MenuDuCalendrier.tsx",
   ],
   BoutonDeRangee: ["src/interface/composants/Rangee.tsx"],
   EcranBarre: [

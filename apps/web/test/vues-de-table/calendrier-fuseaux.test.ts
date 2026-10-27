@@ -4,7 +4,7 @@
 // est pris en compte par V8 ; l'effet est vérifié avant toute comparaison, puis le fuseau d'origine
 // est rendu.
 import { creerDocumentTable } from "@notionlike/document";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { aujourdhuiDe } from "../../src/vues-de-table/aujourdhui.ts";
 import {
@@ -14,32 +14,12 @@ import {
   lundiDeLaSemaine,
   memeQuantiemeAilleurs,
 } from "../../src/vues-de-table/jours.ts";
-import { ecrireLaDate, jourVise } from "../../src/vues-de-table/commandes-calendrier.ts";
+import { ecrireLaDate, jourVise } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
 import { type ColonneDeDate, repartir } from "../../src/vues-de-table/repartition.ts";
+import { oracle, verifierLEnumeration } from "./aides-enumeration-jours.ts";
+import { FUSEAUX, rendreLeFuseau, sous } from "./aides-fuseaux.ts";
 
-// Décalage attendu de `getTimezoneOffset()` un jour de mars 2026, en minutes.
-const FUSEAUX: readonly (readonly [string, number])[] = [
-  ["Pacific/Kiritimati", -840],
-  ["UTC", 0],
-  ["Pacific/Pago_Pago", 660],
-  ["Europe/Paris", -120],
-];
-
-const ORIGINE = process.env.TZ;
-afterEach(() => {
-  if (ORIGINE === undefined) {
-    delete process.env.TZ;
-  } else {
-    process.env.TZ = ORIGINE;
-  }
-});
-
-function sous<T>(fuseau: string, decalage: number, calcul: () => T): T {
-  process.env.TZ = fuseau;
-  // Sans effet constaté, la comparaison ne prouverait rien : on s'arrête ici.
-  expect(new Date(2026, 2, 29, 12).getTimezoneOffset(), `fuseau ${fuseau} appliqué`).toBe(decalage);
-  return calcul();
-}
+rendreLeFuseau();
 
 const DATE: ColonneDeDate = {
   colonne: { id: "d", nom: "Date", type: "date", options: [] },
@@ -96,6 +76,15 @@ describe("indépendance du fuseau (F-021-AC18)", () => {
           expect(table.lire().lignes[0]?.cellules[0]).toBe(attendu);
         }
         table.fermer();
+      });
+    },
+  );
+
+  it.each(FUSEAUX)(
+    "F-021-AC18 F-021-AC16 sous %s, chaque jour de 1899-12-25 à 2101-01-07 est celui de l'oracle Date.UTC",
+    (fuseau, decalage) => {
+      sous(fuseau, decalage, () => {
+        verifierLEnumeration(oracle());
       });
     },
   );

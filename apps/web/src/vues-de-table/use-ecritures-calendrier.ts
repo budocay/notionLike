@@ -1,5 +1,5 @@
 // Commandes du calendrier qui écrivent dans le document de table (F-021-AC10 à AC14, AC24) : chacune
-// par une seule opération de la façade (`commandes-calendrier.ts`), son refus dit en français, le
+// par une seule opération de la façade (`ecritures-du-calendrier.ts`), son refus dit en français, le
 // focus et l'annonce décidés ici. En lecture seule, aucune n'écrit (AC26).
 import type { DocumentTable, LigneLue } from "@notionlike/document";
 
@@ -9,7 +9,7 @@ import {
   jourVise,
   type PasDeJours,
   supprimerLaLigne,
-} from "./commandes-calendrier.ts";
+} from "./ecritures-du-calendrier.ts";
 import { decomposer } from "./jours.ts";
 import type { ModeleDuCalendrier } from "./modele-calendrier.ts";
 import { jourDeLaLigne } from "./repartition.ts";

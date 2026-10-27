@@ -9,7 +9,7 @@ import {
   type ActionDEntree,
   actionDeLEntree,
 } from "./clavier-calendrier.ts";
-import type { PasDeJours } from "./commandes-calendrier.ts";
+import type { PasDeJours } from "./ecritures-du-calendrier.ts";
 import { decomposer, moisPrecedent, moisSuivant } from "./jours.ts";
 import type { ModeleDuCalendrier } from "./modele-calendrier.ts";
 import type { EcrituresDuCalendrier } from "./use-ecritures-calendrier.ts";

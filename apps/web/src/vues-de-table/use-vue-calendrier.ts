@@ -6,17 +6,16 @@ import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
 
 import type { Moyens } from "./actions.ts";
 import { aujourdhui } from "./aujourdhui.ts";
-import { moisPrecedent, moisSuivant } from "./jours.ts";
+import { ecrireLeJour, moisPrecedent, moisSuivant } from "./jours.ts";
 import { type ModeleDuCalendrier, useModeleDuCalendrier } from "./modele-calendrier.ts";
 import { repliDeLaCible } from "./repli-calendrier.ts";
 import { useColonneChoisie } from "./reglages-calendrier.ts";
 import { colonnesDeDate } from "./repartition.ts";
-import { ecrireLeJour } from "./jours.ts";
 import {
   type BoiteDuCalendrier,
   type CommandesDuCalendrier,
   commandesDuCalendrier,
-} from "./commandes-du-calendrier.ts";
+} from "./assemblage-des-commandes.ts";
 import {
   type NavigationDuCalendrier,
   useNavigationDuCalendrier,
@@ -27,7 +26,7 @@ import type { Saisie } from "./use-saisie-du-titre.ts";
 import { type SuiviDuFocus, useSuiviDuFocus } from "./use-suivi-du-focus.ts";
 import { useAnnonce } from "./use-vue-tableau.ts";
 
-export type { BoiteDuCalendrier, CommandesDuCalendrier } from "./commandes-du-calendrier.ts";
+export type { BoiteDuCalendrier, CommandesDuCalendrier } from "./assemblage-des-commandes.ts";
 export { ENTREES_PAR_CASE } from "./use-navigation-du-calendrier.ts";
 
 export interface ProprietesVueCalendrier {

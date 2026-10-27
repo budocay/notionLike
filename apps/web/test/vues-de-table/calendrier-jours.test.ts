@@ -22,51 +22,13 @@ import {
   PREMIER_JOUR,
 } from "../../src/vues-de-table/jours.ts";
 import { lire, lister } from "../aides-disque.ts";
-
-const MS_PAR_JOUR = 86_400_000;
-const DEBUT = Date.UTC(1899, 11, 25);
-const FIN = Date.UTC(2101, 0, 7);
-
-function ecrit(annee: number, mois: number, quantieme: number): string {
-  return `${String(annee).padStart(4, "0")}-${String(mois).padStart(2, "0")}-${String(quantieme).padStart(2, "0")}`;
-}
-
-interface JourOracle {
-  readonly texte: string;
-  readonly semaine: number;
-}
-
-/** Chaque jour de 1899-12-25 à 2101-01-07 selon `Date.UTC`, semaine comptée depuis le lundi. */
-function oracle(): JourOracle[] {
-  const jours: JourOracle[] = [];
-  for (let instant = DEBUT; instant <= FIN; instant += MS_PAR_JOUR) {
-    const date = new Date(instant);
-    jours.push({
-      texte: ecrit(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()),
-      semaine: (date.getUTCDay() + 6) % 7,
-    });
-  }
-  return jours;
-}
+import { ecrit, oracle, verifierLEnumeration } from "./aides-enumeration-jours.ts";
 
 describe("arithmétique des jours (F-021-AC16)", () => {
   const jours = oracle();
 
   it("F-021-AC16 chaque jour de 1899-12-25 à 2101-01-07 se décompose, se réécrit et a le même lendemain, la même veille et le même jour de semaine que l'oracle", () => {
-    expect(jours.length).toBe(73_428);
-    jours.forEach(({ texte, semaine }, rang) => {
-      const decompose = decomposer(texte);
-      expect(decompose && ecrireLeJour(decompose), texte).toBe(texte);
-      expect(jourDeLaSemaine(texte), texte).toBe(semaine);
-      if (rang > 0) {
-        // Le jour de la semaine avance d'un rang à chaque jour.
-        expect(jourDeLaSemaine(texte), texte).toBe(
-          ((jourDeLaSemaine(jours[rang - 1]?.texte ?? "") ?? 0) + 1) % 7,
-        );
-      }
-      expect(decaler(texte, 1), texte).toBe(jours[rang + 1]?.texte ?? "2101-01-08");
-      expect(decaler(texte, -1), texte).toBe(jours[rang - 1]?.texte ?? "1899-12-24");
-    });
+    verifierLEnumeration(jours);
   });
 
   it("F-021-AC16 décaler de n jours retombe sur l'oracle, sept jours font une semaine pleine", () => {
