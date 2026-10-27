@@ -6,6 +6,20 @@ import { type ReactElement, type ReactNode, useRef } from "react";
 import { BarreDuHaut, CheminDePage, ZoneEtat } from "../interface/composants/BarreDuHaut.tsx";
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
 import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreDeBarre.tsx";
+import {
+  CadreDuCalendrier,
+  CaseDuCalendrier,
+  CommandeDeCase,
+  EntreeDuCalendrier,
+  GrilleDuCalendrier,
+  LibelleDEntree,
+  LigneDuPanneau,
+  LignesDuPanneau,
+  NoteDuPanneau,
+  PanneauDeCalendrier,
+  SemaineDuCalendrier,
+  TitreDuMois,
+} from "../interface/composants/Calendrier.tsx";
 import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
 import { MarqueDeTable } from "../interface/composants/Rangee.tsx";
 import {
@@ -109,9 +123,15 @@ import {
   TITRE_DE_LA_PAGE,
   TITRE_VERSION_NON_PRISE_EN_CHARGE,
 } from "../interface/messages.ts";
-import { afficherTouches, RACCOURCIS } from "../interface/raccourcis.ts";
+import {
+  afficherTouches,
+  cleAria,
+  RACCOURCIS,
+  TOUCHES_DE_L_ENTREE,
+} from "../interface/raccourcis.ts";
 import {
   ADRESSE_FICTIVE,
+  CALENDRIER_FICTIF,
   ESPACES_FICTIFS,
   AFFIRMATION_FICTIVE,
   ANCETRES,
@@ -1086,11 +1106,87 @@ function SpecimenDesOptions(): ReactElement {
 }
 
 // Écran de table (F-018) : la marque d'une table, l'écran d'une table sans colonne et son invitation.
+// Calendrier d'une table (F-021) : une semaine de la grille du mois (cases hors du mois, case
+// d'aujourd'hui, entrées avec leur menu), le titre du mois et le panneau « Sans date ».
+function SpecimenDuCalendrier(): ReactElement {
+  const C = CALENDRIER_FICTIF;
+  return (
+    <Specimen etiquette="Calendrier du mois, entrées, panneau « Sans date »">
+      <div className={PAGE.fondZone}>
+        <CadreDuCalendrier refCadre={sansEffet} surFocus={sansEffet} surSortie={sansEffet}>
+          <TitreDuMois texte={C.titre} />
+          <GrilleDuCalendrier nom={C.grille} jours={C.jours} refGrille={null} surTouche={sansEffet}>
+            <SemaineDuCalendrier>
+              {C.semaine.map((une) => (
+                <CaseDuCalendrier
+                  key={une.jour}
+                  jour={une.jour}
+                  nom={une.aujourdhui ? C.nomDeLaCase : une.numero}
+                  numero={une.numero}
+                  horsDuMois={une.horsDuMois}
+                  aujourdhui={une.aujourdhui}
+                  focalisable={une.aujourdhui}
+                  commandeDeLigne={
+                    <CommandeDeCase libelle="+" nom={C.nouvelleLigne} surActivation={sansEffet} />
+                  }
+                >
+                  {une.aujourdhui && <EntreesFictives />}
+                </CaseDuCalendrier>
+              ))}
+            </SemaineDuCalendrier>
+          </GrilleDuCalendrier>
+          <PanneauFictif />
+        </CadreDuCalendrier>
+      </div>
+    </Specimen>
+  );
+}
+
+function EntreesFictives(): ReactElement {
+  const C = CALENDRIER_FICTIF;
+  return (
+    <>
+      {C.entrees.map((entree) => (
+        <EntreeDuCalendrier
+          key={entree.ligne}
+          ligne={entree.ligne}
+          nom={entree.nom}
+          raccourcis={entree.avecRaccourci ? cleAria(TOUCHES_DE_L_ENTREE.jourSuivant) : undefined}
+          contenu={<LibelleDEntree texte={entree.nom} />}
+          menu={<CommandeDeCase libelle="⋯" nom={C.menuDeLEntree} surActivation={sansEffet} />}
+        />
+      ))}
+    </>
+  );
+}
+
+function PanneauFictif(): ReactElement {
+  const C = CALENDRIER_FICTIF;
+  return (
+    <PanneauDeCalendrier titre={C.panneau}>
+      <LignesDuPanneau>
+        {C.lignesSansDate.map((ligne) => (
+          <LigneDuPanneau
+            key={ligne.ligne}
+            ligne={ligne.ligne}
+            nom={ligne.libelle}
+            libelle={ligne.libelle}
+          >
+            <CommandeDeCase libelle="📅" nom={C.definirLaDate} surActivation={sansEffet} />
+          </LigneDuPanneau>
+        ))}
+      </LignesDuPanneau>
+      <NoteDuPanneau texte={C.note} />
+    </PanneauDeCalendrier>
+  );
+}
+
 function SectionTables(): ReactElement {
   const T = TABLE_FICTIVE;
   return (
     <Section titre="Tables">
       <div className={PAGE.grille}>
+        <SpecimenDuCalendrier />
         <Specimen etiquette="Marque d'une table">
           <div className={PAGE.fondZone}>
             <MarqueDeTable nom={T.marque} />

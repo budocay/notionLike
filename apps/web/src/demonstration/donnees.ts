@@ -119,6 +119,33 @@ export const TABLE_FICTIVE = {
   faute: "Le libellé d'une option compte au plus 100 caractères.",
 } as const;
 
+/** Une semaine du calendrier d'une table : case d'aujourd'hui, cases hors du mois, entrées, panneau. */
+export const CALENDRIER_FICTIF = {
+  titre: "novembre 2026",
+  grille: "Calendrier de la table Suivi des achats, novembre 2026",
+  jours: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+  semaine: [
+    { jour: "2026-10-26", numero: "26 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-10-27", numero: "27 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-10-28", numero: "28 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-10-29", numero: "29 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-10-30", numero: "30 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-10-31", numero: "31 oct.", horsDuMois: true, aujourdhui: false },
+    { jour: "2026-11-01", numero: "1", horsDuMois: false, aujourdhui: true },
+  ],
+  nomDeLaCase: "dimanche 1 novembre 2026, 2 entrées",
+  entrees: [
+    { ligne: "demo-a", nom: "Commande de papier", avecRaccourci: true },
+    { ligne: "demo-b", nom: "Encre, cartouche noire de grande capacité", avecRaccourci: false },
+  ],
+  menuDeLEntree: "Actions de l'entrée Commande de papier",
+  nouvelleLigne: "Nouvelle ligne le dimanche 1 novembre 2026",
+  panneau: "Sans date, 1 ligne",
+  lignesSansDate: [{ ligne: "demo-c", libelle: "Rendez-vous chez le fournisseur" }],
+  definirLaDate: "Définir la date : Rendez-vous chez le fournisseur",
+  note: "Les lignes sans date restent ici tant qu'on ne leur en donne pas une.",
+} as const;
+
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un
 // lecteur, l'écran d'enregistrement, qui ne le donne qu'après la preuve d'écriture (F-030-AC29).
 export const AFFIRMATION_FICTIVE = "Enregistré, texte d'exemple";
