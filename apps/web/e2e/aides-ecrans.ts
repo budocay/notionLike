@@ -166,6 +166,39 @@ export async function construireLArborescence(page: Page): Promise<void> {
   await expect(barreLaterale(page).getByRole("listitem")).toHaveCount(NIVEAUX + AUTRES_RACINES);
 }
 
+/**
+ * Écran (k) : la vue calendrier d'une table de F-021 dont une ligne est datée du 15 du mois affiché
+ * et deux restent dans « Sans date ». La fenêtre doit être large pendant la construction, et la
+ * table se crée par le menu de la barre latérale.
+ */
+export async function construireLeCalendrier(page: Page): Promise<void> {
+  await ouvrir(page);
+  await page.getByRole("button", { name: "Nouvelle table", exact: true }).click();
+  await saisirTitre(page, "Agenda");
+  await page.getByRole("button", { name: "Ajouter une colonne", exact: true }).first().click();
+  const boite = page.getByRole("dialog", { name: "Nouvelle colonne" });
+  await boite.getByRole("textbox", { name: "Nom de la colonne" }).fill("Date");
+  await boite.getByRole("combobox", { name: "Type de la colonne" }).selectOption({ label: "Date" });
+  await boite.getByRole("button", { name: "Créer la colonne" }).click();
+  await expect(boite).toBeHidden();
+  for (let rang = 0; rang < 3; rang += 1) {
+    await page.getByRole("button", { name: "Nouvelle ligne", exact: true }).click();
+  }
+  await page
+    .getByRole("group", { name: "Vue de la table" })
+    .getByRole("button", { name: "Calendrier", exact: true })
+    .click();
+  const maintenant = new Date();
+  const jour = `${String(maintenant.getFullYear()).padStart(4, "0")}-${String(maintenant.getMonth() + 1).padStart(2, "0")}-15`;
+  const panneau = page.getByRole("region", { name: /^Sans date/ });
+  await panneau.getByRole("button", { name: "Définir la date : Sans titre" }).first().click();
+  const dialogue = page.getByRole("dialog");
+  await dialogue.getByLabel("Date").fill(jour);
+  await dialogue.getByRole("button", { name: "Valider" }).click();
+  await expect(page.locator(`[role="gridcell"][data-jour="${jour}"] [data-ligne]`)).toHaveCount(1);
+  await expect(panneau.locator("li")).toHaveCount(2);
+}
+
 /** Écran (d) : le menu « ⋯ » de la page courante, ouvert ; sur écran étroit, dans le tiroir. */
 export async function ouvrirLeMenu(page: Page, titre: string): Promise<void> {
   await montrerLaBarre(page);
