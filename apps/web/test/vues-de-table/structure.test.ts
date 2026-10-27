@@ -103,9 +103,13 @@ describe("ce que les vues partagent (F-018-AC45)", () => {
     const lecteurs = sourcesDuModule()
       .filter(([, texte]) => /\b(lue|table)\.lignes\b/.test(texte))
       .map(([chemin]) => chemin);
-    // Les commandes de ligne situent la ligne dans l'ordre manuel, que la façade attend pour un
-    // déplacement : ce n'est pas un affichage.
-    expect(lecteurs).toEqual([`${MODULE}/actions.ts`, `${MODULE}/lignes-affichees.ts`]);
+    // Les commandes de ligne et le déplacement d'une carte (F-020-AC9) situent la ligne dans l'ordre
+    // manuel, que la façade attend pour un déplacement : ce n'est pas un affichage.
+    expect(lecteurs).toEqual([
+      `${MODULE}/actions.ts`,
+      `${MODULE}/kanban/deplacement.ts`,
+      `${MODULE}/lignes-affichees.ts`,
+    ]);
     expect(sansCommentaires(lire(`${MODULE}/actions.ts`)).match(/\blue\.lignes\b/g)).toHaveLength(
       1,
     );
