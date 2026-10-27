@@ -1,7 +1,10 @@
 // Écran des espaces, `#/espaces` (F-014-AC1, AC2, AC7, AC8, AC42) : l'espace de l'appareil à part,
 // puis les espaces du serveur dont le compte est membre, lus à chaque ouverture et jamais conservés
-// (H10). Sans compte connecté ou sans serveur, seul l'espace de l'appareil est montré, sans écran
-// bloquant : la coquille reste utilisable.
+// (H10). Sans compte connecté ou sans serveur, seuls les espaces de l'appareil sont montrés, sans
+// écran bloquant : la coquille reste utilisable. Avec le pilote de l'onglet (F-032-AC1, AC2), trois
+// parties : l'espace de l'appareil, les autres espaces de l'appareil, et les espaces du serveur que
+// l'appareil ne détient pas, chacun ouvrable dans l'éditeur ; la mention « Les espaces du serveur ne
+// s'ouvrent pas encore dans l'éditeur. » de F-014-AC1 a disparu (amendement de F-014-AC1, F-032 H10).
 import {
   type ReactElement,
   type RefObject,
@@ -17,6 +20,8 @@ import { estUnNomDEspace } from "../compte/regles-espaces.ts";
 import { tirerIdentifiantDEspace } from "../espace/identifiant-d-espace.ts";
 import { allerALEcran } from "../navigation/fragment.ts";
 import { fragmentDEcran } from "../navigation/route.ts";
+import { type AjoutALAppareil, useAjoutALAppareil } from "./ajout-a-l-appareil.ts";
+import { type AppareilLu, cibleSurLAppareil, useAppareilDesEcrans } from "./appareil-des-ecrans.ts";
 import { peut } from "./commandes-espaces.ts";
 import { ChampDeCompte } from "./composants/Compte.tsx";
 import {
@@ -51,7 +56,6 @@ import {
   libelleDuRole,
   nomOuvrirEspace,
   NOUVEL_ESPACE,
-  PAS_ENCORE_DANS_L_EDITEUR,
   QUOTA_D_ESPACES,
   REESSAYER,
   REGLE_DU_NOM,
@@ -60,6 +64,7 @@ import {
   TITRE_DES_ESPACES,
   VERIFICATION_EN_COURS,
 } from "./messages-espaces.ts";
+import { PartiesDeLAppareil, RangeesDuServeur, type ServeurLu } from "./EspacesDeLAppareil.tsx";
 import {
   codeDe,
   useRelectureAuRetour,
@@ -83,20 +88,40 @@ export function EcranDesEspaces(props: {
   const etat = useSyncExternalStore(compte.suivi.abonner, compte.suivi.lire);
   const liste = useListeDesEspaces(compte, etat.statut === "connecte");
   const raison = raisonDeLEtat(etat, liste);
+  const appareil = useAppareilDesEcrans();
+  const ajout = useAjoutALAppareil({ compte, surIntrouvable: liste.relire });
   return (
     <EcranDEspaces titre={TITRE_DES_ESPACES}>
       <Annonce texte={sortie.annonce ?? ""} />
       {sortie.alerte !== undefined && <Alerte phrases={[sortie.alerte]} />}
-      <Partie titre={ESPACE_DE_CET_APPAREIL}>
-        <Texte>{`${CET_APPAREIL} — ${ESPACE_COURANT}`}</Texte>
-        <Texte>{PAS_ENCORE_DANS_L_EDITEUR}</Texte>
-      </Partie>
+      {ajout.alerte !== undefined && <Alerte phrases={ajout.alerte} />}
+      {appareil === undefined ? (
+        <Partie titre={ESPACE_DE_CET_APPAREIL}>
+          <Texte>{`${CET_APPAREIL} — ${ESPACE_COURANT}`}</Texte>
+        </Partie>
+      ) : (
+        <PartiesDeLAppareil appareil={appareil} serveur={serveurLu(etat, liste.liste)} />
+      )}
       <Partie titre={ESPACES_DU_SERVEUR}>
-        <ContenuDuServeur etat={etat} liste={liste.liste} relire={liste.relire} />
+        <ContenuDuServeur
+          etat={etat}
+          liste={liste.liste}
+          relire={liste.relire}
+          appareil={appareil}
+          ajout={ajout}
+        />
         <Creation compte={compte} raison={raison} />
       </Partie>
     </EcranDEspaces>
   );
+}
+
+/** La liste du serveur par identifiant, seulement compte connecté et liste lue (F-032-AC26). */
+function serveurLu(etat: EtatDuCompte, liste: Liste): ServeurLu {
+  if (etat.statut !== "connecte" || liste.statut !== "pret") {
+    return undefined;
+  }
+  return new Map(liste.espaces.map((espace) => [espace.idEspace, espace]));
 }
 
 /** Raison pour laquelle les actions qui exigent le serveur sont désactivées (F-014-AC2). */
@@ -141,8 +166,11 @@ function ContenuDuServeur(props: {
   readonly etat: EtatDuCompte;
   readonly liste: Liste;
   readonly relire: () => void;
+  /** Avec le pilote : les espaces de l'appareil n'y figurent pas, chacun s'ouvre (F-032-AC1). */
+  readonly appareil: AppareilLu | undefined;
+  readonly ajout: AjoutALAppareil;
 }): ReactElement {
-  const { etat, liste } = props;
+  const { etat, liste, appareil } = props;
   if (etat.statut !== "connecte") {
     return <Texte>{etat.statut === "deconnecte" ? CONNECTEZ_VOUS : DEMANDE_UNE_CONNEXION}</Texte>;
   }
@@ -159,7 +187,15 @@ function ContenuDuServeur(props: {
         </>
       );
     case "pret":
-      return <ListeDesEspaces espaces={liste.espaces} />;
+      return appareil === undefined ? (
+        <ListeDesEspaces espaces={liste.espaces} />
+      ) : (
+        <RangeesDuServeur
+          liste={liste.espaces}
+          surLAppareil={(idEspace) => cibleSurLAppareil(appareil.etat, idEspace) !== undefined}
+          ajout={props.ajout}
+        />
+      );
   }
 }
 

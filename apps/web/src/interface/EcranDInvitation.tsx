@@ -1,6 +1,8 @@
 // Écran d'invitation, `#/invitation` (F-014-AC21 à AC25) : le jeton reçu par l'adresse n'est tenu
 // qu'en mémoire, et n'est envoyé que dans le corps de l'acceptation, sur un geste explicite. Aucune
-// requête ne part du seul fait de l'ouverture.
+// requête ne part du seul fait de l'ouverture. Une fois l'espace rejoint, « Ouvrir cet espace » est
+// proposé à côté de « Voir cet espace » (F-032-AC5) : l'espace courant ne change qu'à ce second
+// geste (F-014-AC23).
 import { type ReactElement, useEffect, useState, useSyncExternalStore } from "react";
 
 import type { Compte, EspaceLu, ErreurDEspaces, EtatDuCompte } from "../compte/index.ts";
@@ -15,6 +17,7 @@ import {
   Lien,
   Texte,
 } from "./composants/Espaces.tsx";
+import { useAjoutALAppareil } from "./ajout-a-l-appareil.ts";
 import { espaceRejoint } from "./messages.ts";
 import { CREER_UN_COMPTE, SE_CONNECTER, VERIFICATION_DU_COMPTE } from "./messages-compte.ts";
 import {
@@ -30,6 +33,7 @@ import {
   REESSAYER,
   REJOINDRE_L_ESPACE,
   REQUETE_EN_COURS,
+  PLUS_ACCESSIBLE,
   ROUVREZ_LE_LIEN,
   texteDEchec,
   TITRE_INVITATION,
@@ -37,7 +41,8 @@ import {
   VOIR_LES_ESPACES,
 } from "./messages-espaces.ts";
 import type { NavigationDeLEspace } from "./navigation-espaces.ts";
-import { codeDe, useVerrou } from "./outils-espaces.ts";
+import { codeDe, type Sortie, useVerrou } from "./outils-espaces.ts";
+import { OuvertureDUnEspace } from "./OuvertureDUnEspace.tsx";
 
 /** Issue d'une acceptation, une fois le jeton effacé. */
 type Issue =
@@ -50,6 +55,8 @@ const MS_PAR_SECONDE = 1000;
 export function EcranDInvitation(props: {
   readonly compte: Compte;
   readonly navigation: NavigationDeLEspace;
+  /** Retour à la liste avec ce qu'elle doit dire (F-014-AC28) ; absent, le retour est muet. */
+  readonly revenirALaListe?: ((sortie: Sortie) => void) | undefined;
 }): ReactElement {
   const { compte, navigation } = props;
   const etat = useSyncExternalStore(compte.suivi.abonner, compte.suivi.lire);
@@ -58,7 +65,11 @@ export function EcranDInvitation(props: {
   return (
     <EcranDEspaces titre={TITRE_INVITATION}>
       {issue !== undefined ? (
-        <IssueDeLAcceptation issue={issue} />
+        <IssueDeLAcceptation
+          issue={issue}
+          compte={compte}
+          revenirALaListe={props.revenirALaListe}
+        />
       ) : invitation.statut === "jeton" ? (
         <Proposition
           compte={compte}
@@ -76,19 +87,20 @@ export function EcranDInvitation(props: {
   );
 }
 
-function IssueDeLAcceptation({ issue }: { readonly issue: Issue }): ReactElement {
+function IssueDeLAcceptation(props: {
+  readonly issue: Issue;
+  readonly compte: Compte;
+  readonly revenirALaListe: ((sortie: Sortie) => void) | undefined;
+}): ReactElement {
+  const { issue } = props;
   switch (issue.sorte) {
     case "rejoint":
       return (
-        <>
-          <Annonce texte={espaceRejoint(issue.espace.nom, libelleDuRole(issue.espace.role))} />
-          <Actions>
-            <Lien
-              libelle={VOIR_CET_ESPACE}
-              adresse={fragmentDEcran({ ecran: "espace", idEspace: issue.espace.idEspace })}
-            />
-          </Actions>
-        </>
+        <EspaceRejoint
+          espace={issue.espace}
+          compte={props.compte}
+          revenirALaListe={props.revenirALaListe}
+        />
       );
     case "invalide":
       return <Alerte phrases={[INVITATION_INVALIDE]} />;
@@ -102,6 +114,37 @@ function IssueDeLAcceptation({ issue }: { readonly issue: Issue }): ReactElement
         </>
       );
   }
+}
+
+/** L'espace rejoint : son écran, et son ouverture dans l'éditeur sur un second geste (F-032-AC5). */
+function EspaceRejoint(props: {
+  readonly espace: EspaceLu;
+  readonly compte: Compte;
+  readonly revenirALaListe: ((sortie: Sortie) => void) | undefined;
+}): ReactElement {
+  const { espace, revenirALaListe } = props;
+  const ajout = useAjoutALAppareil({
+    compte: props.compte,
+    surIntrouvable: () => revenirALaListe?.({ annonce: undefined, alerte: PLUS_ACCESSIBLE }),
+  });
+  return (
+    <>
+      <Annonce texte={espaceRejoint(espace.nom, libelleDuRole(espace.role))} />
+      {ajout.alerte !== undefined && <Alerte phrases={ajout.alerte} />}
+      <Actions>
+        <Lien
+          libelle={VOIR_CET_ESPACE}
+          adresse={fragmentDEcran({ ecran: "espace", idEspace: espace.idEspace })}
+        />
+      </Actions>
+      <OuvertureDUnEspace
+        idEspace={espace.idEspace}
+        nom={espace.nom}
+        role={espace.role}
+        ajout={ajout}
+      />
+    </>
+  );
 }
 
 interface ProprietesProposition {

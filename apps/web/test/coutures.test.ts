@@ -397,7 +397,8 @@ describe("ce que chaque sorte d'ouvrant exige", () => {
       /\*\s+as\s+(\w+)\s+from\s*"\.\.\/src\/espace\/session-espace\.ts"/.exec(aide)?.[1] ?? "";
     expect(nomDuModule).not.toBe("");
     expect(occurrences(aide, `\\b${nomDuModule}\\b`)).toBe(4);
-    expect(occurrences(aide, `\\b${nomDuModule}\\.${NOM_DU_DEMARRAGE}\\(\\)`)).toBe(1);
+    // F-032-AC32 : le démarrage reçoit l'espace à ouvrir, celui que le pilote de l'onglet lui donne.
+    expect(occurrences(aide, `\\b${nomDuModule}\\.${NOM_DU_DEMARRAGE}\\(cible\\)`)).toBe(1);
     expect(occurrences(aide, `vi\\.spyOn\\(${nomDuModule}, "${NOM_DU_DEMARRAGE}"\\)`)).toBe(1);
     expect(occurrences(aide, `=\\s*${nomDuModule}\\.SessionEspace;`)).toBe(1);
     expect(declarationsDe(aide).filter((declaration) => declaration.exporte)).toEqual([]);

@@ -30,6 +30,9 @@ export const ANNONCE_DE_REPRISE = "Modifications enregistrées sur cet appareil.
 
 export const INVITATION_PREMIERE_PAGE =
   "Cet espace ne contient encore aucune page. Créez-en une avec « Nouvelle page », dans la barre latérale.";
+/** L'accueil vide pendant la première synchronisation de l'espace (F-032-AC8). */
+export const PAGES_PAS_ENCORE_TELECHARGEES =
+  "Les pages de cet espace n'ont pas encore été téléchargées sur cet appareil.";
 export const INVITATION_CHOISIR_UNE_PAGE =
   "Aucune page n'est ouverte. Choisissez une page dans la barre latérale, ou créez-en une avec « Nouvelle page ».";
 export const EXPLICATION_PAGE_INTROUVABLE =

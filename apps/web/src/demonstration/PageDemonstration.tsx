@@ -51,6 +51,7 @@ import {
   Formulaire,
   Lien,
   LienEnLecture,
+  ListeDEspaces,
   Partie,
   Tableau,
   Texte,
@@ -797,6 +798,7 @@ function SectionEspaces(): ReactElement {
             </EcranDEspaces>
           </div>
         </Specimen>
+        <SpecimenDesEspacesDeLAppareil />
         <Specimen etiquette="Renommage, action occupée">
           <div className={PAGE.fondZone}>
             <Formulaire nom={F.formulaire} surEnvoi={sansEffet}>
@@ -808,6 +810,36 @@ function SectionEspaces(): ReactElement {
       </div>
       <SpecimenDeBoite />
     </Section>
+  );
+}
+
+// Rangées de l'écran des espaces à trois parties (F-032-AC30) : l'espace ouvert, puis un espace au
+// titre long, coupé sur une ligne, avec ses deux commandes.
+function SpecimenDesEspacesDeLAppareil(): ReactElement {
+  const F = ESPACES_FICTIFS;
+  return (
+    <Specimen etiquette="Espaces de l'appareil">
+      <div className={PAGE.fondZone}>
+        <Partie titre={F.surCetAppareil}>
+          <ListeDEspaces
+            rangees={[
+              { cle: "courant", nom: F.espaceCourant, details: F.courant, commandes: null },
+              {
+                cle: "long",
+                nom: F.espaceLong,
+                details: F.details,
+                commandes: (
+                  <>
+                    <Bouton libelle={F.ouvrir} surActivation={sansEffet} />
+                    <Bouton libelle={F.retirerDeLAppareil} surActivation={sansEffet} />
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Partie>
+      </div>
+    </Specimen>
   );
 }
 

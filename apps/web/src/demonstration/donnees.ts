@@ -70,6 +70,14 @@ export const ESPACES_FICTIFS = {
   annuler: "Annuler",
   copie: "Copiez le lien à la main",
   lienFictif: "exemple.invalid/#/invitation/jeton-fictif",
+  // F-032 : rangées de l'écran des espaces à trois parties, un titre long coupé sur une ligne.
+  surCetAppareil: "Sur cet appareil",
+  espaceLong: "Atelier Nord — comptes rendus des réunions de l'équipe de terrain",
+  details: "Éditeur · Première synchronisation inachevée",
+  espaceCourant: "Carnet de l'appareil",
+  courant: "Sur cet appareil uniquement · Espace courant",
+  ouvrir: "Ouvrir cet espace",
+  retirerDeLAppareil: "Retirer de cet appareil",
 } as const;
 
 // Écran de la corbeille (F-007) : une racine et sa descendance, une racine seule.

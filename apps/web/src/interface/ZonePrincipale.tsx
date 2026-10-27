@@ -16,6 +16,7 @@ import {
   NOM_APPLICATION,
   PAGE_DE_VERSION_NON_PRISE_EN_CHARGE,
   PAGE_INTROUVABLE,
+  PAGES_PAS_ENCORE_TELECHARGEES,
   titreAffiche,
   titreEstVide,
 } from "./messages.ts";
@@ -31,6 +32,11 @@ export type Selection =
 interface Proprietes {
   readonly selection: Selection;
   readonly espaceVide: boolean;
+  /**
+   * Vrai pendant la première synchronisation de l'espace sur l'appareil (F-032-AC8) : l'accueil
+   * vide dit que ses pages n'ont pas encore été téléchargées, au lieu d'inviter à en créer une.
+   */
+  readonly premiereSynchronisation?: boolean | undefined;
   /** État de la session de la page sélectionnée ; `undefined` quand aucune page ne l'est. */
   readonly page: EtatSessionPage | undefined;
   /** Le focus y est porté quand une page est choisie dans le tiroir (F-004-AC42). */
@@ -58,8 +64,21 @@ const PAGE_REFUSEE = (
   <EntetePage titre={PAGE_INTROUVABLE} explication={EXPLICATION_PAGE_INTROUVABLE} />
 );
 
+function explicationDeLAccueil(
+  espaceVide: boolean,
+  premiereSynchronisation: boolean | undefined,
+): string {
+  if (!espaceVide) {
+    return INVITATION_CHOISIR_UNE_PAGE;
+  }
+  return premiereSynchronisation === true
+    ? PAGES_PAS_ENCORE_TELECHARGEES
+    : INVITATION_PREMIERE_PAGE;
+}
+
 // La clé rejoue l'apparition du contenu quand la page sélectionnée change (F-004-AC14).
-function entete({ selection, espaceVide, page, table }: Proprietes): ReactElement {
+function entete(props: Proprietes): ReactElement {
+  const { selection, page, table } = props;
   const ouverte = selection.type === "page" && selection.page.type === "table" ? table : page;
   if (selection.type === "page" && ouverte?.phase !== "introuvable") {
     return (
@@ -76,7 +95,7 @@ function entete({ selection, espaceVide, page, table }: Proprietes): ReactElemen
   return (
     <EntetePage
       titre={NOM_APPLICATION}
-      explication={espaceVide ? INVITATION_PREMIERE_PAGE : INVITATION_CHOISIR_UNE_PAGE}
+      explication={explicationDeLAccueil(props.espaceVide, props.premiereSynchronisation)}
     />
   );
 }

@@ -50,6 +50,12 @@ export function ZoneDesEspaces({ compte, ecran, navigation }: Proprietes): React
         />
       );
     case "invitation":
-      return <EcranDInvitation compte={compte} navigation={navigation} />;
+      return (
+        <EcranDInvitation
+          compte={compte}
+          navigation={navigation}
+          revenirALaListe={revenirALaListe}
+        />
+      );
   }
 }

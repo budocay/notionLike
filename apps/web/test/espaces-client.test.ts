@@ -12,7 +12,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cheminDe, creerClientDesEspaces } from "../src/compte/client-espaces.ts";
 import { estUnJetonDInvitation, estUnNomDEspace } from "../src/compte/regles-espaces.ts";
 import { tirerIdentifiantDEspace } from "../src/espace/identifiant-d-espace.ts";
-import { COMMANDES } from "../src/interface/commandes-espaces.ts";
+import {
+  type Commande,
+  COMMANDES,
+  COMMANDES_DE_L_APPAREIL,
+} from "../src/interface/commandes-espaces.ts";
 import { enveloppe, jamais, json, pageHtml, serveurSimule } from "./aides-compte.tsx";
 import { lire, lister } from "./aides-disque.ts";
 import {
@@ -186,7 +190,206 @@ const sources = new Map(
     .map((chemin) => [chemin, lire(chemin)]),
 );
 
+// ── F-032-AC28 : chaque commande rendue par les écrans des espaces, classée ───────────────────────────────────
+
+/** Les écrans des espaces : les fichiers d'`interface/` qu'ils importent, de proche en proche. */
+const ENTREES_DES_ECRANS = [
+  "src/interface/EcranDesEspaces.tsx",
+  "src/interface/EcranDUnEspace.tsx",
+  "src/interface/EcranDInvitation.tsx",
+];
+
+function fichiersDesEcrans(fichiers: ReadonlyMap<string, string>): string[] {
+  const vus = new Set<string>();
+  const aVoir = [...ENTREES_DES_ECRANS];
+  for (let chemin = aVoir.pop(); chemin !== undefined; chemin = aVoir.pop()) {
+    const texte = fichiers.get(chemin);
+    if (vus.has(chemin) || texte === undefined) {
+      continue;
+    }
+    vus.add(chemin);
+    for (const [, importe] of texte.matchAll(/from "\.\/([\w-]+\.tsx?)"/g)) {
+      aVoir.push(`src/interface/${importe}`);
+    }
+  }
+  return [...vus].sort();
+}
+
+/**
+ * Éléments qui rendent une commande, désignée par son libellé (bouton, lien, relais) ou, pour une
+ * liste de choix, par son nom accessible.
+ */
+const ELEMENT_DE_COMMANDE =
+  /<(?:(?:Bouton|Lien|EchecOuChargement)\b[\s\S]*?\blibelle|Choix\b[\s\S]*?\bnom)=\{([^{}]+)\}/g;
+
+/**
+ * Commandes rattachées à une action de la matrice : le libellé rendu, et la commande de `COMMANDES`
+ * dont le fichier doit l'avoir gardée par `peut(…, "<commande>")` avant de la rendre. Les commandes
+ * d'une boîte (valider, confirmer, copier) sont rattachées à la commande qui l'ouvre.
+ */
+const RATTACHEES: Readonly<Record<string, Commande>> = {
+  RENOMMER: "renommer",
+  VALIDER_LE_NOM: "renommer",
+  QUITTER_CET_ESPACE: "quitter",
+  QUITTER: "quitter",
+  SUPPRIMER_CET_ESPACE: "supprimer",
+  SUPPRIMER_DEFINITIVEMENT: "supprimer",
+  RETIRER: "retirer-membre",
+  "nomRoleDuMembre(membre.nom)": "changer-role",
+  RELIRE_LES_MEMBRES: "voir-membres",
+  ROLE_DE_L_INVITATION: "creer-invitation",
+  CREER_UN_LIEN: "creer-invitation",
+  COPIER_LE_LIEN: "creer-invitation",
+  REVOQUER: "revoquer-invitation",
+  RELIRE_LES_INVITATIONS: "voir-invitations",
+  // F-032-AC28 : « Ouvrir cet espace » d'un espace du serveur, et le lien vers l'écran d'un espace.
+  OUVRIR_CET_ESPACE: "ouvrir-espace",
+  "espace.nom": "ouvrir-espace",
+  nom: "ouvrir-espace",
+};
+
+/**
+ * Contrôles des écrans qui ne sont pas des commandes de F-014-AC26 : ils n'agissent sur aucun espace
+ * où le compte a un rôle, ni sur l'appareil. Liste fermée, à étendre dans ce test seulement.
+ */
+const HORS_MATRICE: Readonly<Record<string, string>> = {
+  ANNULER: "ferme une boîte",
+  FERMER: "ferme une boîte",
+  REESSAYER: "relit après un échec",
+  RELIRE_L_ESPACE: "relit après un échec",
+  RETOUR_AUX_ESPACES: "navigation",
+  VOIR_LES_ESPACES: "navigation",
+  VOIR_CET_ESPACE: "navigation, après l'acceptation (F-014-AC23)",
+  SE_CONNECTER: "navigation vers le compte",
+  CREER_UN_COMPTE: "navigation vers le compte",
+  IGNORER: "oublie l'invitation dans l'onglet",
+  NOUVEL_ESPACE: "création : aucun rôle avant (F-014-AC7)",
+  CREER_L_ESPACE: "création : aucun rôle avant (F-014-AC7)",
+  REJOINDRE_L_ESPACE: "acceptation : aucun rôle avant (F-014-AC23)",
+};
+
+/** Libellés relayés : le composant rend celui que chaque appelant lui donne, énuméré chez lui. */
+const RELAIS: Readonly<Record<string, string>> = {
+  "src/interface/EchecOuChargement.tsx": "props.libelle",
+};
+
+interface CommandeRendue {
+  readonly fichier: string;
+  readonly libelle: string;
+  readonly classe: "action" | "appareil" | "hors-matrice" | "relais" | undefined;
+}
+
+/** Chaque commande rendue par ces fichiers, avec sa classe ; `undefined` : non classée. */
+function commandesRendues(fichiers: ReadonlyMap<string, string>): CommandeRendue[] {
+  return [...fichiers].flatMap(([fichier, texte]) =>
+    [...texte.matchAll(ELEMENT_DE_COMMANDE)].map((trouve): CommandeRendue => {
+      const libelle = (trouve[1] ?? "").trim();
+      const avant = texte.slice(0, trouve.index);
+      const deLAppareil = /^libelleDeLAppareil\(\s*"([a-z-]+)"\s*\)$/.exec(libelle)?.[1];
+      const commande = RATTACHEES[libelle];
+      let classe: CommandeRendue["classe"];
+      if (deLAppareil !== undefined) {
+        classe = (COMMANDES_DE_L_APPAREIL as readonly string[]).includes(deLAppareil)
+          ? "appareil"
+          : undefined;
+      } else if (
+        commande !== undefined &&
+        new RegExp(`\\bpeut\\([^,]+,\\s*"${commande}"\\)`).test(avant)
+      ) {
+        classe = "action";
+      } else if (libelle in HORS_MATRICE) {
+        classe = "hors-matrice";
+      } else if (RELAIS[fichier] === libelle) {
+        classe = "relais";
+      }
+      return { fichier, libelle, classe };
+    }),
+  );
+}
+
+function nonClassees(fichiers: ReadonlyMap<string, string>): string[] {
+  return commandesRendues(fichiers)
+    .filter(({ classe }) => classe === undefined)
+    .map(({ fichier, libelle }) => `${fichier} : ${libelle}`);
+}
+
 describe("coutures du client des espaces", () => {
+  it("F-014-AC26 F-032-AC28 chaque commande rendue par les écrans des espaces (libellé d'un Bouton, d'un Lien ou d'un relais) passe par `peut` ou par `libelleDeLAppareil`, ou figure dans la liste fermée des contrôles hors matrice ; une commande ajoutée sans l'un des trois fait échouer la vérification", () => {
+    const desEcrans = new Map(
+      fichiersDesEcrans(sources).map((chemin) => [chemin, sources.get(chemin) ?? ""]),
+    );
+    const rendues = commandesRendues(desEcrans);
+    // Les fichiers qui rendent des commandes, trouvés par les imports et non plus nommés à la main :
+    // ceux du test précédent, plus le relais de relecture.
+    expect([...new Set(rendues.map(({ fichier }) => fichier))].sort()).toEqual([
+      "src/interface/ActionsDeLEspace.tsx",
+      "src/interface/EchecOuChargement.tsx",
+      "src/interface/EcranDInvitation.tsx",
+      "src/interface/EcranDUnEspace.tsx",
+      "src/interface/EcranDesEspaces.tsx",
+      "src/interface/EspacesDeLAppareil.tsx",
+      "src/interface/InvitationsDeLEspace.tsx",
+      "src/interface/MembresDeLEspace.tsx",
+      "src/interface/OuvertureDUnEspace.tsx",
+      "src/interface/RetraitDeLAppareil.tsx",
+    ]);
+    expect([...desEcrans.keys()]).toContain("src/interface/contexte-espace.ts");
+
+    expect(nonClassees(desEcrans)).toEqual([]);
+    // Les écrans rendent des commandes de chaque classe, et chaque entrée des listes sert.
+    expect(new Set(rendues.map(({ classe }) => classe))).toEqual(
+      new Set(["action", "appareil", "hors-matrice", "relais"]),
+    );
+    const libelles = new Set(rendues.map(({ libelle }) => libelle));
+    for (const libelle of [...Object.keys(RATTACHEES), ...Object.keys(HORS_MATRICE)]) {
+      expect(libelles, libelle).toContain(libelle);
+    }
+    expect(new Set(Object.values(RATTACHEES))).toEqual(new Set(Object.keys(COMMANDES)));
+    for (const commande of COMMANDES_DE_L_APPAREIL) {
+      expect(libelles).toContain(`libelleDeLAppareil("${commande}")`);
+    }
+    for (const libelle of Object.keys(HORS_MATRICE)) {
+      expect(Object.keys(RATTACHEES)).not.toContain(libelle);
+    }
+  });
+
+  it("F-014-AC26 F-032-AC28 cas fautifs donnés comme données : commande sans garde, garde après la commande, commande de l'appareil hors liste, libellé inconnu, relais hors de son fichier ; la commande gardée passe", () => {
+    const fautifs = new Map([
+      ["src/interface/Inconnu.tsx", "<Bouton libelle={EFFACER_TOUT} surActivation={effacer} />"],
+      [
+        "src/interface/SansGarde.tsx",
+        "<Bouton\n  libelle={RENOMMER}\n  surActivation={renommer}\n/>",
+      ],
+      [
+        "src/interface/GardeApres.tsx",
+        '<Bouton libelle={SUPPRIMER_CET_ESPACE} />\n{peut(role, "supprimer") && null}',
+      ],
+      ["src/interface/AutreGarde.tsx", '{peut(role, "quitter") && <Bouton libelle={RENOMMER} />}'],
+      [
+        "src/interface/HorsListe.tsx",
+        '<Bouton libelle={libelleDeLAppareil("vider-l-appareil")} surActivation={vider} />',
+      ],
+      ["src/interface/Relais.tsx", "<Bouton libelle={props.libelle} />"],
+      ["src/interface/Lien.tsx", '<Lien libelle={nom} adresse="#/espaces" />'],
+      ["src/interface/Choix.tsx", "<Choix nom={nomDuTri(table.nom)} surChoix={trier} />"],
+      [
+        "src/interface/Garde.tsx",
+        '{peut(espace.role, "renommer") && (\n  <Bouton libelle={RENOMMER} surActivation={renommer} />\n)}',
+      ],
+    ]);
+
+    expect(nonClassees(fautifs)).toEqual([
+      "src/interface/Inconnu.tsx : EFFACER_TOUT",
+      "src/interface/SansGarde.tsx : RENOMMER",
+      "src/interface/GardeApres.tsx : SUPPRIMER_CET_ESPACE",
+      "src/interface/AutreGarde.tsx : RENOMMER",
+      'src/interface/HorsListe.tsx : libelleDeLAppareil("vider-l-appareil")',
+      "src/interface/Relais.tsx : props.libelle",
+      "src/interface/Lien.tsx : nom",
+      "src/interface/Choix.tsx : nomDuTri(table.nom)",
+    ]);
+  });
+
   it("F-014-AC37 F-014-AC39 seul src/compte/client-espaces.ts emploie les chemins de F-011 ; aucun chemin d'espace n'est recopié", () => {
     const employeurs = [...sources]
       .filter(([, texte]) => /\bCHEMINS_ESPACES\b/.test(texte))
@@ -229,9 +432,12 @@ describe("coutures du client des espaces", () => {
     expect([...actionsDesCommandes].sort()).toEqual([...citees].sort());
   });
 
-  it("F-014-AC26 chaque commande rendue par les écrans est nommée par COMMANDES, et chaque commande de COMMANDES est employée", () => {
+  // F-032 H10, test de F-014-AC26 amendé par F-032-AC28 : les écrans des espaces comptent les
+  // fichiers de F-032 qui rendent leurs commandes, et une commande y est soit rattachée à une action
+  // (`peut`), soit dans la liste fermée des commandes de l'appareil (`libelleDeLAppareil`).
+  it("F-014-AC26 F-032-AC28 chaque commande rendue par les écrans est nommée par COMMANDES ou par la liste fermée des commandes de l'appareil, et chacune des deux listes est employée", () => {
     const ecrans = [...sources].filter(([chemin]) =>
-      /^src\/interface\/(ActionsDeLEspace|MembresDeLEspace|InvitationsDeLEspace|contexte-espace|EcranDesEspaces)\./.test(
+      /^src\/interface\/(ActionsDeLEspace|MembresDeLEspace|InvitationsDeLEspace|contexte-espace|EcranDesEspaces|EcranDUnEspace|EcranDInvitation|EspacesDeLAppareil|OuvertureDUnEspace|RetraitDeLAppareil)\./.test(
         chemin,
       ),
     );
@@ -241,6 +447,19 @@ describe("coutures du client des espaces", () => {
       ),
     );
     expect([...employees].sort()).toEqual(Object.keys(COMMANDES).sort());
+    const deLAppareil = new Set(
+      ecrans.flatMap(([, texte]) =>
+        [...texte.matchAll(/libelleDeLAppareil\(\s*"([a-z-]+)"\s*\)/g)].map(([, nom]) => nom),
+      ),
+    );
+    expect([...COMMANDES_DE_L_APPAREIL]).toEqual([
+      "ouvrir-sur-l-appareil",
+      "retirer-de-l-appareil",
+    ]);
+    expect([...deLAppareil].sort()).toEqual([...COMMANDES_DE_L_APPAREIL].sort());
+    for (const commande of COMMANDES_DE_L_APPAREIL) {
+      expect(Object.keys(COMMANDES)).not.toContain(commande);
+    }
   });
 
   it("F-014-AC43 le code courriel-non-verifie n'est pas publié par les contrats : son test sera livré par F-026, fusionnée en second (H16)", () => {

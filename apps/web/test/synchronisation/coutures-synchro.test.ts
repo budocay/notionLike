@@ -275,6 +275,8 @@ describe("F-013-AC40 couture avec F-002, F-007 et F-010", () => {
         // F-018-AC51 : la table affichée, et aucun document affiché.
         "afficherTable",
         "afficherAucun",
+        // F-032-AC12 : l'attente d'acquittement d'un changement d'espace.
+        "attendreLAcquittement",
         "effacerLaCopieLocale",
         "estAcquitte",
         "fermer",
