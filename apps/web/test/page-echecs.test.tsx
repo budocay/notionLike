@@ -300,6 +300,8 @@ describe("couture du module de persistance", () => {
 
     expect(quiAppellent("ouvrirEspaceLocal")).toEqual([
       "src/espace/session-espace.ts",
+      // F-032-AC23 : réparation de l'identifiant sur un appareil à plusieurs espaces.
+      "test/appareil-reparation.test.ts",
       // F-007 : délai et échec de l'ouverture, constatés pour les appelants (F-007-AC26).
       "test/corbeille-effacement.test.ts",
       "test/page-echecs.test.tsx",

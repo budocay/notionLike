@@ -57,22 +57,39 @@ describe("frontières du module de persistance", () => {
   it("F-002-AC22 persistance/index.ts exporte exactement ouvrirPersistance, ouvrirEspaceLocal et ErreurPersistance, sans rien de y-indexeddb", () => {
     expect(Object.keys(persistance).sort()).toEqual([
       "ErreurPersistance",
+      // F-032 : mémoire de l'appareil (AC19), ajout à l'appareil (AC5).
+      "ajouterALAppareil",
+      // F-032 : bases d'un espace, énumérées par leur nom (AC20).
+      "basesDeLEspace",
       // F-018 : lecture, écriture et effacement des réglages de vue d'une table (AC40, AC49).
       "ecrireReglagesDeVue",
       // F-013 : effacement de la base du document d'espace (AC24).
       "effacerBaseDeDocument",
       // F-007 : effacement d'une base de page.
       "effacerBaseDePage",
+      // F-032 : réglages de vue de toutes les tables d'un espace retiré (AC20).
+      "effacerLesReglagesDeLEspace",
       "effacerReglagesDeVue",
       // F-013 : registre de l'appareil (H3).
       "inscrireAuRegistre",
+      // F-032 : espace retenu (AC17), lecture de l'appareil (AC19).
+      "inscrireLEspaceRetenu",
+      "lireLAppareil",
       "lireLeRegistre",
       "lireReglagesDeVue",
       // F-013-AC16 : le nom de base d'un document, pour la correspondance avec son nom au serveur.
       "nomDeBase",
+      // F-032 : dernier nom connu (AC3).
+      "noterLesNoms",
+      // F-032 : un espace inscrit au registre, ouvert depuis sa base (AC10).
+      "ouvrirEspaceInscrit",
       "ouvrirEspaceLocal",
       "ouvrirPersistance",
+      // F-032 : relevé de la base d'espace quand l'énumération manque (AC20).
+      "releverLaBase",
       "retirerDuRegistre",
+      // F-032 : marque de première synchronisation (AC8).
+      "retirerLaMarque",
     ]);
     expect(sourceDeLInterface).not.toContain("y-indexeddb");
     expect(sourceDeLInterface.match(/type \w+/g)?.sort()).toEqual([
@@ -83,8 +100,13 @@ describe("frontières du module de persistance", () => {
       // F-013 : registre de l'appareil.
       "type Droit",
       "type EntreeDuRegistre",
+      // F-032 : mémoire de l'appareil.
+      "type EspaceInscrit",
       "type EtatPersistance",
       "type IssueDEffacement",
+      // F-032 : issue du retrait (AC20), seule définition, lue par l'espace et la synchronisation.
+      "type IssueDuRetrait",
+      "type LectureDeLAppareil",
       "type LectureDuRegistre",
       "type Persistance",
       "type PersistanceEspaceLocal",

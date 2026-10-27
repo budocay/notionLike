@@ -2,7 +2,11 @@
 import { type Arborescence, type DocumentEspace, ouvrirDocumentEspace } from "@notionlike/document";
 import * as Y from "yjs";
 
-import { ouvrirEspaceLocal, type PersistanceEspaceLocal } from "../persistance/index.ts";
+import {
+  ouvrirEspaceInscrit,
+  ouvrirEspaceLocal,
+  type PersistanceEspaceLocal,
+} from "../persistance/index.ts";
 import { suivreLOnglet } from "./garde-onglet.ts";
 import { estDUneVersionAdmise, lectureAdmise } from "./garde-version.ts";
 
@@ -63,7 +67,19 @@ const CHARGEMENT: EtatSession = { phase: "chargement" };
 const SIGNALEMENT_D_UN_ABONNE_DE_SESSION =
   "@notionlike/web : un abonné de la session d'espace a levé pendant la diffusion d'un changement.";
 
-export function demarrerSessionEspace(): SessionEspace {
+/**
+ * L'espace qu'une session ouvre (F-032) : l'espace de l'appareil, tel que la base de l'appareil le
+ * désigne et le répare (F-002, F-030), ou un espace inscrit au registre de l'appareil, depuis sa
+ * base, que l'ouverture ne crée qu'à la première écriture et ne vide jamais (F-032-AC9).
+ */
+export type CibleDeSession =
+  { readonly sorte: "appareil" } | { readonly sorte: "ajoute"; readonly idEspace: string };
+
+const ESPACE_DE_L_APPAREIL: CibleDeSession = { sorte: "appareil" };
+
+// Le paramètre par défaut garde l'ouverture d'avant F-032 pour chaque appelant qui ne nomme pas
+// d'espace (F-032-AC32) : l'entrée de l'application, par son pilote, et l'aide des tests.
+export function demarrerSessionEspace(cible: CibleDeSession = ESPACE_DE_L_APPAREIL): SessionEspace {
   if (!peutCreerDesIdentifiants()) {
     return {
       lireEtat: () => CONTEXTE_NON_SECURISE,
@@ -75,7 +91,15 @@ export function demarrerSessionEspace(): SessionEspace {
   // Ramasse-miettes actif, explicitement : le contenu d'une page supprimée définitivement est libéré
   // du document tenu en mémoire et de son état encodé (F-007-AC29, H14).
   const doc = new Y.Doc({ gc: true });
-  return sessionOuverte(doc, ouvrirEspaceLocal(doc, crypto.randomUUID()));
+  return sessionOuverte(doc, persistanceDe(doc, cible));
+}
+
+// Un espace ajouté garde son identifiant, contrôlé par la fonction de nommage, et n'a jamais de
+// bases non rattachées : seule la réparation de l'espace de l'appareil en laisse (F-030-AC23).
+function persistanceDe(doc: Y.Doc, cible: CibleDeSession): PersistanceEspaceLocal {
+  return cible.sorte === "appareil"
+    ? ouvrirEspaceLocal(doc, crypto.randomUUID())
+    : ouvrirEspaceInscrit(doc, cible.idEspace);
 }
 
 // La fonction réellement requise est testée, pas `isSecureContext` (F-002-AC26).
