@@ -105,6 +105,12 @@ export const TABLE_FICTIVE = {
     { id: "kanban", libelle: "Kanban" },
   ],
   nomDesVues: "Vue de la table",
+  kanban: "Kanban de la table Suivi des achats, regroupé par État",
+  pileFaire: "À faire",
+  pileFait: "Fait",
+  aucuneCarte: "Aucune carte à afficher.",
+  nouvelleCarte: "Nouvelle carte",
+  cartes: ["Papier", "Encre"],
   largeur: "Largeur de la colonne Article",
   champ: "Article, ligne 1",
   choix: [
