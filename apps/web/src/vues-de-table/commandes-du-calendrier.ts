@@ -114,10 +114,6 @@ function surToucheDeLaCase(
   }
 }
 
-function jourDeLElement(element: HTMLElement): string | undefined {
-  return element.closest<HTMLElement>("[data-jour]")?.dataset.jour;
-}
-
 function surToucheDeLEntree(
   parties: Parties,
   evenement: KeyboardEvent<HTMLElement>,
@@ -125,13 +121,13 @@ function surToucheDeLEntree(
   ligne: LigneLue,
 ): void {
   const action: ActionDEntree | undefined = actionDeLEntree(evenement);
-  const jour = jourDeLElement(element);
   if (action?.sorte === "deplacer") {
     traiter(evenement, () => parties.ecritures.deplacer(ligne, action.pas));
   } else if (action?.sorte === "titre") {
     traiter(evenement, () => parties.saisie.ouvrir(ligne));
-  } else if (action?.sorte === "case" && jour !== undefined) {
-    traiter(evenement, () => parties.suivi.suivre({ sorte: "case", jour }));
+  } else if (action?.sorte === "case") {
+    // Directement : la case contient l'entrée qui a le focus, le suivi la croirait déjà focalisée.
+    traiter(evenement, () => element.closest<HTMLElement>("[data-jour]")?.focus());
   } else if (action?.sorte === "menu") {
     traiter(evenement, () => ouvrirLeMenu(parties, element));
   }
