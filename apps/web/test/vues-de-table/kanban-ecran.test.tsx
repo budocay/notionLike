@@ -303,3 +303,39 @@ describe("piles longues (F-020-AC8)", () => {
     expect(Y.encodeStateAsUpdate).toBeDefined();
   });
 });
+
+describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
+  it("F-020-AC16 F-020-AC27 F-019 n'étant pas livrée, la vue présente exactement les lignes qu'elle reçoit, dans leur ordre : un sous-ensemble réordonné (filtre, tri) donne les cartes et leur place", () => {
+    const lue: TableLue = {
+      colonnes: [
+        { id: "titre", nom: "Titre", type: "texte", options: [] },
+        {
+          id: "statut",
+          nom: "Statut",
+          type: "selection",
+          options: [{ id: "o1", libelle: "À faire" }],
+        },
+      ],
+      lignes: ["a", "b", "c", "d"].map((titre): LigneLue => ({
+        id: titre,
+        cellules: [titre, "o1"],
+      })),
+    };
+    const affichees = [lue.lignes[3], lue.lignes[1], lue.lignes[0]].filter(
+      (ligne): ligne is LigneLue => ligne !== undefined,
+    );
+    render(
+      <VueKanban
+        table={{} as DocumentTable}
+        lue={lue}
+        lignes={affichees}
+        titre="Filtrée"
+        lectureSeule={undefined}
+        designation={{ idEspace: "e", idTable: "t" }}
+        selecteur={null}
+      />,
+    );
+    expect(nomsDesPiles()).toEqual(["Sans valeur, 0 carte", "À faire, 3 cartes"]);
+    expect(titresDeLaPile("À faire, 3 cartes")).toEqual(["d", "b", "a"]);
+  });
+});
