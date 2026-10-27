@@ -84,6 +84,19 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/vues-de-table/use-edition.ts",
   "src/vues-de-table/use-vue-tableau.ts",
   "src/vues-de-table/valider.ts",
+  // F-021 : la vue calendrier lit la table par la même façade.
+  "src/vues-de-table/VueCalendrier.tsx",
+  "src/vues-de-table/commandes-calendrier.ts",
+  "src/vues-de-table/commandes-du-calendrier.ts",
+  "src/vues-de-table/modele-calendrier.ts",
+  "src/vues-de-table/reglages-calendrier.ts",
+  "src/vues-de-table/repartition.ts",
+  "src/vues-de-table/repli-calendrier.ts",
+  "src/vues-de-table/use-ecritures-calendrier.ts",
+  "src/vues-de-table/use-menu-calendrier.ts",
+  "src/vues-de-table/use-saisie-du-titre.ts",
+  "src/vues-de-table/use-suivi-du-focus.ts",
+  "src/vues-de-table/use-vue-calendrier.ts",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin
