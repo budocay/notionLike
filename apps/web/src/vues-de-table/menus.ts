@@ -25,6 +25,7 @@ import {
   RENOMMER_LA_COLONNE,
   SUPPRIMER_LA_COLONNE,
   SUPPRIMER_LA_LIGNE,
+  TRI_ACTIF,
 } from "./textes.ts";
 
 export interface Commandes {
@@ -116,6 +117,7 @@ export function entreesDeLigne(
   const { moyens, fermer } = commandes;
   const raison = moyens.lectureSeule;
   const total = moyens.lignes.length;
+  const raisonDuTri = moyens.triActif ? TRI_ACTIF : undefined;
   const agir = (effet: () => void) => () => {
     fermer();
     effet();
@@ -126,7 +128,7 @@ export function entreesDeLigne(
       nom: commandeDeLigne(MONTER_LA_LIGNE, rang),
       touches: afficherTouches(RACCOURCIS.monterLaLigne),
       raccourci: cleAria(RACCOURCIS.monterLaLigne),
-      raison: raison ?? (rang === 1 ? DEJA_LA_PREMIERE_LIGNE : undefined),
+      raison: raison ?? raisonDuTri ?? (rang === 1 ? DEJA_LA_PREMIERE_LIGNE : undefined),
       surActivation: agir(() => deplacerUneLigne(moyens, ligne, -1, courante)),
     },
     {
@@ -134,7 +136,7 @@ export function entreesDeLigne(
       nom: commandeDeLigne(DESCENDRE_LA_LIGNE, rang),
       touches: afficherTouches(RACCOURCIS.descendreLaLigne),
       raccourci: cleAria(RACCOURCIS.descendreLaLigne),
-      raison: raison ?? (rang === total ? DEJA_LA_DERNIERE_LIGNE : undefined),
+      raison: raison ?? raisonDuTri ?? (rang === total ? DEJA_LA_DERNIERE_LIGNE : undefined),
       surActivation: agir(() => deplacerUneLigne(moyens, ligne, 1, courante)),
     },
     {

@@ -12,6 +12,7 @@ import {
   type PasDeJours,
   supprimerLaLigne,
 } from "./ecritures-du-calendrier.ts";
+import type { Surveillance } from "./ecritures.ts";
 import { decomposer } from "./jours.ts";
 import type { ModeleDuCalendrier } from "./modele-calendrier.ts";
 import { jourDeLaLigne } from "./repartition.ts";
@@ -38,6 +39,8 @@ interface Moyens {
   readonly saisie: Saisie;
   readonly suivi: SuiviDuFocus;
   readonly lectureSeule: string | undefined;
+  /** L'affichage figé est prévenu des écritures de l'onglet (F-019-AC17). */
+  readonly surveillance: Surveillance;
   readonly annoncer: (texte: string) => void;
   readonly signaler: (message: string | undefined) => void;
 }
@@ -49,8 +52,8 @@ export function useEditionDuCalendrier(moyens: MoyensDEdition): {
   readonly saisie: Saisie;
   readonly ecritures: EcrituresDuCalendrier;
 } {
-  const { table, modele, lectureSeule, suivi, signaler } = moyens;
-  const saisie = useSaisieDuTitre({ table, modele, lectureSeule, suivi, signaler });
+  const { table, modele, lectureSeule, suivi, signaler, surveillance } = moyens;
+  const saisie = useSaisieDuTitre({ table, modele, lectureSeule, suivi, signaler, surveillance });
   return { saisie, ecritures: ecrituresDuCalendrier({ ...moyens, saisie }) };
 }
 
@@ -76,13 +79,13 @@ function apresLaDate(moyens: Moyens, ligne: LigneLue, jour: string | null, ecrit
 }
 
 function fixerLaDate(moyens: Moyens, ligne: LigneLue, jour: string | null): string | undefined {
-  const { table, modele, lectureSeule } = moyens;
+  const { table, modele, lectureSeule, surveillance } = moyens;
   const { dateVisee } = modele;
   if (dateVisee === undefined || lectureSeule !== undefined) {
     return lectureSeule;
   }
   const inchangee = dateDejaEcrite(ligne, dateVisee, jour);
-  const refus = ecrireLaDate(table, ligne, dateVisee, jour);
+  const refus = ecrireLaDate(table, ligne, dateVisee, jour, surveillance);
   if (refus === undefined) {
     apresLaDate(moyens, ligne, jour, !inchangee);
   }
@@ -127,13 +130,13 @@ function ecrituresDuCalendrier(moyens: Moyens): EcrituresDuCalendrier {
 }
 
 function creerEtSaisir(
-  { table, modele, saisie, suivi, lectureSeule, signaler }: Moyens,
+  { table, modele, saisie, suivi, lectureSeule, signaler, surveillance }: Moyens,
   jour: string,
 ): void {
   if (modele.dateVisee === undefined || lectureSeule !== undefined) {
     return;
   }
-  const issue = creerUneLigneDuJour(table, modele.dateVisee, jour);
+  const issue = creerUneLigneDuJour(table, modele.dateVisee, jour, surveillance);
   signaler("refus" in issue ? issue.refus : undefined);
   if ("ligne" in issue) {
     suivi.suivre({ sorte: "entree", ligne: issue.ligne, jour });

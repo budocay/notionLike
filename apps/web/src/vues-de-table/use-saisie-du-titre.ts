@@ -4,6 +4,7 @@
 import type { DocumentTable, IdLigne, LigneLue } from "@notionlike/document";
 import { useState } from "react";
 
+import type { Surveillance } from "./ecritures.ts";
 import type { ModeleDuCalendrier } from "./modele-calendrier.ts";
 import type { SuiviDuFocus } from "./use-suivi-du-focus.ts";
 import { validerLeChamp, valeurDe } from "./valider.ts";
@@ -27,6 +28,8 @@ export interface Saisie {
 
 interface Moyens {
   readonly table: DocumentTable;
+  /** L'affichage figé est prévenu des écritures de l'onglet (F-019-AC17). */
+  readonly surveillance: Surveillance;
   readonly modele: ModeleDuCalendrier;
   readonly lectureSeule: string | undefined;
   readonly suivi: SuiviDuFocus;
@@ -38,14 +41,25 @@ function saisieDe(ligne: LigneLue, rang: number): SaisieDuTitre {
   return { ligne: ligne.id, texte: typeof valeur === "string" ? valeur : "", erreur: undefined };
 }
 
-export function useSaisieDuTitre({ table, modele, lectureSeule, suivi, signaler }: Moyens): Saisie {
-  const [saisie, setSaisie] = useState<SaisieDuTitre | undefined>(undefined);
-  const rendreLeFocus = (ligne: IdLigne): void => {
+function focusRendu(modele: ModeleDuCalendrier, suivi: SuiviDuFocus): (ligne: IdLigne) => void {
+  return (ligne) => {
     const jour = modele.jourDansLaGrille(ligne);
     if (jour !== undefined) {
       suivi.suivre({ sorte: "entree", ligne, jour });
     }
   };
+}
+
+export function useSaisieDuTitre({
+  table,
+  modele,
+  lectureSeule,
+  suivi,
+  signaler,
+  surveillance,
+}: Moyens): Saisie {
+  const [saisie, setSaisie] = useState<SaisieDuTitre | undefined>(undefined);
+  const rendreLeFocus = focusRendu(modele, suivi);
   const valider = (suite: string): boolean => {
     const ligne = saisie === undefined ? undefined : modele.ligneDe(saisie.ligne);
     const colonne = modele.titreDeColonne;
@@ -54,7 +68,7 @@ export function useSaisieDuTitre({ table, modele, lectureSeule, suivi, signaler 
       return true;
     }
     const cible = { ligne: ligne.id, colonne, avant: valeurDe(ligne, modele.rangDuTitre) };
-    const refus = validerLeChamp(table, cible, saisie.texte);
+    const refus = validerLeChamp(table, cible, saisie.texte, surveillance);
     signaler(refus);
     if (refus !== undefined) {
       setSaisie({ ...saisie, erreur: refus });

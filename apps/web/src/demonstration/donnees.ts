@@ -125,6 +125,17 @@ export const TABLE_FICTIVE = {
   aucuneOption: "Cette colonne n'a encore aucune option.",
   nouvelleOption: "Nouvelle option",
   faute: "Le libellé d'une option compte au plus 100 caractères.",
+  // Filtres et tris (F-019) : une barre, deux filtres valués dont un inactif, une marque de tri, une ligne hors filtre.
+  barreDesFiltres: {
+    nom: "Filtres",
+    resume: "2 filtres · 1 ligne sur 2",
+    ajouter: "Ajouter un filtre",
+  },
+  listeDesFiltres: "Liste des filtres",
+  valeurDuFiltre: "Valeur du filtre sur Article",
+  filtreInactif: "Colonne supprimée",
+  horsFiltre: { id: "demo-hors-filtre", texte: "Hors filtre" },
+  marqueDeTri: "↑",
 } as const;
 
 /** Une semaine du calendrier d'une table : case d'aujourd'hui, cases hors du mois, entrées, panneau. */

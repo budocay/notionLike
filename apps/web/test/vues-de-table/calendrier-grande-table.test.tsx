@@ -6,6 +6,7 @@ import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { SANS_SURVEILLANCE } from "../../src/vues-de-table/ecritures.ts";
 import { grilleDuMois } from "../../src/vues-de-table/jours.ts";
 import { repartir } from "../../src/vues-de-table/repartition.ts";
 import { VueCalendrier } from "../../src/vues-de-table/VueCalendrier.tsx";
@@ -54,6 +55,7 @@ function rendre(): void {
       titre="Grande"
       idEspace={undefined}
       idTable="grande"
+      surveillance={SANS_SURVEILLANCE}
     />,
   );
 }

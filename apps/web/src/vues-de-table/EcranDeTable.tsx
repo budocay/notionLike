@@ -8,13 +8,15 @@ import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
 import { SelecteurDeVues } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
-import { lignesAffichees } from "./lignes-affichees.ts";
+import { nombreDeLignes } from "./lignes-affichees.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
   SELECTEUR_DE_VUES,
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { compilerLesTris, triDeLaColonne } from "./tris.ts";
+import { useAffichage } from "./use-affichage.ts";
 import { useReglages } from "./use-reglages.ts";
 import { avecSelecteur, VUES } from "./vues.ts";
 import { VueCalendrier } from "./VueCalendrier.tsx";
@@ -40,15 +42,11 @@ function lectureDe(table: DocumentTable): TableLue | undefined {
   }
 }
 
-function TableAffichee(props: ProprietesEcranDeTable & { readonly table: DocumentTable }) {
-  const { table } = props;
-  const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
-  const reglages = useReglages(props, lue?.colonnes.map(({ id }) => id) ?? []);
-  if (lue === undefined) {
-    return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
-  }
-  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau », la première.
-  const selecteur = avecSelecteur() ? (
+type Reglages = ReturnType<typeof useReglages>;
+
+// F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau », la première.
+function selecteurDe(reglages: Reglages): ReactElement | undefined {
+  return avecSelecteur() ? (
     <SelecteurDeVues
       nom={SELECTEUR_DE_VUES}
       vues={VUES}
@@ -56,14 +54,28 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
       surChoix={reglages.choisirLaVue}
     />
   ) : undefined;
+}
+
+function TableAffichee(props: ProprietesEcranDeTable & { readonly table: DocumentTable }) {
+  const { table } = props;
+  const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
+  const reglages = useReglages(props, lue?.colonnes.map(({ id }) => id) ?? []);
+  const { definition } = reglages;
+  const affichage = useAffichage(lue, definition, reglages.vueActive);
+  if (lue === undefined) {
+    return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
+  }
+  const selecteur = selecteurDe(reglages);
+  const tris = compilerLesTris(lue, definition.tris);
   if (reglages.vueActive === "calendrier") {
     return (
       <VueCalendrier
         table={table}
         lue={lue}
-        lignes={lignesAffichees(lue)}
+        lignes={affichage.lignes}
         titre={props.titre}
         lectureSeule={props.lectureSeule}
+        surveillance={affichage.surveillance}
         idEspace={props.idEspace}
         idTable={props.idTable}
         selecteur={selecteur}
@@ -74,7 +86,18 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
     <VueTableau
       table={table}
       lue={lue}
-      lignes={lignesAffichees(lue)}
+      lignes={affichage.lignes}
+      definition={{
+        definition,
+        changer: reglages.changerLaDefinition,
+        total: nombreDeLignes(lue),
+        fige: affichage.fige,
+        reappliquer: affichage.reappliquer,
+        horsFiltre: affichage.horsFiltre,
+        triActif: tris.length > 0,
+        triDe: (colonne) => triDeLaColonne(tris, colonne),
+        surveillance: affichage.surveillance,
+      }}
       titre={props.titre}
       lectureSeule={props.lectureSeule}
       largeurDe={reglages.largeurDe}

@@ -14,6 +14,7 @@ import {
   lundiDeLaSemaine,
   memeQuantiemeAilleurs,
 } from "../../src/vues-de-table/jours.ts";
+import { SANS_SURVEILLANCE } from "../../src/vues-de-table/ecritures.ts";
 import { ecrireLaDate, jourVise } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
 import { type ColonneDeDate, repartir } from "../../src/vues-de-table/repartition.ts";
 import { oracle, verifierLEnumeration } from "./aides-enumeration-jours.ts";
@@ -72,7 +73,7 @@ describe("indépendance du fuseau (F-021-AC18)", () => {
           const ligne = table.lire().lignes[0]!;
           const vise = jourVise(ligne, date, pas);
           expect(vise).toBe(attendu);
-          expect(ecrireLaDate(table, ligne, date, vise ?? null)).toBeUndefined();
+          expect(ecrireLaDate(table, ligne, date, vise ?? null, SANS_SURVEILLANCE)).toBeUndefined();
           expect(table.lire().lignes[0]?.cellules[0]).toBe(attendu);
         }
         table.fermer();

@@ -4,7 +4,7 @@
 // bornes se décident ici, sans DOM.
 import type { DocumentTable, IdLigne, LigneLue } from "@notionlike/document";
 
-import { ecrire } from "./ecritures.ts";
+import { ecrire, type Surveillance } from "./ecritures.ts";
 import { decaler } from "./jours.ts";
 import { type ColonneDeDate, jourDeLaLigne } from "./repartition.ts";
 import { ecrireLaValeur } from "./valider.ts";
@@ -34,9 +34,15 @@ export function ecrireLaDate(
   ligne: LigneLue,
   colonne: ColonneDeDate,
   jour: string | null,
+  surveillance: Surveillance,
 ): Refus {
   const avant = ligne.cellules[colonne.rang] ?? null;
-  return ecrireLaValeur(table, { ligne: ligne.id, colonne: colonne.colonne, avant }, jour);
+  return ecrireLaValeur(
+    table,
+    { ligne: ligne.id, colonne: colonne.colonne, avant },
+    jour,
+    surveillance,
+  );
 }
 
 /** Vrai si la cellule de date de la ligne porte déjà ce jour (`null` : déjà sans date). */
@@ -53,9 +59,15 @@ export function creerUneLigneDuJour(
   table: DocumentTable,
   colonne: ColonneDeDate,
   jour: string,
+  surveillance: Surveillance,
 ): { readonly ligne: IdLigne } | { readonly refus: string } {
-  const issue = ecrire(() => table.creerLigne(new Map([[colonne.colonne.id, jour]])));
-  return issue.reussie ? { ligne: issue.valeur } : { refus: issue.message };
+  const valeurs = new Map([[colonne.colonne.id, jour]]);
+  const issue = ecrire(() => table.creerLigne(valeurs), surveillance);
+  if (!issue.reussie) {
+    return { refus: issue.message };
+  }
+  surveillance.creee(issue.valeur);
+  return { ligne: issue.valeur };
 }
 
 export function supprimerLaLigne(table: DocumentTable, ligne: IdLigne): Refus {

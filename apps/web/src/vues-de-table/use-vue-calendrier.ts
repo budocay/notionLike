@@ -5,6 +5,7 @@ import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
 import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
 
 import { aujourdhui } from "./aujourdhui.ts";
+import type { Surveillance } from "./ecritures.ts";
 import { useAnnonce } from "./use-annonce.ts";
 import { ecrireLeJour, moisPrecedent, moisSuivant } from "./jours.ts";
 import { type ModeleDuCalendrier, useModeleDuCalendrier } from "./modele-calendrier.ts";
@@ -35,6 +36,8 @@ export interface ProprietesVueCalendrier {
   readonly lignes: readonly LigneLue[];
   readonly titre: string;
   readonly lectureSeule?: string | undefined;
+  /** L'affichage figé est prévenu des écritures de l'onglet (F-019-AC17). */
+  readonly surveillance: Surveillance;
   readonly idEspace: string | undefined;
   readonly idTable: string;
   readonly selecteur?: ReactNode | undefined;
@@ -94,7 +97,7 @@ function bornesDuMois(
 }
 
 export function useVueCalendrier(proprietes: ProprietesVueCalendrier): VueCalendrier {
-  const { table, lue, lignes, lectureSeule } = proprietes;
+  const { table, lue, lignes, lectureSeule, surveillance } = proprietes;
   const [annonce, annoncer] = useAnnonce();
   const [alerte, signaler] = useState<string | undefined>(undefined);
   const idAlerte = useId();
@@ -104,7 +107,7 @@ export function useVueCalendrier(proprietes: ProprietesVueCalendrier): VueCalend
   const cadre = useRef<HTMLDivElement>(null);
   const suivi = useSuiviDuFocus(cadre, (cible) => repliDeLaCible(cible, modele, navigation));
   const menu = useMenuDuCalendrier();
-  const edition = { table, modele, navigation, suivi, lectureSeule, annoncer, signaler };
+  const edition = { table, modele, navigation, suivi, lectureSeule, surveillance, annoncer, signaler };
   const { saisie, ecritures } = useEditionDuCalendrier(edition);
   const [boite, ouvrirUneBoite] = useState<BoiteDuCalendrier | undefined>(undefined);
   const commandes = commandesDuCalendrier({

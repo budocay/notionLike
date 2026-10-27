@@ -6,15 +6,19 @@ import type { IdColonne } from "@notionlike/document";
 import { useState } from "react";
 
 import { ecrireReglagesDeVue, lireReglagesDeVue } from "../persistance/index.ts";
+import type { Definition } from "./definition.ts";
 import {
+  definitionLue,
   largeurBornee,
   largeurDe,
   largeursLues,
   lireLesReglages,
   type ReglagesDeLaTable,
+  SECTION_FILTRES_TRIS,
   SECTION_TABLEAU,
   SECTION_VUE,
   sectionDeLaVue,
+  sectionDesFiltresEtTris,
   sectionDuTableau,
 } from "./reglages.ts";
 import { IDS_DES_VUES } from "./vues.ts";
@@ -25,6 +29,9 @@ export interface ReglagesDeVue {
   /** `enregistrer` faux pendant un glissement : la largeur n'est écrite qu'au lâcher. */
   readonly reglerLargeur: (colonne: IdColonne, largeur: number, enregistrer: boolean) => void;
   readonly choisirLaVue: (vue: string) => void;
+  /** Filtres et tris de la table, pour toutes ses vues (F-019-AC15, AC20). */
+  readonly definition: Definition;
+  readonly changerLaDefinition: (definition: Definition) => void;
 }
 
 interface Designation {
@@ -37,14 +44,22 @@ function designationDe({ idEspace, idTable }: Designation) {
   return { idEspace: idEspace ?? "", idTable };
 }
 
-function lireLaDesignation(designation: Designation): ReglagesDeLaTable {
-  return lireLesReglages(lireReglagesDeVue(designationDe(designation)), IDS_DES_VUES);
+interface Lus {
+  readonly reglages: ReglagesDeLaTable;
+  readonly definition: Definition;
 }
 
-interface Tenus {
+function lireLaDesignation(designation: Designation): Lus {
+  const sections = lireReglagesDeVue(designationDe(designation));
+  return {
+    reglages: lireLesReglages(sections, IDS_DES_VUES),
+    definition: definitionLue(sections[SECTION_FILTRES_TRIS]),
+  };
+}
+
+interface Tenus extends Lus {
   readonly idEspace: string | undefined;
   readonly idTable: string;
-  readonly reglages: ReglagesDeLaTable;
 }
 
 export function useReglages(
@@ -55,18 +70,18 @@ export function useReglages(
   const [tenus, setTenus] = useState<Tenus>(() => ({
     idEspace,
     idTable,
-    reglages: lireLaDesignation(designation),
+    ...lireLaDesignation(designation),
   }));
   // Une table peut s'afficher avant que le stockage ne dise son espace (table tenue en mémoire,
   // F-018-AC14 ; `useTableOuverte`) : aucune clé, les réglages par défaut. L'espace connu, ou la désignation changée, ils sont relus sous la clé qui
   // les désigne désormais, pendant ce même rendu (état ajusté au changement d'une propriété).
-  let { reglages } = tenus;
+  let { reglages, definition } = tenus;
   if (tenus.idEspace !== idEspace || tenus.idTable !== idTable) {
-    reglages = lireLaDesignation(designation);
-    setTenus({ idEspace, idTable, reglages });
+    ({ reglages, definition } = lireLaDesignation(designation));
+    setTenus({ idEspace, idTable, reglages, definition });
   }
   const setReglages = (suivants: ReglagesDeLaTable): void =>
-    setTenus({ idEspace, idTable, reglages: suivants });
+    setTenus({ idEspace, idTable, reglages: suivants, definition });
   // Seule la section changée est écrite, à partir de celle enregistrée : une vue ou une clé que
   // cette version ne connaît pas (écrite par un onglet plus récent) reste telle quelle (AC41, H4).
   const ecrire = (nom: string, section: (lue: unknown) => unknown): void => {
@@ -86,6 +101,11 @@ export function useReglages(
           sectionDuTableau(new Map(largeursLues(lue)).set(colonne, bornee), colonnesLues, lue),
         );
       }
+    },
+    definition,
+    changerLaDefinition: (suivante) => {
+      setTenus({ idEspace, idTable, reglages, definition: suivante });
+      ecrire(SECTION_FILTRES_TRIS, (lue) => sectionDesFiltresEtTris(suivante, lue));
     },
     choisirLaVue: (vue) => {
       if (IDS_DES_VUES.includes(vue)) {

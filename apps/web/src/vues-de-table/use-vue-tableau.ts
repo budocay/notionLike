@@ -5,6 +5,7 @@ import type {
   ColonneLue,
   DocumentTable,
   IdColonne,
+  IdLigne,
   LigneLue,
   TableLue,
 } from "@notionlike/document";
@@ -22,13 +23,45 @@ import {
 import type { Moyens } from "./actions.ts";
 import type { Boite, Suite } from "./grille.ts";
 import { cleDeCellule } from "./courante.ts";
+import { DEFINITION_VIDE, type Definition } from "./definition.ts";
+import { SANS_SURVEILLANCE, type Surveillance } from "./ecritures.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "./menu-de-grille.ts";
 import { deplacer, type Position } from "./navigation-grille.ts";
 import { CELLULE_SUPPRIMEE } from "./textes.ts";
+import type { TriDeColonne } from "./tris.ts";
 import { type CouranteDeLaGrille, useCourante } from "./use-courante.ts";
 import { type EditionDeLaGrille, useEdition } from "./use-edition.ts";
 import { useAnnonce } from "./use-annonce.ts";
 import { type FenetreDeLaGrille, useFenetre } from "./use-fenetre.ts";
+
+/** Ce que l'écran de table donne à une vue de la définition et de l'affichage figé (F-019). */
+export interface DefinitionDeLaVue {
+  readonly definition: Definition;
+  readonly changer: (definition: Definition) => void;
+  /** Nombre de lignes de la table lue, pour le compte « N lignes sur M » (AC6). */
+  readonly total: number;
+  readonly fige: boolean;
+  readonly reappliquer: () => void;
+  readonly horsFiltre: ReadonlySet<IdLigne>;
+  /** Un tri a un effet : l'ordre manuel ne se modifie pas depuis la vue (AC19). */
+  readonly triActif: boolean;
+  /** Sens du tri d'une colonne et son rang parmi les tris actifs (1 : le principal, AC12). */
+  readonly triDe: (colonne: IdColonne) => TriDeColonne | undefined;
+  /** Signale au calcul des lignes affichées les écritures de l'onglet (cellule, ligne créée ou déplacée, AC17). */
+  readonly surveillance: Surveillance;
+}
+
+const SANS_DEFINITION: DefinitionDeLaVue = {
+  definition: DEFINITION_VIDE,
+  changer: () => undefined,
+  total: 0,
+  fige: false,
+  reappliquer: () => undefined,
+  horsFiltre: new Set(),
+  triActif: false,
+  triDe: () => undefined,
+  surveillance: SANS_SURVEILLANCE,
+};
 
 export interface ProprietesVueTableau {
   readonly table: DocumentTable;
@@ -37,6 +70,11 @@ export interface ProprietesVueTableau {
   readonly lignes: readonly LigneLue[];
   readonly titre: string;
   readonly lectureSeule?: string | undefined;
+  /**
+   * Filtres et tris de la table, communs à ses vues (F-019-AC15). Absents, la vue n'affiche ni barres
+   * ni marques : la définition est vide.
+   */
+  readonly definition?: DefinitionDeLaVue | undefined;
   readonly largeurDe: (colonne: IdColonne) => number;
   /** Règle la largeur d'une colonne (AC43) ; `enregistrer` faux pendant un glissement. */
   readonly reglerLargeur: (colonne: IdColonne, largeur: number, enregistrer: boolean) => void;
@@ -46,6 +84,8 @@ export interface ProprietesVueTableau {
 
 export interface VueTableau {
   readonly proprietes: ProprietesVueTableau;
+  /** La définition de la vue, vide quand l'écran n'en donne pas. */
+  readonly definition: DefinitionDeLaVue;
   readonly colonnes: readonly ColonneLue[];
   readonly fenetre: FenetreDeLaGrille;
   readonly courante: CouranteDeLaGrille;
@@ -203,13 +243,15 @@ function useNavigationEtSaisie(proprietes: ProprietesVueTableau) {
   const courante = useCourante({ lignes, colonnes, grille: cadre, amener: fenetre.amener });
   const apres = (suite: Suite): void =>
     apresLaValidation(courante, fenetre, { lignes, colonnes }, suite);
-  const edition = useEdition({ table, lignes, colonnes, lectureSeule, apres });
+  const surveillance = proprietes.definition?.surveillance ?? SANS_SURVEILLANCE;
+  const edition = useEdition({ table, lignes, colonnes, lectureSeule, surveillance, apres });
   return { colonnes, cadre, fenetre, courante, edition };
 }
 
 // Ce dont les commandes ont besoin (`actions.ts`) : la table, sa lecture, où dire et focaliser.
 function moyensDe(
   { table, lue, lignes, lectureSeule }: ProprietesVueTableau,
+  definition: DefinitionDeLaVue,
   courante: CouranteDeLaGrille,
   messages: ReturnType<typeof useMessages>,
   versLInvitation: RefObject<boolean>,
@@ -219,6 +261,8 @@ function moyensDe(
     lue,
     lignes,
     lectureSeule,
+    triActif: definition.triActif,
+    surveillance: definition.surveillance,
     allerVers: courante.allerVers,
     annoncer: messages.annoncer,
     signaler: messages.signaler,
@@ -244,8 +288,10 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
   const boites = useBoiteOuverte(menu);
   useEditionOrpheline({ edition, colonnes }, proprietes.lignes, messages.signaler);
   useFermetureAuDefilement(fenetre.zone, menu, edition, courante);
+  const definition = proprietes.definition ?? SANS_DEFINITION;
   return {
     proprietes,
+    definition,
     ...grille,
     separateurs,
     menu,
@@ -254,7 +300,7 @@ export function useVueTableau(proprietes: ProprietesVueTableau): VueTableau {
     alerte: alerteAffichee(edition, messages.alerte),
     idAlerte: messages.idAlerte,
     invitation,
-    moyens: moyensDe(proprietes, courante, messages, versLInvitation),
+    moyens: moyensDe(proprietes, definition, courante, messages, versLInvitation),
   };
 }
 
