@@ -1,9 +1,13 @@
 // Aides des tests de la vue calendrier (F-021) : horloge figée au jeudi 8 octobre 2026, vue
 // « Calendrier » choisie dans les réglages de l'appareil, table de l'essai et accès aux cases, aux
 // entrées et au panneau par leurs rôles et leurs attributs.
-import type { DocumentTable } from "@notionlike/document";
-import { screen, within } from "@testing-library/react";
+import { type DocumentTable, ouvrirDocumentTable } from "@notionlike/document";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, vi } from "vitest";
+import * as Y from "yjs";
+
+import { EcranDeTable } from "../../src/vues-de-table/index.ts";
 
 import { ESPACE_A } from "../aides-persistance.ts";
 import { cleDesReglages } from "../aides-table.ts";
@@ -100,4 +104,34 @@ export function lignesDuPanneau(): HTMLElement[] {
 
 export function annonces(): string {
   return document.querySelector('[role="status"]')?.textContent ?? "";
+}
+
+/** Rend le calendrier d'un document dont l'état encodé est donné : une réplique de plus. */
+export function rendreLeCalendrierDepuis(etat: Uint8Array): DocumentTable {
+  choisirLeCalendrier();
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, etat);
+  const table = ouvrirDocumentTable(doc);
+  render(
+    <StrictMode>
+      <EcranDeTable
+        etat={{
+          phase: "pret",
+          table,
+          enregistre: true,
+          baseRelue: true,
+          reessayer: () => undefined,
+        }}
+        idEspace={ESPACE_A}
+        idTable={TABLE_D_ESSAI}
+        titre="Budget"
+        lectureSeule={undefined}
+      />
+    </StrictMode>,
+  );
+  return table;
+}
+
+export function demonterLeCalendrier(): void {
+  cleanup();
 }

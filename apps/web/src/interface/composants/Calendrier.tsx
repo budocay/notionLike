@@ -133,7 +133,7 @@ export function CommandeDeCase(props: {
 export function EntreeDuCalendrier(props: {
   readonly ligne: string;
   readonly nom: string;
-  readonly raccourcis: string;
+  readonly raccourcis: string | undefined;
   readonly contenu: ReactNode;
   readonly menu: ReactNode;
 }): ReactElement {

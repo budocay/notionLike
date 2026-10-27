@@ -109,10 +109,19 @@ const PAS: readonly {
   { pas: 7, libelle: SEMAINE_SUIVANTE, touche: "semaineSuivante" },
 ];
 
-/** Combinaisons d'une entrée, exposées par `aria-keyshortcuts` sans entrer dans son nom. */
-const RACCOURCIS_DE_L_ENTREE = PAS.map(({ touche }) => cleAria(TOUCHES_DE_L_ENTREE[touche])).join(
-  " ",
-);
+/**
+ * Combinaisons d'une entrée, exposées par `aria-keyshortcuts` sans entrer dans son nom ; une
+ * commande indisponible (lecture seule, borne du calendrier) n'expose pas son raccourci (AC12).
+ */
+function raccourcisDeLEntree(vue: Vue, ligne: LigneLue): string {
+  const date = vue.modele.dateVisee;
+  if (vue.proprietes.lectureSeule !== undefined || date === undefined) {
+    return "";
+  }
+  return PAS.filter(({ pas }) => jourVise(ligne, date, pas) !== undefined)
+    .map(({ touche }) => cleAria(TOUCHES_DE_L_ENTREE[touche]))
+    .join(" ");
+}
 
 // ── Entrées et cases ─────────────────────────────────────────────────────────────────────────────
 
@@ -132,7 +141,7 @@ function Entree({ vue, ligne }: { readonly vue: Vue; readonly ligne: LigneLue })
     <EntreeDuCalendrier
       ligne={ligne.id}
       nom={libelle}
-      raccourcis={RACCOURCIS_DE_L_ENTREE}
+      raccourcis={raccourcisDeLEntree(vue, ligne) || undefined}
       contenu={
         saisie === undefined ? (
           <LibelleDEntree texte={libelle} />
@@ -229,21 +238,21 @@ function deplacementsDeLEntree(vue: Vue, ligne: LigneLue): EntreeDeMenu[] {
   const { commandes, menu } = vue;
   const date = vue.modele.dateVisee;
   const libelle = vue.modele.libelleDe(ligne);
-  return PAS.map(({ pas, libelle: commande, touche }) => ({
-    libelle: commande,
-    nom: commandeSurLEntree(commande, libelle),
-    touches: afficherTouches(TOUCHES_DE_L_ENTREE[touche]),
-    raccourci: cleAria(TOUCHES_DE_L_ENTREE[touche]),
-    raison:
-      vue.proprietes.lectureSeule ??
-      (date === undefined || jourVise(ligne, date, pas) === undefined
-        ? HORS_DES_BORNES
-        : undefined),
-    surActivation: () => {
-      menu.fermer();
-      commandes.deplacer(ligne, pas);
-    },
-  }));
+  return PAS.map(({ pas, libelle: commande, touche }) => {
+    const horsDesBornes = date === undefined || jourVise(ligne, date, pas) === undefined;
+    const raison = vue.proprietes.lectureSeule ?? (horsDesBornes ? HORS_DES_BORNES : undefined);
+    return {
+      libelle: commande,
+      nom: commandeSurLEntree(commande, libelle),
+      touches: afficherTouches(TOUCHES_DE_L_ENTREE[touche]),
+      raccourci: raison === undefined ? cleAria(TOUCHES_DE_L_ENTREE[touche]) : undefined,
+      raison,
+      surActivation: () => {
+        menu.fermer();
+        commandes.deplacer(ligne, pas);
+      },
+    };
+  });
 }
 
 function entreesDuMenuDeLEntree(vue: Vue, id: string): EntreeDeMenu[] {
