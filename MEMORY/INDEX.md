@@ -22,3 +22,4 @@
 - F-005 Bloc code et commandes slash — 2026-10-19 — features/F-005.md
 - F-033 Bloc code : coloration syntaxique et indentation au clavier — 2026-10-21 — features/F-033.md
 - F-018 Vue tableau d'une table — 2026-10-22 — features/F-018.md
+- F-032 Plusieurs espaces sur un appareil — 2026-10-27 — features/F-032.md

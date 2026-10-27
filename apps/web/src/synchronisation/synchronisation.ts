@@ -21,6 +21,7 @@ import {
   type ServeurDesEspaces,
 } from "./adoption.ts";
 import { ORIGINE_DU_CANAL, relierAuCanal } from "./canal.ts";
+import { ORIGINE_DU_MIROIR } from "./miroir.ts";
 import { causeDuMotif, conduiteDeConnexion, conduiteDOuverture } from "./conduites.ts";
 import { type Connexion, creerConnexion, type Fermeture } from "./connexion.ts";
 import { type ContexteDuDocument, DocumentSuivi } from "./document-suivi.ts";
@@ -96,12 +97,22 @@ export interface Synchronisation {
   /** Vrai : toute modification de l'espace ouvert est acquittée par le serveur (AC49). */
   toutEstAcquitte(): boolean;
   /**
+   * Avant un changement d'espace (F-032-AC12) : attend, `delaiMs` au plus sur l'horloge de
+   * l'environnement, que plus aucune modification de l'espace ouvert ne soit en attente. Connexion
+   * établie, `acquitte` aussitôt s'il n'y en a aucune ; `non-acquitte` aussitôt si la connexion n'est
+   * pas établie, et dès qu'elle se perd, à l'échéance ou à la fermeture. Jamais rejetée.
+   */
+  attendreLAcquittement(delaiMs: number): Promise<IssueDeLAttente>;
+  /**
    * Vrai : ce que porte ce document, celui de l'espace ou celui de la page affichée, est acquitté
    * par le serveur (F-013-AC49). Un autre document n'est jamais dit acquitté.
    */
   estAcquitte(doc: Y.Doc): boolean;
   fermer(): void;
 }
+
+/** Ce que l'attente d'acquittement d'un changement d'espace a constaté (F-032-AC12). */
+export type IssueDeLAttente = "acquitte" | "non-acquitte";
 
 /** Délai de F-013-AC33 : une modification en attente au-delà ferme la connexion. */
 export const ATTENTE_D_ACQUITTEMENT_MS = 30_000;
@@ -125,6 +136,7 @@ export function demarrerSynchronisation(options: OptionsDeSynchronisation): Sync
     reessayerLeDocument: orchestre.reessayerLeDocument,
     effacerLaCopieLocale: orchestre.effacerLaCopieLocale,
     toutEstAcquitte: orchestre.toutEstAcquitte,
+    attendreLAcquittement: orchestre.attendreLAcquittement,
     estAcquitte: orchestre.estAcquitte,
     fermer: orchestre.fermer,
   };
@@ -151,6 +163,15 @@ class Orchestre {
   readonly #bloques = new Map<string, CauseDErreur>();
   readonly #divergentesDePasse = new Set<string>();
   readonly #reprisesDePasse = new Map<string, number>();
+  /** Attentes d'acquittement d'un changement d'espace, réexaminées à chaque publication. */
+  readonly #attentesDAcquittement = new Set<() => void>();
+  /**
+   * Documents que l'onglet a modifiés depuis leur dernier acquittement par le serveur (F-032-AC12,
+   * H6) ; `""` : le document d'espace. Seule trace de ce qui reste à transmettre quand la connexion
+   * n'est pas établie, les ouvertures étant alors défaites.
+   */
+  readonly #nonTransmis = new Set<string>();
+  #cesserDeNoterLesFrappes: (() => void) | undefined;
   #canalDuRegistre: CanalEntreOnglets | undefined;
   #registre: Registre = { lu: false, entree: undefined };
   #relectureDuRegistreMs = PREMIERE_RELECTURE_DU_REGISTRE_MS;
@@ -615,6 +636,7 @@ class Orchestre {
           }
           if (motif === undefined) {
             this.#erreursDePasse.delete(idPage);
+            this.#nonTransmis.delete(idPage);
           }
           this.#publier();
         },
@@ -654,15 +676,22 @@ class Orchestre {
   // Une mise à jour reçue (serveur ou autre onglet) qui retire des pages les efface de l'appareil
   // (AC37) ; qui en ajoute les fait échanger par la passe (AC5).
   #surMiseAJour(origine: unknown): void {
+    const recue = origine === ORIGINE_DU_CANAL || this.#espace.estRecue(origine);
+    if (!recue && !this.#fermee) {
+      this.#nonTransmis.add(ESPACE);
+    }
     const apres = this.#options.lirePages();
     if (apres === undefined || this.#fermee) {
       return;
     }
     const avant = this.#ids;
     this.#ids = apres;
-    if (origine !== ORIGINE_DU_CANAL && !this.#espace.estRecue(origine)) {
-      return;
+    if (recue) {
+      this.#suivreLEcart(avant, apres);
     }
+  }
+
+  #suivreLEcart(avant: ReadonlySet<string>, apres: ReadonlySet<string>): void {
     const { ajoutees, retirees } = ecart(avant, apres);
     if (retirees.length > 0) {
       this.#effacerLesDocumentsSupprimes(retirees);
@@ -680,8 +709,10 @@ class Orchestre {
     if (this.#affiche !== undefined && idPages.includes(this.#affiche.idDocument)) {
       this.#affiche.fermer();
       this.#affiche = undefined;
+      this.#noterLesFrappesDe(undefined);
     }
     for (const idPage of idPages) {
+      this.#nonTransmis.delete(idPage);
       this.#erreursDePasse.delete(idPage);
       this.#divergentesDePasse.delete(idPage);
       this.#bloques.delete(idPage);
@@ -727,6 +758,7 @@ class Orchestre {
       return;
     }
     this.#affiche = undefined;
+    this.#noterLesFrappesDe(undefined);
     if (courante !== undefined) {
       this.#quitter(courante);
     }
@@ -738,6 +770,7 @@ class Orchestre {
 
   #suivreLeDocument(id: string, suivie: DocumentAffiche | undefined): void {
     this.#affiche = suivie;
+    this.#noterLesFrappesDe(suivie);
     this.#passe?.oublier([id]);
     if (this.#prudence) {
       this.#avancerEnPrudence();
@@ -755,9 +788,32 @@ class Orchestre {
     }
   }
 
+  // Une modification du document affiché qui ne vient ni du serveur, ni d'un autre onglet, ni de
+  // la réplique d'une page : une frappe de cet onglet, à transmettre (F-032-AC12).
+  #noterLesFrappesDe(suivie: DocumentAffiche | undefined): void {
+    this.#cesserDeNoterLesFrappes?.();
+    this.#cesserDeNoterLesFrappes = undefined;
+    if (suivie === undefined) {
+      return;
+    }
+    const { lie, idDocument, suivi } = suivie;
+    const noter = (_maj: Uint8Array, origine: unknown): void => {
+      if (
+        origine !== ORIGINE_DU_MIROIR &&
+        origine !== ORIGINE_DU_CANAL &&
+        !suivi.estRecue(origine)
+      ) {
+        this.#nonTransmis.add(idDocument);
+      }
+    };
+    lie.on("update", noter);
+    this.#cesserDeNoterLesFrappes = () => lie.off("update", noter);
+  }
+
   #congedierLesPartantes(): void {
     for (const partante of this.#partantes) {
       if (!partante.suivi.aDesModificationsEnAttente()) {
+        this.#nonTransmis.delete(partante.idDocument);
         this.#partantes.delete(partante);
         partante.fermer();
       }
@@ -845,6 +901,44 @@ class Orchestre {
     );
   };
 
+  readonly attendreLAcquittement = (delaiMs: number): Promise<IssueDeLAttente> => {
+    if (this.#fermee) {
+      return Promise.resolve("non-acquitte");
+    }
+    // Ce que l'onglet sait (F-032 H6) : rien de ce qu'il a modifié n'attend d'acquittement, que la
+    // connexion soit établie ou non ; sinon, sans connexion, rien ne sera acquitté à temps.
+    if (!this.#resteATransmettre()) {
+      return Promise.resolve("acquitte");
+    }
+    if (this.#connexion.etat() !== "etablie") {
+      return Promise.resolve("non-acquitte");
+    }
+    return new Promise((resoudre) => {
+      let annulerLEcheance = (): void => undefined;
+      const conclure = (issue: IssueDeLAttente): void => {
+        this.#attentesDAcquittement.delete(examiner);
+        annulerLEcheance();
+        resoudre(issue);
+      };
+      const examiner = (): void => {
+        if (this.#fermee || this.#connexion.etat() !== "etablie") {
+          conclure("non-acquitte");
+        } else if (!this.#resteATransmettre()) {
+          conclure("acquitte");
+        }
+      };
+      this.#attentesDAcquittement.add(examiner);
+      annulerLEcheance = this.#options.environnement.horloge.programmer(
+        () => conclure("non-acquitte"),
+        delaiMs,
+      );
+    });
+  };
+
+  #examinerLesAttentesDAcquittement(): void {
+    [...this.#attentesDAcquittement].forEach((examiner) => examiner());
+  }
+
   readonly estAcquitte = (doc: Y.Doc): boolean => {
     if (this.#fermee || this.#connexion.etat() !== "etablie") {
       return false;
@@ -868,12 +962,14 @@ class Orchestre {
     this.#defaireTout();
     this.#affiche?.fermer();
     this.#affiche = undefined;
+    this.#noterLesFrappesDe(undefined);
     this.#connexion.fermer();
     this.#espace.fermer();
     this.#arrets.splice(0).forEach((arreter) => arreter());
     this.#canalDuRegistre?.close();
     this.#canalDuRegistre = undefined;
     this.#abonnes.clear();
+    this.#examinerLesAttentesDAcquittement();
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -883,6 +979,8 @@ class Orchestre {
     if (this.#fermee) {
       return;
     }
+    this.#constaterLesAcquittements();
+    this.#examinerLesAttentesDAcquittement();
     this.#congedierLesPartantes();
     this.#surveillerLesAttentes();
     if (this.#prudence && this.#prise !== undefined) {
@@ -929,6 +1027,25 @@ class Orchestre {
       divergentes.push(this.#affiche.idDocument);
     }
     return divergentes;
+  }
+
+  // Ce que le serveur a acquitté du document d'espace et du document affiché n'est plus à
+  // transmettre ; les pages quittées le sont par leur congé ou par la passe de fond.
+  #constaterLesAcquittements(): void {
+    if (this.#connexion.etat() !== "etablie") {
+      return;
+    }
+    if (this.#espace.estAcquis() && !this.#espace.aDesModificationsEnAttente()) {
+      this.#nonTransmis.delete(ESPACE);
+    }
+    const affiche = this.#affiche;
+    if (affiche?.suivi.estAcquis() === true && !affiche.suivi.aDesModificationsEnAttente()) {
+      this.#nonTransmis.delete(affiche.idDocument);
+    }
+  }
+
+  #resteATransmettre(): boolean {
+    return this.#modificationsEnAttente() || this.#nonTransmis.size > 0;
   }
 
   #modificationsEnAttente(): boolean {

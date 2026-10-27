@@ -9,6 +9,7 @@ import {
 import { vi } from "vitest";
 import * as Y from "yjs";
 
+import type { CibleDeSession } from "../src/espace/espace-ouvert.ts";
 import * as moduleDeLaSession from "../src/espace/session-espace.ts";
 
 type SessionEspace = moduleDeLaSession.SessionEspace;
@@ -49,9 +50,12 @@ function suivreLaSession(session: SessionEspace): SessionEspace {
   return session;
 }
 
-/** Démarre une session d'espace comme l'entrée le fait, et la suit. */
-export function demarrerSession(): SessionEspace {
-  return suivreLaSession(moduleDeLaSession.demarrerSessionEspace());
+/**
+ * Démarre une session d'espace comme l'entrée le fait, et la suit. Sans cible : l'espace de
+ * l'appareil, comme avant F-032 ; avec, l'espace que le pilote de l'onglet ouvre (F-032-AC32).
+ */
+export function demarrerSession(cible?: CibleDeSession): SessionEspace {
+  return suivreLaSession(moduleDeLaSession.demarrerSessionEspace(cible));
 }
 
 /**

@@ -15,6 +15,9 @@ export const ETATS = {
     "flex w-full max-w-ecran flex-col gap-moyen rounded-grand bg-surface-relief p-ample shadow-relief filet",
   ecranTitre: "text-intertitre font-fort tracking-serre text-texte-principal",
   ecranExplication: "text-courant text-texte-secondaire",
+  // F-032-AC35 : la commande d'un écran bloquant, une cible de 44 pixels comme les autres.
+  ecranAction:
+    "self-start cursor-pointer content-center rounded-petit px-petit min-h-cible font-moyen text-texte-principal underline hover:bg-surface-survol etroit:pointer-fine:min-h-rangee",
   zone: "apparition relative flex flex-col px-normal pt-vaste pb-grand etroit:px-vaste etroit:pt-immense",
   halo: "fond-halo pointer-events-none absolute inset-x-nul top-nul h-halo",
   contenu: "relative mx-auto flex w-full max-w-lecture flex-col gap-normal",

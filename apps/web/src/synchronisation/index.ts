@@ -18,12 +18,16 @@ export {
   type StatutDuCompte,
 } from "./etat.ts";
 export type { IssueDEffacement as IssueDeLEffacement } from "./stockage.ts";
+// F-032 : le droit que donne un rôle (ajout à l'appareil, AC5), le retrait de l'appareil (AC20).
+export { droitDuRole } from "./adoption.ts";
+export { type IssueDuRetrait, type OptionsDuRetrait, retirerDeLAppareil } from "./retrait.ts";
 export { versionAdmise } from "./miroir.ts";
 export { idsDesPages, typesDesPages } from "./pages-de-l-espace.ts";
 export { environnementDuNavigateur } from "./reseau.ts";
 export {
   demarrerSynchronisation,
   type OptionsDeSynchronisation,
+  type IssueDeLAttente,
   type PageAffichee,
   type SourceDuCompte,
   type TableAffichee,

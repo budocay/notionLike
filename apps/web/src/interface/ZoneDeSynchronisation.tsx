@@ -28,6 +28,7 @@ import {
   LECTURE_SEULE,
   NOM_DE_LA_ZONE_DE_SYNCHRONISATION,
   PAGES_CONCERNEES,
+  PREMIERE_SYNCHRONISATION,
   REESSAYER,
   REFUS_DE_CONNEXION,
   SUGGESTION_ONGLETS,
@@ -50,6 +51,13 @@ export interface ProprietesZoneDeSynchronisation {
   readonly stockageDisponible: boolean;
   /** Ferme la session et les pages de l'onglet avant l'effacement de leurs bases (AC24). */
   readonly avantLEffacement: () => void;
+  /**
+   * Vrai tant que la marque de première synchronisation de l'espace est présente (F-032-AC8) : son
+   * texte s'ajoute à l'état de la liste fermée, sans le remplacer.
+   */
+  readonly premiereSynchronisation?: boolean | undefined;
+  /** Fait relire les autres onglets avant le rechargement qui suit l'effacement (F-032-AC21). */
+  readonly prevenirLesOnglets?: (() => void) | undefined;
 }
 
 type Boite = "adoption" | "effacement" | undefined;
@@ -71,7 +79,11 @@ export function ZoneDeSynchronisation(props: ProprietesZoneDeSynchronisation): R
     <>
       <CadreDeCompte
         nom={NOM_DE_LA_ZONE_DE_SYNCHRONISATION}
-        phrases={[...phrasesDeLEtat(props), ...(annonce === undefined ? [] : [annonce])]}
+        phrases={[
+          ...phrasesDeLEtat(props),
+          ...(props.premiereSynchronisation === true ? [PREMIERE_SYNCHRONISATION] : []),
+          ...(annonce === undefined ? [] : [annonce]),
+        ]}
       >
         <Actions {...props} enLigne={enLigne} ouvrir={ouvrir} />
       </CadreDeCompte>
@@ -89,6 +101,7 @@ export function ZoneDeSynchronisation(props: ProprietesZoneDeSynchronisation): R
         <EffacementDeLaCopie
           pages={props.nombreDePages}
           fermer={fermer}
+          prevenir={props.prevenirLesOnglets}
           effacer={async () => {
             props.avantLEffacement();
             return props.synchro.effacerLaCopieLocale();

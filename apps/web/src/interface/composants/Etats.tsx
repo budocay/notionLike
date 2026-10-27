@@ -60,6 +60,8 @@ interface ProprietesEcranBloquant {
   readonly explication: string;
   /** Seconde phrase, quand l'écran a une conséquence de plus à dire. */
   readonly precision?: string | undefined;
+  /** Seule issue offerte, quand il y en a une (F-032-AC35) ; absente, l'écran n'a aucune commande. */
+  readonly action?: ActionDAvertissement | undefined;
 }
 
 export function EcranBloquant(props: ProprietesEcranBloquant): ReactElement {
@@ -68,6 +70,16 @@ export function EcranBloquant(props: ProprietesEcranBloquant): ReactElement {
       <h1 className={ETATS.ecranTitre}>{props.titre}</h1>
       <p className={ETATS.ecranExplication}>{props.explication}</p>
       {props.precision !== undefined && <p className={ETATS.ecranExplication}>{props.precision}</p>}
+      {props.action !== undefined && (
+        <button
+          ref={props.action.refBouton}
+          type="button"
+          className={ETATS.ecranAction}
+          onClick={props.action.surActivation}
+        >
+          {props.action.libelle}
+        </button>
+      )}
     </div>
   );
 }

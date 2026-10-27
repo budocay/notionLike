@@ -12,6 +12,7 @@ import {
   type RefObject,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -55,7 +56,12 @@ import {
   titreAffiche,
   titreOnglet,
 } from "./messages.ts";
-import { ESPACES } from "./messages-espaces.ts";
+import {
+  ESPACES,
+  espaceOuvert,
+  nomDuSelecteur,
+  OUVRIR_L_ESPACE_DE_CET_APPAREIL,
+} from "./messages-espaces.ts";
 import {
   DOCUMENT_D_ESPACE,
   EFFACEMENT_DANS_UN_AUTRE_ONGLET,
@@ -74,11 +80,25 @@ import { ZoneDesEspaces } from "./ZoneDesEspaces.tsx";
 import { type Selection, ZonePrincipale } from "./ZonePrincipale.tsx";
 import { idsDesPages, typesDesPages } from "../synchronisation/index.ts";
 import {
+  type EspaceOuvert,
   type FabriqueDeSynchronisation,
   type SynchronisationDeLEspace,
   useSynchronisationDeLEspace,
 } from "./synchronisation-ouverte.ts";
 import { ZoneDeSynchronisation } from "./ZoneDeSynchronisation.tsx";
+import {
+  changerDEspace,
+  type ChangementDEspace,
+  type ConfirmationOuverte,
+  ContexteDuChangement,
+  type EspacesDeLApplication,
+  fermerLEspaceQuitte,
+  nomDeLEspace,
+  useChangementDEspace,
+} from "./changement-d-espace.ts";
+import { ConfirmationDeChangement } from "./ConfirmationDeChangement.tsx";
+import { type AppareilDesEcrans, ContexteDeLAppareil } from "./appareil-des-ecrans.ts";
+import { usePremiereSynchronisation } from "./premiere-synchronisation.ts";
 
 type Saisie = EcranBarre["saisie"];
 
@@ -90,12 +110,18 @@ interface ProprietesApplication {
   readonly compte?: Compte | undefined;
   /** Synchronisation de l'espace ouvert (F-013) ; absente, rien ne part et aucune zone n'est rendue. */
   readonly synchronisation?: FabriqueDeSynchronisation | undefined;
+  /**
+   * Pilote de l'onglet et magasin de l'appareil (F-032), donnés par l'entrée : sélecteur d'espace,
+   * changement d'espace, lecture seule dès l'ouverture. Absents, l'application est celle d'avant.
+   */
+  readonly espaces?: EspacesDeLApplication | undefined;
 }
 
 export function Application({
   session,
   compte,
   synchronisation,
+  espaces,
 }: ProprietesApplication): ReactElement {
   const etat = useSyncExternalStore(session.abonner, session.lireEtat);
   switch (etat.phase) {
@@ -109,17 +135,7 @@ export function Application({
         </EcranPlein>
       );
     case "version-non-prise-en-charge":
-      return (
-        <EcranPlein fenetre>
-          <EcranBloquant
-            titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
-            explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
-            precision={
-              etat.modificationsPerdues ? MODIFICATIONS_NON_ENREGISTREES_PERDUES : undefined
-            }
-          />
-        </EcranPlein>
-      );
+      return <EcranDeVersion modificationsPerdues={etat.modificationsPerdues} espaces={espaces} />;
     case "chargement":
       return (
         <EcranPlein fenetre>
@@ -128,9 +144,54 @@ export function Application({
       );
     case "pret":
       return (
-        <EspacePret etat={etat} compte={compte} session={session} fabrique={synchronisation} />
+        <EspacePret
+          etat={etat}
+          compte={compte}
+          session={session}
+          fabrique={synchronisation}
+          espaces={espaces}
+        />
       );
   }
+}
+
+const ESPACE_DE_L_APPAREIL = { sorte: "appareil" } as const;
+
+/**
+ * Écran bloquant d'un document d'espace d'une version non prise en charge (F-002-AC17). Pour un
+ * espace ouvert qui n'est pas l'espace de l'appareil, il offre de revenir à l'espace de l'appareil,
+ * sans attente ni confirmation : la persistance de l'espace refusé est déjà fermée (F-032-AC35).
+ */
+function EcranDeVersion(props: {
+  readonly modificationsPerdues: boolean;
+  readonly espaces: EspacesDeLApplication | undefined;
+}): ReactElement {
+  const { espaces } = props;
+  const action =
+    espaces === undefined || espaces.cible.sorte === "appareil"
+      ? undefined
+      : {
+          libelle: OUVRIR_L_ESPACE_DE_CET_APPAREIL,
+          surActivation: () =>
+            changerDEspace(
+              espaces,
+              {
+                cible: ESPACE_DE_L_APPAREIL,
+                nom: nomDeLEspace(espaces.magasin.lireEtat(), ESPACE_DE_L_APPAREIL),
+              },
+              () => undefined,
+            ),
+        };
+  return (
+    <EcranPlein fenetre>
+      <EcranBloquant
+        titre={TITRE_VERSION_NON_PRISE_EN_CHARGE}
+        explication={EXPLICATION_VERSION_NON_PRISE_EN_CHARGE}
+        precision={props.modificationsPerdues ? MODIFICATIONS_NON_ENREGISTREES_PERDUES : undefined}
+        action={action}
+      />
+    </EcranPlein>
+  );
 }
 
 // L'espace ouvert : la coquille reçoit la fenêtre entière, la barre latérale et le reste
@@ -141,6 +202,7 @@ interface ProprietesEspacePret {
   readonly compte: Compte | undefined;
   readonly session: SessionEspace;
   readonly fabrique: FabriqueDeSynchronisation | undefined;
+  readonly espaces: EspacesDeLApplication | undefined;
 }
 
 // Le document ouvert pour la page sélectionnée : une page ouvre son document de page, une table
@@ -166,28 +228,21 @@ function useEspacePret(props: ProprietesEspacePret) {
     etat.idEspace,
     page,
   );
-  const synchronisation = useSynchronisationDeLEspace(
-    {
-      fabrique: props.fabrique,
-      idEspace: etat.idEspace,
-      doc: props.session.doc,
-      idPage,
-      page: etatDeLaPage,
-      idTable,
-      table: etatDeLaTable,
-      lirePages: () => pagesDeLaSession(props.session),
-      typeDe: (id) => typeDansLaSession(props.session, id),
-      // F-018-AC53 : les documents de page et de table des identifiants supprimés ailleurs.
-      fermerLesDocuments: (idPages) => {
-        void pages.effacer(undefined, idPages);
-        void tables.effacer(undefined, idPages);
-      },
-      toutFermer: () => toutFermer({ pages, tables }, props.session),
-    },
-    LECTURE_SEULE,
-  );
-  const barre = useBarreLaterale(etat, navigation.route, selection, synchronisation.lectureSeule);
   const documents: Documents = { pages, tables };
+  const synchronisation = useSynchronisationDeLEcran(props, documents, {
+    idPage,
+    page: etatDeLaPage,
+    idTable,
+    table: etatDeLaTable,
+  });
+  const espaces = useEspacesDeLEcran(props.espaces, synchronisation, documents);
+  const barre = useBarreLaterale(
+    etat,
+    navigation.route,
+    selection,
+    synchronisation.lectureSeule,
+    espaces.arrivee,
+  );
   return {
     navigation,
     selection,
@@ -197,7 +252,116 @@ function useEspacePret(props: ProprietesEspacePret) {
     etatDeLaTable,
     synchronisation,
     barre,
+    espaces,
   };
+}
+
+// La synchronisation de l'espace ouvert, et le document affiché qu'elle suit (F-013, F-018-AC51).
+function useSynchronisationDeLEcran(
+  props: ProprietesEspacePret,
+  { pages, tables }: Documents,
+  affiche: Pick<EspaceOuvert, "idPage" | "page" | "idTable" | "table">,
+): SynchronisationDeLEspace {
+  return useSynchronisationDeLEspace(
+    {
+      fabrique: props.fabrique,
+      idEspace: props.etat.idEspace,
+      doc: props.session.doc,
+      ...affiche,
+      lirePages: () => pagesDeLaSession(props.session),
+      typeDe: (id) => typeDansLaSession(props.session, id),
+      // F-018-AC53 : les documents de page et de table des identifiants supprimés ailleurs.
+      fermerLesDocuments: (idPages) => {
+        void pages.effacer(undefined, idPages);
+        void tables.effacer(undefined, idPages);
+      },
+      toutFermer: () => toutFermer({ pages, tables }, props.session),
+      droitALOuverture: props.espaces?.droit,
+    },
+    LECTURE_SEULE,
+  );
+}
+
+const SANS_ABONNEMENT = (): (() => void) => () => undefined;
+
+/** Ce que l'écran de l'espace ouvert tient des espaces de l'appareil (F-032). */
+interface EspacesDeLEcran {
+  /** Nom de l'espace ouvert, que le sélecteur affiche ; `undefined` sans pilote. */
+  readonly nomOuvert: string | undefined;
+  readonly selecteur: RefObject<HTMLAnchorElement | null>;
+  /** Le nom de l'espace choisi, à annoncer une fois, à l'arrivée (F-032-AC10). */
+  readonly arrivee: string | undefined;
+  /** L'API offerte aux écrans des espaces ; `undefined` sans pilote. */
+  readonly changement: ChangementDEspace | undefined;
+  readonly confirmation: ConfirmationOuverte | undefined;
+  /** Le magasin et l'espace ouvert, offerts aux écrans des espaces ; `undefined` sans pilote. */
+  readonly appareil: AppareilDesEcrans | undefined;
+  /** Vrai tant que la marque de première synchronisation de l'espace ouvert vaut (F-032-AC8). */
+  readonly premiereSynchronisation: boolean;
+}
+
+function useEspacesDeLEcran(
+  espaces: EspacesDeLApplication | undefined,
+  synchronisation: SynchronisationDeLEspace,
+  documents: Documents,
+): EspacesDeLEcran {
+  const appareil = useSyncExternalStore(espaces?.magasin.abonner ?? SANS_ABONNEMENT, () =>
+    espaces?.magasin.lireEtat(),
+  );
+  const nomOuvert =
+    espaces === undefined || appareil === undefined
+      ? undefined
+      : nomDeLEspace(appareil, espaces.cible);
+  // L'arrivée est lue une fois, sans être consommée : `StrictMode` rejoue les effets.
+  const [arrivee] = useState(() => espaces?.arrivee);
+  const selecteur = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (arrivee !== undefined) {
+      selecteur.current?.focus();
+    }
+  }, [arrivee]);
+  const offert = useAppareilOffert(espaces);
+  const premiereSynchronisation = usePremiereSynchronisation(
+    espaces?.magasin,
+    appareil,
+    espaces?.cible,
+    synchronisation.etat,
+  );
+  const { changement, confirmation } = useChangementDEspace({
+    espaces,
+    synchro: synchronisation.synchro,
+    etat: synchronisation.etat,
+    nomOuvert: nomOuvert ?? "",
+    // F-032-AC10, AC14, AC15 : avant d'ouvrir l'espace choisi, rien de l'espace quitté ne reste
+    // ouvert ; la fermeture de la synchronisation détruit sa WebSocket de façon synchrone.
+    avant: () =>
+      fermerLEspaceQuitte({
+        pages: documents.pages,
+        tables: documents.tables,
+        synchro: synchronisation.synchro,
+      }),
+  });
+  return {
+    nomOuvert,
+    selecteur,
+    arrivee,
+    changement: espaces === undefined ? undefined : changement,
+    confirmation,
+    appareil: offert,
+    premiereSynchronisation,
+  };
+}
+
+/** Le magasin et l'espace ouvert offerts aux écrans des espaces (F-032-AC1, AC20), stables. */
+function useAppareilOffert(
+  espaces: EspacesDeLApplication | undefined,
+): AppareilDesEcrans | undefined {
+  const magasin = espaces?.magasin;
+  const cible = espaces?.cible;
+  return useMemo(
+    () => (magasin === undefined || cible === undefined ? undefined : { magasin, ouvert: cible }),
+    [magasin, cible],
+  );
 }
 
 /** Les documents de page et de table que l'onglet tient pour l'espace ouvert. */
@@ -208,9 +372,8 @@ interface Documents {
 
 function EspacePret(props: ProprietesEspacePret): ReactElement {
   const { etat, compte } = props;
-  const { racines } = etat.arborescence;
   const espace = useEspacePret(props);
-  const { navigation, selection, page, documents, synchronisation, barre } = espace;
+  const { navigation, selection, page, documents, synchronisation, barre, espaces } = espace;
   const tiroir = useTiroir();
   const idBarre = useId();
   const enregistrement = etatAvecLeDocumentOuvert(
@@ -220,27 +383,20 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
   if (synchronisation.effaceeAilleurs) {
     return <EffaceeAilleurs />;
   }
-  const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, () =>
-    toutFermer(documents, props.session),
-  );
-  return (
+  const zone = zoneDeSynchronisation(synchronisation, etat, enregistrement.enregistre, {
+    avantLEffacement: () => toutFermer(documents, props.session),
+    premiereSynchronisation: espaces.premiereSynchronisation,
+    prevenirLesOnglets: props.espaces?.magasin.prevenir,
+  });
+  return avecLesEspaces(
+    espaces,
     <Coquille
       fenetre
       tiroir={attributsDuTiroir(tiroir, idBarre)}
-      barre={barreLateraleDe(barre, tiroir, compte, navigation.corbeille, zone)}
+      barre={barreLateraleDe(barre, tiroir, compte, navigation.corbeille, zone, espaces)}
     >
       <AvertissementDEnregistrement etat={enregistrement} zonePrincipale={tiroir.zonePrincipale} />
-      <BarreDuHaut
-        ouverture={
-          tiroir.etroit ? <BoutonDOuverture tiroir={tiroir} idBarre={idBarre} /> : undefined
-        }
-        fil={
-          page === undefined ? undefined : (
-            <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
-          )
-        }
-        etat={<ZoneDEnregistrement etat={enregistrement} />}
-      />
+      {barreDuHautDe(tiroir, idBarre, etat.arborescence.racines, page, enregistrement)}
       <ZoneAffichee
         zone={tiroir.zonePrincipale}
         etat={etat}
@@ -252,8 +408,44 @@ function EspacePret(props: ProprietesEspacePret): ReactElement {
         table={espace.etatDeLaTable}
         lectureSeule={synchronisation.lectureSeule}
         etroit={tiroir.etroit}
+        premiereSynchronisation={espaces.premiereSynchronisation}
       />
-    </Coquille>
+    </Coquille>,
+  );
+}
+
+function barreDuHautDe(
+  tiroir: Tiroir,
+  idBarre: string,
+  racines: readonly PageLue[],
+  page: PageLue | undefined,
+  enregistrement: ReturnType<typeof etatAvecLeDocumentOuvert>,
+): ReactElement {
+  return (
+    <BarreDuHaut
+      ouverture={tiroir.etroit ? <BoutonDOuverture tiroir={tiroir} idBarre={idBarre} /> : undefined}
+      fil={
+        page === undefined ? undefined : (
+          <FilDAriane key={page.id} racines={racines} page={page} etroit={tiroir.etroit} />
+        )
+      }
+      etat={<ZoneDEnregistrement etat={enregistrement} />}
+    />
+  );
+}
+
+// L'API du changement est offerte aux écrans des espaces ; sa confirmation, quand il y en a une,
+// est rendue par-dessus la coquille, qui devient inerte (F-032-AC29).
+function avecLesEspaces(espaces: EspacesDeLEcran, coquille: ReactElement): ReactElement {
+  return (
+    <ContexteDuChangement.Provider value={espaces.changement}>
+      <ContexteDeLAppareil.Provider value={espaces.appareil}>
+        {coquille}
+        {espaces.confirmation !== undefined && (
+          <ConfirmationDeChangement confirmation={espaces.confirmation} />
+        )}
+      </ContexteDeLAppareil.Provider>
+    </ContexteDuChangement.Provider>
   );
 }
 
@@ -309,12 +501,19 @@ function toutesLesPages(etat: EtatPret): PageLue[] {
   return aVoir;
 }
 
+/** Ce que la zone de synchronisation reçoit de l'écran de l'espace ouvert, en plus de son état. */
+interface MoyensDeLaZone {
+  readonly avantLEffacement: () => void;
+  readonly premiereSynchronisation: boolean;
+  readonly prevenirLesOnglets: (() => void) | undefined;
+}
+
 // La zone de synchronisation (F-013), à côté de la zone de compte : absente sans synchronisation.
 function zoneDeSynchronisation(
   synchronisation: SynchronisationDeLEspace,
   etat: EtatPret,
   stockageDisponible: boolean,
-  avantLEffacement: () => void,
+  moyens: MoyensDeLaZone,
 ): ReactElement | undefined {
   const { synchro, etat: etatSynchro } = synchronisation;
   if (synchro === undefined || etatSynchro === undefined) {
@@ -332,7 +531,9 @@ function zoneDeSynchronisation(
       }
       nombreDePages={pagesLues.length}
       stockageDisponible={stockageDisponible}
-      avantLEffacement={avantLEffacement}
+      avantLEffacement={moyens.avantLEffacement}
+      premiereSynchronisation={moyens.premiereSynchronisation}
+      prevenirLesOnglets={moyens.prevenirLesOnglets}
     />
   );
 }
@@ -354,6 +555,8 @@ function ZoneAffichee(props: {
   readonly lectureSeule: string | undefined;
   /** Écran étroit : pas de poignée de bloc, le geste à la souris est celui d'un écran large. */
   readonly etroit: boolean;
+  /** F-032-AC8 : l'accueil vide dit que les pages n'ont pas encore été téléchargées. */
+  readonly premiereSynchronisation: boolean;
 }): ReactElement {
   const { zone, etat, compte, navigation } = props;
   if (compte !== undefined && navigation.ecran !== undefined) {
@@ -379,6 +582,7 @@ function ZoneAffichee(props: {
       ref={zone}
       selection={props.selection}
       espaceVide={etat.arborescence.racines.length === 0}
+      premiereSynchronisation={props.premiereSynchronisation}
       page={props.page}
       table={props.table}
       idEspace={etat.idEspace}
@@ -444,6 +648,7 @@ function barreLateraleDe(
   compte: Compte | undefined,
   corbeilleCourante: boolean,
   synchronisation: ReactElement | undefined,
+  espaces: EspacesDeLEcran,
 ): ReactElement {
   return (
     <BarreLaterale
@@ -452,7 +657,7 @@ function barreLateraleDe(
       ecran={barre.ecran}
       actions={barre.actions}
       erreur={barre.erreur}
-      annonce={barre.annonce}
+      annonce={espaces.changement?.attente ?? barre.annonce}
       boutonNouvellePage={barre.boutonNouvellePage}
       fermeture={tiroir.ouvert ? <BoutonDeFermeture tiroir={tiroir} /> : undefined}
       synchronisation={synchronisation}
@@ -460,10 +665,34 @@ function barreLateraleDe(
         compte === undefined ? undefined : (
           <>
             <ZoneDeCompte compte={compte} />
-            <ActionDeCompte libelle={ESPACES} adresse={fragmentDEcran({ ecran: "espaces" })} />
+            <SelecteurDEspace nomOuvert={espaces.nomOuvert} selecteur={espaces.selecteur} />
           </>
         )
       }
+    />
+  );
+}
+
+/**
+ * Le sélecteur d'espace (F-014, F-032-AC4) : il mène toujours à l'écran des espaces. Avec un pilote,
+ * il affiche le nom de l'espace ouvert, coupé par des points de suspension, et le cite dans son nom
+ * accessible ; sans, il garde son libellé d'avant.
+ */
+function SelecteurDEspace(props: {
+  readonly nomOuvert: string | undefined;
+  readonly selecteur: RefObject<HTMLAnchorElement | null>;
+}): ReactElement {
+  const adresse = fragmentDEcran({ ecran: "espaces" });
+  if (props.nomOuvert === undefined) {
+    return <ActionDeCompte libelle={ESPACES} adresse={adresse} />;
+  }
+  return (
+    <ActionDeCompte
+      libelle={props.nomOuvert}
+      nom={nomDuSelecteur(props.nomOuvert)}
+      adresse={adresse}
+      coupe
+      refLien={props.selecteur}
     />
   );
 }
@@ -583,6 +812,7 @@ function useBarreLaterale(
   route: Route,
   selection: Selection,
   lectureSeule: string | undefined,
+  arrivee: string | undefined,
 ): Barre {
   const idPageCourante = selection.type === "page" ? selection.page.id : undefined;
   const idPageDesignee = route.forme === "page" ? route.idPage : undefined;
@@ -590,6 +820,13 @@ function useBarreLaterale(
   const [saisie, setSaisie] = useState<Saisie>(undefined);
   const [erreur, setErreur] = useState<string | undefined>(undefined);
   const [annonce, setAnnonce] = useState("");
+  // F-032-AC10, AC29 : l'arrivée est annoncée dans la région d'état de la barre, posée après le
+  // montage pour que la région existe déjà quand le texte y entre.
+  useEffect(() => {
+    if (arrivee !== undefined) {
+      setAnnonce(espaceOuvert(arrivee));
+    }
+  }, [arrivee]);
   const boutonNouvellePage = useRef<HTMLButtonElement>(null);
   const moyens: Moyens = {
     operations: etat.operations,

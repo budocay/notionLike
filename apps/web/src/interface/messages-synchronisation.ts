@@ -26,6 +26,11 @@ export const TITRES_DES_ETATS: Readonly<Record<EtatAffiche, string>> = {
   synchronise: "Synchronisé",
 };
 
+// Marque de première synchronisation (F-032-AC8) : des textes de plus, hors de la liste fermée des
+// états, qu'ils ne remplacent pas (H5).
+export const PREMIERE_SYNCHRONISATION =
+  "Première synchronisation de cet espace sur cet appareil : des pages peuvent encore manquer.";
+
 /** « Hors ligne », persistance coupée (F-013-AC48). */
 export const HORS_LIGNE_SANS_STOCKAGE =
   "Hors ligne et stockage de l'appareil indisponible : vos modifications ne sont enregistrées nulle part pour l'instant.";

@@ -3,6 +3,7 @@
 // rien : l'arborescence et l'éditeur s'affichent dès leur relecture locale (F-013-AC1).
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import type { Droit } from "../espace/appareil.ts";
 import { brancherLAcquittement } from "../espace/garde-onglet.ts";
 import type { EtatSessionPage } from "../page/session-page.ts";
 import type { EtatSessionTable } from "../table/session-table.ts";
@@ -133,6 +134,11 @@ export interface EspaceOuvert {
   readonly fermerLesDocuments: (idPages: readonly string[]) => void;
   /** Ferme la session d'espace et les pages de l'onglet (AC24). */
   readonly toutFermer: () => void;
+  /**
+   * F-032-AC25 : le droit que le registre donnait quand le pilote de l'onglet a ouvert l'espace ;
+   * il vaut tant que la synchronisation n'a pas rendu un registre lu. Absent : comme avant F-032.
+   */
+  readonly droitALOuverture?: Droit | undefined;
 }
 
 export function useSynchronisationDeLEspace(
@@ -158,7 +164,23 @@ export function useSynchronisationDeLEspace(
     idTable: espace.idTable,
     etat: espace.table,
   });
-  const lectureSeule =
-    etat?.rattachement === "adopte" && etat.droit === "lecture" ? raisonDeLectureSeule : undefined;
+  const lectureSeule = estEnLectureSeule(etat, espace.droitALOuverture)
+    ? raisonDeLectureSeule
+    : undefined;
   return { synchro, etat, lectureSeule, effaceeAilleurs };
+}
+
+/**
+ * La règle qui désactive chaque action qui écrit (F-013-AC25) : lecture seule dès le premier rendu,
+ * avant toute ouverture acquise et hors ligne compris, d'après le droit lu à l'ouverture
+ * (F-032-AC25) ; le registre lu par la synchronisation l'emporte.
+ */
+export function estEnLectureSeule(
+  etat: EtatDeSynchronisation | undefined,
+  droitALOuverture: Droit | undefined,
+): boolean {
+  return (
+    (etat?.rattachement === "adopte" && etat.droit === "lecture") ||
+    (etat?.registreLu !== true && droitALOuverture === "lecture")
+  );
 }

@@ -13,6 +13,17 @@ export interface SourceDAcquittement {
 
 const sources = new Set<SourceDAcquittement>();
 const ajustements = new Set<() => void>();
+/** Pour chaque persistance suivie : vrai si elle retient l'onglet (F-030-AC16, F-013-AC49). */
+const retenues = new Set<() => boolean>();
+
+/**
+ * Vrai si la demande de confirmation avant de quitter est armée : une persistance suivie, ouverte,
+ * porte une modification non enregistrée que rien n'acquitte (F-032-AC13). Lu au moment d'une
+ * demande de changement d'espace.
+ */
+export function confirmationArmee(): boolean {
+  return [...retenues].some((retient) => retient());
+}
 
 function ajusterPartout(): void {
   ajustements.forEach((ajuster) => ajuster());
@@ -73,9 +84,12 @@ export function suivreLOnglet(persistance: Persistance, doc?: object): () => voi
   // Inscrire deux fois le même écouteur, ou le retirer sans qu'il soit inscrit, est sans effet.
   // Une persistance fermée garde ses modifications non enregistrées sans plus rien pouvoir en
   // faire : elle ne retient pas l'onglet, qui que ce soit qui l'ait fermée (F-030-AC11).
+  const retient = (): boolean =>
+    persistance.lireEtat() !== "fermee" &&
+    persistance.aDesModificationsNonEnregistrees() &&
+    !estAcquitte(doc);
   const ajusterLaConfirmation = (): void => {
-    const ouverte = persistance.lireEtat() !== "fermee";
-    if (ouverte && persistance.aDesModificationsNonEnregistrees() && !estAcquitte(doc)) {
+    if (retient()) {
       window.addEventListener(AVANT_DE_QUITTER, demanderConfirmation);
     } else {
       window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);
@@ -83,11 +97,13 @@ export function suivreLOnglet(persistance: Persistance, doc?: object): () => voi
   };
   const desabonner = persistance.abonner(ajusterLaConfirmation);
   ajustements.add(ajusterLaConfirmation);
+  retenues.add(retient);
   document.addEventListener(VISIBILITE, surVisibilite);
   window.addEventListener(DEPART, surDepart);
   return () => {
     desabonner();
     ajustements.delete(ajusterLaConfirmation);
+    retenues.delete(retient);
     document.removeEventListener(VISIBILITE, surVisibilite);
     window.removeEventListener(DEPART, surDepart);
     window.removeEventListener(AVANT_DE_QUITTER, demanderConfirmation);

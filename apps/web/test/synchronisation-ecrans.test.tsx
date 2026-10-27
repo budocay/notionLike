@@ -163,6 +163,8 @@ function synchronisationSimulee(initial: Partial<EtatDeSynchronisation> = {}): S
           simulee.compteurs.reessais += 1;
         },
         reessayerLeDocument: (idPage) => simulee.documentsReessayes.push(idPage),
+        // F-032-AC12 : l'attente d'acquittement d'un changement d'espace, que ces écrans n'appellent pas.
+        attendreLAcquittement: () => Promise.resolve("acquitte"),
         effacerLaCopieLocale: () => {
           simulee.compteurs.effacements += 1;
           return simulee.reponseDEffacement();
