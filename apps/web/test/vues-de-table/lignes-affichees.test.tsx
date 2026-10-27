@@ -42,6 +42,15 @@ const LECTEURS: Readonly<Record<string, LecteurDeVue>> = {
       return noms;
     },
   },
+  calendrier: {
+    estAffichee: () =>
+      screen.queryByRole("grid", { name: /^Calendrier de la table Budget, / }) !== null,
+    // Les lignes de l'essai n'ont pas de date : elles sont toutes dans le panneau « Sans date ».
+    noms: () =>
+      [...document.querySelectorAll("li[data-sans-date] > span:first-child")].map(
+        (libelle) => libelle.textContent ?? "",
+      ),
+  },
 };
 
 const CLE = cleDesReglages({ idEspace: ESPACE_A, idTable: TABLE_D_ESSAI });
@@ -57,6 +66,7 @@ describe("lignes affichées (F-018-AC45)", () => {
 
       rendreLaTable((table) => {
         const nom = table.creerColonne("Nom", "texte");
+        table.creerColonne("Échéance", "date");
         for (const texte of ["A", "B", "C", "D", "E"]) {
           table.creerLigne(new Map([[nom, texte]]));
         }

@@ -208,9 +208,9 @@ describe("réglages sur l'appareil (F-018-AC40 à AC42)", () => {
 });
 
 describe("vue active et sélecteur de vues (F-018-AC44)", () => {
-  it("F-018-AC44 la liste ne compte que « Tableau » : aucun sélecteur ; il paraît dès deux vues", () => {
+  it("F-018-AC44 F-021-AC30 un sélecteur ne paraît que dès deux vues : « Tableau » seul n'en a pas, « Tableau » et « Calendrier » en ont un", () => {
     rendreLaTable(deuxColonnes);
-    expect(screen.queryByRole("group", { name: "Vue de la table" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Vue de la table" })).not.toBeNull();
     expect(avecSelecteur([{ id: "tableau", libelle: "Tableau" }])).toBe(false);
     expect(
       avecSelecteur([
@@ -311,7 +311,13 @@ describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {
     expect(result.current.vueActive).toBe("tableau");
     act(() => result.current.choisirLaVue("tableau"));
     expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
+    // « Calendrier » est livrée depuis F-021 : elle s'enregistre, la section « tableau » reste telle quelle.
     act(() => result.current.choisirLaVue("calendrier"));
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: { tableau, vue: { active: "calendrier" } },
+    });
+    act(() => result.current.choisirLaVue("kanban"));
     expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
   });
 });

@@ -40,10 +40,39 @@ function estUnType(valeur: string): valeur is TypeDeColonne {
   return Object.hasOwn(TYPES_DE_COLONNE_AFFICHES, valeur);
 }
 
-/** Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). */
-function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactElement {
+function ChoixDuType(props: {
+  readonly type: TypeDeColonne;
+  readonly setType: (type: TypeDeColonne) => void;
+}): ReactElement {
+  return (
+    <Choix
+      nom={TYPE_DE_LA_COLONNE}
+      valeur={props.type}
+      options={OPTIONS_DE_TYPE}
+      surChoix={(valeur) => {
+        if (estUnType(valeur)) {
+          props.setType(valeur);
+        }
+      }}
+    />
+  );
+}
+
+interface ProprietesNouvelleColonne {
+  readonly vue: Pick<VueTableau, "moyens" | "fermerBoite">;
+  readonly typeInitial?: TypeDeColonne;
+}
+
+/**
+ * Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). La
+ * vue calendrier (F-021-AC7) l'ouvre avec le type « Date » choisi.
+ */
+export function BoiteNouvelleColonne({
+  vue,
+  typeInitial = "texte",
+}: ProprietesNouvelleColonne): ReactElement {
   const [nom, setNom] = useState("");
-  const [type, setType] = useState<TypeDeColonne>("texte");
+  const [type, setType] = useState<TypeDeColonne>(typeInitial);
   const [faute, setFaute] = useState<string | undefined>(undefined);
   const champ = useRef<HTMLInputElement>(null);
   const fermer = (): void => vue.fermerBoite(true);
@@ -73,16 +102,7 @@ function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactEleme
             setFaute(undefined);
           }}
         />
-        <Choix
-          nom={TYPE_DE_LA_COLONNE}
-          valeur={type}
-          options={OPTIONS_DE_TYPE}
-          surChoix={(valeur) => {
-            if (estUnType(valeur)) {
-              setType(valeur);
-            }
-          }}
-        />
+        <ChoixDuType type={type} setType={setType} />
         <Actions>
           <Bouton type="submit" libelle={CREER_LA_COLONNE} />
           <Bouton libelle={ANNULER} surActivation={fermer} />
@@ -92,7 +112,7 @@ function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactEleme
   );
 }
 
-function Confirmation(props: {
+export function Confirmation(props: {
   readonly titre: string;
   readonly phrases: readonly string[];
   readonly confirmer: string;

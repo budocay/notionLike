@@ -17,6 +17,7 @@ import {
 } from "./textes.ts";
 import { useReglages } from "./use-reglages.ts";
 import { avecSelecteur, VUES } from "./vues.ts";
+import { VueCalendrier } from "./VueCalendrier.tsx";
 import { VueTableau } from "./VueTableau.tsx";
 
 export interface ProprietesEcranDeTable {
@@ -46,7 +47,29 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
-  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
+  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau », la première.
+  const selecteur = avecSelecteur() ? (
+    <SelecteurDeVues
+      nom={SELECTEUR_DE_VUES}
+      vues={VUES}
+      active={reglages.vueActive}
+      surChoix={reglages.choisirLaVue}
+    />
+  ) : undefined;
+  if (reglages.vueActive === "calendrier") {
+    return (
+      <VueCalendrier
+        table={table}
+        lue={lue}
+        lignes={lignesAffichees(lue)}
+        titre={props.titre}
+        lectureSeule={props.lectureSeule}
+        idEspace={props.idEspace}
+        idTable={props.idTable}
+        selecteur={selecteur}
+      />
+    );
+  }
   return (
     <VueTableau
       table={table}
@@ -56,16 +79,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
       lectureSeule={props.lectureSeule}
       largeurDe={reglages.largeurDe}
       reglerLargeur={reglages.reglerLargeur}
-      selecteur={
-        avecSelecteur() ? (
-          <SelecteurDeVues
-            nom={SELECTEUR_DE_VUES}
-            vues={VUES}
-            active={reglages.vueActive}
-            surChoix={reglages.choisirLaVue}
-          />
-        ) : undefined
-      }
+      selecteur={selecteur}
     />
   );
 }

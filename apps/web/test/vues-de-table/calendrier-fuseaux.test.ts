@@ -3,6 +3,7 @@
 // de l'horloge locale. Sous le pool `forks` (celui du projet), `process.env.TZ` posé en cours de test
 // est pris en compte par V8 ; l'effet est vérifié avant toute comparaison, puis le fuseau d'origine
 // est rendu.
+import { creerDocumentTable } from "@notionlike/document";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { aujourdhuiDe } from "../../src/vues-de-table/aujourdhui.ts";
@@ -13,6 +14,7 @@ import {
   lundiDeLaSemaine,
   memeQuantiemeAilleurs,
 } from "../../src/vues-de-table/jours.ts";
+import { ecrireLaDate, jourVise } from "../../src/vues-de-table/commandes-calendrier.ts";
 import { type ColonneDeDate, repartir } from "../../src/vues-de-table/repartition.ts";
 
 // Décalage attendu de `getTimezoneOffset()` un jour de mars 2026, en minutes.
@@ -71,6 +73,29 @@ describe("indépendance du fuseau (F-021-AC18)", () => {
         expect(decaler("2026-03-30", -1)).toBe("2026-03-29");
         expect(decaler("2026-10-25", 1)).toBe("2026-10-26");
         expect(jourDeLaSemaine("2026-03-29")).toBe(6);
+      });
+    },
+  );
+
+  it.each(FUSEAUX)(
+    "F-021-AC18 F-021-AC11 sous %s, la cellule 2026-03-29 déplacée au jour suivant puis au précédent se relit 2026-03-30 puis 2026-03-29",
+    (fuseau, decalage) => {
+      sous(fuseau, decalage, () => {
+        const table = creerDocumentTable();
+        const colonne = table.creerColonne("Échéance", "date");
+        table.creerLigne(new Map([[colonne, "2026-03-29"]]));
+        const date: ColonneDeDate = { colonne: table.lire().colonnes[0]!, rang: 0 };
+        for (const [pas, attendu] of [
+          [1, "2026-03-30"],
+          [-1, "2026-03-29"],
+        ] as const) {
+          const ligne = table.lire().lignes[0]!;
+          const vise = jourVise(ligne, date, pas);
+          expect(vise).toBe(attendu);
+          expect(ecrireLaDate(table, ligne, date, vise ?? null)).toBeUndefined();
+          expect(table.lire().lignes[0]?.cellules[0]).toBe(attendu);
+        }
+        table.fermer();
       });
     },
   );

@@ -97,7 +97,7 @@ describe("aucune requête réseau (F-018-AC39)", () => {
 
 describe("ce que les vues partagent (F-018-AC45)", () => {
   it("F-018-AC45 chaque vue de la liste reçoit les lignes calculées ; seul lignes-affichees.ts lit les lignes de la table lue pour les afficher", () => {
-    expect(VUES.map(({ id }) => id)).toEqual(["tableau"]);
+    expect(VUES.map(({ id }) => id)).toEqual(["tableau", "calendrier"]);
     const ecran = sansCommentaires(lire(`${MODULE}/EcranDeTable.tsx`));
     expect(ecran).toMatch(/lignes=\{lignesAffichees\(lue\)\}/);
     const lecteurs = sourcesDuModule()

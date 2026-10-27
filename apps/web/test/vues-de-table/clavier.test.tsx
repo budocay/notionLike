@@ -82,6 +82,9 @@ describe("navigation de cellule en cellule (F-018-AC33)", () => {
     const { utilisateur } = rendreLaTable(quatreLignes);
     const arrets = cellulesDeLaGrille().filter((element) => element.tabIndex === 0);
     expect(arrets).toHaveLength(1);
+    // Le sélecteur de vues (Tableau, Calendrier) compte deux arrêts avant la grille (F-021-AC30).
+    await utilisateur.tab();
+    await utilisateur.tab();
     await utilisateur.tab();
     await utilisateur.tab();
     await utilisateur.tab();

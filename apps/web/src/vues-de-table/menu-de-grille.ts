@@ -46,7 +46,7 @@ export function ancreDe(cellule: HTMLElement, cadre: HTMLElement | null): Ancre 
   };
 }
 
-function ecouterLeDehors(
+export function ecouterLeDehors(
   surface: RefObject<HTMLElement | null>,
   abandonner: () => void,
   fermer: () => void,

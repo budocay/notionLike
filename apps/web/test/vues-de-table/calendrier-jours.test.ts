@@ -58,6 +58,12 @@ describe("arithmétique des jours (F-021-AC16)", () => {
       const decompose = decomposer(texte);
       expect(decompose && ecrireLeJour(decompose), texte).toBe(texte);
       expect(jourDeLaSemaine(texte), texte).toBe(semaine);
+      if (rang > 0) {
+        // Le jour de la semaine avance d'un rang à chaque jour.
+        expect(jourDeLaSemaine(texte), texte).toBe(
+          ((jourDeLaSemaine(jours[rang - 1]?.texte ?? "") ?? 0) + 1) % 7,
+        );
+      }
       expect(decaler(texte, 1), texte).toBe(jours[rang + 1]?.texte ?? "2101-01-08");
       expect(decaler(texte, -1), texte).toBe(jours[rang - 1]?.texte ?? "1899-12-24");
     });
@@ -71,6 +77,12 @@ describe("arithmétique des jours (F-021-AC16)", () => {
           attendu,
         );
       }
+    }
+  });
+
+  it("F-021-AC16 le lendemain d'un 31 décembre est le 1er janvier suivant", () => {
+    for (let annee = 1900; annee <= 2100; annee += 1) {
+      expect(decaler(`${String(annee)}-12-31`, 1)).toBe(`${String(annee + 1)}-01-01`);
     }
   });
 
@@ -159,6 +171,11 @@ describe("grille du mois (F-021-AC17)", () => {
             expect(jour, nom).toBe(decaler(grille[rang - 1] ?? "", 1));
           }
         });
+        const avant = grille.findIndex((jour) => decomposer(jour)?.mois === mois);
+        const apres =
+          grille.length - 1 - grille.findLastIndex((jour) => decomposer(jour)?.mois === mois);
+        expect(avant, nom).toBeLessThan(7);
+        expect(apres, nom).toBeLessThan(7);
         const duMois = grille.filter((jour) => decomposer(jour)?.mois === mois);
         expect(duMois.length, nom).toBe(joursDuMois(annee, mois));
         expect(duMois[0], nom).toBe(ecrit(annee, mois, 1));

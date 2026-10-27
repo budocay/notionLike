@@ -73,7 +73,11 @@ describe("affichage d'une cellule (F-018-AC26)", () => {
     );
     expect(sources.length).toBeGreaterThan(5);
     for (const [chemin, texte] of sources) {
-      expect(texte, chemin).not.toMatch(/\bIntl\b|toLocale\w*\(|new Date\b|Date\.(parse|UTC|now)/);
+      // Seul `aujourdhui.ts` lit l'horloge, pour le jour courant (F-021-AC4, AC15) : un `new Date`.
+      const lit = chemin.endsWith("/aujourdhui.ts") ? "" : "new Date\\b|";
+      expect(texte, chemin).not.toMatch(
+        new RegExp(`\\bIntl\\b|toLocale\\w*\\(|${lit}Date\\.(parse|UTC|now)`),
+      );
     }
   });
 });
