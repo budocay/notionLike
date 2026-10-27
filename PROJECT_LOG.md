@@ -383,3 +383,27 @@
 - Tests: aucun — état: verts — preuve: rapports de F-019 et F-021
 - Gates: aucun
 - Mesures: aucune
+
+## [2026-10-27] F-019 Filtres et tris d'une vue
+
+- TYPE: FEATURE
+- Tier: standard
+- Scope: `apps/web/src/vues-de-table/` (filtres, tris, clé de comparaison, affichage figé, barres, réglages) — agents: agent-veille, agent-frontend, agent-planif — commits: 31933fc..26d0de9 et la traçabilité
+- Détail: filtres et tris de la vue Tableau, affichage figé après écriture locale, mention « Hors filtre » visible, état vide filtré. Retouche d'AC14 (H12) décidée et revalidée par le dev. Deux tours de correctifs après gates.
+- Dette: introduite D-043 (dérogation architecture) ; limites dans `MEMORY/features/F-019.md`
+- ADR: aucune
+- Tests: 5037 tests sur 251 fichiers — état: verts — preuve: checks.txt (empreinte `76fe0b0206b2`) ; bout en bout AC30 au dev
+- Gates: passages 1 et 2 : SECURITY et CRAFT PASS, reviewer-frontend CHANGES_REQUESTED, ARCHITECTURE FAIL ; passage 3 sur `76fe0b0206b2` : reviewer-frontend APPROVED, SECURITY et CRAFT PASS, ARCHITECTURE FAIL (escalade) ; DEROGATION D-043 du dev
+- Mesures: boucles 3 passages, 2 tours de correctifs · constats confirmés : focus perdu (retrait, déplacement, Réappliquer), filtre actif dès l'ajout, mention hors filtre invisible, tests qui ne pouvaient pas échouer (AC28, AC7) · coût non mesuré
+
+## [2026-10-27] D-042 Tests de F-032 instables
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/web/test/espace-ajout.test.tsx` (l.144, l.393), `apps/web/test/espace-changement.test.tsx` (l.353) — agents: orchestrateur — commits: aucun
+- Détail: échecs intermittents relevés par le crochet `Stop` le 2026-10-27, avec et sans charge : assertions de focus ou d'annonce juste après une action, sans attente. Verts en CI. À corriger en premier dans le lot RC1.
+- Dette: introduite D-042
+- ADR: aucun
+- Tests: aucun modifié — état: intermittents — preuve: sorties du crochet `Stop`
+- Gates: aucun
+- Mesures: 3 cas en 4 échecs
