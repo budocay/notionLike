@@ -68,3 +68,27 @@ export function lignesFigees(table: TableLue, ids: readonly IdLigne[]): readonly
 export function colonneDeTitre(table: TableLue): ColonneLue | undefined {
   return table.colonnes.find((colonne) => colonne.type === "texte");
 }
+
+/** Le nombre de lignes de la table lue, masquées par un filtre ou non. */
+export function nombreDeLignes(table: TableLue): number {
+  return table.lignes.length;
+}
+
+/** L'identifiant de la ligne qui occupe aujourd'hui cette position de l'ordre manuel. */
+export function identifiantALaPosition(table: TableLue, position: number): IdLigne | undefined {
+  return table.lignes[position]?.id;
+}
+
+/** `ids` où `ligne` prend la place qu'occupe `voisine`, comme le document place une ligne déplacée. */
+export function deplacerDansLaListe(
+  ids: readonly IdLigne[],
+  ligne: IdLigne,
+  voisine: IdLigne,
+): readonly IdLigne[] {
+  const destination = ids.indexOf(voisine);
+  if (destination < 0 || !ids.includes(ligne)) {
+    return ids;
+  }
+  const sans = ids.filter((id) => id !== ligne);
+  return [...sans.slice(0, destination), ligne, ...sans.slice(destination)];
+}

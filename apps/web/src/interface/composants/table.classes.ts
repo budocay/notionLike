@@ -33,6 +33,11 @@ export const TABLE = {
   enTetesRangee: "flex",
   corps: "relative",
   rangee: "absolute left-nul top-nul flex text-interface text-texte-principal filet-bas",
+  // Ligne affichée qui ne satisfait plus les filtres (F-019-AC18) : texte atténué et en italique.
+  rangeeHorsFiltre:
+    "absolute left-nul top-nul flex text-interface text-texte-secondaire italic filet-bas",
+  horsFiltre: "sr-only",
+  marqueDeTri: "flex-none text-petit text-texte-secondaire",
   enTete: CELLULE,
   cellule: CELLULE,
   celluleDActions: `${CELLULE} justify-between text-petit text-texte-discret`,
@@ -55,6 +60,14 @@ export const TABLE = {
   etiquette: "text-interface font-moyen text-texte-secondaire",
   saisie: `contour-interieur ${CIBLE} w-full rounded-petit bg-surface-retrait px-petit text-interface text-texte-principal contour-champ aria-invalid:contour-erreur`,
   faute: "text-petit text-texte-erreur",
+  // Barres « Filtres » et « Tris » (F-019) : un titre, un résumé, des commandes, une liste d'éléments.
+  barres: "flex flex-col gap-petit",
+  barre: "flex flex-col gap-petit rounded-grand bg-surface-relief p-normal filet",
+  barreEntete: "flex flex-wrap items-center gap-petit",
+  barreTitre: "text-interface font-fort text-texte-principal",
+  elements: "flex flex-col gap-petit",
+  element: "flex flex-wrap items-center gap-petit",
+  mention: "text-petit text-texte-secondaire",
   options: "flex flex-col gap-petit",
   ligneDOption: "flex items-center gap-mince",
 } as const;

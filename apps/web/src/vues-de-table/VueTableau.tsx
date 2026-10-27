@@ -12,6 +12,7 @@ import {
   SurfaceFlottante,
 } from "../interface/composants/Table.tsx";
 import { ajouterUneLigne } from "./actions.ts";
+import { BarresDeDefinition } from "./BarresDeDefinition.tsx";
 import { BoiteOuverte } from "./Boites.tsx";
 import { ChoixDeCellule } from "./ChoixDeCellule.tsx";
 import { surToucheDeLaGrille } from "./clavier.ts";
@@ -136,6 +137,11 @@ export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
   return (
     <EcranDeTableCadre
       outils={<Outils vue={vue} />}
+      barres={
+        vue.colonnes.length === 0 || proprietes.definition === undefined ? undefined : (
+          <BarresDeDefinition vue={vue} />
+        )
+      }
       annonce={vue.annonce}
       alerte={vue.alerte}
       idAlerte={vue.idAlerte}

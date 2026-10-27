@@ -5,7 +5,12 @@ import type { ColonneLue } from "@notionlike/document";
 import type { ReactElement } from "react";
 
 import { BoutonIcone } from "../interface/composants/BoutonIcone.tsx";
-import { CelluleDeGrille, RangeeDEnTetes, TexteDeCellule } from "../interface/composants/Table.tsx";
+import {
+  CelluleDeGrille,
+  MarqueDeTri,
+  RangeeDEnTetes,
+  TexteDeCellule,
+} from "../interface/composants/Table.tsx";
 import { ChampDEdition } from "./ChampDEdition.tsx";
 import { Separateur } from "./Separateur.tsx";
 import { cleDeCellule } from "./courante.ts";
@@ -17,6 +22,11 @@ import {
   nomDuChampDeNom,
 } from "./textes.ts";
 import type { VueTableau } from "./use-vue-tableau.ts";
+
+/** Une flèche pour le sens, suivie du rang quand le tri n'est pas le principal. */
+function marqueDeTri(sens: "croissant" | "decroissant", rang: number): string {
+  return `${sens === "croissant" ? "↑" : "↓"}${rang > 1 ? String(rang) : ""}`;
+}
 
 const SUITES_DU_NOM = { entree: "rester", tab: "rester", tabArriere: "rester" } as const;
 
@@ -84,6 +94,7 @@ function EnTeteDeColonne(props: {
   const { place: courante } = vue.courante;
   const enSaisie =
     vue.edition.edition?.sorte === "nom" && vue.edition.edition.colonne === colonne.id;
+  const tri = vue.definition.triDe(colonne.id);
   return (
     <CelluleDeGrille
       role="columnheader"
@@ -92,12 +103,14 @@ function EnTeteDeColonne(props: {
       courante={courante.rang === 0 && courante.colonne === rang + 1}
       refCellule={vue.courante.refCellule(cle)}
       surFocus={() => vue.courante.devenirCourante(place)}
+      tri={tri?.rang === 1 ? (tri.sens === "croissant" ? "ascending" : "descending") : undefined}
     >
       {enSaisie ? (
         <NomEnSaisie vue={vue} colonne={colonne} />
       ) : (
         <>
           <TexteDeCellule texte={nomAffiche(colonne.nom)} />
+          {tri !== undefined && <MarqueDeTri marque={marqueDeTri(tri.sens, tri.rang)} />}
           <CommandeDeLEnTete vue={vue} colonne={colonne} place={place} />
         </>
       )}

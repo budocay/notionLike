@@ -28,6 +28,11 @@ export function EcranDeTableCadre(props: {
   /** Message du dernier refus, annoncé sans déplacer le focus. */
   readonly alerte?: string | undefined;
   readonly idAlerte?: string | undefined;
+  /**
+   * Barres « Filtres » et « Tris » (F-019), sous la grille : l'ordre de tabulation reste celui de
+   * F-018 (outils, puis grille) et les barres suivent la grille dans l'ordre du document.
+   */
+  readonly barres?: ReactNode | undefined;
   readonly children?: ReactNode | undefined;
 }): ReactElement {
   return (
@@ -40,6 +45,7 @@ export function EcranDeTableCadre(props: {
         {props.alerte}
       </p>
       {props.children}
+      {props.barres !== undefined && <div className={TABLE.barres}>{props.barres}</div>}
     </div>
   );
 }
@@ -164,13 +170,15 @@ export function RangeeDeGrille(props: {
   readonly decalage: number;
   readonly hauteur: number;
   readonly largeur: number;
+  /** Ligne affichée qui ne satisfait plus les filtres (F-019-AC18). */
+  readonly horsFiltre?: boolean | undefined;
   readonly children: ReactNode;
 }): ReactElement {
   return (
     <div
       role="row"
       aria-rowindex={props.indice}
-      className={TABLE.rangee}
+      className={props.horsFiltre === true ? TABLE.rangeeHorsFiltre : TABLE.rangee}
       style={{
         width: props.largeur,
         height: props.hauteur,
@@ -196,6 +204,8 @@ interface ProprietesCellule {
   readonly sorte?: "donnee" | "actions" | undefined;
   /** Combinaisons disponibles depuis la cellule (`aria-keyshortcuts`), sans entrer dans son nom. */
   readonly raccourcis?: string | undefined;
+  /** Sens du tri principal, sur son en-tête seul (F-019-AC12). */
+  readonly tri?: "ascending" | "descending" | undefined;
   readonly children?: ReactNode | undefined;
 }
 
@@ -214,6 +224,7 @@ export function CelluleDeGrille(props: ProprietesCellule): ReactElement {
       aria-label={props.nom}
       aria-describedby={props.description}
       aria-keyshortcuts={props.raccourcis}
+      aria-sort={props.tri}
       tabIndex={props.courante ? 0 : -1}
       className={classe}
       style={{ width: props.largeur }}
@@ -232,6 +243,27 @@ export function CelluleDeGrille(props: ProprietesCellule): ReactElement {
 /** Texte d'une cellule ou d'un en-tête, sur une ligne, coupé par des points de suspension (AC26). */
 export function TexteDeCellule({ texte }: { readonly texte: string }): ReactElement {
   return <span className={TABLE.texte}>{texte}</span>;
+}
+
+/** Mention « Hors filtre » d'une ligne figée, lisible par les technologies d'assistance (F-019-AC18). */
+export function TexteHorsFiltre(props: {
+  readonly id: string;
+  readonly texte: string;
+}): ReactElement {
+  return (
+    <span id={props.id} className={TABLE.horsFiltre}>
+      {props.texte}
+    </span>
+  );
+}
+
+/** Marque du sens d'un tri dans l'en-tête de sa colonne : une flèche, jamais la couleur seule (F-019-AC12). */
+export function MarqueDeTri({ marque }: { readonly marque: string }): ReactElement {
+  return (
+    <span aria-hidden="true" className={TABLE.marqueDeTri}>
+      {marque}
+    </span>
+  );
 }
 
 /**
@@ -448,4 +480,71 @@ export function ListeDOptions(props: {
 
 export function LigneDOption({ children }: { readonly children: ReactNode }): ReactElement {
   return <li className={TABLE.ligneDOption}>{children}</li>;
+}
+
+// ── Barres « Filtres » et « Tris » (F-019) ───────────────────────────────────────────────────────
+
+/** Une barre : son nom, son titre et son résumé, ses commandes, puis la liste de ses éléments. */
+export function BarreDeDefinition(props: {
+  readonly nom: string;
+  readonly resume: string;
+  readonly commandes: ReactNode;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <section aria-label={props.nom} className={TABLE.barre}>
+      <div className={TABLE.barreEntete}>
+        <span className={TABLE.barreTitre}>{props.nom}</span>
+        <span className={TABLE.note}>{props.resume}</span>
+        {props.commandes}
+      </div>
+      {props.children}
+    </section>
+  );
+}
+
+export function ListeDeDefinition(props: {
+  readonly nom: string;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <ul aria-label={props.nom} className={TABLE.elements}>
+      {props.children}
+    </ul>
+  );
+}
+
+/** Un filtre ou un tri de la liste ; `mention` dit pourquoi il est sans effet (F-019-AC23). */
+export function ElementDeDefinition(props: {
+  readonly mention?: string | undefined;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <li className={TABLE.element}>
+      {props.children}
+      {props.mention !== undefined && <span className={TABLE.mention}>{props.mention}</span>}
+    </li>
+  );
+}
+
+interface ProprietesChampDeDefinition extends Omit<
+  ComponentProps<"input">,
+  "className" | "aria-label" | "aria-invalid" | "aria-describedby" | "ref"
+> {
+  readonly nom: string;
+  /** Identifiant du message de refus, quand la dernière validation a été refusée. */
+  readonly idFaute?: string | undefined;
+}
+
+export function ChampDeDefinition(props: ProprietesChampDeDefinition): ReactElement {
+  const { nom, idFaute, ...natives } = props;
+  return (
+    <input
+      className={TABLE.saisie}
+      aria-label={nom}
+      aria-invalid={idFaute !== undefined}
+      aria-describedby={idFaute}
+      {...natives}
+    />
+  );
 }

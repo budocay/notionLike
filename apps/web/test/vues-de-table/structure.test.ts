@@ -99,7 +99,11 @@ describe("ce que les vues partagent (F-018-AC45)", () => {
   it("F-018-AC45 chaque vue de la liste reçoit les lignes calculées ; seul lignes-affichees.ts lit les lignes de la table lue pour les afficher", () => {
     expect(VUES.map(({ id }) => id)).toEqual(["tableau"]);
     const ecran = sansCommentaires(lire(`${MODULE}/EcranDeTable.tsx`));
-    expect(ecran).toMatch(/lignes=\{lignesAffichees\(lue\)\}/);
+    // F-019-AC13 : la fonction reçoit aussi la définition ; l'appel est dans `use-affichage.ts`.
+    expect(ecran).toMatch(/lignes=\{affichage\.lignes\}/);
+    expect(sansCommentaires(lire(`${MODULE}/use-affichage.ts`))).toMatch(
+      /lignesAffichees\(lecture, definition\)/,
+    );
     const lecteurs = sourcesDuModule()
       .filter(([, texte]) => /\b(lue|table)\.lignes\b/.test(texte))
       .map(([chemin]) => chemin);
