@@ -1,7 +1,7 @@
 # ADR-0006 — Exécution et conteneurisation : TypeScript exécuté par Node 26 sans compilation, une image, Docker Compose
 
-Statut : accepté ; section « Amendement F-031 » : prévue par l'ADR-0017, reportée le 2026-10-19 à son acceptation, d'après le code : accepté (décision du dev du 2026-10-19, après correction des écarts)
-Date : 2026-10-08 ; amendement F-031 du 2026-10-16, reporté le 2026-10-19
+Statut : accepté ; section « Amendement F-031 » : prévue par l'ADR-0017, reportée le 2026-10-19 à son acceptation, d'après le code : accepté (décision du dev du 2026-10-19, après correction des écarts); section « Amendement F-026 » : écrite le 2026-10-27, avant le code : proposé
+Date : 2026-10-08 ; amendement F-031 du 2026-10-16, reporté le 2026-10-19; amendement F-026 du 2026-10-27
 
 ## Contexte et problème
 
@@ -149,6 +149,21 @@ Contexte : F-031 (`specs/F-031.md`, validée en `eed4af0`) ajoute une entrée de
   Les règles d'`infra/tests/regles/fumee.ts` attendent dix-sept constats annoncés une fois chacun et dans l'ordre, le nettoyage en dernier. Dernier relevé : `FUMEE: OK (constats 1 à 17)` sur `ec898f0`, Docker Engine 29.8.2 et Compose 5.6.0 (`MEMORY/features/F-031.md`), puis par le dev.
 
 - **Rétention.** Aucune sous-commande de `pile.sh` ne supprime le volume des données : `arreter` lance `down` sans `-v`, et la garde du volume le laisse en place.
+
+### Amendement F-026 (2026-10-27, proposé) : capteur de courriels sous profil, arrêt des envois
+
+Contexte : F-026 ajoute un service à la pile et un travail de fond au processus serveur (ADR-0023). Le mode d'atteinte du capteur dépend de la retouche R8 (`docs/decisions/F-026-conception.md`), à trancher par le dev ; ce qui suit vaut pour l'option A, recommandée.
+
+- **Service `mailpit`.**
+  - Image `axllent/mailpit:v1.32.0` épinglée par empreinte, sous le profil `courriel`, que `docker compose up` sans option ne démarre pas.
+  - Ports SMTP (1025) et de lecture (8025) publiés sur `127.0.0.1` seulement, sans volume ni `restart`, sans `depends_on` depuis le serveur.
+  - Bloc livré au plus tôt le 2026-10-29 (`minimumReleaseAge`). L'image passe par le contrôle `CONTENEURS` comme les autres.
+- **Service `serveur` toujours en production.** Son `environment` impose, en plus de `NODE_ENV`, `HOTE` et `PORT`, un relais factice chiffré (`SMTP_CAPTEUR_DEV: "faux"`, `SMTP_SECURITE: starttls`, `SMTP_HOTE: relais.exemple.invalid`, `SMTP_PORT: "587"`).
+  - Avec un `apps/server/.env` tiré de l'exemple, qui désigne le capteur, le serveur de la pile démarre et ses envois échouent dans le journal.
+  - Le capteur est atteint par le serveur en mode hôte (`pnpm --filter @notionlike/server demarrer`, mode de développement).
+  - `infra/pile.sh demarrer` vérifie la configuration avec ces valeurs (`docker compose run … serveur`).
+- **Fumée.** Les dix-sept constats de F-031 ne changent pas. `infra/fumee-courriel.sh` est lancé par le dev sous un projet et des ports distincts. Il lance base, migration et capteur sous Compose et le serveur en mode hôte, puis enchaîne inscription, lecture du courriel de vérification, demande de réinitialisation, application du lien et connexion avec le nouveau mot de passe. Il nettoie ensuite son projet.
+- **Arrêt.** À `SIGTERM`, `servir` attend en même temps l'arrêt de l'écoute et la fin des envois en cours, bornés par `DELAI_ARRET_MS` (8 000 ms), puis ferme la base et sort. Un envoi non fini est abandonné, sans rejet non géré. C'est le travail de fond que la conséquence « sortie explicite » ci-dessous annonçait.
 
 ## Conséquences
 

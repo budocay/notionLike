@@ -1,7 +1,7 @@
 # ADR-0011 — Comptes et sessions : better-auth monté derrière le code du serveur, session en base, schéma natif dans `packages/db`
 
-Statut : accepté ; section « Amendement du 2026-10-14 » comprise, acceptée par le dev le 2026-10-14
-Date : 2026-10-13 ; amendement du 2026-10-14 (F-010, F-011, F-027)
+Statut : accepté ; section « Amendement du 2026-10-14 » comprise, acceptée par le dev le 2026-10-14; section « Amendement F-026 » : écrite le 2026-10-27, avant le code : proposé
+Date : 2026-10-13 ; amendement du 2026-10-14 (F-010, F-011, F-027); amendement F-026 du 2026-10-27
 Accepté par le dev le 2026-10-13, après le code (écart de calendrier relevé pour F-009).
 
 ## Contexte et problème
@@ -56,6 +56,19 @@ Deux phrases de la décision ci-dessus sont devenues inexactes avec F-010, F-011
 
 - **`better-auth/client` dans `apps/web`** (F-010, commit du dev `f134cb2`). Le serveur reste le seul à importer `better-auth` et ses autres sous-chemins. Le sous-chemin `better-auth/client`, que la règle `better-auth-reserve-au-serveur` exceptait déjà, est importé par un seul module, `apps/web/src/compte/client-auth.ts` : la règle `better-auth-client-un-seul-module` l'admet depuis ce fichier seul (`from: { pathNot }`), et `better-auth/react` comme `better-auth/client/plugins` restent interdits partout. `apps/web/package.json` déclare `better-auth` 1.7.7, la version exacte du serveur. Le confinement côté client est l'objet de l'ADR-0012.
 - **`ORIGINES_AUTORISEES` et `URL_PUBLIQUE` hors de better-auth** (F-011, puis F-027). `apps/server/src/origine.ts` (`origineAdmise`) refuse en 403 `origine-refusee` toute écriture (`POST`, `PATCH`, `DELETE`) des routes des espaces et de la gestion du compte dont l'en-tête `Origin` n'est ni `URL_PUBLIQUE` ni une entrée d'`ORIGINES_AUTORISEES` ; une requête sans `Origin` passe. Ces deux réglages servent donc à deux contrôles : celui de better-auth sur `/api/auth`, et celui du serveur sur ses propres routes protégées. Le reste de la décision « Origines » tient : aucun en-tête `Access-Control-Allow-*`, aucune pré-vérification.
+
+### Amendement F-026 (2026-10-27, proposé) : crochet d'inscription sans route, écritures directes dans les tables natives
+
+Contexte : F-026 (`specs/F-026.md`, ADR-0022) écrit la réinitialisation et la vérification d'adresse par le code du serveur. La décision ci-dessus garde ses quatre routes ; trois points s'y ajoutent.
+
+- **Crochet d'inscription.** `authentification.ts` fournit `emailVerification: { sendOnSignUp: true, sendVerificationEmail }`. La fonction ignore `url` et `token` natifs et ne fait que noter l'identifiant du compte dans l'appel en cours (AsyncLocalStorage `appels`), sans base ni transport. `comptes.ts` remet la demande de vérification au module d'envoi (ADR-0023) une fois la réponse native 200 rendue. Fournir cette fonction active dans better-auth `POST /send-verification-email` et `GET /verify-email` : la liste fermée de `comptes.ts` les laisse en 404, comme `request-password-reset` et `reset-password`.
+- **Options écrites à faux.** `emailAndPassword.sendResetPassword` reste absent ; `emailAndPassword.revokeSessionsOnPasswordReset` et `emailAndPassword.requireEmailVerification` sont écrits à `false`, pour qu'une montée de version qui changerait leur défaut ne les active pas. Un test lit la configuration construite.
+- **Écritures hors de better-auth.**
+  - `account.password` : par `ecrireEmpreinte` (F-027), appelé aussi par la réinitialisation de F-026.
+  - `user.emailVerified` : par `marquerAdresseVerifiee` (`packages/db/src/courriels.ts`), appelé par la réinitialisation et par la vérification.
+  - `session` : toujours par la seule fonction de suppression de session, dans `suppression.dansUneTransaction`.
+
+  Le test de couture de F-026-AC33 énumère ces écrivains et étend l'énumération de F-009-AC33.
 
 ## Conséquences
 

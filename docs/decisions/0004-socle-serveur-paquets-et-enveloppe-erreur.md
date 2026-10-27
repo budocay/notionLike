@@ -1,7 +1,7 @@
 # ADR-0004 — Socle serveur : frontière des trois paquets, enveloppe d'erreur, composition de l'application
 
-Statut : accepté ; section « Amendement F-012 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts)
-Date : 2026-10-08 ; amendement F-012 du 2026-10-16 ; écarts au code corrigés le 2026-10-19
+Statut : accepté ; section « Amendement F-012 » : écrite après coup le 2026-10-16, relue le 2026-10-19 : accepté (décision du dev du 2026-10-19, après correction des écarts); section « Amendement F-026 » : écrite le 2026-10-27, avant le code : proposé
+Date : 2026-10-08 ; amendement F-012 du 2026-10-16 ; écarts au code corrigés le 2026-10-19; amendement F-026 du 2026-10-27
 
 ## Contexte et problème
 
@@ -153,6 +153,19 @@ Les deux dernières viennent de la relecture de structure (commit `0fd735e`) :
 - `serveur-tests-par-les-entrees-de-db` : depuis `apps/server/test`, seuls `packages/db/src/index.ts` et `packages/db/test/essai.ts` sont importables dans `packages/db`, soit les deux entrées du manifeste (`@notionlike/db`, `@notionlike/db/essai`).
 
 S'y ajoute une règle ESLint `no-restricted-globals` sur `packages/contrats/src` (`process`, `Buffer`, `global`, `require`, `module`, `__dirname`, `__filename`, `setImmediate`, `clearImmediate`) : ces globales s'utilisent sans import, hors de vue des contrats de dépendances.
+
+### Amendement F-026 (2026-10-27, proposé) : transport en paramètre de l'assemblage, liste blanche, routes publiques
+
+Contexte : F-026 ajoute l'envoi de courriels (ADR-0023) et les premières routes publiques sous `/api/v1/` (ADR-0022).
+
+- **Composition.**
+  - `assembler` reçoit un paramètre obligatoire `transport`, crée le module d'envoi (`creerEnvoi`), le passe à `creerApplication` (`Dependances.envoi`) et le rend avec le reste.
+  - `servir` reçoit `transport` et le passe.
+  - `main.ts` passe `transportSmtp(configuration.courriel)` ; les entrées d'essai (`test/essai/*`) et la fabrique d'essai passent `transportEnMemoire()`. Aucune variable de configuration ne choisit le transport.
+- **Liste blanche du serveur élargie** : `nodemailer` est admis depuis `apps/server/src/`, et la règle `nodemailer-confine-au-module-d-envoi` le réserve à `apps/server/src/envoi.ts` (texte dans `docs/decisions/F-026-conception.md`, commit du dev).
+- **Enveloppe.** Les codes `jeton-invalide` (404) et `courriel-non-verifie` (403) s'ajoutent à la fin de `CODES_ERREUR` et à la table des statuts d'`enveloppe.ts`.
+- **Routes publiques.** `ROUTES_PUBLIQUES` (`packages/contrats/src/espaces.ts`) n'est plus vide : elle compte les trois routes publiques de F-026. Toute autre route sous `/api/v1/` répond toujours 401 sans session (F-011-AC8).
+- **Importateurs des paquets** : `recuperation-de-compte.ts`, `adresse-du-compte.ts` et `espaces.ts` (lecture de l'adresse vérifiée) importent les requêtes de `packages/db/src/courriels.ts` par l'entrée publique de `@notionlike/db`.
 
 ## Conséquences
 
