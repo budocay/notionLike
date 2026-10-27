@@ -15,8 +15,9 @@ import {
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { VueKanban } from "./kanban/VueKanban.tsx";
 import { useReglages } from "./use-reglages.ts";
-import { avecSelecteur, VUES } from "./vues.ts";
+import { avecSelecteur, VUE_KANBAN, VUES } from "./vues.ts";
 import { VueTableau } from "./VueTableau.tsx";
 
 export interface ProprietesEcranDeTable {
@@ -46,7 +47,28 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
-  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
+  const selecteur = avecSelecteur() ? (
+    <SelecteurDeVues
+      nom={SELECTEUR_DE_VUES}
+      vues={VUES}
+      active={reglages.vueActive}
+      surChoix={reglages.choisirLaVue}
+    />
+  ) : undefined;
+  if (reglages.vueActive === VUE_KANBAN) {
+    return (
+      <VueKanban
+        table={table}
+        lue={lue}
+        lignes={lignesAffichees(lue)}
+        titre={props.titre}
+        lectureSeule={props.lectureSeule}
+        designation={props}
+        selecteur={selecteur}
+      />
+    );
+  }
+  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau ».
   return (
     <VueTableau
       table={table}
@@ -56,16 +78,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
       lectureSeule={props.lectureSeule}
       largeurDe={reglages.largeurDe}
       reglerLargeur={reglages.reglerLargeur}
-      selecteur={
-        avecSelecteur() ? (
-          <SelecteurDeVues
-            nom={SELECTEUR_DE_VUES}
-            vues={VUES}
-            active={reglages.vueActive}
-            surChoix={reglages.choisirLaVue}
-          />
-        ) : undefined
-      }
+      selecteur={selecteur}
     />
   );
 }

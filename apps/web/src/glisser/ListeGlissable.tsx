@@ -356,13 +356,18 @@ function useSuiviDesPiles(props: ProprietesPilesGlissables) {
 }
 
 const CAPTEUR_AU_POINTEUR = { activationConstraint: { distance: DISTANCE_D_ACTIVATION } };
+// Désactivé, le capteur reste en place (la bibliothèque relit la liste des capteurs à chaque rendu et
+// n'admet pas qu'elle change de taille) mais aucune distance ne suffit à démarrer un geste.
+const CAPTEUR_BLOQUE = { activationConstraint: { distance: Number.POSITIVE_INFINITY } };
 
 export function PilesGlissables(props: ProprietesPilesGlissables): ReactElement {
-  const capteurs = useSensors(useSensor(PointerSensor, CAPTEUR_AU_POINTEUR));
+  const capteurs = useSensors(
+    useSensor(PointerSensor, props.desactivee ? CAPTEUR_BLOQUE : CAPTEUR_AU_POINTEUR),
+  );
   const geste = useSuiviDesPiles(props);
   return (
     <DndContext
-      sensors={props.desactivee ? [] : capteurs}
+      sensors={capteurs}
       collisionDetection={pointerWithin}
       accessibility={geste.accessibilite}
       onDragStart={geste.commencer}

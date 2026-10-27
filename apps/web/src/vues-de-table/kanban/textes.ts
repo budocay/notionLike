@@ -14,7 +14,6 @@ export const NOUVELLE_CARTE = "Nouvelle carte";
 export const PILE_PRECEDENTE = "Pile précédente";
 export const PILE_SUIVANTE = "Pile suivante";
 export const MODIFIER_LE_TITRE = "Modifier le titre";
-export const SUPPRIMER_LA_LIGNE_DE_LA_CARTE = "Supprimer la ligne";
 export const PAS_DE_COLONNE_DE_TITRE = "Aucune colonne de titre.";
 export const PREMIERE_PILE = "Déjà dans la première pile.";
 export const DERNIERE_PILE = "Déjà dans la dernière pile.";
@@ -67,4 +66,45 @@ export function titreDeLaSuppression(titre: string): string {
 
 export function carteDeplacee(titre: string, libelle: string | null, rang: number, total: number) {
   return `${titreDeCarte(titre)}, pile ${libelleDePile(libelle)}, ${String(rang)} sur ${String(total)}.`;
+}
+
+export const COMMANDE_MONTER = "Monter";
+export const COMMANDE_DESCENDRE = "Descendre";
+
+/** Texte lu à la saisie d'une carte au pointeur : ce qu'elle permet, au clavier comme à la souris. */
+export function instructionsDuKanban(touches: {
+  readonly piles: string;
+  readonly places: string;
+  readonly menu: string;
+}): string {
+  return `Pour déplacer une carte au clavier, ${touches.piles} la change de pile, ${touches.places} la monte ou la descend ; ${touches.menu} ouvre le menu de ses actions. À la souris, faites glisser la carte, Échap abandonne le geste.`;
+}
+
+export function carteSaisie(titre: string, libelle: string | null, rang: number, total: number) {
+  return `${carteDeplacee(titre, libelle, rang, total)} Carte saisie.`;
+}
+
+export function carteAuDessus(
+  titre: string,
+  libelle: string | null,
+  voisine: string,
+  avant: boolean,
+) {
+  return `${titreDeCarte(titre)} : ${avant ? "avant" : "après"} la carte ${titreDeCarte(voisine)}, pile ${libelleDePile(libelle)}.`;
+}
+
+export function carteDansLaPile(titre: string, libelle: string | null) {
+  return `${titreDeCarte(titre)} : dans la pile ${libelleDePile(libelle)}.`;
+}
+
+export function carteDeposee(titre: string, libelle: string | null) {
+  return `${titreDeCarte(titre)} déposée dans la pile ${libelleDePile(libelle)}.`;
+}
+
+export function carteRelachee(titre: string) {
+  return `${titreDeCarte(titre)} relâchée hors d'une pile : déplacement abandonné.`;
+}
+
+export function deplacementAbandonne(titre: string) {
+  return `Déplacement de la carte ${titreDeCarte(titre)} abandonné.`;
 }

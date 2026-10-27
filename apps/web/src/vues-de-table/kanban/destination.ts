@@ -65,6 +65,63 @@ export function estLaPlaceActuelle(
   return (pile.cartes[place.rang - 1]?.id ?? null) === destination.precedente;
 }
 
+/** La place que la carte prend à la destination, pour l'annoncer (AC15) ; `rang` compte à partir de 1. */
+export function placeApresLeDeplacement(
+  piles: readonly Pile[],
+  carte: IdLigne,
+  destination: Destination,
+): { readonly rang: number; readonly total: number } | undefined {
+  const pile = piles.find(({ option }) => option === destination.option);
+  const autres = pile?.cartes.filter(({ id }) => id !== carte) ?? [];
+  const precedente = autres.findIndex(({ id }) => id === destination.precedente);
+  if (pile === undefined || (destination.precedente !== null && precedente < 0)) {
+    return undefined;
+  }
+  return { rang: destination.precedente === null ? 1 : precedente + 2, total: autres.length + 1 };
+}
+
+/** Ce que le geste a visé, lu des identifiants du module de glisser-déposer. */
+export interface DepotLu {
+  readonly pile: IdOption | null;
+  /** La carte survolée ; `undefined` : la pile elle-même (fin de pile, ou pile vide). */
+  readonly cible: IdLigne | undefined;
+  readonly zone: "avant" | "apres" | undefined;
+}
+
+/**
+ * La destination d'un geste (AC10, AC25) : sur une carte, juste avant ou juste après elle selon la
+ * moitié survolée ; sur une pile, en fin de pile. La carte déplacée est exclue de la pile visée.
+ */
+export function destinationDuDepot(
+  piles: readonly Pile[],
+  carte: IdLigne,
+  depot: DepotLu,
+): Destination | undefined {
+  const pile = piles.find(({ option }) => option === depot.pile);
+  const precedente = precedenteDuDepot(
+    (pile?.cartes ?? []).filter(({ id }) => id !== carte),
+    depot,
+  );
+  return pile === undefined || precedente === undefined
+    ? undefined
+    : { option: pile.option, precedente };
+}
+
+// La carte qui précède la carte déplacée : `null` en tête, `undefined` si la cible a disparu.
+function precedenteDuDepot(
+  autres: readonly { readonly id: IdLigne }[],
+  depot: DepotLu,
+): IdLigne | null | undefined {
+  if (depot.cible === undefined) {
+    return autres.at(-1)?.id ?? null;
+  }
+  const rang = autres.findIndex(({ id }) => id === depot.cible);
+  if (rang < 0) {
+    return undefined;
+  }
+  return depot.zone === "avant" ? (autres[rang - 1]?.id ?? null) : depot.cible;
+}
+
 export type CommandeDeCarte = "pile-precedente" | "pile-suivante" | "monter" | "descendre";
 
 export const COMMANDES_DE_CARTE: readonly CommandeDeCarte[] = [

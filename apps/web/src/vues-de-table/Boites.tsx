@@ -12,7 +12,12 @@ import {
   Formulaire,
 } from "../interface/composants/Espaces.tsx";
 import { ChampDeFormulaire } from "../interface/composants/Table.tsx";
-import { ajouterUneColonne, supprimerUneColonne, supprimerUneLigne } from "./actions.ts";
+import {
+  ajouterUneColonne,
+  type Moyens,
+  supprimerUneColonne,
+  supprimerUneLigne,
+} from "./actions.ts";
 import { touchesDeBoite } from "./boite.ts";
 import { PanneauDesOptions } from "./PanneauDesOptions.tsx";
 import {
@@ -40,18 +45,44 @@ function estUnType(valeur: string): valeur is TypeDeColonne {
   return Object.hasOwn(TYPES_DE_COLONNE_AFFICHES, valeur);
 }
 
-/** Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). */
-function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactElement {
+function ChoixDuType(props: {
+  readonly valeur: TypeDeColonne;
+  readonly surChoix: (type: TypeDeColonne) => void;
+}): ReactElement {
+  return (
+    <Choix
+      nom={TYPE_DE_LA_COLONNE}
+      valeur={props.valeur}
+      options={OPTIONS_DE_TYPE}
+      surChoix={(valeur) => {
+        if (estUnType(valeur)) {
+          props.surChoix(valeur);
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). Le
+ * kanban l'ouvre avec le type « Sélection » choisi (F-020-AC5).
+ */
+export function BoiteNouvelleColonne(props: {
+  readonly moyens: Moyens;
+  /** Ferme la boîte ; vrai : le focus revient à la commande d'origine. */
+  readonly fermerLaBoite: (rendreLeFocus: boolean) => void;
+  readonly typeInitial?: TypeDeColonne | undefined;
+}): ReactElement {
   const [nom, setNom] = useState("");
-  const [type, setType] = useState<TypeDeColonne>("texte");
+  const [type, setType] = useState<TypeDeColonne>(props.typeInitial ?? "texte");
   const [faute, setFaute] = useState<string | undefined>(undefined);
   const champ = useRef<HTMLInputElement>(null);
-  const fermer = (): void => vue.fermerBoite(true);
+  const fermer = (): void => props.fermerLaBoite(true);
   const creer = (): void => {
-    const refus = ajouterUneColonne(vue.moyens, nom, type);
+    const refus = ajouterUneColonne(props.moyens, nom, type);
     setFaute(refus);
     if (refus === undefined) {
-      vue.fermerBoite(false);
+      props.fermerLaBoite(false);
     }
   };
   return (
@@ -73,16 +104,7 @@ function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactEleme
             setFaute(undefined);
           }}
         />
-        <Choix
-          nom={TYPE_DE_LA_COLONNE}
-          valeur={type}
-          options={OPTIONS_DE_TYPE}
-          surChoix={(valeur) => {
-            if (estUnType(valeur)) {
-              setType(valeur);
-            }
-          }}
-        />
+        <ChoixDuType valeur={type} surChoix={setType} />
         <Actions>
           <Bouton type="submit" libelle={CREER_LA_COLONNE} />
           <Bouton libelle={ANNULER} surActivation={fermer} />
@@ -92,7 +114,7 @@ function BoiteNouvelleColonne({ vue }: { readonly vue: VueTableau }): ReactEleme
   );
 }
 
-function Confirmation(props: {
+export function Confirmation(props: {
   readonly titre: string;
   readonly phrases: readonly string[];
   readonly confirmer: string;
@@ -160,7 +182,7 @@ export function BoiteOuverte({ vue }: { readonly vue: VueTableau }): ReactElemen
     case undefined:
       return null;
     case "nouvelle-colonne":
-      return <BoiteNouvelleColonne vue={vue} />;
+      return <BoiteNouvelleColonne moyens={vue.moyens} fermerLaBoite={vue.fermerBoite} />;
     case "supprimer-colonne":
       return <SuppressionDeColonne vue={vue} id={boite.colonne} />;
     case "supprimer-ligne":
