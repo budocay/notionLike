@@ -105,6 +105,38 @@ export const TOUCHES_DE_BOITE = {
   precedent: { touche: "Tab", modificateurs: ["Maj"] },
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
+/**
+ * Entrée du calendrier d'une table qui a le focus, hors saisie de son titre (F-021-AC10, AC11, H5) :
+ * une entrée n'est pas une zone de texte, Alt+Maj+Flèche ne s'y confond avec aucune saisie
+ * (convention de F-006 H5 et de F-018-AC24).
+ */
+export const TOUCHES_DE_L_ENTREE = {
+  jourPrecedent: { touche: "ArrowLeft", modificateurs: ["Alt", "Maj"] },
+  jourSuivant: { touche: "ArrowRight", modificateurs: ["Alt", "Maj"] },
+  semainePrecedente: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
+  semaineSuivante: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+  modifierLeTitre: { touche: "Enter", modificateurs: [] },
+  modifierLeTitreAutrement: { touche: "F2", modificateurs: [] },
+  rendreLeFocusALaCase: { touche: "Escape", modificateurs: [] },
+  menu: { touche: "F10", modificateurs: ["Maj"] },
+  menuAutrement: { touche: "ContextMenu", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
+/** Case du calendrier d'une table qui a le focus (F-021-AC20). */
+export const TOUCHES_DE_LA_CASE = {
+  veille: { touche: "ArrowLeft", modificateurs: [] },
+  lendemain: { touche: "ArrowRight", modificateurs: [] },
+  semainePrecedente: { touche: "ArrowUp", modificateurs: [] },
+  semaineSuivante: { touche: "ArrowDown", modificateurs: [] },
+  lundi: { touche: "Home", modificateurs: [] },
+  dimanche: { touche: "End", modificateurs: [] },
+  moisPrecedent: { touche: "PageUp", modificateurs: [] },
+  moisSuivant: { touche: "PageDown", modificateurs: [] },
+  entrer: { touche: "Enter", modificateurs: [] },
+  menu: { touche: "F10", modificateurs: ["Maj"] },
+  menuAutrement: { touche: "ContextMenu", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
 const PLATEFORME_D_APPLE = /^(Mac|iPhone|iPad|iPod)/;
 const MODIFICATEUR_D_APPLE = { Mod: "⌘", Alt: "⌥", Maj: "⇧" } as const;
 const MODIFICATEUR_COURANT = { Mod: "Ctrl", Alt: "Alt", Maj: "Maj" } as const;

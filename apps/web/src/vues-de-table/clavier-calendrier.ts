@@ -1,6 +1,6 @@
 // Touches de la grille du calendrier (F-021-AC11, AC20), sans DOM : une frappe sur une case ou sur une
 // entrée devient une action, que la vue exécute. Les jours visés se calculent par `jours.ts`.
-import { estLaFrappe } from "../interface/raccourcis.ts";
+import { estLaFrappe, TOUCHES_DE_L_ENTREE, TOUCHES_DE_LA_CASE } from "../interface/raccourcis.ts";
 import {
   decaler,
   dimancheDeLaSemaine,
@@ -9,7 +9,6 @@ import {
   memeQuantiemeAilleurs,
 } from "./jours.ts";
 import type { PasDeJours } from "./commandes-calendrier.ts";
-import { TOUCHES_DE_L_ENTREE, TOUCHES_DE_LA_CASE } from "./raccourcis-calendrier.ts";
 
 type Frappe = Parameters<typeof estLaFrappe>[0];
 

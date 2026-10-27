@@ -33,13 +33,12 @@ import {
   InvitationDeTable,
   SurfaceFlottante,
 } from "../interface/composants/Table.tsx";
-import { afficherTouches, cleAria } from "../interface/raccourcis.ts";
+import { afficherTouches, cleAria, TOUCHES_DE_L_ENTREE } from "../interface/raccourcis.ts";
 import { BoiteNouvelleColonne, Confirmation } from "./Boites.tsx";
 import { touchesDeBoite } from "./boite.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
 import { jourVise, type PasDeJours } from "./commandes-calendrier.ts";
 import { decomposer } from "./jours.ts";
-import { TOUCHES_DE_L_ENTREE } from "./raccourcis-calendrier.ts";
 import {
   AFFICHER_PLUS_DE_LIGNES,
   AJOUTER_UNE_COLONNE_DATE,
