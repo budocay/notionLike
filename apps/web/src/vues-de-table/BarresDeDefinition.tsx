@@ -112,7 +112,14 @@ function ChoixDOption({ filtre, colonne, remplacer }: PropsDeValeur): ReactEleme
 
 function ChampDeValeur({ vue, filtre, colonne, remplacer }: PropsDeValeur): ReactElement {
   const [texte, setTexte] = useState(texteDeLaValeur(filtre.valeur));
+  const [valeurVue, setValeurVue] = useState(filtre.valeur);
   const [refuse, setRefuse] = useState(false);
+  if (valeurVue !== filtre.valeur) {
+    // La ligne a reçu un autre filtre (le précédent a été retiré) : le texte suit la valeur
+    // enregistrée, sans remonter le champ, qui garde ainsi le focus après une validation.
+    setValeurVue(filtre.valeur);
+    setTexte(texteDeLaValeur(filtre.valeur));
+  }
   const date = colonne.type === "date";
   const valider = (): void => {
     const analyse = analyserLaValeur(colonne, texte);

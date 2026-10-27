@@ -4,7 +4,7 @@
 // `\p{M}` et `\p{Diacritic}` sont écartés exprès (veille du 2026-10-27) : le premier fusionne des
 // mots des écritures indiennes (`क्षि` devient `कष`), le second vide la clé de `^` et de `¨`, de sorte
 // que « contient » `^` serait vrai pour tout texte.
-const SIGNES_COMBINANTS = /[̀-ͯ]/g;
+const SIGNES_COMBINANTS = /[\u0300-\u036f]/g;
 
 export function cleDeComparaison(texte: string): string {
   return texte.normalize("NFD").replace(SIGNES_COMBINANTS, "").toLowerCase();

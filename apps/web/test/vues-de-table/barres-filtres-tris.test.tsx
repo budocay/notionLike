@@ -283,6 +283,29 @@ describe("éléments inactifs (F-019-AC23)", () => {
   });
 });
 
+describe("lignes de filtres voisines (F-019-AC6)", () => {
+  it("F-019-AC6 deux filtres de même colonne et opérateur : retirer le premier montre la valeur du second, et le blur n'écrase rien", async () => {
+    const { utilisateur } = rendreLaTable(remplirSixLignes);
+    await filtrer(utilisateur, { depart: "Nom", cible: "Nom" }, "contient", "alpha");
+    await ajouterUnFiltre(utilisateur);
+    const champs = (): HTMLInputElement[] =>
+      screen.getAllByRole<HTMLInputElement>("textbox", { name: "Valeur du filtre sur Nom" });
+    await utilisateur.type(champs()[1] as HTMLInputElement, "beta{Enter}");
+
+    await utilisateur.click(
+      screen.getAllByRole("button", { name: "Retirer le filtre sur Nom" })[0] as HTMLElement,
+    );
+    expect(champs()).toHaveLength(1);
+    expect((champs()[0] as HTMLInputElement).value).toBe("beta");
+
+    const avant = localStorage.getItem(CLE_DES_REGLAGES);
+    await utilisateur.click(champs()[0] as HTMLInputElement);
+    await utilisateur.tab();
+    expect((champs()[0] as HTMLInputElement).value).toBe("beta");
+    expect(localStorage.getItem(CLE_DES_REGLAGES)).toBe(avant);
+  });
+});
+
 describe("valeurs refusées et limites (F-019-AC24, AC25)", () => {
   it("F-019-AC24 un nombre mal formé est refusé avec le message de la cellule, la définition reste inchangée", async () => {
     const { utilisateur } = rendreLaTable(remplirSixLignes);

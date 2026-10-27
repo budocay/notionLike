@@ -10,6 +10,7 @@ import {
   type Filtre,
   OPERATEURS_PAR_TYPE,
 } from "../../src/vues-de-table/definition.ts";
+import { etatDuFiltre } from "../../src/vues-de-table/filtres.ts";
 import { aUnElementActif, lignesAffichees } from "../../src/vues-de-table/lignes-affichees.ts";
 import { lire } from "../aides-disque.ts";
 import {
@@ -50,6 +51,20 @@ describe("filtres sur un texte (F-019-AC4)", () => {
     expect(filtrerLeTexte("non-vide")).toEqual(["l0", "l1", "l2", "l5", "l6"]);
     expect(filtrerLeTexte("contient", "z")).toEqual(["l2"]);
     expect(filtrerLeTexte("est", "")).toEqual(ids(TEXTES.lignes));
+  });
+});
+
+describe("valeur lue du stockage (F-019-AC24)", () => {
+  it("F-019-AC24 une valeur vide sur une colonne de sélection laisse le filtre inactif, sans mention", () => {
+    const t = table([colonne("s", "selection", ["a"])], [["a"]]);
+    expect(etatDuFiltre(t, { colonne: "s", operateur: "est", valeur: "" })).toEqual({
+      actif: false,
+      mention: undefined,
+    });
+    expect(etatDuFiltre(t, { colonne: "s", operateur: "est", valeur: "z" })).toEqual({
+      actif: false,
+      mention: "option-supprimee",
+    });
   });
 });
 

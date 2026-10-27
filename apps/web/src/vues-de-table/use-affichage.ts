@@ -115,6 +115,7 @@ function facadeSurveillee(
       setGele((avant) => (avant === undefined ? avant : [...avant, creee]));
       return creee;
     },
+    // Sans `ecrire` : AC17 ne vise que la cellule écrite et la ligne créée, pas le déplacement.
     deplacerLigne: (ligne, position) => {
       const voisine = identifiantALaPosition(dernier.current.lecture, position);
       table.deplacerLigne(ligne, position);

@@ -22,8 +22,9 @@ export function lignesAffichees(
     return table.lignes;
   }
   const retenues = table.lignes
-    .map((ligne, ordre) => ranger(ligne, ordre, tris))
-    .filter(({ ligne }) => satisfaitLesFiltres(ligne, filtres));
+    .map((ligne, ordre) => ({ ligne, ordre }))
+    .filter(({ ligne }) => satisfaitLesFiltres(ligne, filtres))
+    .map(({ ligne, ordre }) => ranger(ligne, ordre, tris));
   if (tris.length > 0) {
     retenues.sort(comparerLesLignes(tris));
   }

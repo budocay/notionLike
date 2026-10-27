@@ -23,17 +23,21 @@ export type EtatDuFiltre =
   | { readonly actif: true; readonly colonne: ColonneLue; readonly rang: number }
   | { readonly actif: false; readonly mention: MentionDInactif | undefined };
 
+function estUnTexteSaisi(valeur: ValeurDeFiltre | undefined): valeur is string {
+  return typeof valeur === "string" && valeur !== "";
+}
+
 /** Vrai si la valeur est de la forme que l'opérateur attend pour ce type de colonne (AC24). */
 export function valeurConformeAuType(colonne: ColonneLue, valeur: ValeurDeFiltre | undefined) {
   switch (colonne.type) {
     case "texte":
-      return typeof valeur === "string" && valeur !== "" && valeur.length <= LIMITE_DE_VALEUR;
+      return estUnTexteSaisi(valeur) && valeur.length <= LIMITE_DE_VALEUR;
     case "nombre":
       return typeof valeur === "number" && Number.isFinite(valeur);
     case "date":
       return typeof valeur === "string" && estUneDateDuCalendrier(valeur);
     case "selection":
-      return typeof valeur === "string";
+      return estUnTexteSaisi(valeur);
     case "case":
       return false;
   }
