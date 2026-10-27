@@ -317,7 +317,13 @@ describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {
       version: 1,
       sections: { tableau, vue: { active: "calendrier" } },
     });
+    // Une vue hors de la liste est refusée : rien ne change ; revenir à « Tableau » retire la section « vue ».
     act(() => result.current.choisirLaVue("kanban"));
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: { tableau, vue: { active: "calendrier" } },
+    });
+    act(() => result.current.choisirLaVue("tableau"));
     expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
   });
 });
