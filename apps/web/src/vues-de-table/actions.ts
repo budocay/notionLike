@@ -13,7 +13,8 @@ import type {
 
 import { estCochee } from "./affichage.ts";
 import type { Courante } from "./courante.ts";
-import { ecrire } from "./ecritures.ts";
+import { ecrire, type Surveillance } from "./ecritures.ts";
+import { positionDeDeplacement } from "./positions.ts";
 import {
   colonneDeplacee,
   DEJA_LA_DERNIERE_COLONNE,
@@ -23,6 +24,7 @@ import {
   LONGUEUR_MAX_NOM_DE_COLONNE,
   ligneDeplacee,
   NOM_TROP_LONG,
+  TRI_ACTIF,
 } from "./textes.ts";
 import { ecrireLaValeur, valeurDe } from "./valider.ts";
 
@@ -32,6 +34,10 @@ export interface Moyens {
   readonly lue: TableLue;
   readonly lignes: readonly LigneLue[];
   readonly lectureSeule: string | undefined;
+  /** Un tri a un effet : « Monter » et « Descendre » sont indisponibles (F-019-AC19). */
+  readonly triActif: boolean;
+  /** L'affichage figé est prévenu des écritures de l'onglet (F-019-AC17). */
+  readonly surveillance: Surveillance;
   readonly allerVers: (vers: Courante) => void;
   readonly annoncer: (texte: string) => void;
   readonly signaler: (message: string | undefined) => void;
@@ -109,15 +115,20 @@ export function ajouterUneLigne(moyens: Moyens): void {
   if (moyens.lectureSeule !== undefined || premiere === undefined) {
     return;
   }
-  const issue = ecrire(() => moyens.table.creerLigne());
+  const issue = ecrire(() => moyens.table.creerLigne(), moyens.surveillance);
   moyens.signaler(issue.reussie ? undefined : issue.message);
   if (issue.reussie) {
+    moyens.surveillance.creee(issue.valeur);
     const rang = moyens.lignes.length + 1;
     moyens.allerVers({ ligne: issue.valeur, colonne: premiere.id, place: { rang, colonne: 1 } });
   }
 }
 
-/** Déplace la ligne d'une place parmi les lignes affichées ; la cellule courante la suit (AC24). */
+/**
+ * Déplace la ligne d'une place parmi les lignes affichées ; la cellule courante la suit (AC24). Sous
+ * un tri, rien n'est écrit (F-019-AC19) ; sous des filtres seuls, la ligne passe avant la précédente
+ * affichée ou après la suivante dans l'ordre manuel, par une seule opération.
+ */
 export function deplacerUneLigne(
   moyens: Moyens,
   ligne: IdLigne,
@@ -130,14 +141,20 @@ export function deplacerUneLigne(
   if (moyens.lectureSeule !== undefined || rang < 0) {
     return;
   }
-  if (voisine === undefined) {
+  if (moyens.triActif) {
+    moyens.annoncer(TRI_ACTIF);
+    return;
+  }
+  const position = positionDeDeplacement(moyens.lue.lignes, lignes, ligne, sens);
+  if (voisine === undefined || position === undefined) {
     moyens.annoncer(sens < 0 ? DEJA_LA_PREMIERE_LIGNE : DEJA_LA_DERNIERE_LIGNE);
     return;
   }
-  const position = moyens.lue.lignes.findIndex(({ id }) => id === voisine.id);
   const issue = ecrire(() => moyens.table.deplacerLigne(ligne, position));
   moyens.signaler(issue.reussie ? undefined : issue.message);
   if (issue.reussie) {
+    // Sous un affichage figé, la ligne prend la place de la voisine affichée (F-019-AC19).
+    moyens.surveillance.deplacee(ligne, voisine.id);
     const place = { ...courante.place, rang: rang + sens + 1 };
     moyens.allerVers({ ...courante, ligne, place });
     moyens.annoncer(ligneDeplacee(rang + sens + 1, lignes.length));
@@ -174,7 +191,12 @@ export function basculerUneCase(moyens: Moyens, ligne: LigneLue, rangDeColonne: 
   }
   const avant = valeurDe(ligne, rangDeColonne);
   moyens.signaler(
-    ecrireLaValeur(moyens.table, { ligne: ligne.id, colonne, avant }, !estCochee(avant)),
+    ecrireLaValeur(
+      moyens.table,
+      { ligne: ligne.id, colonne, avant },
+      !estCochee(avant),
+      moyens.surveillance,
+    ),
   );
 }
 
@@ -185,5 +207,7 @@ export function viderUneCellule(moyens: Moyens, ligne: LigneLue, rangDeColonne: 
     return;
   }
   const avant = valeurDe(ligne, rangDeColonne);
-  moyens.signaler(ecrireLaValeur(moyens.table, { ligne: ligne.id, colonne, avant }, null));
+  moyens.signaler(
+    ecrireLaValeur(moyens.table, { ligne: ligne.id, colonne, avant }, null, moyens.surveillance),
+  );
 }

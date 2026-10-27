@@ -12,15 +12,18 @@ import {
   SurfaceFlottante,
 } from "../interface/composants/Table.tsx";
 import { ajouterUneLigne } from "./actions.ts";
+import { BarresDeDefinition } from "./BarresDeDefinition.tsx";
 import { BoiteOuverte } from "./Boites.tsx";
 import { ChoixDeCellule } from "./ChoixDeCellule.tsx";
 import { surToucheDeLaGrille } from "./clavier.ts";
 import { RangeeDesEnTetes } from "./EnTetes.tsx";
-import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, LARGEUR_DES_ACTIONS } from "./grille.ts";
+import { HAUTEUR_DE_RANGEE, hauteurDeLaZone, largeurDesActions } from "./grille.ts";
+import { filtresSansResultat } from "./lignes-affichees.ts";
 import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
 import {
   AJOUTER_UNE_COLONNE,
+  AUCUNE_LIGNE_CORRESPONDANTE,
   INVITATION_SANS_COLONNE,
   nomActionsDeLaColonne,
   nomActionsDeLaLigne,
@@ -77,7 +80,8 @@ function MenuOuvert({ vue }: { readonly vue: Vue }): ReactElement | null {
 function GrilleDeLaTable({ vue }: { readonly vue: Vue }): ReactElement {
   const { lignes, titre, largeurDe } = vue.proprietes;
   const largeur =
-    LARGEUR_DES_ACTIONS + vue.colonnes.reduce((somme, { id }) => somme + largeurDe(id), 0);
+    largeurDesActions(vue.definition.horsFiltre.size > 0) +
+    vue.colonnes.reduce((somme, { id }) => somme + largeurDe(id), 0);
   return (
     <Grille
       nom={nomDeLaGrille(titre)}
@@ -131,11 +135,22 @@ function Outils({ vue }: { readonly vue: Vue }): ReactElement | undefined {
   );
 }
 
+// L'affichage figé garde, lui, les lignes qu'il portait (AC17) : l'état vide n'y est pas dit.
+function etatVide(vue: Vue): boolean {
+  const { definition, total, fige } = vue.definition;
+  return !fige && filtresSansResultat(vue.proprietes.lignes.length, total, definition);
+}
+
 export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
   const vue = useVueTableau(proprietes);
   return (
     <EcranDeTableCadre
       outils={<Outils vue={vue} />}
+      barres={
+        vue.colonnes.length === 0 || proprietes.definition === undefined ? undefined : (
+          <BarresDeDefinition vue={vue} />
+        )
+      }
       annonce={vue.annonce}
       alerte={vue.alerte}
       idAlerte={vue.idAlerte}
@@ -150,7 +165,10 @@ export function VueTableau(proprietes: ProprietesVueTableau): ReactElement {
           />
         </InvitationDeTable>
       ) : (
-        <GrilleDeLaTable vue={vue} />
+        <>
+          <GrilleDeLaTable vue={vue} />
+          {etatVide(vue) && <InvitationDeTable texte={AUCUNE_LIGNE_CORRESPONDANTE} />}
+        </>
       )}
       <BoiteOuverte vue={vue} />
     </EcranDeTableCadre>

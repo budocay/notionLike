@@ -5,8 +5,22 @@
 // section, en gardant les clés que cette version ne connaît pas (H4).
 import type { IdColonne } from "@notionlike/document";
 
+import {
+  DEFINITION_VIDE,
+  type Definition,
+  type Filtre,
+  LIMITE_DE_FILTRES,
+  LIMITE_DE_TRIS,
+  LIMITE_DE_VALEUR,
+  type OperateurDeFiltre,
+  TOUS_LES_OPERATEURS,
+  type Tri,
+} from "./definition.ts";
+
 export const SECTION_VUE = "vue";
 export const SECTION_TABLEAU = "tableau";
+/** Filtres et tris de la table (F-019-AC20) : une définition pour toutes les vues, sur l'appareil. */
+export const SECTION_FILTRES_TRIS = "filtres-tris";
 
 export const LARGEUR_PAR_DEFAUT = 180;
 export const LARGEUR_MIN = 60;
@@ -114,4 +128,87 @@ export function sectionDuTableau(
     "largeurs",
     gardees.length === 0 ? undefined : Object.fromEntries(gardees),
   );
+}
+
+// ── Filtres et tris (F-019-AC20, AC25) ───────────────────────────────────────────────────────────
+
+function filtreLu(brut: unknown): Filtre | undefined {
+  if (!estUnObjet(brut)) {
+    return undefined;
+  }
+  const { colonne, operateur, valeur } = brut;
+  const valeurAdmise =
+    valeur === undefined ||
+    (typeof valeur === "string" && valeur.length <= LIMITE_DE_VALEUR) ||
+    (typeof valeur === "number" && Number.isFinite(valeur));
+  if (
+    typeof colonne !== "string" ||
+    typeof operateur !== "string" ||
+    !TOUS_LES_OPERATEURS.has(operateur) ||
+    !valeurAdmise
+  ) {
+    return undefined;
+  }
+  return { colonne, operateur: operateur as OperateurDeFiltre, valeur };
+}
+
+function triLu(brut: unknown): Tri | undefined {
+  if (!estUnObjet(brut)) {
+    return undefined;
+  }
+  const { colonne, sens } = brut;
+  return typeof colonne === "string" && (sens === "croissant" || sens === "decroissant")
+    ? { colonne, sens }
+    : undefined;
+}
+
+/** Les éléments d'une liste enregistrée, ou `undefined` si la liste est mal formée ou trop longue. */
+function listeLue<T>(
+  brut: unknown,
+  limite: number,
+  lire: (element: unknown) => T | undefined,
+): T[] | undefined {
+  if (brut === undefined) {
+    return [];
+  }
+  if (!Array.isArray(brut) || brut.length > limite) {
+    return undefined;
+  }
+  const lus = (brut as unknown[]).map(lire);
+  return lus.every((element) => element !== undefined) ? (lus as T[]) : undefined;
+}
+
+/**
+ * La définition d'une section `filtres-tris` lue ; une section mal formée, ou qui dépasse les
+ * limites (20 filtres, 5 tris, 2 000 caractères de valeur, une colonne triée deux fois), est lue
+ * vide, sans exception (AC20, AC25). Les clés que cette version ne connaît pas sont ignorées.
+ */
+export function definitionLue(section: unknown): Definition {
+  if (!estUnObjet(section)) {
+    return DEFINITION_VIDE;
+  }
+  const filtres = listeLue(section.filtres, LIMITE_DE_FILTRES, filtreLu);
+  const tris = listeLue(section.tris, LIMITE_DE_TRIS, triLu);
+  const sansDoublon =
+    tris !== undefined && new Set(tris.map(({ colonne }) => colonne)).size === tris.length;
+  return filtres === undefined || tris === undefined || !sansDoublon
+    ? DEFINITION_VIDE
+    : { filtres, tris };
+}
+
+/**
+ * La section `filtres-tris` à écrire : les deux listes, chacune retirée quand elle est vide, les
+ * clés inconnues gardées ; `undefined` (section retirée) quand il ne reste rien (AC20, AC22).
+ */
+export function sectionDesFiltresEtTris(definition: Definition, sectionLue: unknown): unknown {
+  const filtres = definition.filtres.map(({ colonne, operateur, valeur }) =>
+    valeur === undefined ? { colonne, operateur } : { colonne, operateur, valeur },
+  );
+  const tris = definition.tris.map(({ colonne, sens }) => ({ colonne, sens }));
+  const sansFiltres = remplacerDansLaSection(
+    sectionLue,
+    "filtres",
+    filtres.length === 0 ? undefined : filtres,
+  );
+  return remplacerDansLaSection(sansFiltres, "tris", tris.length === 0 ? undefined : tris);
 }

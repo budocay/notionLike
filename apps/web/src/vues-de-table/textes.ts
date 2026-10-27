@@ -2,6 +2,14 @@
 // refus typés du document passent par le traducteur de l'interface (`messageErreur`, AC37). Toute
 // valeur saisie y est rendue comme du texte par React (AC38).
 
+import {
+  LIMITE_DE_FILTRES,
+  LIMITE_DE_TRIS,
+  LIMITE_DE_VALEUR,
+  type OperateurDeFiltre,
+  type SensDeTri,
+} from "./definition.ts";
+
 /** Limites de `@notionlike/document`, qui ne les exporte pas : tenues par un test de couture. */
 export const LONGUEUR_MAX_NOM_DE_COLONNE = 200;
 export const LONGUEUR_MAX_LIBELLE = 100;
@@ -157,3 +165,96 @@ export const TEXTE_TROP_LONG = `Le texte d'une cellule compte au plus ${String(L
 export const NOMBRE_INVALIDE = "Saisissez un nombre, par exemple 12 ou 3,5.";
 export const DATE_INVALIDE = "Saisissez une date valide.";
 export const CELLULE_SUPPRIMEE = "La cellule que vous modifiiez a été supprimée.";
+
+// ── Filtres et tris (F-019) ──────────────────────────────────────────────────────────────────────
+export const FILTRES = "Filtres";
+export const TRIS = "Tris";
+export const AJOUTER_UN_FILTRE = "Ajouter un filtre";
+export const AJOUTER_UN_TRI = "Ajouter un tri";
+export const TOUT_EFFACER = "Tout effacer";
+export const AUCUNE_LIGNE_CORRESPONDANTE = "Aucune ligne ne correspond aux filtres.";
+export const REAPPLIQUER = "Réappliquer les filtres et les tris";
+export const AFFICHAGE_FIGE =
+  "Les lignes affichées ne sont plus recalculées. Activez « Réappliquer les filtres et les tris » pour les recalculer.";
+export const HORS_FILTRE = "Hors filtre";
+export const TRI_ACTIF = "Tri actif";
+export const COLONNE_SUPPRIMEE = "Colonne supprimée";
+export const OPTION_SUPPRIMEE = "Option supprimée";
+export const COLONNE_INTROUVABLE = "Colonne introuvable";
+export const OPTION_INTROUVABLE = "Option introuvable";
+export const CHOISIR_UNE_OPTION = "Choisir une option";
+export const RETIRER_UN_ELEMENT = "Retirer";
+export const MONTER_UN_TRI = "Monter";
+export const DESCENDRE_UN_TRI = "Descendre";
+export const LISTE_DES_FILTRES = "Liste des filtres";
+export const LISTE_DES_TRIS = "Liste des tris";
+export const TOUTES_LES_COLONNES_SONT_TRIEES = "Toutes les colonnes ont déjà un tri.";
+export const TROP_DE_FILTRES = `Une table compte au plus ${String(LIMITE_DE_FILTRES)} filtres.`;
+export const TROP_DE_TRIS = `Une table compte au plus ${String(LIMITE_DE_TRIS)} tris.`;
+export const VALEUR_DE_FILTRE_TROP_LONGUE = `La valeur d'un filtre compte au plus ${String(LIMITE_DE_VALEUR)} caractères.`;
+
+export function nombreDeFiltres(nombre: number): string {
+  return nombre === 0 ? "Aucun filtre" : `${String(nombre)} filtre${nombre > 1 ? "s" : ""}`;
+}
+export function nombreDeTris(nombre: number): string {
+  return nombre === 0 ? "Aucun tri" : `${String(nombre)} tri${nombre > 1 ? "s" : ""}`;
+}
+export function lignesSurTotal(affichees: number, total: number): string {
+  return `${String(affichees)} ligne${affichees > 1 ? "s" : ""} sur ${String(total)}`;
+}
+
+export const LIBELLES_DES_OPERATEURS: Readonly<Record<OperateurDeFiltre, string>> = {
+  contient: "contient",
+  "ne-contient-pas": "ne contient pas",
+  est: "est",
+  "est-vide": "est vide",
+  "non-vide": "n'est pas vide",
+  egal: "=",
+  different: "≠",
+  inferieur: "<",
+  "inferieur-egal": "≤",
+  superieur: ">",
+  "superieur-egal": "≥",
+  cochee: "est cochée",
+  "non-cochee": "n'est pas cochée",
+  avant: "avant",
+  apres: "après",
+  "n-est-pas": "n'est pas",
+};
+
+export const LIBELLES_DES_SENS: Readonly<Record<SensDeTri, string>> = {
+  croissant: "Croissant",
+  decroissant: "Décroissant",
+};
+
+/** La colonne visée par un élément, ou « la colonne supprimée » quand la table ne la porte plus. */
+function colonneCitee(nom: string | undefined): string {
+  return nom === undefined ? "la colonne supprimée" : nomAffiche(nom);
+}
+export function nomDeLaColonneDuFiltre(nom: string | undefined): string {
+  return `Colonne du filtre sur ${colonneCitee(nom)}`;
+}
+export function nomDeLOperateur(nom: string | undefined): string {
+  return `Opérateur du filtre sur ${colonneCitee(nom)}`;
+}
+export function nomDeLaValeurDuFiltre(nom: string | undefined): string {
+  return `Valeur du filtre sur ${colonneCitee(nom)}`;
+}
+export function retirerLeFiltre(nom: string | undefined): string {
+  return `Retirer le filtre sur ${colonneCitee(nom)}`;
+}
+export function nomDeLaColonneDuTri(nom: string | undefined): string {
+  return `Colonne du tri sur ${colonneCitee(nom)}`;
+}
+export function nomDuSensDuTri(nom: string | undefined): string {
+  return `Sens du tri sur ${colonneCitee(nom)}`;
+}
+export function monterLeTri(nom: string | undefined): string {
+  return `Monter le tri sur ${colonneCitee(nom)}`;
+}
+export function descendreLeTri(nom: string | undefined): string {
+  return `Descendre le tri sur ${colonneCitee(nom)}`;
+}
+export function retirerLeTri(nom: string | undefined): string {
+  return `Retirer le tri sur ${colonneCitee(nom)}`;
+}

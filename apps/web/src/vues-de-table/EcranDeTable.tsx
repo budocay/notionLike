@@ -8,13 +8,15 @@ import { NoteDePage } from "../interface/composants/Edition.tsx";
 import { Chargement } from "../interface/composants/Etats.tsx";
 import { SelecteurDeVues } from "../interface/composants/Table.tsx";
 import type { EtatSessionTable } from "../table/session-table.ts";
-import { lignesAffichees } from "./lignes-affichees.ts";
+import { nombreDeLignes } from "./lignes-affichees.ts";
 import {
   CHARGEMENT_DE_LA_TABLE,
   SELECTEUR_DE_VUES,
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { compilerLesTris, triDeLaColonne } from "./tris.ts";
+import { useAffichage } from "./use-affichage.ts";
 import { useReglages } from "./use-reglages.ts";
 import { avecSelecteur, VUES } from "./vues.ts";
 import { VueTableau } from "./VueTableau.tsx";
@@ -43,15 +45,29 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   const { table } = props;
   const lue = useSyncExternalStore(table.abonner, () => lectureDe(table));
   const reglages = useReglages(props, lue?.colonnes.map(({ id }) => id) ?? []);
+  const { definition } = reglages;
+  const affichage = useAffichage(lue, definition, reglages.vueActive);
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
+  const tris = compilerLesTris(lue, definition.tris);
   // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
   return (
     <VueTableau
       table={table}
       lue={lue}
-      lignes={lignesAffichees(lue)}
+      lignes={affichage.lignes}
+      definition={{
+        definition,
+        changer: reglages.changerLaDefinition,
+        total: nombreDeLignes(lue),
+        fige: affichage.fige,
+        reappliquer: affichage.reappliquer,
+        horsFiltre: affichage.horsFiltre,
+        triActif: tris.length > 0,
+        triDe: (colonne) => triDeLaColonne(tris, colonne),
+        surveillance: affichage.surveillance,
+      }}
       titre={props.titre}
       lectureSeule={props.lectureSeule}
       largeurDe={reglages.largeurDe}
