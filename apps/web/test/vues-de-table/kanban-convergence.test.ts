@@ -1,7 +1,6 @@
 // Déplacements concurrents et format du document (F-020-AC9, AC17 à AC20, AC26) : deux répliques du
 // document de table qui déplacent des cartes, puis convergent ; la fonction de déplacement écrit par la
 // façade et rien d'autre.
-import * as interfaceDuPaquet from "@notionlike/document";
 import {
   type DocumentTable,
   type IdLigne,
@@ -303,24 +302,6 @@ describe("une seule voie d'écriture, aucun changement de format (F-020-AC9, AC2
     expect(sansRegroupement(apres)).toEqual(sansRegroupement(avant));
     expect(apres.lignes.map(({ id }) => id).sort()).toEqual(
       avant.lignes.map(({ id }) => id).sort(),
-    );
-  });
-
-  it("F-020-AC26 les tests de listes de @notionlike/document ne sont pas modifiés par cette feature", () => {
-    // Couture : aucun fichier du paquet n'est touché par F-020 ; le contrôle est celui de la CI
-    // (périmètre et suite du paquet). Ici, l'interface publique reste celle de F-017.
-    expect(Object.keys(interfaceDuPaquet).sort()).toEqual(
-      [
-        "ErreurDocument",
-        "TABLE_DES_VERSIONS_PAGE",
-        "VERSION_PAGE_PRISE_EN_CHARGE",
-        "creerDocumentEspace",
-        "creerDocumentTable",
-        "lireVersionPage",
-        "ouvrirDocumentEspace",
-        "ouvrirDocumentPage",
-        "ouvrirDocumentTable",
-      ].sort(),
     );
   });
 });

@@ -61,6 +61,9 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "lit l'état de la persistance d'une table, s'y abonne, lui soumet l'état relu, la ferme sur un refus",
   // F-018-AC40 : lit et écrit les réglages de vue, sans persistance de document.
   "src/vues-de-table/use-reglages.ts": "lit et écrit les réglages de vue de la table affichée",
+  // F-020-AC4 : lit et écrit la section `kanban` des réglages de vue, sans persistance de document.
+  "src/vues-de-table/kanban/use-regroupement.ts":
+    "lit et écrit la colonne de regroupement du kanban",
 };
 const AIDES_DE_TEST = [
   // F-028 : documents de chaque ligne de la table des versions, enregistrés puis relus (AC24, AC28).
@@ -284,6 +287,7 @@ describe("appelants de l'interface de persistance", () => {
         "soumettreLEtatRelu",
       ],
       "src/vues-de-table/use-reglages.ts": [],
+      "src/vues-de-table/kanban/use-regroupement.ts": [],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([
