@@ -61,6 +61,9 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "lit l'état de la persistance d'une table, s'y abonne, lui soumet l'état relu, la ferme sur un refus",
   // F-018-AC40 : lit et écrit les réglages de vue, sans persistance de document.
   "src/vues-de-table/use-reglages.ts": "lit et écrit les réglages de vue de la table affichée",
+  // F-032-AC19 : la mémoire de l'appareil, sans persistance de document.
+  "src/espace/appareil.ts":
+    "lit et écrit ce que la base de l'appareil retient des espaces (registre, noms, marque, retenu)",
 };
 const AIDES_DE_TEST = [
   // F-028 : documents de chaque ligne de la table des versions, enregistrés puis relus (AC24, AC28).
@@ -102,6 +105,12 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/synchronisation/passe.test.ts",
   // F-018-AC51, AC53 : bases de table écrites et relues contre le serveur réel.
   "test/synchronisation/tables.test.ts",
+  // F-032 : mémoire de l'appareil, bases d'un espace, réparation restreinte par le registre.
+  "test/appareil-bases.test.ts",
+  "test/appareil-memoire.test.ts",
+  "test/appareil-reparation.test.ts",
+  // F-032-AC20 : bases d'un espace posées puis retirées de l'appareil.
+  "test/synchronisation/retrait.test.ts",
 ];
 
 // Les fichiers qui importent la session, dont l'état publié a changé (`enregistre`, `baseRelue`,
@@ -113,6 +122,9 @@ const LECTEURS_DE_L_ETAT_DE_LA_SESSION: Readonly<Record<string, string>> = {
   "src/interface/etat-d-enregistrement.ts":
     "n'affirme l'enregistrement que si la page ouverte l'est aussi (F-003-AC18)",
   "src/main.tsx": "démarre la session",
+  // F-032-AC17 : le pilote de l'onglet lit la phase pour n'inscrire l'espace retenu qu'une fois la
+  // session de l'espace choisi prête.
+  "src/espace/espace-ouvert.ts": "tient la session de l'espace ouvert, la ferme au changement",
 };
 const LECTEURS_DE_L_ETAT_DE_LA_SESSION_DANS_LES_TESTS: readonly string[] = [
   "test/aides-coquille.tsx",
@@ -284,6 +296,8 @@ describe("appelants de l'interface de persistance", () => {
         "soumettreLEtatRelu",
       ],
       "src/vues-de-table/use-reglages.ts": [],
+      // F-032 : aucune persistance de document, seulement la base de l'appareil.
+      "src/espace/appareil.ts": [],
     });
     expect(membresAppeles("persistance.fermer(); persistance.inconnu();")).toEqual(["fermer"]);
     expect(membresAppeles("this.#persistance.abonner(x); persistance.lireEtat()")).toEqual([

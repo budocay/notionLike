@@ -20,6 +20,8 @@ interface Proprietes {
   readonly pages: number;
   readonly fermer: () => void;
   readonly effacer: () => Promise<IssueDeLEffacement>;
+  /** Fait relire les autres onglets avant le rechargement (F-032-AC21, AC22). */
+  readonly prevenir?: (() => void) | undefined;
 }
 
 type Etape = "confirmation" | "en-cours" | "incomplet";
@@ -28,7 +30,8 @@ function recharger(): void {
   window.location.reload();
 }
 
-export function EffacementDeLaCopie({ pages, fermer, effacer }: Proprietes): ReactElement {
+export function EffacementDeLaCopie(props: Proprietes): ReactElement {
+  const { pages, fermer, effacer, prevenir } = props;
   const annuler = useRef<HTMLButtonElement>(null);
   const [etape, setEtape] = useState<Etape>("confirmation");
   const confirmer = async (): Promise<void> => {
@@ -37,6 +40,8 @@ export function EffacementDeLaCopie({ pages, fermer, effacer }: Proprietes): Rea
     }
     setEtape("en-cours");
     const issue = await effacer();
+    // Effacée ou non, ce que l'appareil retient a pu changer : les autres onglets le relisent.
+    prevenir?.();
     if (issue === "effacee") {
       recharger();
     } else {

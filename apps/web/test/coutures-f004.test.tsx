@@ -451,6 +451,8 @@ describe("couture : enveloppes à la hauteur de la fenêtre", () => {
         // F-013-AC24 : la copie locale est effacée dans un autre onglet.
         "EcranPlein fenetre",
       ],
+      // F-032-AC17 : l'espace de l'onglet attend la lecture de la base de l'appareil par le pilote.
+      "src/interface/EspaceDeLOnglet.tsx": ["EcranPlein fenetre"],
     });
     expect(fautesDEnveloppes(sources)).toEqual([]);
 
