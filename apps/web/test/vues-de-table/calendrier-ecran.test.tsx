@@ -110,8 +110,8 @@ describe("navigation entre les mois (F-021-AC2, AC3)", () => {
     vi.setSystemTime(instant);
     rendreLeCalendrier();
     expect(screen.getByRole("heading", { name: "janvier 1" })).toBeDefined();
-    expect((bouton("Mois précédent") as HTMLButtonElement).disabled).toBe(true);
-    expect((bouton("Mois suivant") as HTMLButtonElement).disabled).toBe(false);
+    expect(bouton("Mois précédent").getAttribute("aria-disabled")).toBe("true");
+    expect(bouton("Mois suivant").hasAttribute("aria-disabled")).toBe(false);
     const jours = cases().map((une) => une.getAttribute("data-jour"));
     expect(jours[0]).toBe("0001-01-01");
     expect(jours).toHaveLength(35);
@@ -123,9 +123,38 @@ describe("navigation entre les mois (F-021-AC2, AC3)", () => {
     vi.setSystemTime(instant);
     rendreLeCalendrier();
     expect(screen.getByRole("heading", { name: "décembre 9999" })).toBeDefined();
-    expect((bouton("Mois suivant") as HTMLButtonElement).disabled).toBe(true);
-    expect((bouton("Mois précédent") as HTMLButtonElement).disabled).toBe(false);
+    expect(bouton("Mois suivant").getAttribute("aria-disabled")).toBe("true");
+    expect(bouton("Mois précédent").hasAttribute("aria-disabled")).toBe(false);
     expect(cases().at(-1)?.getAttribute("data-jour")).toBe("9999-12-31");
+  });
+
+  it("F-021-AC2 F-021-AC3 atteindre le mois limite par la commande garde le focus sur elle : indisponible par aria-disabled, sans disabled natif, et sans effet", async () => {
+    const instant = new Date(2000, 0, 1);
+    instant.setFullYear(1, 1, 15);
+    vi.setSystemTime(instant);
+    const { utilisateur } = rendreLeCalendrier();
+    expect(screen.getByRole("heading", { name: "février 1" })).toBeDefined();
+    await utilisateur.click(bouton("Mois précédent"));
+    expect(screen.getByRole("heading", { name: "janvier 1" })).toBeDefined();
+    expect(focus()).toBe(bouton("Mois précédent"));
+    expect(document.activeElement).not.toBe(document.body);
+    expect((bouton("Mois précédent") as HTMLButtonElement).disabled).toBe(false);
+    expect(bouton("Mois précédent").getAttribute("aria-disabled")).toBe("true");
+    expect(bouton("Mois précédent").getAttribute("aria-describedby")).not.toBeNull();
+    await utilisateur.click(bouton("Mois précédent"));
+    expect(screen.getByRole("heading", { name: "janvier 1" })).toBeDefined();
+    expect(focus()).toBe(bouton("Mois précédent"));
+  });
+
+  it("F-021-AC2 F-021-AC3 depuis novembre 9999, « Mois suivant » garde le focus à la borne de décembre 9999", async () => {
+    const instant = new Date(2000, 0, 1);
+    instant.setFullYear(9999, 10, 15);
+    vi.setSystemTime(instant);
+    const { utilisateur } = rendreLeCalendrier();
+    await utilisateur.click(bouton("Mois suivant"));
+    expect(screen.getByRole("heading", { name: "décembre 9999" })).toBeDefined();
+    expect(focus()).toBe(bouton("Mois suivant"));
+    expect(bouton("Mois suivant").getAttribute("aria-disabled")).toBe("true");
   });
 });
 
@@ -309,15 +338,27 @@ describe("panneau « Sans date » (F-021-AC8)", () => {
     expect(table.lire().lignes[0]?.cellules[1]).toBe("2026-10-20");
   });
 
-  it("F-021-AC8 un jour hors des bornes ou vide est refusé par la boîte, en français, et la ligne reste sans date", async () => {
-    const { utilisateur, table, emises } = rendreLeCalendrier([{ titre: "Sans jour", date: null }]);
-    await utilisateur.click(bouton("Définir la date : Sans jour"));
-    const boite = screen.getByRole("dialog");
-    await utilisateur.click(within(boite).getByRole("button", { name: "Valider" }));
-    expect(within(boite).getByRole("alert").textContent).not.toBe("");
-    expect(table.lire().lignes[0]?.cellules[1]).toBeNull();
-    expect(emises).toHaveLength(0);
-  });
+  it.each([
+    ["vide", ""],
+    ["avant l'an 1", "0000-12-31"],
+    ["après l'an 9999", "10000-01-01"],
+  ])(
+    "F-021-AC8 un jour %s est refusé par la boîte, en français : aucune mise à jour du document, et la ligne reste dans « Sans date »",
+    async (_cas, saisie) => {
+      const { utilisateur, table, emises } = rendreLeCalendrier([
+        { titre: "Sans jour", date: null },
+      ]);
+      await utilisateur.click(bouton("Définir la date : Sans jour"));
+      const boite = screen.getByRole("dialog");
+      fireEvent.change(within(boite).getByLabelText("Date"), { target: { value: saisie } });
+      await utilisateur.click(within(boite).getByRole("button", { name: "Valider" }));
+      expect(within(boite).getByRole("alert").textContent).toContain("Saisissez une date valide.");
+      expect(table.lire().lignes[0]?.cellules[1]).toBeNull();
+      expect(emises).toHaveLength(0);
+      expect(lignesDuPanneau()).toHaveLength(1);
+      expect(screen.getByRole("heading", { name: "Sans date (1)" })).toBeDefined();
+    },
+  );
 });
 
 describe("cases chargées (F-021-AC9)", () => {

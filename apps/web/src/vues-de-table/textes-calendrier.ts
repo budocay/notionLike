@@ -3,7 +3,7 @@
 // Toute valeur de la table (libellé d'entrée, nom de colonne) est rendue comme du texte (AC27).
 import { decomposer, jourDeLaSemaine, type MoisAffiche } from "./jours.ts";
 
-export const CALENDRIER = "Calendrier";
+export const VUE_CALENDRIER = "Calendrier";
 
 export const NOMS_DES_MOIS = [
   "janvier",
@@ -69,8 +69,6 @@ export const CHANGER_LA_DATE = "Changer la date";
 export const DEFINIR_LA_DATE = "Définir la date";
 export const RETIRER_LA_DATE = "Retirer la date";
 export const HORS_DES_BORNES = "Hors des bornes du calendrier.";
-export const SUPPRIMER_L_ENTREE = "Supprimer la ligne";
-export const ACTIONS_DE_L_ENTREE = "Actions";
 export const ACTIONS_DE_LA_CASE = "Actions de la case";
 export const VALIDER = "Valider";
 export const DATE_DE_LA_LIGNE = "Date";
@@ -124,10 +122,6 @@ export function nomDesAutres(nombre: number, jour: string): string {
   return `${autresEntrees(nombre)} le ${jourEnToutesLettres(jour)}`;
 }
 
-export function nomDeLEntree(libelle: string): string {
-  return libelle;
-}
-
 export function commandeSurLEntree(commande: string, libelle: string): string {
   return `${commande} : ${libelle}`;
 }
@@ -162,10 +156,6 @@ export function annonceDeplacee(libelle: string, jour: string): string {
 
 export function annonceSansDate(libelle: string): string {
   return `${libelle}, sans date.`;
-}
-
-export function nomDuChampDeDate(libelle: string): string {
-  return `${DATE_DE_LA_LIGNE} de l'entrée ${libelle}`;
 }
 
 export function titreDeLaBoiteDeDate(libelle: string): string {

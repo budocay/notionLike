@@ -3,7 +3,7 @@
 // dans un panneau à part. Ni bibliothèque de calendrier ni de dates : l'arithmétique des jours est
 // celle de `jours.ts` (F-021-AC15). Le module ne touche au document que par la façade (F-018-AC54).
 import type { LigneLue } from "@notionlike/document";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import { type ReactElement, type RefObject, useEffect, useRef, useState } from "react";
 
 import {
   CadreDuCalendrier,
@@ -27,7 +27,7 @@ import {
   ChampDeFormulaire,
   InvitationDeTable,
 } from "../interface/composants/Table.tsx";
-import { cleAria, TOUCHES_DE_L_ENTREE } from "../interface/raccourcis.ts";
+import { cleAria, TOUCHES_DE_L_ENTREE, TOUCHES_DE_LA_CASE } from "../interface/raccourcis.ts";
 import { BoiteNouvelleColonne, Confirmation } from "./Boites.tsx";
 import { touchesDeBoite } from "./boite.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
@@ -35,7 +35,7 @@ import { jourVise } from "./ecritures-du-calendrier.ts";
 import { MenuOuvert } from "./MenuDuCalendrier.tsx";
 import { PanneauSansDate } from "./PanneauSansDate.tsx";
 import { PAS } from "./pas-du-calendrier.ts";
-import { decomposer } from "./jours.ts";
+import { decomposer, estUnJour } from "./jours.ts";
 import {
   AJOUTER_UNE_COLONNE_DATE,
   AUJOURD_HUI,
@@ -83,12 +83,16 @@ const DATE_MAX = "9999-12-31";
  */
 function raccourcisDeLEntree(vue: Vue, ligne: LigneLue): string {
   const date = vue.modele.dateVisee;
+  const menu = cleAria(TOUCHES_DE_L_ENTREE.menu);
   if (vue.proprietes.lectureSeule !== undefined || date === undefined) {
-    return "";
+    return menu;
   }
-  return PAS.filter(({ pas }) => jourVise(ligne, date, pas) !== undefined)
-    .map(({ touche }) => cleAria(TOUCHES_DE_L_ENTREE[touche]))
-    .join(" ");
+  return [
+    ...PAS.filter(({ pas }) => jourVise(ligne, date, pas) !== undefined).map(({ touche }) =>
+      cleAria(TOUCHES_DE_L_ENTREE[touche]),
+    ),
+    menu,
+  ].join(" ");
 }
 
 // ── Entrées et cases ─────────────────────────────────────────────────────────────────────────────
@@ -109,7 +113,7 @@ function Entree({ vue, ligne }: { readonly vue: Vue; readonly ligne: LigneLue })
     <EntreeDuCalendrier
       ligne={ligne.id}
       nom={libelle}
-      raccourcis={raccourcisDeLEntree(vue, ligne) || undefined}
+      raccourcis={raccourcisDeLEntree(vue, ligne)}
       contenu={
         saisie === undefined ? (
           <LibelleDEntree texte={libelle} />
@@ -154,6 +158,7 @@ function CaseDuMois({ vue, jour }: { readonly vue: Vue; readonly jour: string })
       horsDuMois={horsDuMois}
       aujourdhui={jour === vue.aujourdhui}
       focalisable={jour === vue.jourFocalisable}
+      raccourcis={cleAria(TOUCHES_DE_LA_CASE.menu)}
       commandeDeLigne={
         <CommandeDeCase
           libelle="+"
@@ -186,7 +191,6 @@ function GrilleDuMois({ vue }: { readonly vue: Vue }): ReactElement {
     <GrilleDuCalendrier
       nom={nomDeLaGrilleDuCalendrier(vue.proprietes.titre, vue.navigation.mois)}
       jours={NOMS_DES_JOURS}
-      refGrille={null}
       surTouche={vue.commandes.surTouche}
     >
       {semaines.map((semaine) => (
@@ -202,23 +206,26 @@ function GrilleDuMois({ vue }: { readonly vue: Vue }): ReactElement {
 
 // ── Boîtes ───────────────────────────────────────────────────────────────────────────────────────
 
-function BoiteDeDate({ vue, id }: { readonly vue: Vue; readonly id: string }): ReactElement | null {
-  const ligne = vue.proprietes.lignes.find((une) => une.id === id);
-  const rang = vue.modele.dateVisee?.rang ?? -1;
-  const actuelle = ligne?.cellules[rang];
+/** Le refus de la date saisie : vide, hors des bornes (`0000-12-31`, `10000-01-01`) ou refusée par le document. */
+function refusDeLaDate(vue: Vue, ligne: LigneLue, texte: string): string | undefined {
+  return estUnJour(texte) ? vue.commandes.fixerLaDate(ligne, texte) : DATE_INVALIDE;
+}
+
+function FormulaireDeDate(props: {
+  readonly vue: Vue;
+  readonly ligne: LigneLue;
+  readonly champ: RefObject<HTMLInputElement | null>;
+  readonly fermer: () => void;
+}): ReactElement {
+  const { vue, ligne, champ, fermer } = props;
+  const actuelle = ligne.cellules[vue.modele.dateVisee?.rang ?? -1];
   const [valeur, setValeur] = useState<{ texte: string; faute: string | undefined }>({
     texte: typeof actuelle === "string" ? actuelle : "",
     faute: undefined,
   });
-  const champ = useRef<HTMLInputElement>(null);
-  if (ligne === undefined) {
-    return null;
-  }
-  const libelle = vue.modele.libelleDe(ligne);
-  const fermer = (): void => vue.commandes.fermerLaBoite(id);
+  const nom = titreDeLaBoiteDeDate(vue.modele.libelleDe(ligne));
   const valider = (): void => {
-    const refus =
-      valeur.texte === "" ? DATE_INVALIDE : vue.commandes.fixerLaDate(ligne, valeur.texte);
+    const refus = refusDeLaDate(vue, ligne, valeur.texte);
     if (refus === undefined) {
       vue.commandes.fermerLaBoite();
     } else {
@@ -226,29 +233,41 @@ function BoiteDeDate({ vue, id }: { readonly vue: Vue; readonly id: string }): R
     }
   };
   return (
+    <Formulaire nom={nom} surEnvoi={valider}>
+      <ChampDeFormulaire
+        refChamp={champ}
+        etiquette={DATE_DE_LA_LIGNE}
+        faute={valeur.faute}
+        type="date"
+        min={DATE_MIN}
+        max={DATE_MAX}
+        value={valeur.texte}
+        onChange={(evenement) => setValeur({ texte: evenement.target.value, faute: undefined })}
+      />
+      <Actions>
+        <Bouton type="submit" libelle={VALIDER} />
+        <Bouton libelle={ANNULER} surActivation={fermer} />
+      </Actions>
+    </Formulaire>
+  );
+}
+
+function BoiteDeDate({ vue, id }: { readonly vue: Vue; readonly id: string }): ReactElement | null {
+  const ligne = vue.proprietes.lignes.find((une) => une.id === id);
+  const champ = useRef<HTMLInputElement>(null);
+  if (ligne === undefined) {
+    return null;
+  }
+  const fermer = (): void => vue.commandes.fermerLaBoite(id);
+  return (
     <BoiteDeDialogue
       alerte={false}
-      titre={titreDeLaBoiteDeDate(libelle)}
+      titre={titreDeLaBoiteDeDate(vue.modele.libelleDe(ligne))}
       phrases={[]}
       initial={champ}
       surTouche={touchesDeBoite(fermer)}
     >
-      <Formulaire nom={titreDeLaBoiteDeDate(libelle)} surEnvoi={valider}>
-        <ChampDeFormulaire
-          refChamp={champ}
-          etiquette={DATE_DE_LA_LIGNE}
-          faute={valeur.faute}
-          type="date"
-          min={DATE_MIN}
-          max={DATE_MAX}
-          value={valeur.texte}
-          onChange={(evenement) => setValeur({ texte: evenement.target.value, faute: undefined })}
-        />
-        <Actions>
-          <Bouton type="submit" libelle={VALIDER} />
-          <Bouton libelle={ANNULER} surActivation={fermer} />
-        </Actions>
-      </Formulaire>
+      <FormulaireDeDate vue={vue} ligne={ligne} champ={champ} fermer={fermer} />
     </BoiteDeDialogue>
   );
 }
@@ -261,7 +280,8 @@ function BoiteOuverte({ vue }: { readonly vue: Vue }): ReactElement | null {
     case "nouvelle-colonne":
       return (
         <BoiteNouvelleColonne
-          vue={{ moyens: vue.moyens, fermerBoite: () => commandes.fermerLaBoite() }}
+          ajouter={commandes.ajouterUneColonne}
+          fermer={() => commandes.fermerLaBoite()}
           typeInitial="date"
         />
       );
@@ -302,12 +322,14 @@ function Outils({ vue }: { readonly vue: Vue }): ReactElement {
           <Bouton
             libelle={MOIS_PRECEDENT}
             raison={vue.precedentDisponible ? undefined : LIMITE_DU_CALENDRIER}
+            resterFocalisable
             surActivation={commandes.moisPrecedent}
           />
           <Bouton libelle={AUJOURD_HUI} surActivation={commandes.aujourdhui} />
           <Bouton
             libelle={MOIS_SUIVANT}
             raison={vue.suivantDisponible ? undefined : LIMITE_DU_CALENDRIER}
+            resterFocalisable
             surActivation={commandes.moisSuivant}
           />
           <TitreDuMois texte={titreDuMois(vue.navigation.mois)} />

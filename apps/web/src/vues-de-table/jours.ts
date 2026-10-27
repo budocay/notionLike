@@ -152,14 +152,6 @@ export function decaler(jour: string, nombre: number): string | undefined {
     : ecrireLeJour(jourDuNumero(numero));
 }
 
-export function lendemain(jour: string): string | undefined {
-  return decaler(jour, 1);
-}
-
-export function veille(jour: string): string | undefined {
-  return decaler(jour, -1);
-}
-
 /** Rang du jour dans la semaine : 0 le lundi, 6 le dimanche (le 1er janvier de l'an 1 est un lundi). */
 export function jourDeLaSemaine(jour: string): number | undefined {
   const decompose = decomposer(jour);
@@ -186,10 +178,6 @@ export function moisSuivant({ annee, mois }: MoisAffiche): MoisAffiche | undefin
     return { annee, mois: mois + 1 };
   }
   return annee < ANNEE_MAX ? { annee: annee + 1, mois: 1 } : undefined;
-}
-
-export function memeMois(a: MoisAffiche, b: MoisAffiche): boolean {
-  return a.annee === b.annee && a.mois === b.mois;
 }
 
 /**

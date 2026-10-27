@@ -6,8 +6,10 @@ import type { UserEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import {
+  annonces,
   caseDuJour,
   entree,
+  entreesDe,
   figerLHorloge,
   grilleDuCalendrier,
   rendreLeCalendrier,
@@ -46,6 +48,19 @@ describe("flèches, Début, Fin, Page précédente et suivante (F-021-AC20)", ()
     },
   );
 
+  it("F-021-AC20 Page précédente et Page suivante changent toujours de mois, même quand le jour visé est dans la grille", async () => {
+    const { utilisateur } = rendreLeCalendrier();
+    act(() => caseDuJour("2026-10-30").focus());
+    await utilisateur.keyboard("{PageUp}");
+    expect(titre("septembre 2026")).toBeDefined();
+    expect(focus()).toBe(caseDuJour("2026-09-30"));
+    expect(annonces()).toContain("septembre 2026");
+    await utilisateur.keyboard("{PageDown}");
+    expect(titre("octobre 2026")).toBeDefined();
+    expect(focus()).toBe(caseDuJour("2026-10-30"));
+    expect(annonces()).toContain("octobre 2026");
+  });
+
   it("F-021-AC20 Page suivante et Page précédente gardent le quantième, ramené au dernier jour du mois s'il n'existe pas", async () => {
     const { utilisateur } = rendreLeCalendrier();
     act(() => caseDuJour("2026-10-31").focus());
@@ -56,9 +71,7 @@ describe("flèches, Début, Fin, Page précédente et suivante (F-021-AC20)", ()
     expect(titre("décembre 2026")).toBeDefined();
     expect(focus()).toBe(caseDuJour("2026-12-30"));
     await presser(utilisateur, "PageUp", 3);
-    // Le 30 novembre est dans la grille de décembre, le 30 septembre dans celle d'octobre : le mois
-    // affiché ne change que lorsque le jour visé sort de la grille.
-    expect(titre("octobre 2026")).toBeDefined();
+    expect(titre("septembre 2026")).toBeDefined();
     expect(focus()).toBe(caseDuJour("2026-09-30"));
     await utilisateur.keyboard("{PageDown}");
     expect(titre("octobre 2026")).toBeDefined();
@@ -119,6 +132,52 @@ describe("entrer dans une case, un seul arrêt de tabulation (F-021-AC20)", () =
     act(() => caseDuJour("2026-10-09").focus());
     await utilisateur.keyboard("{Enter}");
     expect(focus()).toBe(caseDuJour("2026-10-09"));
+  });
+
+  it("F-021-AC20 F-021-AC14 Flèche bas et Flèche haut passent d'entrée en entrée dans la case, puis la seconde se déplace par Alt+Maj+Flèche droite", async () => {
+    const { utilisateur, table, emises } = rendreLeCalendrier(DEUX);
+    act(() => caseDuJour("2026-10-08").focus());
+    await utilisateur.keyboard("{Enter}");
+    expect(focus()).toBe(entree("Dentiste"));
+    await utilisateur.keyboard("{ArrowDown}");
+    expect(focus()).toBe(entree("Réunion"));
+    await utilisateur.keyboard("{ArrowDown}");
+    expect(focus()).toBe(entree("Réunion"));
+    await utilisateur.keyboard("{ArrowUp}");
+    expect(focus()).toBe(entree("Dentiste"));
+    await utilisateur.keyboard("{ArrowUp}");
+    expect(focus()).toBe(caseDuJour("2026-10-08"));
+    await utilisateur.keyboard("{Enter}{ArrowDown}");
+    expect(emises).toHaveLength(0);
+    await utilisateur.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+    expect(emises).toHaveLength(1);
+    expect(table.lire().lignes[1]?.cellules[1]).toBe("2026-10-09");
+    expect(table.lire().lignes[0]?.cellules[1]).toBe("2026-10-08");
+    expect(focus()).toBe(entree("Réunion"));
+    expect(caseDuJour("2026-10-09").contains(entree("Réunion"))).toBe(true);
+  });
+
+  it("F-021-AC20 F-021-AC14 toutes les entrées d'une case dépliée et leurs commandes sont atteignables au clavier seul", async () => {
+    const cinq = Array.from({ length: 5 }, (_, rang) => ({
+      titre: `Réunion ${String(rang + 1)}`,
+      date: "2026-10-08",
+    }));
+    const { utilisateur } = rendreLeCalendrier(cinq);
+    act(() => caseDuJour("2026-10-08").focus());
+    // La commande « 2 autres » est dans le menu de la case (Maj+F10).
+    await utilisateur.keyboard("{Shift>}{F10}{/Shift}");
+    await utilisateur.click(screen.getByRole("menuitem", { name: /2 autres/ }));
+    expect(entreesDe("2026-10-08")).toHaveLength(5);
+    act(() => caseDuJour("2026-10-08").focus());
+    await utilisateur.keyboard("{Enter}");
+    await presser(utilisateur, "ArrowDown", 4);
+    expect(focus()).toBe(entree("Réunion 5"));
+    // Les commandes de la cinquième entrée : son menu s'ouvre par Maj+F10 et se parcourt aux flèches.
+    await utilisateur.keyboard("{Shift>}{F10}{/Shift}");
+    expect(screen.getByRole("menu", { name: "Actions de l'entrée Réunion 5" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "Supprimer la ligne : Réunion 5" })).toBeDefined();
+    await utilisateur.keyboard("{Escape}");
+    expect(focus()).toBe(entree("Réunion 5"));
   });
 
   it("F-021-AC20 la grille ne compte que pour un seul arrêt de tabulation, qui suit la case focalisée", async () => {

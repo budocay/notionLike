@@ -84,6 +84,11 @@ interface ProprietesBouton {
   /** Raison d'une action permise mais momentanément impossible : le bouton est désactivé (AC29). */
   readonly raison?: string | undefined;
   readonly desactive?: boolean | undefined;
+  /**
+   * Avec une `raison`, le bouton reste focalisable : il est dit indisponible par `aria-disabled`, sans
+   * `disabled` natif, et son activation n'a aucun effet (le focus n'est pas perdu à la borne).
+   */
+  readonly resterFocalisable?: boolean | undefined;
   readonly type?: "button" | "submit" | undefined;
   readonly refBouton?: Ref<HTMLButtonElement> | undefined;
 }
@@ -91,6 +96,7 @@ interface ProprietesBouton {
 export function Bouton(props: ProprietesBouton): ReactElement {
   const idRaison = useId();
   const raison = props.raison;
+  const sansEffet = raison !== undefined && props.resterFocalisable === true;
   return (
     <>
       <button
@@ -98,9 +104,10 @@ export function Bouton(props: ProprietesBouton): ReactElement {
         type={props.type ?? "button"}
         className={ESPACES.bouton}
         aria-label={props.nom}
-        disabled={raison !== undefined || props.desactive === true}
+        disabled={(raison !== undefined && !sansEffet) || props.desactive === true}
+        aria-disabled={sansEffet ? true : undefined}
         aria-describedby={raison === undefined ? undefined : idRaison}
-        onClick={props.surActivation}
+        onClick={sansEffet ? undefined : props.surActivation}
       >
         {props.libelle}
       </button>

@@ -32,13 +32,11 @@ export function TitreDuMois({ texte }: { readonly texte: string }): ReactElement
 export function GrilleDuCalendrier(props: {
   readonly nom: string;
   readonly jours: readonly string[];
-  readonly refGrille: Ref<HTMLDivElement>;
   readonly surTouche: (evenement: KeyboardEvent<HTMLDivElement>) => void;
   readonly children: ReactNode;
 }): ReactElement {
   return (
     <div
-      ref={props.refGrille}
       role="grid"
       aria-label={props.nom}
       className={CALENDRIER.grille}
@@ -64,6 +62,22 @@ export function SemaineDuCalendrier({ children }: { readonly children: ReactNode
   );
 }
 
+type AspectDeCase = "aujourdhui" | "horsDuMois" | "courante";
+
+/** Les classes d'une case et de son numéro, par état ; aujourd'hui l'emporte sur hors du mois. */
+const ASPECTS_DE_CASE: Readonly<Record<AspectDeCase, { classe: string; numero: string }>> = {
+  aujourdhui: { classe: CALENDRIER.caseAujourdhui, numero: CALENDRIER.numeroAujourdhui },
+  horsDuMois: { classe: CALENDRIER.caseHorsDuMois, numero: CALENDRIER.numeroHorsDuMois },
+  courante: { classe: CALENDRIER.case, numero: CALENDRIER.numero },
+};
+
+function aspectDeCase(aujourdhui: boolean, horsDuMois: boolean): AspectDeCase {
+  if (aujourdhui) {
+    return "aujourdhui";
+  }
+  return horsDuMois ? "horsDuMois" : "courante";
+}
+
 /** Une case : un seul arrêt de tabulation pour toute la grille (tabindex itinérant, AC20). */
 export function CaseDuCalendrier(props: {
   readonly jour: string;
@@ -72,19 +86,12 @@ export function CaseDuCalendrier(props: {
   readonly horsDuMois: boolean;
   readonly aujourdhui: boolean;
   readonly focalisable: boolean;
+  /** Combinaisons de la case, pour `aria-keyshortcuts` (le menu, Maj+F10). */
+  readonly raccourcis?: string | undefined;
   readonly commandeDeLigne: ReactNode;
   readonly children: ReactNode;
 }): ReactElement {
-  const classe = props.aujourdhui
-    ? CALENDRIER.caseAujourdhui
-    : props.horsDuMois
-      ? CALENDRIER.caseHorsDuMois
-      : CALENDRIER.case;
-  const numero = props.aujourdhui
-    ? CALENDRIER.numeroAujourdhui
-    : props.horsDuMois
-      ? CALENDRIER.numeroHorsDuMois
-      : CALENDRIER.numero;
+  const { classe, numero } = ASPECTS_DE_CASE[aspectDeCase(props.aujourdhui, props.horsDuMois)];
   return (
     <div
       role="gridcell"
@@ -92,6 +99,7 @@ export function CaseDuCalendrier(props: {
       data-hors-du-mois={props.horsDuMois ? "" : undefined}
       aria-label={props.nom}
       aria-current={props.aujourdhui ? "date" : undefined}
+      aria-keyshortcuts={props.raccourcis}
       tabIndex={props.focalisable ? 0 : -1}
       className={classe}
     >

@@ -15,11 +15,15 @@ type Frappe = Parameters<typeof estLaFrappe>[0];
 export type ActionDeCase =
   /** Porte le focus sur ce jour (`undefined` : hors des bornes, rien ne bouge). */
   | { readonly sorte: "jour"; readonly jour: string | undefined }
+  /** Affiche le mois de ce jour, même s'il est dans la grille, et y porte le focus (Page préc./suiv.). */
+  | { readonly sorte: "mois"; readonly jour: string | undefined }
   | { readonly sorte: "entrer" }
   | { readonly sorte: "menu" };
 
 export type ActionDEntree =
   | { readonly sorte: "deplacer"; readonly pas: PasDeJours }
+  /** Passe à l'entrée voisine de la case (-1 : la précédente, ou la case si c'est la première). */
+  | { readonly sorte: "voisine"; readonly sens: -1 | 1 }
   | { readonly sorte: "titre" }
   | { readonly sorte: "case" }
   | { readonly sorte: "menu" };
@@ -34,12 +38,16 @@ export function actionDeLaCase(frappe: Frappe, jour: string): ActionDeCase | und
     [T.semaineSuivante, decaler(jour, JOURS_PAR_SEMAINE)],
     [T.lundi, lundiDeLaSemaine(jour)],
     [T.dimanche, dimancheDeLaSemaine(jour)],
-    [T.moisPrecedent, memeQuantiemeAilleurs(jour, -1)],
-    [T.moisSuivant, memeQuantiemeAilleurs(jour, 1)],
   ];
   const trouve = vers.find(([touche]) => estLaFrappe(frappe, touche));
   if (trouve !== undefined) {
     return { sorte: "jour", jour: trouve[1] };
+  }
+  if (estLaFrappe(frappe, T.moisPrecedent)) {
+    return { sorte: "mois", jour: memeQuantiemeAilleurs(jour, -1) };
+  }
+  if (estLaFrappe(frappe, T.moisSuivant)) {
+    return { sorte: "mois", jour: memeQuantiemeAilleurs(jour, 1) };
   }
   if (estLaFrappe(frappe, T.entrer)) {
     return { sorte: "entrer" };
@@ -61,6 +69,12 @@ export function actionDeLEntree(frappe: Frappe): ActionDEntree | undefined {
   const trouve = pas.find(([touche]) => estLaFrappe(frappe, touche));
   if (trouve !== undefined) {
     return { sorte: "deplacer", pas: trouve[1] };
+  }
+  if (estLaFrappe(frappe, T.entreePrecedente)) {
+    return { sorte: "voisine", sens: -1 };
+  }
+  if (estLaFrappe(frappe, T.entreeSuivante)) {
+    return { sorte: "voisine", sens: 1 };
   }
   if (estLaFrappe(frappe, T.modifierLeTitre) || estLaFrappe(frappe, T.modifierLeTitreAutrement)) {
     return { sorte: "titre" };

@@ -59,7 +59,10 @@ function ChoixDuType(props: {
 }
 
 interface ProprietesNouvelleColonne {
-  readonly vue: Pick<VueTableau, "moyens" | "fermerBoite">;
+  /** Crée la colonne ; rend le message du refus (la boîte reste ouverte), sinon `undefined`. */
+  readonly ajouter: (nom: string, type: TypeDeColonne) => string | undefined;
+  /** Ferme la boîte ; `true` rend le focus à la commande d'origine. */
+  readonly fermer: (rendreLeFocus: boolean) => void;
   readonly typeInitial?: TypeDeColonne;
 }
 
@@ -68,19 +71,20 @@ interface ProprietesNouvelleColonne {
  * vue calendrier (F-021-AC7) l'ouvre avec le type « Date » choisi.
  */
 export function BoiteNouvelleColonne({
-  vue,
+  ajouter,
+  fermer: fermerLaBoite,
   typeInitial = "texte",
 }: ProprietesNouvelleColonne): ReactElement {
   const [nom, setNom] = useState("");
   const [type, setType] = useState<TypeDeColonne>(typeInitial);
   const [faute, setFaute] = useState<string | undefined>(undefined);
   const champ = useRef<HTMLInputElement>(null);
-  const fermer = (): void => vue.fermerBoite(true);
+  const fermer = (): void => fermerLaBoite(true);
   const creer = (): void => {
-    const refus = ajouterUneColonne(vue.moyens, nom, type);
+    const refus = ajouter(nom, type);
     setFaute(refus);
     if (refus === undefined) {
-      vue.fermerBoite(false);
+      fermerLaBoite(false);
     }
   };
   return (
@@ -180,7 +184,12 @@ export function BoiteOuverte({ vue }: { readonly vue: VueTableau }): ReactElemen
     case undefined:
       return null;
     case "nouvelle-colonne":
-      return <BoiteNouvelleColonne vue={vue} />;
+      return (
+        <BoiteNouvelleColonne
+          ajouter={(nom, type) => ajouterUneColonne(vue.moyens, nom, type)}
+          fermer={vue.fermerBoite}
+        />
+      );
     case "supprimer-colonne":
       return <SuppressionDeColonne vue={vue} id={boite.colonne} />;
     case "supprimer-ligne":

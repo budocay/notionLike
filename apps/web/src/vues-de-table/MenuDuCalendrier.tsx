@@ -21,8 +21,8 @@ import {
   NOUVELLE_LIGNE_DU_JOUR,
   PAS_DE_COLONNE_DE_TITRE,
   RETIRER_LA_DATE,
-  SUPPRIMER_L_ENTREE,
 } from "./textes-calendrier.ts";
+import { SUPPRIMER_LA_LIGNE } from "./textes.ts";
 import { ENTREES_PAR_CASE, type VueCalendrier as Vue } from "./use-vue-calendrier.ts";
 
 function deplacementsDeLEntree(vue: Vue, ligne: LigneLue): EntreeDeMenu[] {
@@ -80,8 +80,8 @@ function entreesDuMenuDeLEntree(vue: Vue, id: string): EntreeDeMenu[] {
       surActivation: agir(() => commandes.retirerLaDate(ligne)),
     },
     {
-      libelle: SUPPRIMER_L_ENTREE,
-      nom: commandeSurLEntree(SUPPRIMER_L_ENTREE, libelle),
+      libelle: SUPPRIMER_LA_LIGNE,
+      nom: commandeSurLEntree(SUPPRIMER_LA_LIGNE, libelle),
       raison: lectureSeule,
       surActivation: agir(() => commandes.ouvrirUneBoite({ sorte: "supprimer", ligne: id })),
     },

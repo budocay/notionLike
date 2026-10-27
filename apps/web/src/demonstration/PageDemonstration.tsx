@@ -1147,7 +1147,7 @@ function SpecimenDuCalendrier(): ReactElement {
       <div className={PAGE.fondZone}>
         <CadreDuCalendrier refCadre={sansEffet} surFocus={sansEffet} surSortie={sansEffet}>
           <TitreDuMois texte={C.titre} />
-          <GrilleDuCalendrier nom={C.grille} jours={C.jours} refGrille={null} surTouche={sansEffet}>
+          <GrilleDuCalendrier nom={C.grille} jours={C.jours} surTouche={sansEffet}>
             <SemaineDuCalendrier>
               {C.semaine.map((une) => (
                 <CaseDuCalendrier

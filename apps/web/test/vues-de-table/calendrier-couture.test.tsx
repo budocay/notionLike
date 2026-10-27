@@ -1,7 +1,7 @@
 // Coutures de la vue calendrier (F-021-AC25, AC29, AC30, AC31) : lignes affichées, aucune dépendance
 // nouvelle, place dans la liste des vues, section `calendrier` des réglages, aucun réglage dans un
 // document, aucune animation ni couleur écrite en dur.
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
@@ -9,6 +9,7 @@ import { lire, lister } from "../aides-disque.ts";
 import {
   CLE_DES_REGLAGES,
   caseDuJour,
+  choisirLeCalendrier,
   figerLHorloge,
   libellesDe,
   lignesDuPanneau,
@@ -133,6 +134,38 @@ describe("liste des vues et réglages (F-021-AC30)", () => {
     expect(Y.encodeStateAsUpdate(table.doc)).toEqual(etat);
     expect(caseDuJour("2026-10-08").getAttribute("data-hors-du-mois")).toBeNull();
     expect(libellesDe("2026-10-08")).toEqual([]);
+  });
+});
+
+describe("deux écrivains de la même clé de réglages (F-021-AC30, F-018-AC40)", () => {
+  it("F-021-AC30 la section `calendrier` survit aux écritures de la vue Tableau : « Placer selon », bascule sur « Tableau » puis retour", async () => {
+    choisirLeCalendrier();
+    const { utilisateur } = rendreLaTable((nouvelle) => {
+      tableDEssai([{ titre: "Dentiste", date: "2026-10-08" }])(nouvelle);
+      nouvelle.creerColonne("Fin", "date");
+    });
+    const lue = (): { sections: Record<string, unknown> } =>
+      JSON.parse(localStorage.getItem(CLE_DES_REGLAGES) ?? "{}") as {
+        sections: Record<string, unknown>;
+      };
+    await utilisateur.selectOptions(screen.getByRole("combobox", { name: "Placer selon" }), "Fin");
+    const choisie = lue().sections.calendrier;
+    expect(lue().sections.vue).toEqual({ active: "calendrier" });
+    expect(choisie).toEqual({ colonne: expect.any(String) });
+    // Le sélecteur est rendu par chaque vue : il est relu après chaque bascule.
+    const selecteur = (): HTMLElement => screen.getByRole("group", { name: "Vue de la table" });
+    await utilisateur.click(within(selecteur()).getByRole("button", { name: "Tableau" }));
+    // use-reglages.ts réécrit la clé (la vue active retombe sur la vue par défaut, donc sort de
+    // l'enregistrement) : la section du calendrier reste telle quelle.
+    expect(lue().sections.vue).toBeUndefined();
+    expect(lue().sections.calendrier).toEqual(choisie);
+    await utilisateur.click(within(selecteur()).getByRole("button", { name: "Calendrier" }));
+    expect(lue().sections.vue).toEqual({ active: "calendrier" });
+    expect(lue().sections.calendrier).toEqual(choisie);
+    expect(
+      (screen.getByRole("combobox", { name: "Placer selon" }) as HTMLSelectElement)
+        .selectedOptions[0]?.textContent,
+    ).toBe("Fin");
   });
 });
 

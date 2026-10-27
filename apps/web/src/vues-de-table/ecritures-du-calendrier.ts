@@ -39,6 +39,15 @@ export function ecrireLaDate(
   return ecrireLaValeur(table, { ligne: ligne.id, colonne: colonne.colonne, avant }, jour);
 }
 
+/** Vrai si la cellule de date de la ligne porte déjà ce jour (`null` : déjà sans date). */
+export function dateDejaEcrite(
+  ligne: LigneLue,
+  colonne: ColonneDeDate,
+  jour: string | null,
+): boolean {
+  return (ligne.cellules[colonne.rang] ?? null) === jour;
+}
+
 /** Crée, en dernière position, une ligne dont la cellule de date porte le jour (AC10). */
 export function creerUneLigneDuJour(
   table: DocumentTable,

@@ -345,7 +345,7 @@ const APPELANTS_DE_LA_PERSISTANCE = [
   "src/table/session-table.ts",
   "src/table/tables-ouvertes.ts",
   // F-018-AC40 : les réglages de vue de la table affichée.
-  "src/vues-de-table/reglages-calendrier.ts",
+  "src/vues-de-table/use-reglages-calendrier.ts",
   "src/vues-de-table/use-reglages.ts",
 ];
 

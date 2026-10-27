@@ -1,6 +1,6 @@
 // Les commandes que la vue calendrier offre à ses composants (F-021-AC2, AC9 à AC14, AC20) : celles du
 // mois affiché, des écritures, de la saisie, des boîtes, du menu et du clavier de la grille.
-import type { IdColonne, IdLigne, LigneLue } from "@notionlike/document";
+import type { IdColonne, IdLigne, LigneLue, TypeDeColonne } from "@notionlike/document";
 import type { KeyboardEvent, RefObject } from "react";
 
 import {
@@ -35,6 +35,7 @@ export interface CommandesDuCalendrier {
   readonly retirerLaDate: (ligne: LigneLue) => void;
   readonly nouvelleLigne: (jour: string) => void;
   readonly supprimer: (ligne: LigneLue) => void;
+  readonly ajouterUneColonne: (nom: string, type: TypeDeColonne) => string | undefined;
   readonly deplier: (jour: string) => void;
   readonly plusDeLignes: () => void;
   readonly ouvrirLaSaisie: (ligne: LigneLue) => void;
@@ -61,14 +62,17 @@ interface Parties {
   readonly annoncer: (texte: string) => void;
 }
 
-/** Porte le focus sur ce jour, en affichant son mois s'il n'est pas dans la grille (AC20). */
-function allerAuJour(parties: Parties, jour: string | undefined): void {
+/**
+ * Porte le focus sur ce jour, en affichant son mois s'il n'est pas dans la grille ou si `mois` le
+ * demande (Page précédente et suivante changent toujours de mois, AC20).
+ */
+function allerAuJour(parties: Parties, jour: string | undefined, mois = false): void {
   const decompose = jour === undefined ? undefined : decomposer(jour);
   if (jour === undefined || decompose === undefined) {
     return;
   }
   const { navigation, modele, suivi, annoncer } = parties;
-  if (!modele.grille.includes(jour)) {
+  if (mois || !modele.grille.includes(jour)) {
     navigation.montrerLeMois({ annee: decompose.annee, mois: decompose.mois });
     annoncer(titreDuMois(decompose));
   }
@@ -107,10 +111,42 @@ function surToucheDeLaCase(
   const action: ActionDeCase | undefined = actionDeLaCase(evenement, jour);
   if (action?.sorte === "jour") {
     traiter(evenement, () => allerAuJour(parties, action.jour));
+  } else if (action?.sorte === "mois") {
+    traiter(evenement, () => allerAuJour(parties, action.jour, true));
   } else if (action?.sorte === "entrer") {
     traiter(evenement, () => element.querySelector<HTMLElement>("[data-ligne]")?.focus());
   } else if (action?.sorte === "menu") {
     traiter(evenement, () => ouvrirLeMenu(parties, element));
+  }
+}
+
+// L'entrée voisine dans la case ; avant la première, la case elle-même. Au-delà de la dernière, rien.
+function allerALEntreeVoisine(element: HTMLElement, sens: -1 | 1): void {
+  const laCase = element.closest<HTMLElement>("[data-jour]");
+  const entrees = [...(laCase?.querySelectorAll<HTMLElement>("[data-ligne]") ?? [])];
+  const voisine = entrees[entrees.indexOf(element) + sens];
+  (voisine ?? (sens < 0 ? laCase : null))?.focus();
+}
+
+/** L'effet d'une action sur une entrée. */
+function effetDeLEntree(
+  parties: Parties,
+  element: HTMLElement,
+  ligne: LigneLue,
+  action: ActionDEntree,
+): () => void {
+  switch (action.sorte) {
+    case "deplacer":
+      return () => parties.ecritures.deplacer(ligne, action.pas);
+    case "voisine":
+      return () => allerALEntreeVoisine(element, action.sens);
+    case "titre":
+      return () => parties.saisie.ouvrir(ligne);
+    // Directement : la case contient l'entrée qui a le focus, le suivi la croirait déjà focalisée.
+    case "case":
+      return () => element.closest<HTMLElement>("[data-jour]")?.focus();
+    case "menu":
+      return () => ouvrirLeMenu(parties, element);
   }
 }
 
@@ -120,16 +156,9 @@ function surToucheDeLEntree(
   element: HTMLElement,
   ligne: LigneLue,
 ): void {
-  const action: ActionDEntree | undefined = actionDeLEntree(evenement);
-  if (action?.sorte === "deplacer") {
-    traiter(evenement, () => parties.ecritures.deplacer(ligne, action.pas));
-  } else if (action?.sorte === "titre") {
-    traiter(evenement, () => parties.saisie.ouvrir(ligne));
-  } else if (action?.sorte === "case") {
-    // Directement : la case contient l'entrée qui a le focus, le suivi la croirait déjà focalisée.
-    traiter(evenement, () => element.closest<HTMLElement>("[data-jour]")?.focus());
-  } else if (action?.sorte === "menu") {
-    traiter(evenement, () => ouvrirLeMenu(parties, element));
+  const action = actionDeLEntree(evenement);
+  if (action !== undefined) {
+    traiter(evenement, effetDeLEntree(parties, element, ligne, action));
   }
 }
 

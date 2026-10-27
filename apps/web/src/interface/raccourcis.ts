@@ -115,6 +115,8 @@ export const TOUCHES_DE_L_ENTREE = {
   jourSuivant: { touche: "ArrowRight", modificateurs: ["Alt", "Maj"] },
   semainePrecedente: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
   semaineSuivante: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+  entreePrecedente: { touche: "ArrowUp", modificateurs: [] },
+  entreeSuivante: { touche: "ArrowDown", modificateurs: [] },
   modifierLeTitre: { touche: "Enter", modificateurs: [] },
   modifierLeTitreAutrement: { touche: "F2", modificateurs: [] },
   rendreLeFocusALaCase: { touche: "Escape", modificateurs: [] },

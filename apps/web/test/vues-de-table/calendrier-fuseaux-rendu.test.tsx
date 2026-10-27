@@ -1,10 +1,10 @@
 // Le rendu du calendrier ne dépend pas du fuseau (F-021-AC18, AC5) : sous chacun des fuseaux extrêmes,
 // la vue place chaque ligne dans la case de son jour et dans cette case seulement, dans l'ordre des
 // lignes, comparaison faite sur les chaînes `AAAA-MM-JJ`.
-import { cleanup } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { figerLHorloge, libellesDe, rendreLeCalendrier } from "./aides-calendrier.tsx";
+import { entree, figerLHorloge, libellesDe, rendreLeCalendrier } from "./aides-calendrier.tsx";
 import { FUSEAUX, rendreLeFuseau, sous } from "./aides-fuseaux.ts";
 
 figerLHorloge();
@@ -28,6 +28,27 @@ describe("rendu sous trois fuseaux (F-021-AC18)", () => {
         expect(libellesDe("2026-10-09")).toEqual(["Lendemain"]);
         expect(libellesDe("2026-09-30")).toEqual(["Frontière"]);
         expect(document.querySelectorAll("[data-ligne]")).toHaveLength(4);
+        cleanup();
+      });
+    },
+  );
+});
+
+describe("déplacement au clavier sous trois fuseaux (F-021-AC18, AC11)", () => {
+  it.each(FUSEAUX)(
+    "F-021-AC18 F-021-AC11 sous %s, Alt+Maj+Flèche droite écrit le lendemain, d'un mois à l'autre aussi, et la case d'arrivée porte l'entrée",
+    async (fuseau, decalage) => {
+      await sous(fuseau, decalage, async () => {
+        const { utilisateur, table, emises } = rendreLeCalendrier(LIGNES);
+        act(() => entree("Frontière").focus());
+        await utilisateur.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+        expect(emises).toHaveLength(1);
+        expect(table.lire().lignes[1]?.cellules[1]).toBe("2026-10-01");
+        expect(libellesDe("2026-10-01")).toEqual(["Frontière"]);
+        expect(libellesDe("2026-09-30")).toEqual([]);
+        await utilisateur.keyboard("{Alt>}{Shift>}{ArrowDown}{/Shift}{/Alt}");
+        expect(table.lire().lignes[1]?.cellules[1]).toBe("2026-10-08");
+        expect(libellesDe("2026-10-08")).toEqual(["Dentiste", "Frontière", "Même jour"]);
         cleanup();
       });
     },

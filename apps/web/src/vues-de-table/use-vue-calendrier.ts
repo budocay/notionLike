@@ -4,12 +4,12 @@
 import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
 import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
 
-import type { Moyens } from "./actions.ts";
 import { aujourdhui } from "./aujourdhui.ts";
+import { useAnnonce } from "./use-annonce.ts";
 import { ecrireLeJour, moisPrecedent, moisSuivant } from "./jours.ts";
 import { type ModeleDuCalendrier, useModeleDuCalendrier } from "./modele-calendrier.ts";
 import { repliDeLaCible } from "./repli-calendrier.ts";
-import { useColonneChoisie } from "./reglages-calendrier.ts";
+import { useColonneChoisie } from "./use-reglages-calendrier.ts";
 import { colonnesDeDate } from "./repartition.ts";
 import {
   type BoiteDuCalendrier,
@@ -24,7 +24,6 @@ import { useEditionDuCalendrier } from "./use-ecritures-calendrier.ts";
 import { type MenuDuCalendrier, useMenuDuCalendrier } from "./use-menu-calendrier.ts";
 import type { Saisie } from "./use-saisie-du-titre.ts";
 import { type SuiviDuFocus, useSuiviDuFocus } from "./use-suivi-du-focus.ts";
-import { useAnnonce } from "./use-vue-tableau.ts";
 
 export type { BoiteDuCalendrier, CommandesDuCalendrier } from "./assemblage-des-commandes.ts";
 export { ENTREES_PAR_CASE } from "./use-navigation-du-calendrier.ts";
@@ -56,7 +55,6 @@ export interface VueCalendrier {
   readonly idAlerte: string;
   readonly cadre: RefObject<HTMLDivElement | null>;
   readonly suivi: SuiviDuFocus;
-  readonly moyens: Moyens;
   readonly precedentDisponible: boolean;
   readonly suivantDisponible: boolean;
   readonly commandes: CommandesDuCalendrier;
@@ -71,24 +69,6 @@ function jourFocalisableDe(
     return courant;
   }
   return grille.includes(aujourdhuiJour) ? aujourdhuiJour : ecrireLeJour({ ...mois, quantieme: 1 });
-}
-
-function moyensDeLaBoite(
-  proprietes: ProprietesVueCalendrier,
-  annoncer: (texte: string) => void,
-  signaler: (message: string | undefined) => void,
-): Moyens {
-  const { table, lue, lignes, lectureSeule } = proprietes;
-  return {
-    table,
-    lue,
-    lignes,
-    lectureSeule,
-    allerVers: () => undefined,
-    annoncer,
-    signaler,
-    focaliserLInvitation: () => undefined,
-  };
 }
 
 function reperesDuCalendrier(
@@ -152,7 +132,6 @@ export function useVueCalendrier(proprietes: ProprietesVueCalendrier): VueCalend
     idAlerte,
     cadre,
     suivi,
-    moyens: moyensDeLaBoite(proprietes, annoncer, signaler),
     ...bornesDuMois(navigation.mois),
     commandes,
   };

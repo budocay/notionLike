@@ -131,8 +131,10 @@ describe("déplacements (F-021-AC11)", () => {
       "Supprimer la ligne : Dentiste",
     ]);
     expect(entree("Dentiste").getAttribute("aria-keyshortcuts")).toBe(
-      "Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
+      "Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Shift+F10",
     );
+    // Le menu de l'entrée et celui de la case se découvrent par Maj+F10.
+    expect(caseDuJour("2026-10-08").getAttribute("aria-keyshortcuts")).toBe("Shift+F10");
   });
 
   it("F-021-AC11 « Changer la date » écrit le jour choisi ; le jour que la ligne porte déjà n'émet aucune mise à jour", async () => {
@@ -145,6 +147,8 @@ describe("déplacements (F-021-AC11)", () => {
       within(screen.getByRole("dialog")).getByRole("button", { name: "Valider" }),
     );
     expect(emises).toHaveLength(0);
+    // Aucune écriture, aucune annonce : la ligne n'a pas bougé.
+    expect(annonces()).toBe("");
     await utilisateur.click(bouton("Actions de l'entrée Dentiste"));
     await utilisateur.click(element("Changer la date : Dentiste"));
     fireEvent.change(within(screen.getByRole("dialog")).getByLabelText("Date"), {
@@ -155,6 +159,7 @@ describe("déplacements (F-021-AC11)", () => {
     );
     expect(emises).toHaveLength(1);
     expect(dateDe(table)).toBe("2026-10-22");
+    expect(annonces()).toContain("déplacée au");
   });
 
   it("F-021-AC11 « Retirer la date » vide la cellule en une seule opération ; la ligne passe dans « Sans date »", async () => {
@@ -184,7 +189,7 @@ describe("bornes du calendrier (F-021-AC12)", () => {
     vi.setSystemTime(instant);
     const { utilisateur, emises } = rendreLeCalendrier([{ titre: "Origine", date: "0001-01-01" }]);
     expect(entree("Origine").getAttribute("aria-keyshortcuts")).toBe(
-      "Alt+Shift+ArrowRight Alt+Shift+ArrowDown",
+      "Alt+Shift+ArrowRight Alt+Shift+ArrowDown Shift+F10",
     );
     await utilisateur.click(bouton("Actions de l'entrée Origine"));
     const precedent = element("Jour précédent : Origine") as HTMLButtonElement;
@@ -346,7 +351,8 @@ describe("lecture seule (F-021-AC26)", () => {
     fireEvent.click(nouvelle);
     identique();
 
-    expect(entree("Dentiste").hasAttribute("aria-keyshortcuts")).toBe(false);
+    // Seul le menu reste exposé : aucune commande d'écriture n'est offerte.
+    expect(entree("Dentiste").getAttribute("aria-keyshortcuts")).toBe("Shift+F10");
     act(() => entree("Dentiste").focus());
     for (const touche of ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"]) {
       await utilisateur.keyboard(ALT_MAJ(touche));

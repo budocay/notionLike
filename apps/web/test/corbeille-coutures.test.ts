@@ -91,6 +91,7 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/vues-de-table/assemblage-des-commandes.ts",
   "src/vues-de-table/modele-calendrier.ts",
   "src/vues-de-table/reglages-calendrier.ts",
+  "src/vues-de-table/use-reglages-calendrier.ts",
   "src/vues-de-table/repartition.ts",
   "src/vues-de-table/repli-calendrier.ts",
   "src/vues-de-table/use-ecritures-calendrier.ts",
