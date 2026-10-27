@@ -7,6 +7,7 @@ import type { ColonneLue, TableLue } from "@notionlike/document";
 import { type ReactElement, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { Bouton, Choix } from "../interface/composants/Espaces.tsx";
+import { estLaFrappe, TOUCHES_DE_L_EDITION } from "../interface/raccourcis.ts";
 import {
   BarreDeDefinition,
   ChampDeDefinition,
@@ -117,8 +118,12 @@ function ChampDeValeur({ vue, filtre, colonne, remplacer }: PropsDeValeur): Reac
     const analyse = analyserLaValeur(colonne, texte);
     setRefuse(analyse.sorte === "refus");
     vue.moyens.signaler(analyse.sorte === "refus" ? analyse.message : undefined);
-    if (analyse.sorte === "valeur" && analyse.valeur !== filtre.valeur) {
-      remplacer({ ...filtre, valeur: analyse.valeur });
+    if (analyse.sorte === "valeur") {
+      // Le champ garde le focus et montre la forme enregistrée de ce qui vient d'être validé.
+      setTexte(texteDeLaValeur(analyse.valeur));
+      if (analyse.valeur !== filtre.valeur) {
+        remplacer({ ...filtre, valeur: analyse.valeur });
+      }
     }
   };
   return (
@@ -132,7 +137,10 @@ function ChampDeValeur({ vue, filtre, colonne, remplacer }: PropsDeValeur): Reac
       onChange={(evenement) => setTexte(evenement.target.value)}
       onBlur={valider}
       onKeyDown={(evenement) => {
-        if (evenement.key === "Enter" && !evenement.nativeEvent.isComposing) {
+        if (
+          estLaFrappe(evenement, TOUCHES_DE_L_EDITION.validerEtDescendre) &&
+          !evenement.nativeEvent.isComposing
+        ) {
           evenement.preventDefault();
           valider();
         }
@@ -224,10 +232,7 @@ function LigneDeFiltre({ vue, rang }: PropsDeRang): ReactElement | null {
     <ElementDeDefinition mention={mentionDuFiltre(lue, filtre)}>
       <ChoixDeColonneEtDOperateur lue={lue} filtre={filtre} remplacer={remplacer} />
       {propsDeValeur !== undefined && demandeUneValeur(filtre.operateur) && (
-        <ValeurDuFiltre
-          key={`${filtre.colonne}:${filtre.operateur}:${String(filtre.valeur)}`}
-          {...propsDeValeur}
-        />
+        <ValeurDuFiltre key={`${filtre.colonne}:${filtre.operateur}`} {...propsDeValeur} />
       )}
       <Bouton
         libelle={RETIRER_UN_ELEMENT}

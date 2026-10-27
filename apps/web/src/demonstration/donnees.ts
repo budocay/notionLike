@@ -117,6 +117,17 @@ export const TABLE_FICTIVE = {
   aucuneOption: "Cette colonne n'a encore aucune option.",
   nouvelleOption: "Nouvelle option",
   faute: "Le libellé d'une option compte au plus 100 caractères.",
+  // Filtres et tris (F-019) : une barre, un filtre sans valeur, un tri, un filtre inactif.
+  barreDesFiltres: {
+    nom: "Filtres",
+    resume: "2 filtres · 1 ligne sur 2",
+    ajouter: "Ajouter un filtre",
+  },
+  listeDesFiltres: "Liste des filtres",
+  valeurDuFiltre: "Valeur du filtre sur Article",
+  filtreInactif: "Colonne supprimée",
+  horsFiltre: { id: "demo-hors-filtre", texte: "Hors filtre" },
+  marqueDeTri: "↑",
 } as const;
 
 // La zone d'état affirmée se montre sur un texte fictif : le texte de l'application n'a qu'un

@@ -9,21 +9,27 @@ import { CadreDeBarre, Sceau, TeteDeBarre } from "../interface/composants/CadreD
 import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
 import { MarqueDeTable } from "../interface/composants/Rangee.tsx";
 import {
+  BarreDeDefinition,
   CaseDeCellule,
   CelluleDeGrille,
   ChampDeCellule,
+  ChampDeDefinition,
   ChampDeFormulaire,
   EcranDeTableCadre,
+  ElementDeDefinition,
   Grille,
   InvitationDeTable,
+  MarqueDeTri,
   LigneDOption,
   ListeDeChoix,
+  ListeDeDefinition,
   ListeDOptions,
   RangeeDEnTetes,
   RangeeDeGrille,
   SelecteurDeVues,
   SeparateurDeColonne,
   SurfaceFlottante,
+  TexteHorsFiltre,
   TexteDeCellule,
 } from "../interface/composants/Table.tsx";
 import { ChampTitre } from "../interface/composants/ChampTitre.tsx";
@@ -1099,6 +1105,26 @@ function SectionTables(): ReactElement {
         </Specimen>
         <SpecimenDeLaGrille />
         <SpecimenDesOptions />
+        <Specimen etiquette="Barre de filtres, élément inactif, marque de tri, ligne hors filtre">
+          <div className={PAGE.fondZone}>
+            <BarreDeDefinition
+              nom={T.barreDesFiltres.nom}
+              resume={T.barreDesFiltres.resume}
+              commandes={<Bouton libelle={T.barreDesFiltres.ajouter} surActivation={sansEffet} />}
+            >
+              <ListeDeDefinition nom={T.listeDesFiltres}>
+                <ElementDeDefinition>
+                  <ChampDeDefinition nom={T.valeurDuFiltre} defaultValue="Papier" />
+                </ElementDeDefinition>
+                <ElementDeDefinition mention={T.filtreInactif}>
+                  <ChampDeDefinition nom={T.valeurDuFiltre} defaultValue="Encre" />
+                </ElementDeDefinition>
+              </ListeDeDefinition>
+            </BarreDeDefinition>
+            <MarqueDeTri marque={T.marqueDeTri} />
+            <TexteHorsFiltre id={T.horsFiltre.id} texte={T.horsFiltre.texte} />
+          </div>
+        </Specimen>
         <Specimen etiquette="Table sans colonne">
           <div className={PAGE.fondZone}>
             <EcranDeTableCadre annonce="">

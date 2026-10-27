@@ -132,7 +132,7 @@ describe("tris (F-019-AC8, AC9, AC10)", () => {
   const trier = (colonneTriee: string, sens: "croissant" | "decroissant") =>
     ids(lignesAffichees(t, definition([], [{ colonne: colonneTriee, sens }])));
 
-  it("F-019-AC8 AC9 chaque type a son ordre, les cellules sans valeur sont après toutes les autres dans les deux sens", () => {
+  it("F-019-AC8 F-019-AC9 chaque type a son ordre, les cellules sans valeur sont après toutes les autres dans les deux sens", () => {
     expect(trier("n", "croissant")).toEqual(["l2", "l4", "l0", "l3", "l1"]);
     expect(trier("n", "decroissant")).toEqual(["l0", "l3", "l4", "l2", "l1"]);
     expect(trier("c", "croissant")).toEqual(["l1", "l3", "l0", "l4", "l2"]);
@@ -179,6 +179,8 @@ describe("tris (F-019-AC8, AC9, AC10)", () => {
 
 describe("indépendance à la langue de l'appareil (F-019-AC11)", () => {
   it("F-019-AC11 la clé de comparaison retire les seuls signes U+0300 à U+036F, avec veille du 2026-10-27", () => {
+    // Choix de la clé : MEMORY/VEILLE.md, section du 2026-10-27 (NFD, U+0300 à U+036F seulement, puis
+    // toLowerCase ; \p{M} et \p{Diacritic} écartés exprès, ils videraient « ^ », « ¨ » et « क्षि »).
     expect(cleDeComparaison("İstanbul")).toBe("istanbul");
     expect(cleDeComparaison("École")).toBe("ecole");
     // `^` et `¨` ne sont pas des signes combinants : la clé n'en est pas vidée.

@@ -93,6 +93,8 @@ const TESTS_DE_LA_PERSISTANCE = [
   "test/reprise-tentatives.test.ts",
   "test/reprise-version.test.tsx",
   "test/structure.test.ts",
+  // F-019 : effacement des réglages de vue d'une table supprimée, définition comprise (AC22).
+  "test/vues-de-table/coutures-definition.test.tsx",
   // F-018 : réglages de vue, ouverture et persistance d'une table.
   "test/table-reglages.test.ts",
   // F-013 : registre de l'appareil, bases de page écrites et relues contre le serveur réel.
