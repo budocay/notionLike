@@ -6,6 +6,7 @@ import { type RefObject, useEffect, useId, useMemo, useRef, useState } from "rea
 
 import type { AnnoncesDesPiles } from "../../glisser/index.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "../menu-de-grille.ts";
+import type { Surveillance } from "../ecritures.ts";
 import { useAnnonce } from "../use-annonce.ts";
 import { type ActionsDeCarte, actionsDeCarte, supprimerUneCarte } from "./actions-de-carte.ts";
 import { annoncesDuKanban } from "./annonces.ts";
@@ -25,6 +26,7 @@ export interface ProprietesDuPlateau {
   readonly lignes: readonly LigneLue[];
   readonly regroupement: ColonneLue;
   readonly lectureSeule: string | undefined;
+  readonly surveillance: Surveillance;
 }
 
 export interface SuppressionDeCarte {
@@ -106,7 +108,7 @@ function titreBrut(piles: readonly Pile[], carte: IdLigne): string {
 
 // Ce que les commandes et les écrans partagent : les piles, les messages, le focus, la saisie.
 function useBases(proprietes: ProprietesDuPlateau) {
-  const { table, lue, lignes, regroupement, lectureSeule } = proprietes;
+  const { table, lue, lignes, regroupement, lectureSeule, surveillance } = proprietes;
   const piles = useMemo(() => regrouper(lue, lignes, regroupement), [lue, lignes, regroupement]);
   const [annonce, annoncer] = useAnnonce();
   const [alerte, signaler] = useState<string | undefined>(undefined);
@@ -118,6 +120,7 @@ function useBases(proprietes: ProprietesDuPlateau) {
     lue,
     lignes,
     lectureSeule,
+    surveillance,
     signaler,
     rendre: focus.focaliser,
   });
@@ -125,7 +128,7 @@ function useBases(proprietes: ProprietesDuPlateau) {
   const suppression = useSuppression(menu);
   const idAlerte = useId();
   const cadre = useRef<HTMLDivElement>(null);
-  const moyens = { table, lue, lignes, lectureSeule, annoncer, signaler };
+  const moyens = { table, lue, lignes, lectureSeule, surveillance, annoncer, signaler };
   return {
     piles,
     annonce,

@@ -12,6 +12,7 @@ import {
 } from "@notionlike/document";
 
 import { lignesAffichees } from "../../src/vues-de-table/lignes-affichees.ts";
+import { SANS_SURVEILLANCE } from "../../src/vues-de-table/ecritures.ts";
 import type { ContexteDeDeplacement } from "../../src/vues-de-table/kanban/deplacement.ts";
 import {
   colonneDeRegroupement,
@@ -68,7 +69,13 @@ export function regroupementDe(lue: TableLue): ColonneLue {
 
 export function contexteDe(table: DocumentTable): ContexteDeDeplacement {
   const lue = table.lire();
-  return { table, lue, lignes: lignesAffichees(lue), regroupement: regroupementDe(lue) };
+  return {
+    table,
+    lue,
+    lignes: lignesAffichees(lue),
+    regroupement: regroupementDe(lue),
+    surveillance: SANS_SURVEILLANCE,
+  };
 }
 
 export function pilesDe(table: DocumentTable): readonly Pile[] {

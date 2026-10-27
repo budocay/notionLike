@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import type { LigneLue, TableLue } from "@notionlike/document";
 import { describe, expect, it } from "vitest";
 
+import { SANS_SURVEILLANCE } from "../../src/vues-de-table/ecritures.ts";
 import { VueKanban } from "../../src/vues-de-table/kanban/VueKanban.tsx";
 import {
   annonceDeLaVue,
@@ -282,6 +283,7 @@ describe("piles longues (F-020-AC8)", () => {
         lignes={lue.lignes}
         titre="Grande"
         lectureSeule={undefined}
+        surveillance={SANS_SURVEILLANCE}
         designation={{ idEspace: "e", idTable: "t" }}
         selecteur={null}
       />,
@@ -367,6 +369,7 @@ describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
         lignes={affichees}
         titre="Filtrée"
         lectureSeule={undefined}
+        surveillance={SANS_SURVEILLANCE}
         designation={{ idEspace: "e", idTable: "t" }}
         selecteur={null}
       />,

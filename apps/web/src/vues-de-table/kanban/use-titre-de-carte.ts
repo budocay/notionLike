@@ -4,6 +4,7 @@
 import type { DocumentTable, IdLigne, LigneLue, TableLue } from "@notionlike/document";
 import { type RefObject, useRef, useState } from "react";
 
+import type { Surveillance } from "../ecritures.ts";
 import { colonneDeTitre } from "../lignes-affichees.ts";
 import { valeurDe, validerLeChamp } from "../valider.ts";
 import { PAS_DE_COLONNE_DE_TITRE } from "./textes.ts";
@@ -31,6 +32,8 @@ interface Moyens {
   readonly lue: TableLue;
   readonly lignes: readonly LigneLue[];
   readonly lectureSeule: string | undefined;
+  /** L'affichage figé est prévenu de l'écriture du titre (F-019-AC17). */
+  readonly surveillance: Surveillance;
   readonly signaler: (message: string | undefined) => void;
   /** Rend le focus à la carte, la saisie close. */
   readonly rendre: (carte: IdLigne) => void;
@@ -50,6 +53,7 @@ function enregistrer(moyens: Moyens, saisie: SaisieDeTitre): string | undefined 
     table,
     { ligne: saisie.carte, colonne, avant: valeurDe(ligne, rang) },
     saisie.texte,
+    moyens.surveillance,
   );
 }
 

@@ -9,7 +9,7 @@ import type {
   ValeurDeCellule,
 } from "@notionlike/document";
 
-import { ecrire, messageDeLaDate } from "./ecritures.ts";
+import { ecrire, messageDeLaDate, type Surveillance } from "./ecritures.ts";
 import { type Analyse, analyserDate, analyserNombre, analyserTexte, memeValeur } from "./saisie.ts";
 import {
   LONGUEUR_MAX_NOM_DE_COLONNE,
@@ -53,11 +53,15 @@ export function ecrireLaValeur(
   table: DocumentTable,
   cible: CibleDeCellule,
   valeur: ValeurDeCellule | null,
+  surveillance: Surveillance,
 ): Refus {
   if (memeValeur(cible.avant, valeur)) {
     return undefined;
   }
-  const issue = ecrire(() => table.ecrireCellule(cible.ligne, cible.colonne.id, valeur));
+  const issue = ecrire(
+    () => table.ecrireCellule(cible.ligne, cible.colonne.id, valeur),
+    surveillance,
+  );
   if (issue.reussie) {
     return undefined;
   }
@@ -65,12 +69,17 @@ export function ecrireLaValeur(
 }
 
 /** La saisie d'un champ de cellule (texte, nombre, date), analysée puis écrite. */
-export function validerLeChamp(table: DocumentTable, cible: CibleDeCellule, texte: string): Refus {
+export function validerLeChamp(
+  table: DocumentTable,
+  cible: CibleDeCellule,
+  texte: string,
+  surveillance: Surveillance,
+): Refus {
   const analyse = analyser(cible.colonne, texte);
   if (analyse.sorte === "refus") {
     return MESSAGES_DES_REFUS[analyse.refus];
   }
-  return ecrireLaValeur(table, cible, analyse.valeur);
+  return ecrireLaValeur(table, cible, analyse.valeur, surveillance);
 }
 
 /** Le nouveau nom d'une colonne : au plus 200 caractères, écrit s'il change (AC19). */

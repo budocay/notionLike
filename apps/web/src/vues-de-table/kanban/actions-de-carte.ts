@@ -47,8 +47,12 @@ function deplacer(
   if (refuseeEnLectureSeule(moyens)) {
     return;
   }
-  const { table, lue, lignes, regroupement, piles } = moyens;
-  const resultat = deplacerUneCarte({ table, lue, lignes, regroupement }, carte, destination);
+  const { table, lue, lignes, regroupement, piles, surveillance } = moyens;
+  const resultat = deplacerUneCarte(
+    { table, lue, lignes, regroupement, surveillance },
+    carte,
+    destination,
+  );
   moyens.signaler(resultat.sorte === "refusee" ? resultat.message : undefined);
   const place = placeApresLeDeplacement(piles, carte, destination);
   if (resultat.sorte !== "deplacee" || place === undefined) {
@@ -92,11 +96,12 @@ function creer(moyens: MoyensDeCarte, pile: Pile): void {
   if (refuseeEnLectureSeule(moyens)) {
     return;
   }
-  const { table, regroupement } = moyens;
+  const { table, regroupement, surveillance } = moyens;
   const valeurs = pile.option === null ? undefined : new Map([[regroupement.id, pile.option]]);
-  const issue = ecrire(() => table.creerLigne(valeurs));
+  const issue = ecrire(() => table.creerLigne(valeurs), surveillance);
   moyens.signaler(issue.reussie ? undefined : issue.message);
   if (issue.reussie) {
+    surveillance.creee(issue.valeur);
     moyens.limites.jusqua(pile.option, pile.cartes.length + 1);
     moyens.saisirLeTitre(issue.valeur);
   }
@@ -129,13 +134,13 @@ function deposer(moyens: MoyensDeCarte, depot: DepotSurUnePile): void {
 
 /** Supprime la ligne de la carte ; vrai si elle l'est (sinon le refus est signalé, AC20). */
 export function supprimerUneCarte(
-  moyens: Pick<MoyensDuKanban, "table" | "lectureSeule" | "signaler">,
+  moyens: Pick<MoyensDuKanban, "table" | "lectureSeule" | "surveillance" | "signaler">,
   carte: IdLigne,
 ): boolean {
   if (moyens.lectureSeule !== undefined) {
     return false;
   }
-  const issue = ecrire(() => moyens.table.supprimerLigne(carte));
+  const issue = ecrire(() => moyens.table.supprimerLigne(carte), moyens.surveillance);
   moyens.signaler(issue.reussie ? undefined : issue.message);
   return issue.reussie;
 }

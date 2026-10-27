@@ -20,6 +20,7 @@ import {
 } from "../../interface/composants/Table.tsx";
 import { creerUneColonne } from "../actions.ts";
 import { BoiteNouvelleColonne, Confirmation } from "../Boites.tsx";
+import type { Surveillance } from "../ecritures.ts";
 import { nomAffiche, SUPPRIMER_LA_LIGNE, TEXTE_DE_LA_SUPPRESSION_DE_LIGNE } from "../textes.ts";
 import { surToucheDuKanban } from "./clavier-kanban.ts";
 import { entreesDeCarte } from "./entrees.ts";
@@ -44,6 +45,8 @@ export interface ProprietesVueKanban {
   /** Espace et table : ils désignent les réglages de vue de l'appareil (F-020-AC4). */
   readonly designation: { readonly idEspace: string | undefined; readonly idTable: string };
   readonly selecteur: ReactNode;
+  /** Les écritures de l'onglet figent l'affichage filtré ou trié (F-019-AC17). */
+  readonly surveillance: Surveillance;
 }
 
 function OutilsDuKanban(props: {
@@ -122,6 +125,7 @@ function TableauDeKanban(
     lignes: props.lignes,
     regroupement: colonne,
     lectureSeule: props.lectureSeule,
+    surveillance: props.surveillance,
   });
   return (
     <EcranDeTableCadre

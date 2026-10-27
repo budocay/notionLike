@@ -62,6 +62,8 @@ const IMPORTATEURS_DU_DOCUMENT = [
   // F-018 : la session de table ouvre la façade du document de table.
   "src/table/session-table.ts",
   // F-018 : le module des vues de table lit la table par la façade que la session lui donne.
+  // F-019 : filtres, tris, positions, affichage figé et barres lisent la table par la même façade.
+  "src/vues-de-table/BarresDeDefinition.tsx",
   "src/vues-de-table/Boites.tsx",
   "src/vues-de-table/ChoixDeCellule.tsx",
   "src/vues-de-table/EcranDeTable.tsx",
@@ -71,18 +73,24 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/vues-de-table/Separateur.tsx",
   "src/vues-de-table/actions.ts",
   "src/vues-de-table/affichage.ts",
+  "src/vues-de-table/definition.ts",
   "src/vues-de-table/courante.ts",
   "src/vues-de-table/ecritures.ts",
+  "src/vues-de-table/filtres.ts",
   "src/vues-de-table/grille.ts",
   "src/vues-de-table/lignes-affichees.ts",
   "src/vues-de-table/menu-de-grille.ts",
   "src/vues-de-table/menus.ts",
+  "src/vues-de-table/positions.ts",
   "src/vues-de-table/reglages.ts",
   "src/vues-de-table/saisie.ts",
+  "src/vues-de-table/tris.ts",
   "src/vues-de-table/use-reglages.ts",
+  "src/vues-de-table/use-affichage.ts",
   "src/vues-de-table/use-courante.ts",
   "src/vues-de-table/use-edition.ts",
   "src/vues-de-table/use-vue-tableau.ts",
+  "src/vues-de-table/valeur-de-filtre.ts",
   "src/vues-de-table/valider.ts",
   // F-020 : la vue kanban.
   "src/vues-de-table/kanban/VueKanban.tsx",

@@ -165,6 +165,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "Annonce",
       "Avertissement",
       "BarreDeBlocs",
+      // F-019 : barres de filtres et de tris, marques de tri et de ligne hors filtre.
+      "BarreDeDefinition",
       "BarreDuHaut",
       "BoiteDeDialogue",
       "Bouton",
@@ -178,6 +180,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "CelluleDeGrille",
       "ChampDeCellule",
       "ChampDeCompte",
+      "ChampDeDefinition",
       "ChampDeFormulaire",
       "ChampTitre",
       "Chargement",
@@ -192,6 +195,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
       // F-018 : écran de table.
       "EcranDeTableCadre",
       "EcranPlein",
+      "ElementDeDefinition",
       "EntetePage",
       "Formulaire",
       "FormulaireDeCompte",
@@ -206,8 +210,10 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "ListeDeChoix",
       // F-007 : liste de l'écran de la corbeille.
       "ListeDeCorbeille",
+      "ListeDeDefinition",
       // F-018 : marque d'une table, dans la barre latérale et la corbeille.
       "MarqueDeTable",
+      "MarqueDeTri",
       "MenuActions",
       // F-005 : menu slash.
       "MenuDeCommandes",
@@ -233,6 +239,7 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "TeteDeBarre",
       "Texte",
       "TexteDeCellule",
+      "TexteHorsFiltre",
       "ZoneDEdition",
       "ZoneDeSaisie",
       "ZoneEtat",

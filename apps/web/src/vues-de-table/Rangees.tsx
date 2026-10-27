@@ -11,6 +11,7 @@ import {
   CelluleDeGrille,
   RangeeDeGrille,
   TexteDeCellule,
+  TexteHorsFiltre,
 } from "../interface/composants/Table.tsx";
 import { cleAria, RACCOURCIS } from "../interface/raccourcis.ts";
 import { basculerUneCase } from "./actions.ts";
@@ -18,8 +19,14 @@ import { estCochee, texteAffiche } from "./affichage.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
 import { cleDeCellule } from "./courante.ts";
 import { indicesRendus } from "./fenetre.ts";
-import { HAUTEUR_DE_RANGEE, LARGEUR_DES_ACTIONS } from "./grille.ts";
-import { nomActionsDeLaLigne, nomDeLaCelluleCase, nomDeLaLigne, nomDuChamp } from "./textes.ts";
+import { HAUTEUR_DE_RANGEE, largeurDesActions } from "./grille.ts";
+import {
+  HORS_FILTRE,
+  nomActionsDeLaLigne,
+  nomDeLaCelluleCase,
+  nomDeLaLigne,
+  nomDuChamp,
+} from "./textes.ts";
 import type { VueTableau } from "./use-vue-tableau.ts";
 import { valeurDe } from "./valider.ts";
 
@@ -30,7 +37,10 @@ const SUITES_D_UNE_CELLULE = {
 } as const;
 
 /** Les combinaisons de déplacement de la ligne disponibles depuis sa cellule (AC24). */
-function raccourcisDeLaLigne(rang: number, total: number): string | undefined {
+function raccourcisDeLaLigne(rang: number, total: number, triActif: boolean): string | undefined {
+  if (triActif) {
+    return undefined;
+  }
   const disponibles = [
     ...(rang > 1 ? [cleAria(RACCOURCIS.monterLaLigne)] : []),
     ...(rang < total ? [cleAria(RACCOURCIS.descendreLaLigne)] : []),
@@ -100,7 +110,7 @@ function CelluleDeDonnee(props: ProprietesCellule): ReactElement {
       refCellule={vue.courante.refCellule(cleDeCellule(ligne.id, colonne.id))}
       surFocus={() => vue.courante.devenirCourante(place)}
       surDoubleClic={() => vue.edition.commencer(place)}
-      raccourcis={raccourcisDeLaLigne(rang, vue.proprietes.lignes.length)}
+      raccourcis={raccourcisDeLaLigne(rang, vue.proprietes.lignes.length, vue.definition.triActif)}
     >
       <ContenuDeLaCellule {...props} />
     </CelluleDeGrille>
@@ -115,21 +125,25 @@ function CelluleDActions(props: {
   const { vue, ligne, rang } = props;
   const cle = cleDeCellule(ligne.id, null);
   const place = { rang, colonne: 0 };
+  const horsFiltre = vue.definition.horsFiltre.has(ligne.id);
+  const idHorsFiltre = `hors-filtre-${ligne.id}`;
   const { place: courante } = vue.courante;
   const ouvert = vue.menu.ouvert?.cible;
   return (
     <CelluleDeGrille
       role="rowheader"
       indiceDeColonne={1}
-      largeur={LARGEUR_DES_ACTIONS}
+      largeur={largeurDesActions(vue.definition.horsFiltre.size > 0)}
       courante={courante.rang === rang && courante.colonne === 0}
       refCellule={vue.courante.refCellule(cle)}
       surFocus={() => vue.courante.devenirCourante(place)}
       nom={nomDeLaLigne(rang)}
+      description={horsFiltre ? idHorsFiltre : undefined}
       sorte="actions"
-      raccourcis={raccourcisDeLaLigne(rang, vue.proprietes.lignes.length)}
+      raccourcis={raccourcisDeLaLigne(rang, vue.proprietes.lignes.length, vue.definition.triActif)}
     >
       <TexteDeCellule texte={String(rang)} />
+      {horsFiltre && <TexteHorsFiltre id={idHorsFiltre} texte={HORS_FILTRE} />}
       <BoutonIcone
         nom={nomActionsDeLaLigne(rang)}
         pictogramme="points"
@@ -166,6 +180,7 @@ function LigneDeLaGrille(props: {
       decalage={indice * HAUTEUR_DE_RANGEE}
       hauteur={HAUTEUR_DE_RANGEE}
       largeur={props.largeur}
+      horsFiltre={vue.definition.horsFiltre.has(ligne.id)}
     >
       <CelluleDActions vue={vue} ligne={ligne} rang={indice + 1} />
       {vue.colonnes.map((colonne, rangDeColonne) => (

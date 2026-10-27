@@ -13,7 +13,7 @@ import type {
 } from "@notionlike/document";
 
 import { messageErreur } from "../../interface/messages.ts";
-import { ecrire } from "../ecritures.ts";
+import { ecrire, type Issue, type Surveillance } from "../ecritures.ts";
 import {
   type Destination,
   estLaPlaceActuelle,
@@ -28,6 +28,8 @@ export interface ContexteDeDeplacement {
   readonly lue: TableLue;
   readonly lignes: readonly LigneLue[];
   readonly regroupement: ColonneLue;
+  /** L'affichage figé est prévenu des écritures du déplacement (F-019-AC17). */
+  readonly surveillance: Surveillance;
 }
 
 export type ResultatDeDeplacement =
@@ -40,8 +42,7 @@ function refusee(message: string): ResultatDeDeplacement {
   return { sorte: "refusee", message };
 }
 
-function ecrireOuRefuser(operation: () => void): ResultatDeDeplacement | undefined {
-  const issue = ecrire(operation);
+function refusDe(issue: Issue<unknown>): ResultatDeDeplacement | undefined {
   return issue.reussie ? undefined : refusee(issue.message);
 }
 
@@ -113,15 +114,15 @@ function ecrireLePlan(
   option: IdOption | null,
   plan: Plan,
 ): ResultatDeDeplacement | undefined {
-  const { table, regroupement } = contexte;
+  const { table, regroupement, surveillance } = contexte;
   const { changeDePile, position } = plan;
   const cellule = changeDePile
-    ? ecrireOuRefuser(() => table.ecrireCellule(carte, regroupement.id, option))
+    ? refusDe(ecrire(() => table.ecrireCellule(carte, regroupement.id, option), surveillance))
     : undefined;
   if (cellule !== undefined || position === undefined) {
     return cellule;
   }
-  return ecrireOuRefuser(() => table.deplacerLigne(carte, position));
+  return refusDe(ecrire(() => table.deplacerLigne(carte, position), surveillance));
 }
 
 export function deplacerUneCarte(

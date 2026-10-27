@@ -929,6 +929,16 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/vues-de-table/kanban/use-vue-kanban.ts":
     "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/use-reglages.ts": "apps/web/test/vues-de-table/reglages.test.tsx",
+  "apps/web/src/vues-de-table/BarresDeDefinition.tsx":
+    "apps/web/test/vues-de-table/barres-filtres-tris.test.tsx",
+  "apps/web/src/vues-de-table/definition.ts": "apps/web/test/vues-de-table/filtres-et-tris.test.ts",
+  "apps/web/src/vues-de-table/filtres.ts": "apps/web/test/vues-de-table/filtres-et-tris.test.ts",
+  "apps/web/src/vues-de-table/positions.ts": "apps/web/test/vues-de-table/positions.test.ts",
+  "apps/web/src/vues-de-table/tris.ts": "apps/web/test/vues-de-table/filtres-et-tris.test.ts",
+  "apps/web/src/vues-de-table/use-affichage.ts":
+    "apps/web/test/vues-de-table/affichage-fige.test.tsx",
+  "apps/web/src/vues-de-table/valeur-de-filtre.ts":
+    "apps/web/test/vues-de-table/barres-filtres-tris.test.tsx",
 };
 
 function importeLePaquet(texte: string, paquet: string): boolean {
