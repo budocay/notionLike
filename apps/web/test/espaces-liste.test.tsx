@@ -54,7 +54,9 @@ describe("liste des espaces", () => {
     );
     const appareil = partie("Espace de cet appareil");
     expect(appareil.textContent).toContain("Espace courant");
-    expect(appareil.textContent).toContain(
+    // F-032 H10, amendement de F-014-AC1 (F-032-AC1) : les espaces du serveur s'ouvrent dans
+    // l'éditeur, la mention a disparu.
+    expect(appareil.textContent).not.toContain(
       "Les espaces du serveur ne s'ouvrent pas encore dans l'éditeur.",
     );
     expect(within(appareil).queryAllByRole("button")).toEqual([]);

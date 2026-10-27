@@ -145,9 +145,13 @@ const APPELS_DE_LA_GARDE: Readonly<Record<string, Readonly<Record<string, string
     // F-018 : les tables ouvertes donnent aussi le document de leur persistance.
     "src/table/tables-ouvertes.ts": "suivreLOnglet(persistance, tenue.doc)",
     "test/reprise-coutures.test.tsx": "suivreLOnglet(",
+    // F-032-AC13 : la confirmation armée lue au changement d'espace.
+    "test/espace-coutures.test.ts": "suivreLOnglet(",
   },
   brancherLAcquittement: {
     "src/interface/synchronisation-ouverte.ts": "estAcquitte: demarree.estAcquitte",
+    // F-032-AC13 : un acquittement levé n'arme pas la confirmation lue au changement d'espace.
+    "test/espace-coutures.test.ts": "brancherLAcquittement(",
   },
 };
 

@@ -359,3 +359,27 @@
 - Tests: 4743 tests sur 227 fichiers — état: verts — preuve: checks.txt (empreinte `d72717ae7f87`) ; bout en bout `tables.spec.ts` vert en Chromium
 - Gates: passages 1 à 3 : API, backend APPROVED, SECURITY et CRAFT PASS, frontend CHANGES_REQUESTED et ARCHITECTURE FAIL (escalade au troisième, REPRISE D-039) ; passage 4 : mêmes refus ; passage 5 sur `d72717ae7f87` : les six gates verts
 - Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés : 5 défauts réels (focus perdu à AC35, réglages écrasés entre onglets, clavier bloqué après une saisie refusée, saisie effacée au double clic, case basculée pendant une saisie refusée) et une trentaine de points de tests, de noms et de doc · coût non mesuré
+
+## [2026-10-27] F-032 Plusieurs espaces sur un appareil
+
+- TYPE: FEATURE
+- Tier: structurel
+- Scope: `apps/web` (ouverture d'un espace du serveur, changement d'espace, retrait d'un espace de l'appareil) — agents: agent-veille, agent-architecte-conception, agent-frontend — commits: 10bae8f..792e9c1 et la traçabilité
+- Détail: ouvrir un espace du serveur, changer d'espace, retirer un espace de l'appareil ; fin de la réparation par énumération des bases. Au troisième refus de reviewer-frontend, le dev choisit la dérogation (D-040).
+- Dette: introduite D-040 (AC32 et AC2, lot de correctifs RC1) ; levée D-009
+- ADR: amendements F-032 d'ADR-0007, 0008 et 0014 (acceptés, `ea56055`) ; note `docs/decisions/F-032-conception.md`
+- Tests: 4892 tests sur 240 fichiers — état: verts — preuve: checks.txt (empreinte `27f77722b8e6`) ; bout en bout AC34 au dev
+- Gates: passages 1 et 2 : reviewer-frontend CHANGES_REQUESTED et ARCHITECTURE FAIL, SECURITY et CRAFT PASS ; passage 3 sur `27f77722b8e6` : SECURITY, ARCHITECTURE, CRAFT PASS, reviewer-frontend CHANGES_REQUESTED (escalade) ; DEROGATION D-040 du dev
+- Mesures: boucles 3 passages, 2 tours de correctifs · constats confirmés au passage 3 : 2 (AC32, AC2) · coût non mesuré
+
+## [2026-10-27] D-041 Création de lignes de table quadratique
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `packages/document` (`creerLigne`) — agents: orchestrateur — commits: aucun
+- Détail: le coût de `creerLigne` croît avec le nombre de lignes : 5 000 lignes ≈ 52 s en test (constaté par F-019 et F-021). À corriger avant les grandes tables.
+- Dette: introduite D-041
+- ADR: aucun
+- Tests: aucun — état: verts — preuve: rapports de F-019 et F-021
+- Gates: aucun
+- Mesures: aucune

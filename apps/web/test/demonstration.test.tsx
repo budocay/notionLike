@@ -207,6 +207,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "LigneDOption",
       "LigneDuPanneau",
       "LignesDuPanneau",
+      // F-032-AC30 : rangées de l'écran des espaces à trois parties (liste fermée étendue, AC32).
+      "ListeDEspaces",
       "ListeDOptions",
       "ListeDeChoix",
       // F-007 : liste de l'écran de la corbeille.

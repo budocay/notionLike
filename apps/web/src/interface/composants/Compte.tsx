@@ -40,26 +40,45 @@ interface ProprietesAction {
   readonly desactivee?: boolean | undefined;
   /** Vrai : l'action mène à l'écran affiché, marquée courante (F-007-AC1). */
   readonly courante?: boolean | undefined;
+  /**
+   * Nom accessible, quand il dit plus que le libellé (F-032-AC4) ; il contient le libellé visible
+   * sans forcément commencer par lui : celui du sélecteur d'espace est « Espaces — espace courant :
+   * <nom> » pour le libellé « <nom> ».
+   */
+  readonly nom?: string | undefined;
+  /** Vrai : le libellé tient sur une ligne, coupé par des points de suspension (F-004-AC24). */
+  readonly coupe?: boolean | undefined;
+  /** Le lien, pour y porter le focus (F-032-AC29). */
+  readonly refLien?: Ref<HTMLAnchorElement> | undefined;
 }
 
 export function ActionDeCompte(props: ProprietesAction): ReactElement {
+  const libelle =
+    props.coupe === true ? (
+      <span className={COMPTE.libelleCoupe}>{props.libelle}</span>
+    ) : (
+      props.libelle
+    );
   return props.adresse === undefined ? (
     <button
       type="button"
       className={props.courante === true ? COMPTE.actionCourante : COMPTE.action}
       aria-current={props.courante === true ? "page" : undefined}
+      aria-label={props.nom}
       disabled={props.desactivee}
       onClick={props.surActivation}
     >
-      {props.libelle}
+      {libelle}
     </button>
   ) : (
     <a
+      ref={props.refLien}
       href={props.adresse}
       className={props.courante === true ? COMPTE.actionCourante : COMPTE.action}
       aria-current={props.courante === true ? "page" : undefined}
+      aria-label={props.nom}
     >
-      {props.libelle}
+      {libelle}
     </a>
   );
 }

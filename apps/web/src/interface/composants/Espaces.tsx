@@ -117,8 +117,14 @@ export function Lien(props: {
   readonly libelle: string;
   readonly adresse: string;
   readonly nom?: string | undefined;
+  /** Vrai : titre d'une rangée, sur une ligne, coupé par des points de suspension (F-032-AC30). */
+  readonly coupe?: boolean | undefined;
 }): ReactElement {
-  return (
+  return props.coupe === true ? (
+    <a href={props.adresse} className={ESPACES.lienDeRangee} aria-label={props.nom}>
+      <span className={ESPACES.titreCoupe}>{props.libelle}</span>
+    </a>
+  ) : (
     <a href={props.adresse} className={ESPACES.lien} aria-label={props.nom}>
       {props.libelle}
     </a>
@@ -313,4 +319,46 @@ function rendreLeResteInerte(plan: HTMLElement): () => void {
     noeud = parent;
   }
   return () => poses.forEach((element) => element.removeAttribute(INERTE));
+}
+
+/** Une rangée de l'écran des espaces (F-032-AC30). */
+export interface RangeeDEspace {
+  readonly cle: string;
+  /** Le titre, coupé par des points de suspension quand la place manque. */
+  readonly nom: string;
+  /** Le titre quand il mène quelque part ; il prend la place de `nom`. */
+  readonly lien?: ReactNode;
+  /** Rôle, mention, « Espace courant » : dits par un texte, jamais par la seule couleur. */
+  readonly details?: string | undefined;
+  readonly commandes: ReactNode;
+}
+
+/**
+ * Liste d'espaces (F-032-AC1, AC29, AC30) : ce qui la précède (annonce, alerte, texte d'une liste
+ * vide), puis une rangée par espace, son titre sur une ligne, ses détails, ses commandes. Le focus
+ * revient au groupe quand la commande d'origine a disparu avec sa rangée.
+ */
+export function ListeDEspaces(props: {
+  readonly refGroupe?: Ref<HTMLDivElement> | undefined;
+  readonly rangees: readonly RangeeDEspace[];
+  readonly children?: ReactNode;
+}): ReactElement {
+  return (
+    <div ref={props.refGroupe} tabIndex={-1} className={ESPACES.groupe}>
+      {props.children}
+      {props.rangees.length > 0 && (
+        <ul className={ESPACES.liste}>
+          {props.rangees.map((rangee) => (
+            <li key={rangee.cle} className={ESPACES.rangee}>
+              {rangee.lien ?? <p className={ESPACES.titreDeRangee}>{rangee.nom}</p>}
+              {rangee.details !== undefined && (
+                <p className={ESPACES.detailDeRangee}>{rangee.details}</p>
+              )}
+              <Actions>{rangee.commandes}</Actions>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
