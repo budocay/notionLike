@@ -34,7 +34,15 @@ export function tableDeKanban(
   repartition: readonly (readonly [string, number])[],
   libelles: readonly string[] = ["À faire", "En cours", "Fait"],
 ): TableDeKanban {
-  const table = creerDocumentTable();
+  return remplirLaTableDeKanban(creerDocumentTable(), repartition, libelles);
+}
+
+/** Remplit une table vierge, pour la rendre ensuite par l'écran de table. */
+export function remplirLaTableDeKanban(
+  table: DocumentTable,
+  repartition: readonly (readonly [string, number])[],
+  libelles: readonly string[] = ["À faire", "En cours", "Fait"],
+): TableDeKanban {
   const titre = table.creerColonne("Titre", "texte");
   const statut = table.creerColonne("Statut", "selection");
   const options = libelles.map((libelle) => table.ajouterOption(statut, libelle));
