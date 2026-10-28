@@ -916,6 +916,8 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
   "apps/web/src/vues-de-table/repartition.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
+  "apps/web/src/vues-de-table/dates-visees.ts":
+    "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
   "apps/web/src/vues-de-table/repli-calendrier.ts":
     "apps/web/test/vues-de-table/calendrier-ecran.test.tsx",
   "apps/web/src/vues-de-table/use-ecritures-calendrier.ts":

@@ -167,9 +167,9 @@ export async function construireLArborescence(page: Page): Promise<void> {
 }
 
 /**
- * Écran (k) : la vue calendrier d'une table de F-021 dont une ligne est datée du 15 octobre 2026, mois affiché (horloge figée)
- * et deux restent dans « Sans date ». La fenêtre doit être large pendant la construction, et la
- * table se crée par le menu de la barre latérale.
+ * Écran (k) : la vue calendrier d'une table de F-021, au mois de l'horloge figée (octobre 2026) : une
+ * ligne est datée du 15 octobre 2026 et deux restent dans « Sans date ». La fenêtre doit être large
+ * pendant la construction, et la table se crée par le menu de la barre latérale.
  */
 export async function construireLeCalendrier(page: Page): Promise<void> {
   // Le mois affiché est celui de l'horloge : figée, il ne change pas la nuit du dernier jour du mois.

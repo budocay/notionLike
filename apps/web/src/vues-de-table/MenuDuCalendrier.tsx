@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { type EntreeDeMenu, MenuActions } from "../interface/composants/MenuActions.tsx";
 import { SurfaceFlottante } from "../interface/composants/Table.tsx";
 import { afficherTouches, cleAria, TOUCHES_DE_L_ENTREE } from "../interface/raccourcis.ts";
-import { jourVise } from "./ecritures-du-calendrier.ts";
+import { jourVise } from "./dates-visees.ts";
 import { PAS } from "./pas-du-calendrier.ts";
 import {
   autresEntrees,
@@ -118,7 +118,7 @@ function entreesDuMenuDeLaCase(vue: Vue, jour: string): EntreeDeMenu[] {
   ];
 }
 
-export function MenuOuvert({ vue }: { readonly vue: Vue }): ReactElement | null {
+export function MenuDuCalendrierOuvert({ vue }: { readonly vue: Vue }): ReactElement | null {
   const ouvert = vue.menu.ouvert;
   if (ouvert === undefined) {
     return null;

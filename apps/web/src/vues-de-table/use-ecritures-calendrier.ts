@@ -4,14 +4,8 @@
 import type { DocumentTable, LigneLue, TypeDeColonne } from "@notionlike/document";
 
 import { creerUneColonne } from "./actions.ts";
-import {
-  creerUneLigneDuJour,
-  dateDejaEcrite,
-  ecrireLaDate,
-  jourVise,
-  type PasDeJours,
-  supprimerLaLigne,
-} from "./ecritures-du-calendrier.ts";
+import { dateDejaEcrite, jourVise, type PasDeJours } from "./dates-visees.ts";
+import { creerUneLigneDuJour, ecrireLaDate, supprimerLaLigne } from "./ecritures-du-calendrier.ts";
 import type { Surveillance } from "./ecritures.ts";
 import { decomposer } from "./jours.ts";
 import type { ModeleDuCalendrier } from "./modele-calendrier.ts";

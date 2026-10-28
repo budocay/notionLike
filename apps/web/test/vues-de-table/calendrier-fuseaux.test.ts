@@ -15,7 +15,8 @@ import {
   memeQuantiemeAilleurs,
 } from "../../src/vues-de-table/jours.ts";
 import { SANS_SURVEILLANCE } from "../../src/vues-de-table/ecritures.ts";
-import { ecrireLaDate, jourVise } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
+import { jourVise } from "../../src/vues-de-table/dates-visees.ts";
+import { ecrireLaDate } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
 import { type ColonneDeDate, repartir } from "../../src/vues-de-table/repartition.ts";
 import { oracle, verifierLEnumeration } from "./aides-enumeration-jours.ts";
 import { FUSEAUX, rendreLeFuseau, sous } from "./aides-fuseaux.ts";

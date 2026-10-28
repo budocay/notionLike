@@ -4,7 +4,7 @@
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { refusDeLaDate } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
+import { refusDeLaDate } from "../../src/vues-de-table/dates-visees.ts";
 import { jourDeLaLigne, repartir } from "../../src/vues-de-table/repartition.ts";
 import {
   annonces,

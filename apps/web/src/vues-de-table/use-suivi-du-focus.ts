@@ -21,7 +21,7 @@ function parDonnee(racine: HTMLElement, attribut: string, valeur: string): HTMLE
   );
 }
 
-export function elementDe(racine: HTMLElement, cible: CibleDeFocus): HTMLElement | undefined {
+function elementDe(racine: HTMLElement, cible: CibleDeFocus): HTMLElement | undefined {
   switch (cible.sorte) {
     case "case":
       return parDonnee(racine, "data-jour", cible.jour);
@@ -33,7 +33,7 @@ export function elementDe(racine: HTMLElement, cible: CibleDeFocus): HTMLElement
 }
 
 /** La cible que désigne un élément qui reçoit le focus ; `undefined` s'il n'en désigne aucune. */
-export function cibleDe(element: Element): CibleDeFocus | undefined {
+function cibleDe(element: Element): CibleDeFocus | undefined {
   const entree = element.closest<HTMLElement>("[data-ligne]");
   const caseDuJour = element.closest<HTMLElement>("[data-jour]");
   if (entree !== null && caseDuJour !== null) {

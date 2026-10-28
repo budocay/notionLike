@@ -1,7 +1,7 @@
 // Les quatre déplacements d'une entrée par pas de jours (F-021-AC11) : le pas, le nom de la commande
 // et la combinaison qui la déclenche au clavier. Partagés par l'entrée et par son menu.
 import { TOUCHES_DE_L_ENTREE } from "../interface/raccourcis.ts";
-import type { PasDeJours } from "./ecritures-du-calendrier.ts";
+import type { PasDeJours } from "./dates-visees.ts";
 import { JOURS_PAR_SEMAINE } from "./jours.ts";
 import {
   JOUR_PRECEDENT,

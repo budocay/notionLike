@@ -31,8 +31,8 @@ import { cleAria, TOUCHES_DE_L_ENTREE, TOUCHES_DE_LA_CASE } from "../interface/r
 import { BoiteNouvelleColonne, Confirmation } from "./Boites.tsx";
 import { touchesDeBoite } from "./boite.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
-import { jourVise, refusDeLaDate } from "./ecritures-du-calendrier.ts";
-import { MenuOuvert } from "./MenuDuCalendrier.tsx";
+import { jourVise, refusDeLaDate } from "./dates-visees.ts";
+import { MenuDuCalendrierOuvert } from "./MenuDuCalendrier.tsx";
 import { PanneauSansDate } from "./PanneauSansDate.tsx";
 import { PAS } from "./pas-du-calendrier.ts";
 import { decomposer, DERNIER_JOUR, JOURS_PAR_SEMAINE, PREMIER_JOUR } from "./jours.ts";
@@ -265,7 +265,7 @@ function BoiteDeDate({ vue, id }: { readonly vue: Vue; readonly id: string }): R
 /** Où le focus va quand « Nouvelle colonne » se ferme : l'invitation (annulation), ou la grille (création). */
 type RetourDuFocus = "invitation" | "grille";
 
-function BoiteOuverte({
+function BoiteDuCalendrierOuverte({
   vue,
   retour,
 }: {
@@ -401,10 +401,10 @@ export function VueCalendrier(proprietes: ProprietesVueCalendrier): ReactElement
         >
           <GrilleDuMois vue={vue} />
           <PanneauSansDate vue={vue} />
-          <MenuOuvert vue={vue} />
+          <MenuDuCalendrierOuvert vue={vue} />
         </CadreDuCalendrier>
       )}
-      <BoiteOuverte vue={vue} retour={retour} />
+      <BoiteDuCalendrierOuverte vue={vue} retour={retour} />
     </EcranDeTableCadre>
   );
 }

@@ -76,6 +76,41 @@ describe("nouvelle ligne et titre (F-021-AC10)", () => {
     expect(focus()).toBe(entree("Médecin"));
   });
 
+  it("F-021-AC10 un titre au-delà de la limite de F-018-AC27 est refusé : aucune mise à jour, le champ reste ouvert et focalisé, le message est dit en français", async () => {
+    const { utilisateur, table, emises } = rendreLeCalendrier(UNE);
+    act(() => entree("Dentiste").focus());
+    await utilisateur.keyboard("{Enter}");
+    const champ = within(caseDuJour("2026-10-08")).getByRole("textbox");
+    await utilisateur.click(champ);
+    await utilisateur.paste("x".repeat(2001));
+    await utilisateur.keyboard("{Enter}");
+    expect(emises).toHaveLength(0);
+    expect(table.lire().lignes[0]?.cellules[0]).toBe("Dentiste");
+    expect(within(caseDuJour("2026-10-08")).getByRole("textbox")).toBe(champ);
+    expect(focus()).toBe(champ);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Le texte d'une cellule compte au plus 2000 caractères.",
+    );
+  });
+
+  it("F-021-AC10 la sortie du champ (Tab ou clic ailleurs) valide le titre en une seule opération", async () => {
+    const { utilisateur, table, emises } = rendreLeCalendrier(UNE);
+    act(() => entree("Dentiste").focus());
+    await utilisateur.keyboard("{Enter}");
+    await utilisateur.keyboard("{Control>}a{/Control}Médecin{Tab}");
+    expect(table.lire().lignes[0]?.cellules[0]).toBe("Médecin");
+    expect(emises).toHaveLength(1);
+    expect(screen.queryByRole("textbox")).toBeNull();
+
+    act(() => entree("Médecin").focus());
+    await utilisateur.keyboard("{F2}");
+    await utilisateur.keyboard("{Control>}a{/Control}Bilan");
+    await utilisateur.click(document.body);
+    expect(table.lire().lignes[0]?.cellules[0]).toBe("Bilan");
+    expect(emises).toHaveLength(2);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
   it("F-021-AC10 « Supprimer la ligne » demande une confirmation ; annuler n'écrit rien, confirmer supprime et rend le focus à la case", async () => {
     const { utilisateur, table, emises } = rendreLeCalendrier(UNE);
     await utilisateur.click(bouton("Actions de l'entrée Dentiste"));

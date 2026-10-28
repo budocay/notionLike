@@ -21,6 +21,8 @@ export const SECTION_VUE = "vue";
 export const SECTION_TABLEAU = "tableau";
 /** Filtres et tris de la table (F-019-AC20) : une définition pour toutes les vues, sur l'appareil. */
 export const SECTION_FILTRES_TRIS = "filtres-tris";
+/** Le choix de colonne de date du calendrier (F-021-AC6) ; son contenu est à `reglages-calendrier.ts`. */
+export const SECTION_CALENDRIER = "calendrier";
 
 export const LARGEUR_PAR_DEFAUT = 180;
 export const LARGEUR_MIN = 60;

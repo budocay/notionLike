@@ -1143,7 +1143,6 @@ function SpecimenDesOptions(): ReactElement {
   );
 }
 
-// Écran de table (F-018) : la marque d'une table, l'écran d'une table sans colonne et son invitation.
 // Calendrier d'une table (F-021) : une semaine de la grille du mois (cases hors du mois, case
 // d'aujourd'hui, entrées avec leur menu), le titre du mois et le panneau « Sans date ».
 function SpecimenDuCalendrier(): ReactElement {
@@ -1219,6 +1218,7 @@ function PanneauFictif(): ReactElement {
   );
 }
 
+// Écran de table (F-018) : la marque d'une table, l'écran d'une table sans colonne et son invitation.
 function SectionTables(): ReactElement {
   const T = TABLE_FICTIVE;
   return (

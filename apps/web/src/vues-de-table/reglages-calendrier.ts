@@ -4,7 +4,6 @@
 // mémoire, par onglet (AC2).
 import type { IdColonne } from "@notionlike/document";
 
-export const SECTION_CALENDRIER = "calendrier";
 const CLE_DE_LA_COLONNE = "colonne";
 
 function estUnObjet(valeur: unknown): valeur is Readonly<Record<string, unknown>> {

@@ -117,32 +117,43 @@ describe("bornes du calendrier (F-021-AC3)", () => {
   });
 });
 
+/** Les constats de la grille d'un mois ; `entiere` : semaines entières, du lundi au dimanche. */
+function constaterLaGrille(annee: number, mois: number, entiere: boolean): void {
+  const grille = grilleDuMois({ annee, mois });
+  const nom = `${String(annee)}-${String(mois)}`;
+  expect(grille.length, nom).toBeGreaterThanOrEqual(28);
+  expect(grille.length, nom).toBeLessThanOrEqual(42);
+  expect(jourDeLaSemaine(grille[0] ?? ""), nom).toBe(0);
+  if (entiere) {
+    expect(grille.length % 7, nom).toBe(0);
+    expect(jourDeLaSemaine(grille.at(-1) ?? ""), nom).toBe(6);
+  }
+  grille.forEach((jour, rang) => {
+    if (rang > 0) {
+      expect(jour, nom).toBe(decaler(grille[rang - 1] ?? "", 1));
+    }
+  });
+  const avant = grille.findIndex((jour) => decomposer(jour)?.mois === mois);
+  const apres = grille.length - 1 - grille.findLastIndex((jour) => decomposer(jour)?.mois === mois);
+  expect(avant, nom).toBeLessThan(7);
+  expect(apres, nom).toBeLessThan(7);
+  const duMois = grille.filter((jour) => decomposer(jour)?.mois === mois);
+  expect(duMois.length, nom).toBe(joursDuMois(annee, mois));
+  expect(new Set(duMois).size, nom).toBe(duMois.length);
+  expect(duMois[0], nom).toBe(ecrit(annee, mois, 1));
+}
+
 describe("grille du mois (F-021-AC17)", () => {
-  it("F-021-AC17 chaque mois de 1900 à 2100 : une grille de semaines entières du lundi au dimanche, 28 à 42 cases, tous les jours du mois sans trou", () => {
+  it("F-021-AC17 chaque mois de 1900 à 2100, janvier 1 et décembre 9999 : une grille de semaines entières du lundi au dimanche, 28 à 42 cases, tous les jours du mois une fois et sans trou", () => {
     for (let annee = 1900; annee <= 2100; annee += 1) {
       for (let mois = 1; mois <= 12; mois += 1) {
-        const grille = grilleDuMois({ annee, mois });
-        const nom = `${String(annee)}-${String(mois)}`;
-        expect(grille.length % 7, nom).toBe(0);
-        expect(grille.length, nom).toBeGreaterThanOrEqual(28);
-        expect(grille.length, nom).toBeLessThanOrEqual(42);
-        expect(jourDeLaSemaine(grille[0] ?? ""), nom).toBe(0);
-        expect(jourDeLaSemaine(grille.at(-1) ?? ""), nom).toBe(6);
-        grille.forEach((jour, rang) => {
-          if (rang > 0) {
-            expect(jour, nom).toBe(decaler(grille[rang - 1] ?? "", 1));
-          }
-        });
-        const avant = grille.findIndex((jour) => decomposer(jour)?.mois === mois);
-        const apres =
-          grille.length - 1 - grille.findLastIndex((jour) => decomposer(jour)?.mois === mois);
-        expect(avant, nom).toBeLessThan(7);
-        expect(apres, nom).toBeLessThan(7);
-        const duMois = grille.filter((jour) => decomposer(jour)?.mois === mois);
-        expect(duMois.length, nom).toBe(joursDuMois(annee, mois));
-        expect(duMois[0], nom).toBe(ecrit(annee, mois, 1));
+        constaterLaGrille(annee, mois, true);
       }
     }
+    constaterLaGrille(1, 1, true);
+    // Décembre 9999 : le 31 est un vendredi et aucun jour ne le suit (AC3) ; la grille ne finit pas
+    // un dimanche et n'est pas un multiple de 7, seules exceptions aux constats.
+    constaterLaGrille(9999, 12, false);
   });
 
   it("F-021-AC17 février 2027 tient en quatre semaines (28 cases, le 1er est un lundi), février 2026 en cinq (le 1er est un dimanche)", () => {

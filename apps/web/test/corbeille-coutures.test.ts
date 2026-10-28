@@ -95,6 +95,7 @@ const IMPORTATEURS_DU_DOCUMENT = [
   // F-021 : la vue calendrier lit la table par la même façade.
   "src/vues-de-table/VueCalendrier.tsx",
   "src/vues-de-table/MenuDuCalendrier.tsx",
+  "src/vues-de-table/dates-visees.ts",
   "src/vues-de-table/ecritures-du-calendrier.ts",
   "src/vues-de-table/assemblage-des-commandes.ts",
   "src/vues-de-table/modele-calendrier.ts",

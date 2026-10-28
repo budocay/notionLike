@@ -8,6 +8,7 @@ import { effacerReglagesDeVue } from "../../src/persistance/index.ts";
 import * as interfaceDuModule from "../../src/vues-de-table/index.ts";
 import {
   lireLesReglages,
+  SECTION_CALENDRIER,
   SECTION_FILTRES_TRIS,
   SECTION_TABLEAU,
   SECTION_VUE,
@@ -63,17 +64,20 @@ describe("couture des vues (F-019-AC14)", () => {
 });
 
 /** Les sections des réglages de vue livrées à la date de ce commit (F-018-AC40, F-019-AC20). */
-const SECTIONS_LIVREES = ["vue", "tableau", "filtres-tris"];
+const SECTIONS_LIVREES = ["vue", "tableau", "filtres-tris", "calendrier"];
 
 describe("couture des réglages de vue (F-019-AC22)", () => {
   const AUTRES = {
     vue: { active: "tableau" },
     tableau: { largeurs: { "colonne-inconnue": 240 } },
+    calendrier: { colonne: "colonne-de-date" },
     avenir: { reglage: [1, 2, 3] },
   };
 
   it("F-019-AC22 les sections livrées sont celles que le module des réglages nomme", () => {
-    expect([SECTION_VUE, SECTION_TABLEAU, SECTION_FILTRES_TRIS]).toEqual(SECTIONS_LIVREES);
+    expect([SECTION_VUE, SECTION_TABLEAU, SECTION_FILTRES_TRIS, SECTION_CALENDRIER]).toEqual(
+      SECTIONS_LIVREES,
+    );
     const nommees = [
       ...lire("src/vues-de-table/reglages.ts").matchAll(/SECTION_[A-Z_]+ = "([^"]+)"/g),
     ]
@@ -93,7 +97,13 @@ describe("couture des réglages de vue (F-019-AC22)", () => {
       ).sections;
 
     await filtrer(utilisateur, { depart: "Nom", cible: "État" }, "est", "En cours");
-    expect(Object.keys(sections()).sort()).toEqual(["avenir", "filtres-tris", "tableau", "vue"]);
+    expect(Object.keys(sections()).sort()).toEqual([
+      "avenir",
+      "calendrier",
+      "filtres-tris",
+      "tableau",
+      "vue",
+    ]);
     for (const nom of Object.keys(AUTRES) as (keyof typeof AUTRES)[]) {
       expect(sections()[nom]).toEqual(AUTRES[nom]);
     }
