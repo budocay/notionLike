@@ -2,10 +2,11 @@
 // l'appareil, section `kanban` des réglages, appelants du module de glisser-déposer, absence de
 // réseau et d'animation dans les sources. Chaque contrôle statique reçoit ses données et a son cas
 // fautif à côté de lui.
-import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
+import { Bouton } from "../../src/interface/composants/Espaces.tsx";
 import { VUES } from "../../src/vues-de-table/vues.ts";
 import { type Aretes, atteintsDepuis, graphe } from "../aides-graphe.ts";
 import { lire, lireDossier } from "../aides-disque.ts";
@@ -267,4 +268,121 @@ describe("ni réseau ni animation (F-020-AC24, AC28)", () => {
     expect(fautes(fichiers, RESEAU)).toEqual(["a.ts"]);
     expect(fautes(fichiers, ANIMATION)).toEqual(["b.ts"]);
   });
+});
+
+// ——— F-020-AC27 : le composant partagé `Bouton` gagne trois propriétés facultatives ———
+//
+// `tabIndex`, `surFocus` et `arret` servent aux arrêts du plateau (F-020-AC15). Tout autre appelant
+// ne les passe pas : sans elles, le bouton est celui d'avant (dans l'ordre de tabulation, sans
+// identifiant d'arrêt, sans rappel de focus).
+
+const PROPRIETES_DES_ARRETS = /\b(tabIndex|surFocus|arret)=|\{\.\.\./;
+
+/** Les éléments `<Bouton … />` d'un texte source. */
+function boutonsDe(texte: string): string[] {
+  return texte.match(/<Bouton[\s/>][^]*?\/>/g) ?? [];
+}
+
+/** Fichiers de `src/` qui rendent `<Bouton`, avec ceux dont un élément passe l'une des propriétés. */
+function appelantsDeBouton(sources: ReadonlyMap<string, string>) {
+  const appelants = [...sources].filter(([, texte]) => boutonsDe(texte).length > 0);
+  return {
+    appelants: appelants.map(([chemin]) => chemin).sort(),
+    quiPassent: appelants
+      .filter(([, texte]) => boutonsDe(texte).some((un) => PROPRIETES_DES_ARRETS.test(un)))
+      .map(([chemin]) => chemin)
+      .sort(),
+  };
+}
+
+const APPELANTS_DE_BOUTON = [
+  "src/demonstration/PageDemonstration.tsx",
+  "src/interface/ActionsDeLEspace.tsx",
+  "src/interface/AdoptionDeLEspace.tsx",
+  "src/interface/ConfirmationDeChangement.tsx",
+  "src/interface/EchecOuChargement.tsx",
+  "src/interface/EcranDInvitation.tsx",
+  "src/interface/EcranDUnEspace.tsx",
+  "src/interface/EcranDeLaCorbeille.tsx",
+  "src/interface/EcranDesEspaces.tsx",
+  "src/interface/EcranDuCompte.tsx",
+  "src/interface/EffacementDeLaCopie.tsx",
+  "src/interface/EspacesDeLAppareil.tsx",
+  "src/interface/InvitationsDeLEspace.tsx",
+  "src/interface/MembresDeLEspace.tsx",
+  "src/interface/MotDePasseDuCompte.tsx",
+  "src/interface/OuvertureDUnEspace.tsx",
+  "src/interface/RetraitDeLAppareil.tsx",
+  "src/interface/RevocationDeSession.tsx",
+  "src/interface/SessionsDuCompte.tsx",
+  "src/interface/ZoneDeSynchronisation.tsx",
+  "src/vues-de-table/BarreDesTris.tsx",
+  "src/vues-de-table/BarresDeDefinition.tsx",
+  "src/vues-de-table/Boites.tsx",
+  "src/vues-de-table/PanneauDesOptions.tsx",
+  "src/vues-de-table/VueTableau.tsx",
+  "src/vues-de-table/kanban/PilesDuKanban.tsx",
+  "src/vues-de-table/kanban/VueKanban.tsx",
+];
+
+describe("appelants du composant partagé Bouton (F-020-AC27)", () => {
+  it("F-020-AC27 les appelants de Bouton sont exactement ceux qui sont déclarés, et seuls les arrêts du plateau passent tabIndex, surFocus ou arret", () => {
+    const { appelants, quiPassent } = appelantsDeBouton(new Map([...lireDossier("src")]));
+    expect(appelants).toEqual(APPELANTS_DE_BOUTON);
+    expect(quiPassent).toEqual(["src/vues-de-table/kanban/PilesDuKanban.tsx"]);
+  });
+
+  it("F-020-AC27 cas fautif : un appelant qui passe une des propriétés est vu, un autre non", () => {
+    const sources = new Map([
+      ["src/a.tsx", '<Bouton libelle="a" tabIndex={-1} />'],
+      ["src/b.tsx", '<Bouton libelle="b" surActivation={f} />'],
+      ["src/c.tsx", '<Bouton\n {...arret("x")}\n libelle="c" />'],
+    ]);
+    expect(appelantsDeBouton(sources)).toEqual({
+      appelants: ["src/a.tsx", "src/b.tsx", "src/c.tsx"],
+      quiPassent: ["src/a.tsx", "src/c.tsx"],
+    });
+  });
+
+  it("F-020-AC27 sans les trois propriétés le bouton est celui d'avant ; avec elles il est un arrêt du plateau", () => {
+    const surFocus = vi.fn();
+    render(<Bouton libelle="Seul" />);
+    const seul = screen.getByRole("button", { name: "Seul" });
+    expect(seul.tabIndex).toBe(0);
+    expect(seul.hasAttribute("data-arret")).toBe(false);
+    seul.focus();
+    expect(document.activeElement).toBe(seul);
+
+    render(<Bouton libelle="Arrêt" tabIndex={-1} arret="a" surFocus={surFocus} />);
+    const arret = screen.getByRole("button", { name: "Arrêt" });
+    expect(arret.tabIndex).toBe(-1);
+    expect(arret.getAttribute("data-arret")).toBe("a");
+    arret.focus();
+    expect(surFocus).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ——— F-020-AC16 : les appelants de la destination d'une commande et du déplacement passent le tri ———
+//
+// `destinationDeLaCommande` et `deplacerUneCarte` gagnent `triActif`, facultatif et faux par défaut :
+// un appelant qui l'oublierait offrirait « Monter » sous un tri. Leurs appelants sont énumérés.
+
+const SOURCES_DU_KANBAN = new Map(
+  [...lireDossier("src")].filter(([chemin]) => chemin.startsWith("src/vues-de-table/kanban/")),
+);
+
+describe("appelants qui passent le tri (F-020-AC16)", () => {
+  it.each([
+    ["destinationDeLaCommande", /destinationDeLaCommande\([^)]*triActif/, 2],
+    ["deplacerUneCarte", /deplacerUneCarte\([^)]*triActif/, 1],
+  ] as const)(
+    "F-020-AC16 chaque appelant de %s dans la vue kanban passe triActif",
+    (nom, passe, nombre) => {
+      const appelants = appelantsDe(nom, SOURCES_DU_KANBAN);
+      expect(appelants).toHaveLength(nombre);
+      for (const chemin of appelants) {
+        expect(SOURCES_DU_KANBAN.get(chemin)).toMatch(passe);
+      }
+    },
+  );
 });

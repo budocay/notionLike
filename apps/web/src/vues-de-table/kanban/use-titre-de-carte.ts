@@ -27,7 +27,7 @@ export interface TitreDeCarte {
   readonly abandonner: () => void;
 }
 
-interface Moyens {
+interface MoyensDuTitre {
   readonly table: DocumentTable;
   readonly lue: TableLue;
   readonly lignes: readonly LigneLue[];
@@ -41,7 +41,7 @@ interface Moyens {
 
 // Écrit la saisie dans la cellule de titre ; `undefined` : écrite, sans changement, ou sans objet
 // (ligne ou colonne disparue après une mise à jour reçue), sinon le message du refus.
-function enregistrer(moyens: Moyens, saisie: SaisieDeTitre): string | undefined {
+function enregistrer(moyens: MoyensDuTitre, saisie: SaisieDeTitre): string | undefined {
   const { lue, lignes, table } = moyens;
   const colonne = colonneDeTitre(lue);
   const ligne = lignes.find(({ id }) => id === saisie.carte);
@@ -57,7 +57,7 @@ function enregistrer(moyens: Moyens, saisie: SaisieDeTitre): string | undefined 
   );
 }
 
-export function useTitreDeCarte(moyens: Moyens): TitreDeCarte {
+export function useTitreDeCarte(moyens: MoyensDuTitre): TitreDeCarte {
   const [saisie, setSaisie] = useState<SaisieDeTitre | undefined>(undefined);
   const ouverte = useRef<IdLigne | undefined>(undefined);
   const champ = useRef<HTMLInputElement>(null);

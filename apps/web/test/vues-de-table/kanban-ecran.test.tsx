@@ -284,6 +284,7 @@ describe("piles longues (F-020-AC8)", () => {
         titre="Grande"
         lectureSeule={undefined}
         surveillance={SANS_SURVEILLANCE}
+        triActif={false}
         designation={{ idEspace: "e", idTable: "t" }}
         selecteur={null}
       />,
@@ -340,10 +341,9 @@ describe("piles longues (F-020-AC8)", () => {
   });
 });
 
-describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
-  // Préparation seulement : prouve que la vue garde l'ordre des lignes reçues. Le cas « Tri actif »
-  // (AC16 complet) viendra à la fusion avec F-019, quand un tri existera.
-  it("F-020-AC16 (préparation) F-020-AC27 F-019 n'étant pas livrée, la vue présente exactement les lignes qu'elle reçoit, dans leur ordre : un sous-ensemble réordonné (filtre, tri) donne les cartes et leur place", () => {
+describe("lignes affichées données à la vue (F-020-AC2, AC27)", () => {
+  // La vue garde l'ordre des lignes reçues ; le cas « Tri actif » est dans `kanban-tri.test.tsx`.
+  it("F-020-AC2 F-020-AC27 la vue présente exactement les lignes qu'elle reçoit, dans leur ordre : un sous-ensemble réordonné (filtre, tri) donne les cartes et leur place", () => {
     const lue: TableLue = {
       colonnes: [
         { id: "titre", nom: "Titre", type: "texte", options: [] },
@@ -370,6 +370,7 @@ describe("lignes affichées données à la vue (F-020-AC16, AC27)", () => {
         titre="Filtrée"
         lectureSeule={undefined}
         surveillance={SANS_SURVEILLANCE}
+        triActif={false}
         designation={{ idEspace: "e", idTable: "t" }}
         selecteur={null}
       />,

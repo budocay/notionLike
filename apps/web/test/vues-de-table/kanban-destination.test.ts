@@ -238,6 +238,7 @@ function commanderSur(une: ReturnType<typeof essai>) {
     ...contexteDe(une.table),
     piles: pilesDe(une.table),
     lectureSeule: undefined,
+    triActif: false,
     signaler,
     annoncer,
     focaliser,

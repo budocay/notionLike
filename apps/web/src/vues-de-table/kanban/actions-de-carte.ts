@@ -5,6 +5,7 @@ import type { ColonneLue, IdLigne } from "@notionlike/document";
 
 import type { DepotSurUnePile } from "../../glisser/index.ts";
 import { ecrire } from "../ecritures.ts";
+import { TRI_ACTIF } from "../textes.ts";
 import { deplacerUneCarte } from "./deplacement.ts";
 import {
   type CommandeDeCarte,
@@ -12,12 +13,13 @@ import {
   destinationDeLaCommande,
   destinationDuDepot,
   placeApresLeDeplacement,
+  reglePlaceDansLaPile,
 } from "./destination.ts";
 import { DESCRIPTION_DES_COMMANDES } from "./entrees.ts";
 import { carteDeLIdentifiant, pileDeLIdentifiant } from "./identifiants.ts";
 import type { MoyensDuKanban } from "./moyens.ts";
 import type { Pile } from "./piles.ts";
-import { carteDeplacee } from "./textes.ts";
+import { carteDeplacee, carteDeposee } from "./textes.ts";
 import type { LimitesDesPiles } from "./use-limites.ts";
 
 export interface MoyensDeCarte extends MoyensDuKanban {
@@ -47,9 +49,9 @@ function deplacer(
   if (refuseeEnLectureSeule(moyens)) {
     return;
   }
-  const { table, lue, lignes, regroupement, piles, surveillance } = moyens;
+  const { table, lue, lignes, regroupement, piles, surveillance, triActif } = moyens;
   const resultat = deplacerUneCarte(
-    { table, lue, lignes, regroupement, surveillance },
+    { table, lue, lignes, regroupement, surveillance, triActif },
     carte,
     destination,
   );
@@ -58,11 +60,12 @@ function deplacer(
   if (resultat.sorte !== "deplacee" || place === undefined) {
     return;
   }
-  moyens.limites.jusqua(destination.option, place.rang);
+  // Sous un tri, la place dans la pile est celle du tri : la carte est présentée jusqu'au bout de la pile.
+  moyens.limites.jusqua(destination.option, triActif ? place.total : place.rang);
   // Au pointeur, le module de glisser-déposer annonce le dépôt lui-même.
   if (auClavier) {
     moyens.focaliser(carte);
-    moyens.annoncer(annonceDuDeplacement(piles, carte, destination, place));
+    moyens.annoncer(annonceDuDeplacement(piles, carte, destination, triActif ? undefined : place));
   }
 }
 
@@ -71,21 +74,24 @@ function annonceDuDeplacement(
   piles: readonly Pile[],
   carte: IdLigne,
   destination: Destination,
-  place: { readonly rang: number; readonly total: number },
+  place: { readonly rang: number; readonly total: number } | undefined,
 ): string {
   const titre = piles.flatMap((pile) => pile.cartes).find(({ id }) => id === carte)?.titre ?? "";
   const pile = piles.find(({ option }) => option === destination.option);
   const libelle = destination.option === null ? null : (pile?.libelle ?? null);
-  return carteDeplacee(titre, libelle, place.rang, place.total);
+  return place === undefined
+    ? carteDeposee(titre, libelle)
+    : carteDeplacee(titre, libelle, place.rang, place.total);
 }
 
 function commander(moyens: MoyensDeCarte, carte: IdLigne, commande: CommandeDeCarte): void {
   if (refuseeEnLectureSeule(moyens)) {
     return;
   }
-  const destination = destinationDeLaCommande(moyens.piles, carte, commande);
+  const destination = destinationDeLaCommande(moyens.piles, carte, commande, moyens.triActif);
   if (destination === undefined) {
-    moyens.annoncer(DESCRIPTION_DES_COMMANDES[commande].bord);
+    const sousTri = moyens.triActif && reglePlaceDansLaPile(commande);
+    moyens.annoncer(sousTri ? TRI_ACTIF : DESCRIPTION_DES_COMMANDES[commande].bord);
     return;
   }
   deplacer(moyens, carte, destination, true);
@@ -124,8 +130,10 @@ function deposer(moyens: MoyensDeCarte, depot: DepotSurUnePile): void {
   }
   const destination = destinationDuDepot(moyens.piles, carte, {
     pile: pile.option,
-    cible: depot.cible === undefined ? undefined : carteDeLIdentifiant(depot.cible),
-    zone: depot.zone,
+    // Sous un tri, un seul repère par pile : la carte est posée en fin de pile (AC16).
+    cible:
+      depot.cible === undefined || moyens.triActif ? undefined : carteDeLIdentifiant(depot.cible),
+    zone: moyens.triActif ? undefined : depot.zone,
   });
   if (destination !== undefined) {
     deplacer(moyens, carte, destination, false);

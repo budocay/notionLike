@@ -47,6 +47,8 @@ export interface ProprietesVueKanban {
   readonly selecteur: ReactNode;
   /** Les écritures de l'onglet figent l'affichage filtré ou trié (F-019-AC17). */
   readonly surveillance: Surveillance;
+  /** Un tri est actif sur la définition de vue (F-019) : la place d'une carte est celle du tri (F-020-AC16). */
+  readonly triActif: boolean;
 }
 
 function OutilsDuKanban(props: {
@@ -126,6 +128,7 @@ function TableauDeKanban(
     regroupement: colonne,
     lectureSeule: props.lectureSeule,
     surveillance: props.surveillance,
+    triActif: props.triActif,
   });
   return (
     <EcranDeTableCadre

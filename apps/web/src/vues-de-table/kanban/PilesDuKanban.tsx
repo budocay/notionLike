@@ -160,6 +160,7 @@ export function PilesDuKanban({ vue }: { readonly vue: VueKanban }) {
       desactivee={vue.desactivee}
       surLacher={vue.actions.deposer}
       annonces={vue.annonces}
+      repereParPile={vue.proprietes.triActif}
     >
       {vue.piles.map((pile) => (
         <UnePile key={idDePile(pile.option)} vue={vue} pile={pile} />

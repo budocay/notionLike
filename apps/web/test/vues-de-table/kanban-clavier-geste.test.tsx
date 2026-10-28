@@ -2,6 +2,7 @@
 // lecture seule, réseau (F-020-AC9, AC12, AC13, AC15, AC21, AC22, AC23, AC24, AC28). Le geste passe
 // par le module de glisser-déposer réel sous jsdom, avec une mise en page bouchonnée (H6, H11) ; le
 // geste de la souris dans un vrai navigateur est éprouvé par `e2e/kanban.spec.ts`.
+import { ErreurDocument } from "@notionlike/document";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
@@ -36,6 +37,14 @@ function arretsDeTabulation(dans: HTMLElement): HTMLElement[] {
   return [
     ...dans.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]"),
   ].filter((element) => element.tabIndex >= 0 && !element.hasAttribute("disabled"));
+}
+
+// Le texte des alertes affichées : vide quand la vue n'en dit aucune.
+function alertes(): string {
+  return screen
+    .queryAllByRole("alert")
+    .map((alerte) => alerte.textContent)
+    .join("");
 }
 
 const DESCENDRE = "{Alt>}{Shift>}{ArrowDown}{/Shift}{/Alt}";
@@ -232,6 +241,34 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     expect(lue.lignes[1]?.cellules[1]).toBe(contenu.options[0]);
   });
 
+  it("F-020-AC21 F-020-AC12 pendant le geste, la pile survolée porte son repère et une carte survolée un trait avant ou après elle, rendus par la vue", async () => {
+    rendreLeKanban(REPARTITION);
+    const trait = (classes: string) =>
+      document.querySelectorAll(`.${classes.split(" ").join(".")}`);
+
+    // Pile vide survolée : la pile elle-même.
+    await glisserLaCarteDe("Écrire", [420, 300]);
+    expect(screen.getByRole("group", { name: "En cours, 0 carte" }).className).toBe(
+      KANBAN.pileSurvolee,
+    );
+    expect(screen.getByRole("group", { name: "À faire, 2 cartes" }).className).toBe(KANBAN.pile);
+    expect(trait(KANBAN.depotAvant)).toHaveLength(0);
+
+    // Moitié haute de « Livrer » : un trait avant elle, dans sa rangée ; aucune pile survolée.
+    await glisserLaCarteDe("Écrire", [620, 40]);
+    const livrer = carte("Livrer").closest("li");
+    expect(livrer?.querySelector(`.${KANBAN.depotAvant.split(" ").join(".")}`)).not.toBeNull();
+    expect(trait(KANBAN.depotApres)).toHaveLength(0);
+    expect(screen.getByRole("group", { name: "Fait, 1 carte" }).className).toBe(KANBAN.pile);
+
+    // Moitié basse : un trait après elle.
+    await glisserLaCarteDe("Écrire", [620, 60]);
+    expect(livrer?.querySelector(`.${KANBAN.depotApres.split(" ").join(".")}`)).not.toBeNull();
+    expect(trait(KANBAN.depotAvant)).toHaveLength(0);
+    await abandonnerLeGeste();
+    expect(trait(KANBAN.depotApres)).toHaveLength(0);
+  });
+
   it("F-020-AC12 lâcher sur une pile vide, ou sous les cartes d'une pile, pose la carte en fin de pile", async () => {
     const { table } = rendreLeKanban(REPARTITION);
     await glisserLaCarteDe("Écrire", [420, 300]);
@@ -251,6 +288,8 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     await glisserLaCarteDe("Écrire", [900, 300]);
     await lacherLaCarte(900, 300);
     expect(emises).toHaveLength(0);
+    // Un abandon n'est pas un refus : aucune alerte n'est affichée.
+    expect(alertes()).toBe("");
   });
 
   it("F-020-AC12 la carte glissée supprimée par une mise à jour reçue pendant le geste : le lâcher n'écrit rien", async () => {
@@ -264,6 +303,7 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     await lacherLaCarte(420, 300);
     expect(emises).toHaveLength(apres);
     expect(nomsDesPiles()).toContain("En cours, 0 carte");
+    expect(alertes()).toBe("");
   });
 
   it("F-020-AC12 la pile survolée retirée par une mise à jour reçue pendant le geste : le lâcher n'écrit rien", async () => {
@@ -277,6 +317,7 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     await lacherLaCarte(620, 300);
     expect(emises).toHaveLength(apres);
     expect(titresDeLaPile("À faire, 2 cartes")).toContain("Écrire");
+    expect(alertes()).toBe("");
   });
 
   it("F-020-AC21 F-020-AC12 lâcher une carte sur sa propre place la laisse en place, l'annonce le dit (et non un abandon) et rien n'est écrit", async () => {
@@ -338,6 +379,37 @@ describe("annonces du geste, en français (F-020-AC21)", () => {
     expect(annonceDuGeste()).toBe("Déplacement de la carte Écrire abandonné.");
   });
 
+  it("F-020-AC21 la vraie carte du kanban ne porte ni `aria-roledescription` ni aucun texte par défaut de la bibliothèque, ni pendant le geste ni après", async () => {
+    rendreLeKanban(REPARTITION);
+    const textesDe = (titre: string): string[] => {
+      const rangee = carte(titre).closest("li") as HTMLElement;
+      return [rangee, carte(titre)].flatMap((element) =>
+        [...element.attributes].map((attribut) => attribut.value),
+      );
+    };
+    const parDefaut =
+      /draggable|droppable|space bar|arrow keys|press escape|picked up|was moved|was dropped|cancelled|sortable/i;
+    const verifier = (): void => {
+      for (const titre of ["Écrire", "Livrer"]) {
+        const rangee = carte(titre).closest("li") as HTMLElement;
+        expect(rangee.hasAttribute("aria-roledescription")).toBe(false);
+        expect(carte(titre).hasAttribute("aria-roledescription")).toBe(false);
+        expect(textesDe(titre).filter((texte) => parDefaut.test(texte))).toEqual([]);
+      }
+      const regions = [
+        ...document.querySelectorAll("[id^='DndDescribedBy'], [id^='DndLiveRegion']"),
+      ];
+      expect(
+        regions.map((region) => region.textContent ?? "").filter((t) => parDefaut.test(t)),
+      ).toEqual([]);
+    };
+    verifier();
+    await glisserLaCarteDe("Écrire", [620, 60]);
+    verifier();
+    await lacherLaCarte(620, 60);
+    verifier();
+  });
+
   it("F-020-AC21 lâcher hors de toute pile le dit, et une carte lâchée sur sa place y reste", async () => {
     rendreLeKanban(REPARTITION);
     await glisserLaCarteDe("Écrire", [900, 300]);
@@ -396,6 +468,59 @@ describe("noms accessibles et texte brut (F-020-AC21, AC22)", () => {
     expect(annonceDeLaVue()).toBe(`${titre}, pile Fait, 1 sur 1.`);
     expect(document.querySelector("img, b, i, script")).toBeNull();
     expect(screen.getByRole("button", { name: `Actions de la carte ${titre}` })).toBeDefined();
+  });
+});
+
+describe("écriture refusée pendant un déplacement (F-020-AC20)", () => {
+  // « A » passe dans la pile « En cours » : sa cellule change, puis sa ligne se place après « B ».
+  const DEUX_ECRITURES = [
+    ["A", 0],
+    ["B", 1],
+    ["C", 0],
+  ] as const;
+
+  it("F-020-AC20 la cellule refusée (option disparue) : un message en français, la ligne n'est pas déplacée, les piles sont relues et la vue reste utilisable", async () => {
+    const { utilisateur, table, contenu, emises } = rendreLeKanban(DEUX_ECRITURES);
+    vi.spyOn(table, "ecrireCellule").mockImplementationOnce(() => {
+      throw new ErreurDocument("option-introuvable", "option introuvable");
+    });
+    const deplacer = vi.spyOn(table, "deplacerLigne");
+    carte("A").focus();
+    await utilisateur.keyboard(DROITE);
+
+    expect(alertes()).toBe(
+      "Ce choix n'existe plus dans la colonne : l'action n'a pas été effectuée.",
+    );
+    expect(deplacer).not.toHaveBeenCalled();
+    expect(emises).toHaveLength(0);
+    // La vue est conforme à la table lue.
+    expect(titresDeLaPile("À faire, 2 cartes")).toEqual(["A", "C"]);
+    expect(titresDeLaPile("En cours, 1 carte")).toEqual(["B"]);
+
+    // Rester utilisable : la même commande, le document redevenu libre, aboutit.
+    await utilisateur.keyboard(DROITE);
+    expect(titresDeLaPile("En cours, 2 cartes")).toEqual(["B", "A"]);
+    expect(alertes()).toBe("");
+    expect(table.lire().lignes.map(({ cellules }) => cellules[0])).toEqual(["B", "A", "C"]);
+    expect(table.lire().lignes.find(({ cellules }) => cellules[0] === "A")?.cellules[1]).toBe(
+      contenu.options[1],
+    );
+  });
+
+  it("F-020-AC20 la ligne refusée après l'écriture de la cellule : le message est dit et les piles relues disent ce que la table porte", async () => {
+    const { utilisateur, table } = rendreLeKanban(DEUX_ECRITURES);
+    const deplacer = vi.spyOn(table, "deplacerLigne").mockImplementationOnce(() => {
+      throw new ErreurDocument("ligne-introuvable", "ligne introuvable");
+    });
+    carte("A").focus();
+    await utilisateur.keyboard(DROITE);
+
+    expect(deplacer).toHaveBeenCalledTimes(1);
+    expect(alertes()).toBe("Cette ligne n'existe plus : l'action n'a pas été effectuée.");
+    expect(table.lire().lignes.map(({ cellules }) => cellules[0])).toEqual(["A", "B", "C"]);
+    // La cellule a été écrite avant le refus : la vue la lit, sans carte dupliquée ni perdue.
+    expect(titresDeLaPile("En cours, 2 cartes")).toEqual(["A", "B"]);
+    expect(titresDeLaPile("À faire, 1 carte")).toEqual(["C"]);
   });
 });
 

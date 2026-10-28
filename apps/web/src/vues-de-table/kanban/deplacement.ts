@@ -19,6 +19,7 @@ import {
   estLaPlaceActuelle,
   placeDeLaCarte,
   positionDansLaTable,
+  voisineDuDeplacement,
 } from "./destination.ts";
 import { optionDeLaLigne, type Pile, regrouper } from "./piles.ts";
 
@@ -30,6 +31,8 @@ export interface ContexteDeDeplacement {
   readonly regroupement: ColonneLue;
   /** L'affichage figé est prévenu des écritures du déplacement (F-019-AC17). */
   readonly surveillance: Surveillance;
+  /** Un tri est actif : la place d'une carte est celle du tri, rien ne déplace la ligne (F-020-AC16). */
+  readonly triActif?: boolean;
 }
 
 export type ResultatDeDeplacement =
@@ -51,6 +54,8 @@ interface Plan {
   readonly changeDePile: boolean;
   /** Position finale de la ligne parmi les lignes de la table ; `undefined` : elle reste où elle est. */
   readonly position: number | undefined;
+  /** La ligne affichée dont la carte prend la place, pour l'affichage figé (F-019-AC17). */
+  readonly voisine: IdLigne | undefined;
 }
 
 /** L'issue d'une planification : un plan à écrire, ou déjà le résultat (refus, absence d'effet). */
@@ -73,7 +78,20 @@ function ligneOuIssue(
   if (precedente !== null && !cartesDeLaPile(piles, destination).includes(precedente)) {
     return refusee(messageErreur("position-invalide"));
   }
-  return estLaPlaceActuelle(piles, carte, destination) ? SANS_EFFET : ligne;
+  return resteALaPlace(contexte, piles, carte, destination) ? SANS_EFFET : ligne;
+}
+
+// Sous un tri, rester dans sa pile, c'est rester à sa place : le tri la fixe (AC16).
+function resteALaPlace(
+  contexte: ContexteDeDeplacement,
+  piles: readonly Pile[],
+  carte: IdLigne,
+  destination: Destination,
+): boolean {
+  if (contexte.triActif !== true) {
+    return estLaPlaceActuelle(piles, carte, destination);
+  }
+  return piles[placeDeLaCarte(piles, carte)?.pile ?? -1]?.option === destination.option;
 }
 
 function cartesDeLaPile(piles: readonly Pile[], destination: Destination): readonly IdLigne[] {
@@ -95,13 +113,19 @@ function planDe(
   }
   const rang = lue.colonnes.findIndex(({ id }) => id === regroupement.id);
   const ordre = lue.lignes.map(({ id }) => id);
+  const cartes = cartesDeLaPile(piles, destination);
+  const changeDePile = optionDeLaLigne(ligne, rang, regroupement) !== destination.option;
+  if (contexte.triActif === true) {
+    return { sorte: "plan", changeDePile, position: undefined, voisine: undefined };
+  }
   return {
     sorte: "plan",
-    changeDePile: optionDeLaLigne(ligne, rang, regroupement) !== destination.option,
-    position: positionDansLaTable(
-      ordre,
+    changeDePile,
+    position: positionDansLaTable(ordre, carte, cartes, destination.precedente),
+    voisine: voisineDuDeplacement(
+      lignes.map(({ id }) => id),
       carte,
-      cartesDeLaPile(piles, destination),
+      cartes,
       destination.precedente,
     ),
   };
@@ -137,6 +161,10 @@ export function deplacerUneCarte(
   const refus = ecrireLePlan(contexte, carte, destination.option, plan);
   if (refus !== undefined) {
     return refus;
+  }
+  // Sous un affichage figé, la carte prend la place de la ligne affichée voisine (F-019-AC17, AC19).
+  if (plan.position !== undefined && plan.voisine !== undefined) {
+    contexte.surveillance.deplacee(carte, plan.voisine);
   }
   return plan.changeDePile || plan.position !== undefined ? { sorte: "deplacee" } : SANS_EFFET;
 }

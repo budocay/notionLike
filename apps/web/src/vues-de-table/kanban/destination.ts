@@ -37,6 +37,27 @@ export function positionDansLaTable(
   return position === ordre.indexOf(carte) ? undefined : position;
 }
 
+/**
+ * La ligne affichée dont la carte prend la place après un déplacement (F-020-AC16, F-019-AC17), choisie
+ * comme la vue « Tableau » choisit la sienne (`deplacerUneLigne`) : la ligne affichée qui occupe, dans
+ * la liste d'avant, le rang final de la carte. `undefined` : aucune ligne ne change de place.
+ */
+export function voisineDuDeplacement(
+  affichees: readonly IdLigne[],
+  carte: IdLigne,
+  cartesDeLaPile: readonly IdLigne[],
+  precedente: IdLigne | null,
+): IdLigne | undefined {
+  const autres = affichees.filter((id) => id !== carte);
+  const reperee = precedente ?? cartesDeLaPile.find((id) => id !== carte);
+  const rang = reperee === undefined ? -1 : autres.indexOf(reperee);
+  if (rang < 0) {
+    return undefined;
+  }
+  const voisine = affichees[precedente === null ? rang : rang + 1];
+  return voisine === carte ? undefined : voisine;
+}
+
 /** La place d'une carte parmi les piles ; `undefined` si aucune pile ne la porte. */
 export function placeDeLaCarte(
   piles: readonly Pile[],
@@ -152,11 +173,15 @@ function dansLaPile(
   return { option: pile.option, precedente: autres[vers - 1]?.id ?? null };
 }
 
-/**
- * La destination qu'atteint une commande depuis la place de la carte, ou `undefined` si elle n'en a
- * pas (première ou dernière pile, première ou dernière carte : AC13).
- */
-export function destinationDeLaCommande(
+const RELATIVES_A_LA_PILE: readonly CommandeDeCarte[] = ["monter", "descendre"];
+
+/** Vrai pour une commande qui règle la place dans la pile : sous un tri, c'est le tri qui la fixe (AC16). */
+export function reglePlaceDansLaPile(commande: CommandeDeCarte): boolean {
+  return RELATIVES_A_LA_PILE.includes(commande);
+}
+
+// La destination d'une commande hors de toute règle de tri.
+function destinationParCommande(
   piles: readonly Pile[],
   carte: IdLigne,
   commande: CommandeDeCarte,
@@ -176,4 +201,20 @@ export function destinationDeLaCommande(
     case "descendre":
       return dansLaPile(pile, carte, place.rang, 1);
   }
+}
+
+/**
+ * La destination qu'atteint une commande depuis la place de la carte, ou `undefined` si elle n'en a
+ * pas (première ou dernière pile, première ou dernière carte : AC13 ; « Monter » et « Descendre »
+ * sous un tri actif : AC16, seul le changement de pile existe).
+ */
+export function destinationDeLaCommande(
+  piles: readonly Pile[],
+  carte: IdLigne,
+  commande: CommandeDeCarte,
+  triActif = false,
+): Destination | undefined {
+  return triActif && reglePlaceDansLaPile(commande)
+    ? undefined
+    : destinationParCommande(piles, carte, commande);
 }

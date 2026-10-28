@@ -1,6 +1,6 @@
 // État et commandes de la vue kanban (F-020) : les piles calculées depuis la table lue, le focus des
 // cartes, la saisie d'un titre, le menu des actions, la suppression, les annonces. Le document n'est
-// écrit que par `actions-de-carte.ts`, `use-titre-de-carte.ts` et `supprimerUneLigne`.
+// écrit que par `actions-de-carte.ts` (déplacement, création, suppression) et `use-titre-de-carte.ts`.
 import type { ColonneLue, DocumentTable, IdLigne, LigneLue, TableLue } from "@notionlike/document";
 import { type RefObject, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -13,7 +13,6 @@ import { annoncesDuKanban } from "./annonces.ts";
 import { destinationDeLaCommande, placeDeLaCarte } from "./destination.ts";
 import type { CommandesDeCarte } from "./entrees.ts";
 import { idDeCarte, idDePile } from "./identifiants.ts";
-import type { MoyensDuKanban } from "./moyens.ts";
 import type { Parcours } from "./navigation.ts";
 import { type Pile, regrouper } from "./piles.ts";
 import { type FocusDesCartes, useFocusDesCartes } from "./use-focus-des-cartes.ts";
@@ -27,6 +26,8 @@ export interface ProprietesDuPlateau {
   readonly regroupement: ColonneLue;
   readonly lectureSeule: string | undefined;
   readonly surveillance: Surveillance;
+  /** Un tri est actif (F-019) : la place d'une carte dans sa pile est celle du tri (F-020-AC16). */
+  readonly triActif: boolean;
 }
 
 export interface SuppressionDeCarte {
@@ -56,8 +57,6 @@ export interface VueKanban {
   /** Vrai : aucun geste ne démarre (lecture seule, saisie ouverte). */
   readonly desactivee: boolean;
   readonly proprietes: ProprietesDuPlateau;
-  /** Ce que les actions de la vue demandent à son environnement. */
-  readonly moyens: MoyensDuKanban;
   readonly commandesDe: (carte: IdLigne, titre: string) => CommandesDeCarte;
   readonly saisirLeTitre: (carte: IdLigne) => void;
   readonly confirmerLaSuppression: () => void;
@@ -108,7 +107,7 @@ function titreBrut(piles: readonly Pile[], carte: IdLigne): string {
 
 // Ce que les commandes et les écrans partagent : les piles, les messages, le focus, la saisie.
 function useBases(proprietes: ProprietesDuPlateau) {
-  const { table, lue, lignes, regroupement, lectureSeule, surveillance } = proprietes;
+  const { table, lue, lignes, regroupement, lectureSeule, surveillance, triActif } = proprietes;
   const piles = useMemo(() => regrouper(lue, lignes, regroupement), [lue, lignes, regroupement]);
   const [annonce, annoncer] = useAnnonce();
   const [alerte, signaler] = useState<string | undefined>(undefined);
@@ -128,7 +127,7 @@ function useBases(proprietes: ProprietesDuPlateau) {
   const suppression = useSuppression(menu);
   const idAlerte = useId();
   const cadre = useRef<HTMLDivElement>(null);
-  const moyens = { table, lue, lignes, lectureSeule, surveillance, annoncer, signaler };
+  const moyens = { table, lue, lignes, lectureSeule, surveillance, triActif, annoncer, signaler };
   return {
     piles,
     annonce,
@@ -175,7 +174,9 @@ function commandesDeLaCarte(
   return (carte, titreDeLaCarte) => ({
     titre: titreDeLaCarte,
     lectureSeule: moyens.lectureSeule,
-    possible: (commande) => destinationDeLaCommande(piles, carte, commande) !== undefined,
+    possible: (commande) =>
+      destinationDeLaCommande(piles, carte, commande, moyens.triActif) !== undefined,
+    triActif: moyens.triActif,
     titreModifiable: titre.possible,
     fermer: bases.menu.fermer,
     deplacer: (commande) => actions.commander(carte, commande),

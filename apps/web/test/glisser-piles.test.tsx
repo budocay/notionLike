@@ -261,9 +261,10 @@ describe("annonces des piles en français (F-020-AC21)", () => {
       ...[...document.querySelectorAll("[id^='DndDescribedBy'], [id^='DndLiveRegion']")].map(
         (un) => un.textContent ?? "",
       ),
-      ...[...a2.attributes].map((attribut) => attribut.value),
     ];
+    // Les attributs posés sur la carte par l'application (aucun attribut de la bibliothèque, aucun
+    // `aria-roledescription`) sont constatés sur la vraie carte du kanban :
+    // `vues-de-table/kanban-clavier-geste.test.tsx`.
     expect(lus.filter((texte) => TEXTES_PAR_DEFAUT.test(texte))).toEqual([]);
-    expect(a2.hasAttribute("aria-roledescription")).toBe(false);
   });
 });

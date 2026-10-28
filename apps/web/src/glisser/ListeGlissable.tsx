@@ -253,6 +253,8 @@ export interface ProprietesPilesGlissables {
   readonly desactivee: boolean;
   readonly surLacher: (depot: DepotSurUnePile) => void;
   readonly annonces: AnnoncesDesPiles;
+  /** Vrai : le geste ne vise que des piles, jamais une place entre deux cartes (un seul repère par pile). */
+  readonly repereParPile?: boolean | undefined;
   readonly children: ReactNode;
 }
 
@@ -261,7 +263,7 @@ interface DonneesDeCible {
   readonly sortable?: { readonly containerId?: unknown };
 }
 
-function depotDe(evenement: DragMoveEvent): DepotSurUnePile | undefined {
+function depotDe(evenement: DragMoveEvent, parPile: boolean): DepotSurUnePile | undefined {
   const { over, active } = evenement;
   if (over === null) {
     return undefined;
@@ -274,6 +276,9 @@ function depotDe(evenement: DragMoveEvent): DepotSurUnePile | undefined {
   const conteneur = donnees.sortable?.containerId;
   if (typeof conteneur !== "string") {
     return undefined;
+  }
+  if (parPile) {
+    return { sorte: "pile", actif, pile: conteneur, cible: undefined, zone: undefined };
   }
   // Sur sa propre place : la carte y reste (ni abandon, ni déplacement).
   if (over.id === active.id) {
@@ -329,7 +334,7 @@ function useSuiviDesPiles(props: ProprietesPilesGlissables) {
       ? depot
       : undefined;
   const suivre = (evenement: DragMoveEvent): void => {
-    dernier.current = affiche(depotDe(evenement));
+    dernier.current = affiche(depotDe(evenement, recues.current.repereParPile === true));
     const suivant = survolDuDepot(dernier.current);
     setSurvol((avant) =>
       avant?.cible === suivant?.cible && avant?.zone === suivant?.zone ? avant : suivant,

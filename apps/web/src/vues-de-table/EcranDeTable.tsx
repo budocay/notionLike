@@ -60,6 +60,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
     />
   ) : undefined;
   if (reglages.vueActive === VUE_KANBAN) {
+    const tris = compilerLesTris(lue, definition.tris);
     return (
       <VueKanban
         table={table}
@@ -70,6 +71,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
         designation={props}
         selecteur={selecteur}
         surveillance={affichage.surveillance}
+        triActif={tris.length > 0}
       />
     );
   }

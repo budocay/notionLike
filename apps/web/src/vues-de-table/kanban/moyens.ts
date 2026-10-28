@@ -11,6 +11,8 @@ export interface MoyensDuKanban {
   readonly lignes: readonly LigneLue[];
   /** La raison qui interdit toute écriture (F-020-AC23), ou `undefined`. */
   readonly lectureSeule: string | undefined;
+  /** Un tri est actif : « Monter » et « Descendre » sont indisponibles, rien ne déplace la ligne (F-020-AC16). */
+  readonly triActif: boolean;
   /** L'affichage figé est prévenu de toute écriture de la vue (F-019-AC17). */
   readonly surveillance: Surveillance;
   readonly signaler: (message: string | undefined) => void;
