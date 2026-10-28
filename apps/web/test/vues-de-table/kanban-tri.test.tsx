@@ -108,6 +108,45 @@ describe("sous un tri actif (F-020-AC16)", () => {
   });
 });
 
+describe("la place annoncée sous un tri, sur une pile de plusieurs cartes (F-020-AC15, F-020-AC16)", () => {
+  it("F-020-AC15 F-020-AC16 le rang annoncé est celui du tri (2 sur 3), pas celui de l'ordre manuel (3 sur 3)", async () => {
+    // Ordre manuel : Delta, Bravo, Charlie. Tri croissant : Bravo, Charlie, Delta.
+    const { utilisateur, table } = rendreLeKanban(
+      [
+        ["Delta", 1],
+        ["Bravo", 1],
+        ["Charlie", 0],
+      ],
+      { remplir: triParTitre },
+    );
+    const avant = ordreDesLignes(table);
+    carte("Charlie").focus();
+    await utilisateur.keyboard(DROITE);
+
+    expect(ordreDesLignes(table)).toEqual(avant);
+    expect(titresDeLaPile("En cours, 3 cartes")).toEqual(["Bravo", "Charlie", "Delta"]);
+    expect(annonceDeLaVue()).toBe("Charlie, pile En cours, 2 sur 3.");
+  });
+
+  it("F-020-AC15 F-020-AC16 le rang annoncé suit le tri (2 sur 4) quand l'ordre manuel donnerait 1 sur 4", async () => {
+    // Ordre manuel : Charlie, Delta, Bravo, Echo. Tri croissant : Bravo, Charlie, Delta, Echo.
+    const { utilisateur } = rendreLeKanban(
+      [
+        ["Charlie", 0],
+        ["Delta", 1],
+        ["Bravo", 1],
+        ["Echo", 1],
+      ],
+      { remplir: triParTitre },
+    );
+    carte("Charlie").focus();
+    await utilisateur.keyboard(DROITE);
+
+    expect(titresDeLaPile("En cours, 4 cartes")).toEqual(["Bravo", "Charlie", "Delta", "Echo"]);
+    expect(annonceDeLaVue()).toBe("Charlie, pile En cours, 2 sur 4.");
+  });
+});
+
 describe("au pointeur sous un tri actif (F-020-AC16)", () => {
   let retirer: () => void;
   beforeEach(() => {
