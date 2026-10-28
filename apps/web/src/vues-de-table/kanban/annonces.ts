@@ -15,6 +15,7 @@ import {
   carteSaisie,
   deplacementAbandonne,
   instructionsDuKanban,
+  instructionsEnLectureSeule,
 } from "./textes.ts";
 
 function touches(...combinaisons: Parameters<typeof afficherTouches>[0][]): string {
@@ -30,18 +31,34 @@ function libelleDe(pile: Pile | undefined): string | null {
   return pile === undefined || pile.option === null ? null : pile.libelle;
 }
 
-export function annoncesDuKanban(piles: readonly Pile[]): AnnoncesDesPiles {
+function instructionsDeLaCarte(lectureSeule: string | undefined): string {
+  return lectureSeule === undefined
+    ? instructionsDuKanban({
+        piles: touches(TOUCHES_DE_LA_CARTE.pilePrecedente, TOUCHES_DE_LA_CARTE.pileSuivante),
+        places: touches(TOUCHES_DE_LA_CARTE.monter, TOUCHES_DE_LA_CARTE.descendre),
+        menu: touches(TOUCHES_DE_LA_CARTE.menu, TOUCHES_DE_LA_CARTE.menuAutrement),
+      })
+    : instructionsEnLectureSeule(lectureSeule);
+}
+
+/** `lectureSeule` : la raison du blocage du geste, lue avec chaque carte à la place des touches (AC23). */
+export function annoncesDuKanban(
+  piles: readonly Pile[],
+  lectureSeule?: string | undefined,
+): AnnoncesDesPiles {
   const cartes = piles.flatMap((pile) => pile.cartes);
   const titreDe = (id: string | undefined): string =>
     cartes.find((carte) => carte.id === carteDeLIdentifiant(id ?? ""))?.titre ?? "";
   const pileDe = (depot: DepotSurUnePile): Pile | undefined =>
     pileDeLIdentifiantOuSans(piles, depot.pile);
+  // La pile où la carte se trouve encore : celle que le geste n'a pas changée.
+  const libelleDOrigine = (actif: string | undefined): string | null => {
+    const id = carteDeLIdentifiant(actif ?? "");
+    const place = id === undefined ? undefined : placeDeLaCarte(piles, id);
+    return libelleDe(piles[place?.pile ?? -1]);
+  };
   return {
-    instructions: instructionsDuKanban({
-      piles: touches(TOUCHES_DE_LA_CARTE.pilePrecedente, TOUCHES_DE_LA_CARTE.pileSuivante),
-      places: touches(TOUCHES_DE_LA_CARTE.monter, TOUCHES_DE_LA_CARTE.descendre),
-      menu: touches(TOUCHES_DE_LA_CARTE.menu, TOUCHES_DE_LA_CARTE.menuAutrement),
-    }),
+    instructions: instructionsDeLaCarte(lectureSeule),
     saisie: (actif) => {
       const id = carteDeLIdentifiant(actif);
       const place = id === undefined ? undefined : placeDeLaCarte(piles, id);
@@ -55,7 +72,7 @@ export function annoncesDuKanban(piles: readonly Pile[]): AnnoncesDesPiles {
     },
     survol: (actif, depot) => {
       if (depot === undefined) {
-        return carteRelachee(titreDe(actif));
+        return carteRelachee(titreDe(actif), libelleDOrigine(actif));
       }
       const libelle = libelleDe(pileDe(depot));
       return depot.sorte === "pile"
@@ -64,13 +81,13 @@ export function annoncesDuKanban(piles: readonly Pile[]): AnnoncesDesPiles {
     },
     depot: (actif, depot) => {
       if (depot === undefined) {
-        return carteRelachee(titreDe(actif));
+        return carteRelachee(titreDe(actif), libelleDOrigine(actif));
       }
       // Relâchée sur sa propre place : elle y reste, ce n'est pas un abandon.
       return depot.cible === depot.actif
-        ? carteLaissee(titreDe(actif))
+        ? carteLaissee(titreDe(actif), libelleDOrigine(actif))
         : carteDeposee(titreDe(actif), libelleDe(pileDe(depot)));
     },
-    abandon: (actif) => deplacementAbandonne(titreDe(actif)),
+    abandon: (actif) => deplacementAbandonne(titreDe(actif), libelleDOrigine(actif)),
   };
 }

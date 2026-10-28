@@ -1157,6 +1157,7 @@ function SpecimenDuKanban(): ReactElement {
             vide={T.aucuneCarte}
             refZone={sansEffet}
             survolee={false}
+            repereEnFin={false}
             pied={<Bouton libelle={T.nouvelleCarte} surActivation={sansEffet} />}
           >
             <CarteFictive titre={T.cartes[0]} rang={1} />
@@ -1169,6 +1170,7 @@ function SpecimenDuKanban(): ReactElement {
             vide={T.aucuneCarte}
             refZone={sansEffet}
             survolee
+            repereEnFin={false}
             pied={<Bouton libelle={T.nouvelleCarte} surActivation={sansEffet} />}
           >
             {null}

@@ -204,7 +204,10 @@ export function useVueKanban(proprietes: ProprietesDuPlateau): EtatDeLaVueKanban
     ...bases,
     alerte: titre.saisie?.erreur ?? bases.alerte,
     actions,
-    annonces: useMemo(() => annoncesDuKanban(piles), [piles]),
+    annonces: useMemo(
+      () => annoncesDuKanban(piles, proprietes.lectureSeule),
+      [piles, proprietes.lectureSeule],
+    ),
     identifiants: identifiantsDe(piles, bases.limites),
     desactivee: proprietes.lectureSeule !== undefined || titre.saisie !== undefined,
     proprietes,

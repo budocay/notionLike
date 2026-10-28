@@ -8,7 +8,14 @@ import type {
   TableLue,
   TypeDeColonne,
 } from "@notionlike/document";
-import { type ReactElement, type ReactNode, useRef, useState } from "react";
+import {
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Bouton, Choix } from "../../interface/composants/Espaces.tsx";
 import { PlateauDeKanban } from "../../interface/composants/Kanban.tsx";
@@ -118,9 +125,11 @@ function TableauDeKanban(
     readonly regroupement: Regroupement;
     /** La colonne de regroupement, déjà résolue : le plateau n'est rendu que s'il y en a une. */
     readonly colonne: ColonneLue;
+    /** Vrai quand le plateau vient d'être rendu possible par « Créer la colonne » : le focus lui revient (AC5). */
+    readonly focusALOuverture: RefObject<boolean>;
   },
 ): ReactElement {
-  const { colonne } = props;
+  const { colonne, focusALOuverture } = props;
   const vue = useVueKanban({
     table: props.table,
     lue: props.lue,
@@ -130,6 +139,13 @@ function TableauDeKanban(
     surveillance: props.surveillance,
     triActif: props.triActif,
   });
+  const { courante, focaliser } = vue.focus;
+  useEffect(() => {
+    if (focusALOuverture.current && courante !== undefined) {
+      focusALOuverture.current = false;
+      focaliser(courante);
+    }
+  }, [focusALOuverture, courante, focaliser]);
   return (
     <EcranDeTableCadre
       outils={<OutilsDuKanban selecteur={props.selecteur} regroupement={props.regroupement} />}
@@ -161,7 +177,9 @@ function refusDeLaColonne(
 }
 
 // Sans colonne Sélection, la vue invite à en ajouter une et n'en crée aucune d'elle-même (AC5).
-function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
+function SansColonneDeSelection(
+  props: ProprietesVueKanban & { readonly surCreation: () => void },
+): ReactElement {
   const [ouverte, setOuverte] = useState(false);
   const origine = useRef<HTMLButtonElement>(null);
   return (
@@ -182,6 +200,8 @@ function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
             setOuverte(false);
             if (rendre) {
               queueMicrotask(() => origine.current?.focus());
+            } else {
+              props.surCreation();
             }
           }}
         />
@@ -193,9 +213,15 @@ function SansColonneDeSelection(props: ProprietesVueKanban): ReactElement {
 export function VueKanban(props: ProprietesVueKanban): ReactElement {
   const regroupement = useRegroupement(props.designation, props.lue);
   const { colonne } = regroupement;
+  const focusALOuverture = useRef(false);
   return colonne === undefined ? (
-    <SansColonneDeSelection {...props} />
+    <SansColonneDeSelection {...props} surCreation={() => (focusALOuverture.current = true)} />
   ) : (
-    <TableauDeKanban {...props} regroupement={regroupement} colonne={colonne} />
+    <TableauDeKanban
+      {...props}
+      regroupement={regroupement}
+      colonne={colonne}
+      focusALOuverture={focusALOuverture}
+    />
   );
 }

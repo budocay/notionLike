@@ -136,6 +136,7 @@ function UnePile({ vue, pile }: { readonly vue: EtatDeLaVueKanban; readonly pile
           vide={PAS_DE_LIGNES}
           refZone={zone.ref}
           survolee={zone.survolee}
+          repereEnFin={pile.cartes.length > 0 && !vue.proprietes.triActif}
           pied={<PiedDePile vue={vue} pile={pile} />}
         >
           {visibles.map((carte, rang) => (

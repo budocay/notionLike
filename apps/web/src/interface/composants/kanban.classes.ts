@@ -26,5 +26,7 @@ export const KANBAN = {
     "pointer-events-none absolute inset-x-nul top-nul h-repere rounded-full bg-repere-focus",
   depotApres:
     "pointer-events-none absolute inset-x-nul bottom-nul h-repere rounded-full bg-repere-focus",
+  // Le trait de fin de pile : la carte lâchée sur la pile elle-même est posée après la dernière (AC12).
+  depotFin: "pointer-events-none mx-petit h-repere rounded-full bg-repere-focus",
   pied: "flex flex-col items-start gap-mince px-petit",
 } as const;

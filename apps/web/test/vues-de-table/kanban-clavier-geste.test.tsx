@@ -269,6 +269,24 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     expect(trait(KANBAN.depotApres)).toHaveLength(0);
   });
 
+  it("F-020-AC12 sur une pile non vide visée elle-même, le repère est un trait après la dernière carte (là où la carte sera posée), pas un contour de la pile", async () => {
+    const { table } = rendreLeKanban(REPARTITION);
+    // Sous les cartes de « À faire » : la pile elle-même est visée, la carte part en fin de pile.
+    await glisserLaCarteDe("Livrer", [220, 300]);
+    const piledAFaire = screen.getByRole("group", { name: "À faire, 2 cartes" });
+    expect(piledAFaire.className).toBe(KANBAN.pile);
+    const fin = piledAFaire.querySelector(`.${KANBAN.depotFin.split(" ").join(".")}`);
+    expect(fin).not.toBeNull();
+    // Le trait suit la liste des cartes : il est après la dernière.
+    expect(piledAFaire.querySelector("ul")?.compareDocumentPosition(fin as Node) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    await lacherLaCarte(220, 300);
+    expect(titresDeLaPile("À faire, 3 cartes")).toEqual(["Écrire", "Relire", "Livrer"]);
+    expect(table.lire().lignes).toHaveLength(4);
+    expect(document.querySelector(`.${KANBAN.depotFin.split(" ").join(".")}`)).toBeNull();
+  });
+
   it("F-020-AC12 lâcher sur une pile vide, ou sous les cartes d'une pile, pose la carte en fin de pile", async () => {
     const { table } = rendreLeKanban(REPARTITION);
     await glisserLaCarteDe("Écrire", [420, 300]);
@@ -327,7 +345,7 @@ describe("geste au pointeur (F-020-AC9, AC12, AC28)", () => {
     expect(emises).toHaveLength(0);
     expect(titresDeLaPile("À faire, 2 cartes")).toEqual(["Écrire", "Relire"]);
     const dits = document.body.textContent ?? "";
-    expect(dits).toContain("Écrire laissée à sa place.");
+    expect(dits).toContain("Écrire laissée à sa place, pile À faire.");
     expect(dits).not.toContain("déplacement abandonné");
   });
 
@@ -376,7 +394,9 @@ describe("annonces du geste, en français (F-020-AC21)", () => {
 
     await glisserLaCarteDe("Écrire", [420, 300]);
     await abandonnerLeGeste();
-    expect(annonceDuGeste()).toBe("Déplacement de la carte Écrire abandonné.");
+    expect(annonceDuGeste()).toBe(
+      "Déplacement de la carte Écrire abandonné, la carte reste dans la pile À faire.",
+    );
   });
 
   it("F-020-AC21 la vraie carte du kanban ne porte ni `aria-roledescription` ni aucun texte par défaut de la bibliothèque, ni pendant le geste ni après", async () => {
@@ -414,7 +434,9 @@ describe("annonces du geste, en français (F-020-AC21)", () => {
     rendreLeKanban(REPARTITION);
     await glisserLaCarteDe("Écrire", [900, 300]);
     await lacherLaCarte(900, 300);
-    expect(annonceDuGeste()).toBe("Écrire relâchée hors d'une pile : déplacement abandonné.");
+    expect(annonceDuGeste()).toBe(
+      "Écrire relâchée hors d'une pile : déplacement abandonné, la carte reste dans la pile À faire.",
+    );
   });
 
   it("F-020-AC21 le texte d'instructions lu avec chaque carte est en français et dit les touches, la tabulation et la souris", () => {
@@ -531,6 +553,11 @@ describe("lecture seule (F-020-AC23)", () => {
       remplir: ({ table: ouverte }) => void ouverte.creerColonne("Autre", "selection"),
     });
     const avant = Y.encodeStateAsUpdate(table.doc);
+    // La raison du blocage du geste est lue avec chaque carte, à la place des touches de déplacement.
+    const decritePar = carte("Écrire").getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(decritePar)?.textContent).toBe(
+      "Lecture seule : les cartes ne peuvent pas être déplacées.",
+    );
     const retirer = bouchonnerLaMiseEnPage();
     try {
       carte("Écrire").focus();

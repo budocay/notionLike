@@ -84,6 +84,11 @@ export function instructionsDuKanban(touches: {
   return `Pour déplacer une carte au clavier, ${touches.piles} la change de pile, ${touches.places} la monte ou la descend ; ${touches.menu} ouvre le menu de ses actions. Tab entre dans le plateau et en sort ; les flèches parcourent les cartes puis, au bas de chaque pile, les commandes ${entreGuillemets(NOUVELLE_CARTE)} et ${entreGuillemets(AFFICHER_PLUS)}. À la souris, faites glisser la carte, Échap abandonne le geste.`;
 }
 
+/** Lu avec chaque carte quand le document est en lecture seule : la raison du blocage du geste (AC23). */
+export function instructionsEnLectureSeule(raison: string): string {
+  return `${raison} : les cartes ne peuvent pas être déplacées.`;
+}
+
 export function carteSaisie(titre: string, libelle: string | null, rang: number, total: number) {
   return `${carteDeplacee(titre, libelle, rang, total)} Carte saisie.`;
 }
@@ -105,18 +110,18 @@ export function carteDeposee(titre: string, libelle: string | null) {
   return `${titreDeCarte(titre)} déposée dans la pile ${libelleDePile(libelle)}.`;
 }
 
-export function carteRelachee(titre: string) {
-  return `${titreDeCarte(titre)} relâchée hors d'une pile : déplacement abandonné.`;
+export function carteRelachee(titre: string, libelle: string | null) {
+  return `${titreDeCarte(titre)} relâchée hors d'une pile : déplacement abandonné, la carte reste dans la pile ${libelleDePile(libelle)}.`;
 }
 
-export function carteLaissee(titre: string) {
-  return `${titreDeCarte(titre)} laissée à sa place.`;
+export function carteLaissee(titre: string, libelle: string | null) {
+  return `${titreDeCarte(titre)} laissée à sa place, pile ${libelleDePile(libelle)}.`;
 }
 
 export function afficherPlusDans(libelle: string | null): string {
   return `${AFFICHER_PLUS} dans la pile ${libelleDePile(libelle)}`;
 }
 
-export function deplacementAbandonne(titre: string) {
-  return `Déplacement de la carte ${titreDeCarte(titre)} abandonné.`;
+export function deplacementAbandonne(titre: string, libelle: string | null) {
+  return `Déplacement de la carte ${titreDeCarte(titre)} abandonné, la carte reste dans la pile ${libelleDePile(libelle)}.`;
 }

@@ -1,7 +1,7 @@
 // Vue kanban rendue par l'écran de table (F-020-AC1, AC2, AC5, AC6, AC7, AC8) : les piles, les
 // cartes, l'invitation sans colonne Sélection, la création d'une carte, la saisie du titre, la
 // suppression, les piles longues. La table est tenue par le test ; rien n'est simulé de la vue.
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LigneLue, TableLue } from "@notionlike/document";
 import { describe, expect, it } from "vitest";
@@ -104,6 +104,8 @@ describe("table sans colonne Sélection (F-020-AC5)", () => {
     await utilisateur.click(within(boite).getByRole("button", { name: "Créer la colonne" }));
     expect(table.lire().colonnes.map(({ type }) => type)).toEqual(["texte", "selection"]);
     expect(nomsDesPiles()).toEqual(["Sans valeur, 1 carte"]);
+    // Le focus passe à l'arrêt du plateau, il ne retombe pas sur le corps de la page (clavier complet).
+    await waitFor(() => expect(document.activeElement).toBe(carte("A")));
   });
 });
 

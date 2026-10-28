@@ -38,15 +38,21 @@ export function PileDeKanban(props: {
   readonly refZone: (element: HTMLElement | null) => void;
   /** Vrai quand le geste survole la pile elle-même : en tête, en fin ou vide (AC12). */
   readonly survolee: boolean;
+  /**
+   * Vrai : la carte lâchée sur la pile elle-même part en fin de pile (pile non vide, sans tri). Le repère
+   * est alors un trait après la dernière carte, pas un contour de toute la pile (AC12).
+   */
+  readonly repereEnFin: boolean;
   readonly children: ReactNode;
   readonly pied: ReactNode;
 }): ReactElement {
+  const enFin = props.survolee && props.repereEnFin;
   return (
     <section
       ref={props.refZone}
       role="group"
       aria-label={props.nom}
-      className={props.survolee ? KANBAN.pileSurvolee : KANBAN.pile}
+      className={props.survolee && !enFin ? KANBAN.pileSurvolee : KANBAN.pile}
     >
       <div className={KANBAN.enTete}>
         <span className={KANBAN.titreDePile}>{props.libelle}</span>
@@ -54,6 +60,7 @@ export function PileDeKanban(props: {
       </div>
       {props.nombre === 0 && <p className={KANBAN.vide}>{props.vide}</p>}
       <ul className={KANBAN.cartes}>{props.children}</ul>
+      {enFin && <span className={KANBAN.depotFin} />}
       <div className={KANBAN.pied}>{props.pied}</div>
     </section>
   );
