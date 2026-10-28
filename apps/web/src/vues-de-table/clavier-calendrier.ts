@@ -9,6 +9,7 @@ import {
   memeQuantiemeAilleurs,
 } from "./jours.ts";
 import type { PasDeJours } from "./ecritures-du-calendrier.ts";
+import { PAS } from "./pas-du-calendrier.ts";
 
 type Frappe = Parameters<typeof estLaFrappe>[0];
 
@@ -60,15 +61,9 @@ export function actionDeLaCase(frappe: Frappe, jour: string): ActionDeCase | und
 /** Ce que fait une frappe sur une entrée qui a le focus, hors saisie de son titre. */
 export function actionDeLEntree(frappe: Frappe): ActionDEntree | undefined {
   const T = TOUCHES_DE_L_ENTREE;
-  const pas: readonly (readonly [(typeof T)[keyof typeof T], PasDeJours])[] = [
-    [T.jourPrecedent, -1],
-    [T.jourSuivant, 1],
-    [T.semainePrecedente, -JOURS_PAR_SEMAINE],
-    [T.semaineSuivante, JOURS_PAR_SEMAINE],
-  ];
-  const trouve = pas.find(([touche]) => estLaFrappe(frappe, touche));
+  const trouve = PAS.find(({ touche }) => estLaFrappe(frappe, T[touche]));
   if (trouve !== undefined) {
-    return { sorte: "deplacer", pas: trouve[1] };
+    return { sorte: "deplacer", pas: trouve.pas };
   }
   if (estLaFrappe(frappe, T.entreePrecedente)) {
     return { sorte: "voisine", sens: -1 };

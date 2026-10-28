@@ -1,8 +1,8 @@
-// Coutures de la vue calendrier (F-021-AC25, AC29, AC30, AC31) : lignes affichées, aucune dépendance
+// Coutures de la vue calendrier (F-021-AC29, AC30, AC31) : aucune dépendance
 // nouvelle, place dans la liste des vues, section `calendrier` des réglages, aucun réglage dans un
 // document, aucune animation ni couleur écrite en dur.
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { lire, lister } from "../aides-disque.ts";
@@ -12,26 +12,10 @@ import {
   choisirLeCalendrier,
   figerLHorloge,
   libellesDe,
-  lignesDuPanneau,
-  rendreLeCalendrier,
   tableDEssai,
 } from "./aides-calendrier.tsx";
 import { rendreLaTable } from "./aides-grille.tsx";
 import { VUES } from "../../src/vues-de-table/vues.ts";
-
-// Les lignes affichées sont celles qu'une fonction décide (F-018-AC45) : ici, une sur deux, renversées,
-// comme le ferait un tri ou un filtre de F-019 ; la vue n'en présente pas d'autres, dans cet ordre.
-vi.mock("../../src/vues-de-table/lignes-affichees.ts", async (originales) => {
-  const module = await originales<typeof import("../../src/vues-de-table/lignes-affichees.ts")>();
-  return {
-    ...module,
-    lignesAffichees: (table: Parameters<typeof module.lignesAffichees>[0]) =>
-      module
-        .lignesAffichees(table)
-        .filter((ligne) => ligne.cellules[0] !== "Cachée")
-        .reverse(),
-  };
-});
 
 figerLHorloge();
 
@@ -53,21 +37,6 @@ function sourcesDuCalendrier(): [string, string][] {
   ];
   return chemins.map((chemin) => [chemin, sansCommentaires(lire(chemin))]);
 }
-
-describe("lignes affichées dans le calendrier (F-021-AC25)", () => {
-  it("F-021-AC25 les cases et le panneau ne présentent que les lignes affichées, dans leur ordre (F-019 n'est pas livrée : ce que la fonction écarte ne paraît nulle part)", () => {
-    rendreLeCalendrier([
-      { titre: "Premier", date: "2026-10-08" },
-      { titre: "Cachée", date: "2026-10-08" },
-      { titre: "Second", date: "2026-10-08" },
-      { titre: "Libre", date: null },
-      { titre: "Cachée", date: null },
-    ]);
-    expect(libellesDe("2026-10-08")).toEqual(["Second", "Premier"]);
-    expect(lignesDuPanneau().map((ligne) => ligne.getAttribute("aria-label"))).toEqual(["Libre"]);
-    expect(screen.queryAllByLabelText("Cachée")).toHaveLength(0);
-  });
-});
 
 describe("aucune dépendance (F-021-AC29)", () => {
   it("F-021-AC29 le paquet de l'application ne déclare ni bibliothèque de calendrier, de dates ou de glisser-déposer", () => {

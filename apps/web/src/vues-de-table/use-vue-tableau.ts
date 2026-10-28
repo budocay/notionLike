@@ -105,8 +105,6 @@ export interface VueTableau {
   readonly moyens: Moyens;
 }
 
-/** Délai entre le vidage de la zone d'annonce et sa réécriture, pour qu'un texte identique soit relu. */
-
 function focusSurLeCorps(): boolean {
   const actif = document.activeElement;
   return actif === null || actif === document.body;

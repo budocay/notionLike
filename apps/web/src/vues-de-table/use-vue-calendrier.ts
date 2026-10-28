@@ -96,18 +96,32 @@ function bornesDuMois(
   };
 }
 
-export function useVueCalendrier(proprietes: ProprietesVueCalendrier): VueCalendrier {
-  const { table, lue, lignes, lectureSeule, surveillance } = proprietes;
+/** La zone d'annonce, et l'alerte qui garde un refus à l'écran avec son identifiant. */
+function useMessages() {
   const [annonce, annoncer] = useAnnonce();
   const [alerte, signaler] = useState<string | undefined>(undefined);
-  const idAlerte = useId();
+  return { annonce, annoncer, alerte, signaler, idAlerte: useId() };
+}
+
+export function useVueCalendrier(proprietes: ProprietesVueCalendrier): VueCalendrier {
+  const { table, lue, lignes, lectureSeule, surveillance } = proprietes;
+  const { annonce, annoncer, alerte, signaler, idAlerte } = useMessages();
   const [choisie, choisirLaColonne] = useColonneChoisie(proprietes);
   const navigation = useNavigationDuCalendrier(annoncer);
   const modele = useModeleDuCalendrier(lue, lignes, choisie, navigation.mois);
   const cadre = useRef<HTMLDivElement>(null);
   const suivi = useSuiviDuFocus(cadre, (cible) => repliDeLaCible(cible, modele, navigation));
   const menu = useMenuDuCalendrier();
-  const edition = { table, modele, navigation, suivi, lectureSeule, surveillance, annoncer, signaler };
+  const edition = {
+    table,
+    modele,
+    navigation,
+    suivi,
+    lectureSeule,
+    surveillance,
+    annoncer,
+    signaler,
+  };
   const { saisie, ecritures } = useEditionDuCalendrier(edition);
   const [boite, ouvrirUneBoite] = useState<BoiteDuCalendrier | undefined>(undefined);
   const commandes = commandesDuCalendrier({

@@ -57,10 +57,10 @@ export function useNavigationDuCalendrier(
       }
     },
     choisirLeJour: setCourant,
-    deplier: (jour) => setDepliees(new Set(depliees).add(jour)),
+    deplier: (jour) => setDepliees((avant) => new Set(avant).add(jour)),
     elargirLePanneauJusqua: (rang) =>
-      setLimite(
-        Math.max(limiteDuPanneau, Math.ceil((rang + 1) / LIGNES_DU_PANNEAU) * LIGNES_DU_PANNEAU),
+      setLimite((avant) =>
+        Math.max(avant, Math.ceil((rang + 1) / LIGNES_DU_PANNEAU) * LIGNES_DU_PANNEAU),
       ),
   };
 }

@@ -31,11 +31,11 @@ import { cleAria, TOUCHES_DE_L_ENTREE, TOUCHES_DE_LA_CASE } from "../interface/r
 import { BoiteNouvelleColonne, Confirmation } from "./Boites.tsx";
 import { touchesDeBoite } from "./boite.ts";
 import { ChampDEdition } from "./ChampDEdition.tsx";
-import { jourVise } from "./ecritures-du-calendrier.ts";
+import { jourVise, refusDeLaDate } from "./ecritures-du-calendrier.ts";
 import { MenuOuvert } from "./MenuDuCalendrier.tsx";
 import { PanneauSansDate } from "./PanneauSansDate.tsx";
 import { PAS } from "./pas-du-calendrier.ts";
-import { decomposer, estUnJour } from "./jours.ts";
+import { decomposer, DERNIER_JOUR, JOURS_PAR_SEMAINE, PREMIER_JOUR } from "./jours.ts";
 import {
   AJOUTER_UNE_COLONNE_DATE,
   AUJOURD_HUI,
@@ -60,7 +60,6 @@ import {
 } from "./textes-calendrier.ts";
 import {
   ANNULER,
-  DATE_INVALIDE,
   nomAffiche,
   SUPPRIMER_LA_LIGNE,
   TEXTE_DE_LA_SUPPRESSION_DE_LIGNE,
@@ -72,10 +71,6 @@ import {
   useVueCalendrier,
   type VueCalendrier as Vue,
 } from "./use-vue-calendrier.ts";
-
-const JOURS_PAR_SEMAINE = 7;
-const DATE_MIN = "0001-01-01";
-const DATE_MAX = "9999-12-31";
 
 /**
  * Combinaisons d'une entrée, exposées par `aria-keyshortcuts` sans entrer dans son nom ; une
@@ -206,11 +201,6 @@ function GrilleDuMois({ vue }: { readonly vue: Vue }): ReactElement {
 
 // ── Boîtes ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Le refus de la date saisie : vide, hors des bornes (`0000-12-31`, `10000-01-01`) ou refusée par le document. */
-function refusDeLaDate(vue: Vue, ligne: LigneLue, texte: string): string | undefined {
-  return estUnJour(texte) ? vue.commandes.fixerLaDate(ligne, texte) : DATE_INVALIDE;
-}
-
 function FormulaireDeDate(props: {
   readonly vue: Vue;
   readonly ligne: LigneLue;
@@ -225,7 +215,7 @@ function FormulaireDeDate(props: {
   });
   const nom = titreDeLaBoiteDeDate(vue.modele.libelleDe(ligne));
   const valider = (): void => {
-    const refus = refusDeLaDate(vue, ligne, valeur.texte);
+    const refus = refusDeLaDate(valeur.texte, (jour) => vue.commandes.fixerLaDate(ligne, jour));
     if (refus === undefined) {
       vue.commandes.fermerLaBoite();
     } else {
@@ -239,8 +229,8 @@ function FormulaireDeDate(props: {
         etiquette={DATE_DE_LA_LIGNE}
         faute={valeur.faute}
         type="date"
-        min={DATE_MIN}
-        max={DATE_MAX}
+        min={PREMIER_JOUR}
+        max={DERNIER_JOUR}
         value={valeur.texte}
         onChange={(evenement) => setValeur({ texte: evenement.target.value, faute: undefined })}
       />
@@ -272,7 +262,16 @@ function BoiteDeDate({ vue, id }: { readonly vue: Vue; readonly id: string }): R
   );
 }
 
-function BoiteOuverte({ vue }: { readonly vue: Vue }): ReactElement | null {
+/** Où le focus va quand « Nouvelle colonne » se ferme : l'invitation (annulation), ou la grille (création). */
+type RetourDuFocus = "invitation" | "grille";
+
+function BoiteOuverte({
+  vue,
+  retour,
+}: {
+  readonly vue: Vue;
+  readonly retour: RefObject<RetourDuFocus | undefined>;
+}): ReactElement | null {
   const { boite, commandes } = vue;
   switch (boite?.sorte) {
     case undefined:
@@ -281,7 +280,10 @@ function BoiteOuverte({ vue }: { readonly vue: Vue }): ReactElement | null {
       return (
         <BoiteNouvelleColonne
           ajouter={commandes.ajouterUneColonne}
-          fermer={() => commandes.fermerLaBoite()}
+          fermer={(rendre) => {
+            retour.current = rendre ? "invitation" : "grille";
+            commandes.fermerLaBoite();
+          }}
           typeInitial="date"
         />
       );
@@ -350,8 +352,31 @@ function Outils({ vue }: { readonly vue: Vue }): ReactElement {
   );
 }
 
+// Après « Nouvelle colonne » (F-021-AC7) : annulée, le focus revient à « Ajouter une colonne Date » ;
+// créée, il passe à la case focalisable de la grille, ou à l'invitation si aucune colonne de date n'est née.
+function useRetourDuFocus(vue: Vue, invitation: RefObject<HTMLButtonElement | null>) {
+  const retour = useRef<RetourDuFocus | undefined>(undefined);
+  const { boite, suivi, jourFocalisable } = vue;
+  const avecGrille = vue.modele.dateVisee !== undefined;
+  useEffect(() => {
+    if (boite !== undefined || retour.current === undefined) {
+      return;
+    }
+    const vers = retour.current;
+    retour.current = undefined;
+    if (vers === "grille" && avecGrille) {
+      suivi.suivre({ sorte: "case", jour: jourFocalisable });
+    } else {
+      invitation.current?.focus();
+    }
+  });
+  return retour;
+}
+
 export function VueCalendrier(proprietes: ProprietesVueCalendrier): ReactElement {
   const vue = useVueCalendrier(proprietes);
+  const invitation = useRef<HTMLButtonElement>(null);
+  const retour = useRetourDuFocus(vue, invitation);
   return (
     <EcranDeTableCadre
       outils={<Outils vue={vue} />}
@@ -362,6 +387,7 @@ export function VueCalendrier(proprietes: ProprietesVueCalendrier): ReactElement
       {vue.modele.dateVisee === undefined ? (
         <InvitationDeTable texte={CALENDRIER_SANS_COLONNE_DE_DATE}>
           <Bouton
+            refBouton={invitation}
             libelle={AJOUTER_UNE_COLONNE_DATE}
             raison={proprietes.lectureSeule}
             surActivation={() => vue.commandes.ouvrirUneBoite({ sorte: "nouvelle-colonne" })}
@@ -378,7 +404,7 @@ export function VueCalendrier(proprietes: ProprietesVueCalendrier): ReactElement
           <MenuOuvert vue={vue} />
         </CadreDuCalendrier>
       )}
-      <BoiteOuverte vue={vue} />
+      <BoiteOuverte vue={vue} retour={retour} />
     </EcranDeTableCadre>
   );
 }

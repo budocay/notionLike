@@ -2,6 +2,7 @@
 // et la combinaison qui la déclenche au clavier. Partagés par l'entrée et par son menu.
 import { TOUCHES_DE_L_ENTREE } from "../interface/raccourcis.ts";
 import type { PasDeJours } from "./ecritures-du-calendrier.ts";
+import { JOURS_PAR_SEMAINE } from "./jours.ts";
 import {
   JOUR_PRECEDENT,
   JOUR_SUIVANT,
@@ -16,6 +17,6 @@ export const PAS: readonly {
 }[] = [
   { pas: -1, libelle: JOUR_PRECEDENT, touche: "jourPrecedent" },
   { pas: 1, libelle: JOUR_SUIVANT, touche: "jourSuivant" },
-  { pas: -7, libelle: SEMAINE_PRECEDENTE, touche: "semainePrecedente" },
-  { pas: 7, libelle: SEMAINE_SUIVANTE, touche: "semaineSuivante" },
+  { pas: -JOURS_PAR_SEMAINE, libelle: SEMAINE_PRECEDENTE, touche: "semainePrecedente" },
+  { pas: JOURS_PAR_SEMAINE, libelle: SEMAINE_SUIVANTE, touche: "semaineSuivante" },
 ];

@@ -5,11 +5,12 @@
 import type { DocumentTable, IdLigne, LigneLue } from "@notionlike/document";
 
 import { ecrire, type Surveillance } from "./ecritures.ts";
-import { decaler } from "./jours.ts";
+import { decaler, estUnJour } from "./jours.ts";
 import { type ColonneDeDate, jourDeLaLigne } from "./repartition.ts";
+import { DATE_INVALIDE } from "./textes.ts";
 import { ecrireLaValeur } from "./valider.ts";
 
-/** Nombre de jours d'un déplacement : -1 et 1 (un jour), -7 et 7 (une semaine). */
+/** Nombre de jours d'un déplacement : ±1 (un jour), ±7 (une semaine, `JOURS_PAR_SEMAINE`). */
 export type PasDeJours = number;
 
 /** `undefined` : écrit (ou rien à écrire) ; sinon le message du refus. */
@@ -43,6 +44,15 @@ export function ecrireLaDate(
     jour,
     surveillance,
   );
+}
+
+/**
+ * Le refus d'une date saisie dans la boîte « Définir la date » : vide ou hors des bornes
+ * (`0000-12-31`, `10000-01-01`), le message de F-018-AC30 sans rien écrire ; sinon le refus du
+ * document, rendu par `fixer`, quand il y en a un.
+ */
+export function refusDeLaDate(texte: string, fixer: (jour: string) => Refus): Refus {
+  return estUnJour(texte) ? fixer(texte) : DATE_INVALIDE;
 }
 
 /** Vrai si la cellule de date de la ligne porte déjà ce jour (`null` : déjà sans date). */

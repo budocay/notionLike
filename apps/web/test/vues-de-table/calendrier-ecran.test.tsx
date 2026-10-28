@@ -4,6 +4,7 @@
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { refusDeLaDate } from "../../src/vues-de-table/ecritures-du-calendrier.ts";
 import { jourDeLaLigne, repartir } from "../../src/vues-de-table/repartition.ts";
 import {
   annonces,
@@ -278,6 +279,19 @@ describe("colonne de date (F-021-AC6, AC7)", () => {
     await utilisateur.click(within(boite).getByRole("button", { name: "Annuler" }));
     expect(table.lire().colonnes).toHaveLength(1);
     expect(emises).toHaveLength(0);
+    // Le focus revient à la commande d'origine (F-021-AC7, F-018-AC21).
+    expect(focus()).toBe(bouton("Ajouter une colonne Date"));
+  });
+
+  it("F-021-AC7 le focus revient à « Ajouter une colonne Date » après Échap sur la boîte", async () => {
+    choisirLeCalendrier();
+    const { utilisateur } = rendreLaTable((vide) => {
+      vide.creerColonne("Nom", "texte");
+    });
+    await utilisateur.click(bouton("Ajouter une colonne Date"));
+    await utilisateur.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(focus()).toBe(bouton("Ajouter une colonne Date"));
   });
 
   it("F-021-AC7 la colonne créée par la boîte met le calendrier en place", async () => {
@@ -294,6 +308,22 @@ describe("colonne de date (F-021-AC6, AC7)", () => {
       ["Échéance", "date"],
     ]);
     expect(screen.getByRole("grid", { name: /^Calendrier/ })).toBeDefined();
+    // Le focus passe à la case focalisable de la grille, pas au corps de la page.
+    expect(focus()).toBe(caseDuJour("2026-10-08"));
+  });
+
+  it("F-021-AC7 une colonne créée d'un autre type que Date laisse l'invitation, qui reprend le focus", async () => {
+    choisirLeCalendrier();
+    const { utilisateur } = rendreLaTable((vide) => {
+      vide.creerColonne("Nom", "texte");
+    });
+    await utilisateur.click(bouton("Ajouter une colonne Date"));
+    const boite = screen.getByRole("dialog");
+    await utilisateur.selectOptions(within(boite).getByRole("combobox"), "texte");
+    await utilisateur.type(within(boite).getByRole("textbox"), "Notes");
+    await utilisateur.click(within(boite).getByRole("button", { name: "Créer la colonne" }));
+    expect(screen.queryByRole("grid", { name: /^Calendrier/ })).toBeNull();
+    expect(focus()).toBe(bouton("Ajouter une colonne Date"));
   });
 });
 
@@ -338,9 +368,10 @@ describe("panneau « Sans date » (F-021-AC8)", () => {
     expect(table.lire().lignes[0]?.cellules[1]).toBe("2026-10-20");
   });
 
+  // jsdom assainit en chaîne vide une année inférieure à 1 : « 0000-12-31 » n'atteint pas la
+  // validation par le champ (le cas est prouvé plus bas, par la fonction de refus).
   it.each([
     ["vide", ""],
-    ["avant l'an 1", "0000-12-31"],
     ["après l'an 9999", "10000-01-01"],
   ])(
     "F-021-AC8 un jour %s est refusé par la boîte, en français : aucune mise à jour du document, et la ligne reste dans « Sans date »",
@@ -350,13 +381,36 @@ describe("panneau « Sans date » (F-021-AC8)", () => {
       ]);
       await utilisateur.click(bouton("Définir la date : Sans jour"));
       const boite = screen.getByRole("dialog");
-      fireEvent.change(within(boite).getByLabelText("Date"), { target: { value: saisie } });
+      const champ = within(boite).getByLabelText("Date") as HTMLInputElement;
+      fireEvent.change(champ, { target: { value: saisie } });
+      expect(champ.value).toBe(saisie);
       await utilisateur.click(within(boite).getByRole("button", { name: "Valider" }));
       expect(within(boite).getByRole("alert").textContent).toContain("Saisissez une date valide.");
       expect(table.lire().lignes[0]?.cellules[1]).toBeNull();
       expect(emises).toHaveLength(0);
       expect(lignesDuPanneau()).toHaveLength(1);
       expect(screen.getByRole("heading", { name: "Sans date (1)" })).toBeDefined();
+    },
+  );
+});
+
+describe("refus d'une date saisie (F-021-AC8, F-018-AC30)", () => {
+  it.each(["", "0000-12-31", "10000-01-01", "2026-02-30", "2026-13-01", "abc", "2026-1-5"])(
+    "F-021-AC8 %j est refusé avec le message de F-018-AC30, sans rien écrire",
+    (saisie) => {
+      const ecrire = vi.fn<(jour: string) => string | undefined>(() => undefined);
+      expect(refusDeLaDate(saisie, ecrire)).toBe("Saisissez une date valide.");
+      expect(ecrire).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["0001-01-01", "2026-10-20", "9999-12-31"])(
+    "F-021-AC8 %s est transmis tel quel à l'écriture, dont le refus est rendu",
+    (saisie) => {
+      const ecrire = vi.fn<(jour: string) => string | undefined>(() => "Refusé par le document.");
+      expect(refusDeLaDate(saisie, ecrire)).toBe("Refusé par le document.");
+      expect(ecrire).toHaveBeenCalledExactlyOnceWith(saisie);
+      expect(refusDeLaDate(saisie, () => undefined)).toBeUndefined();
     },
   );
 });
@@ -427,6 +481,7 @@ describe("contenu d'une table (F-021-AC27)", () => {
     rendreLaTable((table) => {
       const nom = table.creerColonne("Nom", "texte");
       const date = table.creerColonne("<b>Échéance</b>", "date");
+      table.creerColonne("<i>Autre</i>", "date");
       table.creerLigne(
         new Map([
           [nom, BALISE],
@@ -442,7 +497,15 @@ describe("contenu d'une table (F-021-AC27)", () => {
     });
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("script")).toBeNull();
-    expect(document.querySelector("b")).toBeNull();
+    expect(document.querySelector("b, i")).toBeNull();
+    // Deux colonnes de date : « Placer selon » est rendu, et nomme les colonnes comme du texte.
+    const choix = screen.getByRole("combobox", { name: "Placer selon" });
+    expect(
+      within(choix)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["<b>Échéance</b>", "<i>Autre</i>"]);
+    expect(within(choix).getByRole("option", { name: "<b>Échéance</b>" })).toBeDefined();
     expect(entreesDe("2026-10-08")[0]?.textContent).toContain(BALISE);
     expect(entreesDe("2026-10-08")[0]?.getAttribute("aria-label")).toBe(BALISE);
     expect(lignesDuPanneau()[0]?.textContent).toContain("<script>x</script>");

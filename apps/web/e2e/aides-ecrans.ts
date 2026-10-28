@@ -167,11 +167,13 @@ export async function construireLArborescence(page: Page): Promise<void> {
 }
 
 /**
- * Écran (k) : la vue calendrier d'une table de F-021 dont une ligne est datée du 15 du mois affiché
+ * Écran (k) : la vue calendrier d'une table de F-021 dont une ligne est datée du 15 octobre 2026, mois affiché (horloge figée)
  * et deux restent dans « Sans date ». La fenêtre doit être large pendant la construction, et la
  * table se crée par le menu de la barre latérale.
  */
 export async function construireLeCalendrier(page: Page): Promise<void> {
+  // Le mois affiché est celui de l'horloge : figée, il ne change pas la nuit du dernier jour du mois.
+  await page.clock.setFixedTime(new Date("2026-10-08T12:00:00Z"));
   await ouvrir(page);
   await page.getByRole("button", { name: "Nouvelle table", exact: true }).click();
   await saisirTitre(page, "Agenda");
@@ -188,8 +190,7 @@ export async function construireLeCalendrier(page: Page): Promise<void> {
     .getByRole("group", { name: "Vue de la table" })
     .getByRole("button", { name: "Calendrier", exact: true })
     .click();
-  const maintenant = new Date();
-  const jour = `${String(maintenant.getFullYear()).padStart(4, "0")}-${String(maintenant.getMonth() + 1).padStart(2, "0")}-15`;
+  const jour = "2026-10-15";
   const panneau = page.getByRole("region", { name: /^Sans date/ });
   await panneau.getByRole("button", { name: "Définir la date : Sans titre" }).first().click();
   const dialogue = page.getByRole("dialog");

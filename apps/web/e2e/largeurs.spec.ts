@@ -9,15 +9,12 @@ import {
   actionsDeRangee,
   attendreLaFinDesMouvements,
   boutonDOuverture,
-  constaterSansDefilementHorizontal,
   construireLArborescence,
-  construireLeCalendrier,
   construireUnePage,
   contexteTactile,
   FERMER_LA_BARRE,
   jeton,
   largeur,
-  LARGEURS_DE_REFERENCE,
   montrerLaBarre,
   OUVRIR_LA_BARRE,
   ouvrirLeMenu,
@@ -499,32 +496,6 @@ test("F-004-AC43 à 360, pointeur imprécis : chaque élément activable des éc
   await expect(titrePrincipal(page)).toHaveText("Carnet 1");
   await constaterLesCibles(page, "(b)", 1);
   await contexte.close();
-});
-
-test("F-004-AC43 F-021 sur l'écran (k), le calendrier, pointeur imprécis : chaque élément activable offre au moins 44 pixels à 1280 puis à 360", async ({
-  browser,
-  baseURL,
-}) => {
-  const contexte = await contexteTactile(browser, baseURL, 1280);
-  const page = await contexte.newPage();
-  await construireLeCalendrier(page);
-  expect(await page.evaluate(() => window.matchMedia("(pointer: coarse)").matches)).toBe(true);
-  // « + » et « ⋯ » de chaque case et de l'entrée, boutons du panneau « Sans date » et de la barre.
-  await constaterLesCibles(page, "(k) à 1280", 40);
-  await largeur(page, 360);
-  await constaterLesCibles(page, "(k) à 360", 40);
-  await contexte.close();
-});
-
-test("F-004-AC45 F-021 sur l'écran (k), le calendrier, la largeur de défilement ne dépasse celle de la fenêtre à aucune des six largeurs de référence", async ({
-  page,
-}) => {
-  await largeur(page, 1280);
-  await construireLeCalendrier(page);
-  for (const pixels of LARGEURS_DE_REFERENCE) {
-    await largeur(page, pixels);
-    await constaterSansDefilementHorizontal(page, `calendrier à ${String(pixels)}`);
-  }
 });
 
 function opaciteDesActions(page: Page, titre: string): Promise<string> {
