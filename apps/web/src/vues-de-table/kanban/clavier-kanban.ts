@@ -7,7 +7,7 @@ import type { KeyboardEvent } from "react";
 import { type Combinaison, estLaFrappe, TOUCHES_DE_LA_CARTE } from "../../interface/raccourcis.ts";
 import type { CommandeDeCarte } from "./destination.ts";
 import { arretVoisin, carteDeLArret, type SensDeNavigation } from "./navigation.ts";
-import type { VueKanban } from "./use-vue-kanban.ts";
+import type { EtatDeLaVueKanban } from "./use-vue-kanban.ts";
 
 const COMMANDES: readonly (readonly [Combinaison, CommandeDeCarte])[] = [
   [TOUCHES_DE_LA_CARTE.pilePrecedente, "pile-precedente"],
@@ -33,7 +33,11 @@ function estUneDes(evenement: KeyboardEvent<HTMLElement>, combinaisons: readonly
 }
 
 // Le focus va à l'arrêt voisin ; au bord il reste où il est. Vrai si la touche est une flèche.
-function naviguer(vue: VueKanban, arret: string, evenement: KeyboardEvent<HTMLElement>): boolean {
+function naviguer(
+  vue: EtatDeLaVueKanban,
+  arret: string,
+  evenement: KeyboardEvent<HTMLElement>,
+): boolean {
   const sens = DEPLACEMENTS.find(([combinaison]) => estLaFrappe(evenement, combinaison))?.[1];
   if (sens === undefined) {
     return false;
@@ -46,7 +50,7 @@ function naviguer(vue: VueKanban, arret: string, evenement: KeyboardEvent<HTMLEl
 }
 
 function agirSurLaCarte(
-  vue: VueKanban,
+  vue: EtatDeLaVueKanban,
   carte: string,
   element: HTMLElement,
   evenement: KeyboardEvent<HTMLElement>,
@@ -67,7 +71,10 @@ function agirSurLaCarte(
   return false;
 }
 
-export function surToucheDuKanban(vue: VueKanban, evenement: KeyboardEvent<HTMLElement>): void {
+export function surToucheDuKanban(
+  vue: EtatDeLaVueKanban,
+  evenement: KeyboardEvent<HTMLElement>,
+): void {
   const cible = evenement.target;
   if (!(cible instanceof HTMLElement) || vue.titre.saisie !== undefined) {
     return;

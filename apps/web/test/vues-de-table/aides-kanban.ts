@@ -75,6 +75,7 @@ export function contexteDe(table: DocumentTable): ContexteDeDeplacement {
     lignes: lignesAffichees(lue),
     regroupement: regroupementDe(lue),
     surveillance: SANS_SURVEILLANCE,
+    triActif: false,
   };
 }
 

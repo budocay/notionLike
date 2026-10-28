@@ -1,5 +1,6 @@
 // La zone d'annonce des vues de table (F-018, F-020-AC15) : partagée par la vue « Tableau » et la vue
-// « Kanban », qui ne s'empruntent rien l'une à l'autre.
+// « Kanban ». Les deux vues partagent aussi, depuis la grille (F-018), `BoiteNouvelleColonne` et
+// `Confirmation` (`Boites.tsx`) et `creerUneColonne` (`actions.ts`) : les modifier touche les deux.
 import { useEffect, useRef, useState } from "react";
 
 /** Délai entre le vidage de la zone d'annonce et sa réécriture, pour qu'un texte identique soit relu. */

@@ -32,7 +32,7 @@ export interface ContexteDeDeplacement {
   /** L'affichage figé est prévenu des écritures du déplacement (F-019-AC17). */
   readonly surveillance: Surveillance;
   /** Un tri est actif : la place d'une carte est celle du tri, rien ne déplace la ligne (F-020-AC16). */
-  readonly triActif?: boolean;
+  readonly triActif: boolean;
 }
 
 export type ResultatDeDeplacement =
@@ -88,7 +88,7 @@ function resteALaPlace(
   carte: IdLigne,
   destination: Destination,
 ): boolean {
-  if (contexte.triActif !== true) {
+  if (!contexte.triActif) {
     return estLaPlaceActuelle(piles, carte, destination);
   }
   return piles[placeDeLaCarte(piles, carte)?.pile ?? -1]?.option === destination.option;
@@ -115,7 +115,7 @@ function planDe(
   const ordre = lue.lignes.map(({ id }) => id);
   const cartes = cartesDeLaPile(piles, destination);
   const changeDePile = optionDeLaLigne(ligne, rang, regroupement) !== destination.option;
-  if (contexte.triActif === true) {
+  if (contexte.triActif) {
     return { sorte: "plan", changeDePile, position: undefined, voisine: undefined };
   }
   return {

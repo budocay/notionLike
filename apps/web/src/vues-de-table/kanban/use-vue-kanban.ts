@@ -37,7 +37,7 @@ export interface SuppressionDeCarte {
   readonly fermer: (rendre: boolean) => void;
 }
 
-export interface VueKanban {
+export interface EtatDeLaVueKanban {
   readonly piles: readonly Pile[];
   readonly limites: LimitesDesPiles;
   readonly focus: FocusDesCartes;
@@ -169,7 +169,7 @@ function commandesDeLaCarte(
   bases: Bases,
   actions: ActionsDeCarte,
   saisirLeTitre: (carte: IdLigne) => void,
-): VueKanban["commandesDe"] {
+): EtatDeLaVueKanban["commandesDe"] {
   const { piles, titre, suppression, moyens } = bases;
   return (carte, titreDeLaCarte) => ({
     titre: titreDeLaCarte,
@@ -185,7 +185,7 @@ function commandesDeLaCarte(
   });
 }
 
-export function useVueKanban(proprietes: ProprietesDuPlateau): VueKanban {
+export function useVueKanban(proprietes: ProprietesDuPlateau): EtatDeLaVueKanban {
   const bases = useBases(proprietes);
   const { piles, titre, focus } = bases;
   // Entrée, F2 et la commande « Modifier le titre » : un refus (lecture seule, aucune colonne de titre)

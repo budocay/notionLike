@@ -1,7 +1,7 @@
 // Les actions d'une carte qui écrivent dans le document de table (F-020-AC6, AC9, AC13, AC23) :
 // déplacement par une commande ou par un geste, création. Toutes passent par `deplacerUneCarte`
 // (déplacement) ou par une seule opération de la façade (création) ; en lecture seule, aucune n'écrit.
-import type { ColonneLue, IdLigne } from "@notionlike/document";
+import type { ColonneLue, IdLigne, LigneLue } from "@notionlike/document";
 
 import type { DepotSurUnePile } from "../../glisser/index.ts";
 import { ecrire } from "../ecritures.ts";
@@ -65,8 +65,31 @@ function deplacer(
   // Au pointeur, le module de glisser-déposer annonce le dépôt lui-même.
   if (auClavier) {
     moyens.focaliser(carte);
-    moyens.annoncer(annonceDuDeplacement(piles, carte, destination, triActif ? undefined : place));
+    moyens.annoncer(
+      annonceDuDeplacement(
+        piles,
+        carte,
+        destination,
+        triActif ? placeSousTri(piles, lignes, carte, destination) : place,
+      ),
+    );
   }
+}
+
+// Sous un tri, la carte prend sa place dans la pile d'arrivée selon l'ordre des lignes affichées (AC16).
+function placeSousTri(
+  piles: readonly Pile[],
+  lignes: readonly LigneLue[],
+  carte: IdLigne,
+  destination: Destination,
+): { readonly rang: number; readonly total: number } | undefined {
+  const ordre = lignes.map(({ id }) => id);
+  const rangDe = (id: IdLigne): number => ordre.indexOf(id);
+  const autres = (piles.find(({ option }) => option === destination.option)?.cartes ?? []).filter(
+    ({ id }) => id !== carte,
+  );
+  const avant = autres.filter(({ id }) => rangDe(id) < rangDe(carte)).length;
+  return { rang: avant + 1, total: autres.length + 1 };
 }
 
 // Le libellé de la carte, sa pile et sa place, lus après un déplacement au clavier (AC15).

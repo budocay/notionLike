@@ -104,7 +104,7 @@ describe("sous un tri actif (F-020-AC16)", () => {
     expect(relire?.cellules[1]).toBe(contenu.options[1]);
     expect(titresDeLaPile("En cours, 1 carte")).toEqual(["Relire"]);
     expect(document.activeElement).toBe(carte("Relire"));
-    expect(annonceDeLaVue()).toBe("Relire déposée dans la pile En cours.");
+    expect(annonceDeLaVue()).toBe("Relire, pile En cours, 1 sur 1.");
   });
 });
 

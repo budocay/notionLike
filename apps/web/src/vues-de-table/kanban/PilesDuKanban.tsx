@@ -21,7 +21,7 @@ import {
   PAS_DE_LIGNES,
   titreDeCarte,
 } from "./textes.ts";
-import type { VueKanban } from "./use-vue-kanban.ts";
+import type { EtatDeLaVueKanban } from "./use-vue-kanban.ts";
 
 const RACCOURCIS_DE_LA_CARTE = [
   TOUCHES_DE_LA_CARTE.pilePrecedente,
@@ -32,7 +32,7 @@ const RACCOURCIS_DE_LA_CARTE = [
   .map((combinaison) => cleAria(combinaison))
   .join(" ");
 
-function SaisieDuTitre({ vue, carte }: { readonly vue: VueKanban; readonly carte: Carte }) {
+function SaisieDuTitre({ vue, carte }: { readonly vue: EtatDeLaVueKanban; readonly carte: Carte }) {
   const { titre } = vue;
   const saisie = titre.saisie;
   return (
@@ -51,7 +51,7 @@ function SaisieDuTitre({ vue, carte }: { readonly vue: VueKanban; readonly carte
 }
 
 function UneCarte(props: {
-  readonly vue: VueKanban;
+  readonly vue: EtatDeLaVueKanban;
   readonly carte: Carte;
   readonly rang: number;
   readonly total: number;
@@ -89,7 +89,7 @@ function UneCarte(props: {
 
 // « Nouvelle carte » et « Afficher 100 cartes de plus » sont des arrêts du plateau : hors de l'ordre de
 // tabulation, atteints par les flèches (AC15). Seul l'arrêt courant est dans cet ordre.
-function PiedDePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pile }) {
+function PiedDePile({ vue, pile }: { readonly vue: EtatDeLaVueKanban; readonly pile: Pile }) {
   const libelle = pile.option === null ? null : pile.libelle;
   const masquees = pile.cartes.length > vue.limites.limiteDe(pile);
   const arret = (identifiant: string) => ({
@@ -119,7 +119,7 @@ function PiedDePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pil
   );
 }
 
-function UnePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pile }) {
+function UnePile({ vue, pile }: { readonly vue: EtatDeLaVueKanban; readonly pile: Pile }) {
   const visibles = pile.cartes.slice(0, vue.limites.limiteDe(pile));
   const libelle = pile.option === null ? null : pile.libelle;
   return (
@@ -153,7 +153,7 @@ function UnePile({ vue, pile }: { readonly vue: VueKanban; readonly pile: Pile }
   );
 }
 
-export function PilesDuKanban({ vue }: { readonly vue: VueKanban }) {
+export function PilesDuKanban({ vue }: { readonly vue: EtatDeLaVueKanban }) {
   return (
     <PilesGlissables
       identifiants={vue.identifiants}

@@ -364,7 +364,7 @@ describe("appelants du composant partagé Bouton (F-020-AC27)", () => {
 
 // ——— F-020-AC16 : les appelants de la destination d'une commande et du déplacement passent le tri ———
 //
-// `destinationDeLaCommande` et `deplacerUneCarte` gagnent `triActif`, facultatif et faux par défaut :
+// `destinationDeLaCommande` et `deplacerUneCarte` gagnent `triActif` (obligatoire pour le déplacement, faux par défaut pour la destination) :
 // un appelant qui l'oublierait offrirait « Monter » sous un tri. Leurs appelants sont énumérés.
 
 const SOURCES_DU_KANBAN = new Map(

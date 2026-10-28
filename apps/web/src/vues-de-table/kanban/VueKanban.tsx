@@ -34,7 +34,7 @@ import {
   titreDeLaSuppression,
 } from "./textes.ts";
 import { type Regroupement, useRegroupement } from "./use-regroupement.ts";
-import { useVueKanban, type VueKanban as Vue } from "./use-vue-kanban.ts";
+import { useVueKanban, type EtatDeLaVueKanban as Vue } from "./use-vue-kanban.ts";
 
 export interface ProprietesVueKanban {
   readonly table: DocumentTable;

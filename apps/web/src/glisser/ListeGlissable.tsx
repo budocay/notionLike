@@ -1,5 +1,6 @@
-// Le geste de glisser-déposer d'une liste (F-006-AC1, AC7, AC8, AC36, ADR-0015) : seul fichier, avec
-// les autres de ce module, qui emploie la bibliothèque. Il ne porte que le geste : ni document, ni
+// Le geste de glisser-déposer d'une liste (F-006-AC1, AC7, AC8, AC36, ADR-0015) et de piles (F-020 :
+// `PilesGlissables`, plusieurs listes liées) : seul fichier, avec les autres de ce module, qui
+// emploie la bibliothèque. Il ne porte que le geste : ni document, ni
 // destination, ni texte ; ce qu'une zone admet, ce que fait le lâcher et ce qui est annoncé lui sont
 // donnés par l'application.
 import {

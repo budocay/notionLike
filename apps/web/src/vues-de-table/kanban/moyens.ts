@@ -1,6 +1,8 @@
 // Ce que la vue kanban demande à son environnement (F-020) : la table et sa lecture, les lignes
 // affichées, la lecture seule, et où dire un refus ou une annonce. Rien de la grille (cellule
-// courante, focus de l'invitation) : la vue « Tableau » a son propre contrat (`Moyens`).
+// courante, focus de l'invitation) : la vue « Tableau » a son propre contrat (`Moyens`). Briques
+// partagées avec la vue « Tableau », importées par `VueKanban.tsx` : `BoiteNouvelleColonne` et
+// `Confirmation` (`../Boites.tsx`), `creerUneColonne` (`../actions.ts`) ; `useAnnonce` (`../use-annonce.ts`).
 import type { DocumentTable, LigneLue, TableLue } from "@notionlike/document";
 
 import type { Surveillance } from "../ecritures.ts";
