@@ -280,7 +280,7 @@ function BoiteDuCalendrierOuverte({
       return (
         <BoiteNouvelleColonne
           ajouter={commandes.ajouterUneColonne}
-          fermer={(rendre) => {
+          fermerLaBoite={(rendre) => {
             retour.current = rendre ? "invitation" : "grille";
             commandes.fermerLaBoite();
           }}

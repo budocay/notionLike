@@ -295,6 +295,15 @@
 2026-10-27T13:31:53Z | reviewer-frontend | F-021 | CHANGES_REQUESTED | 9e88377bacef
 2026-10-27T13:31:54Z | agent-architecte | F-021 | ARCHITECTURE GATE: FAIL | 9e88377bacef
 2026-10-27T13:31:54Z | agent-craft | F-021 | CRAFT GATE: PASS | 9e88377bacef
+2026-10-27T12:19:32Z | agent-securite | F-020 | SECURITY GATE: PASS | dcf4334b2404
+2026-10-27T12:20:53Z | agent-architecte | F-020 | ARCHITECTURE GATE: FAIL | dcf4334b2404
+2026-10-27T12:21:01Z | reviewer-frontend | F-020 | CHANGES_REQUESTED | dcf4334b2404
+2026-10-27T12:21:01Z | agent-craft | F-020 | CRAFT GATE: PASS | dcf4334b2404
+2026-10-27T13:13:48Z | agent-craft | F-020 | CRAFT GATE: FAIL | 0c3cd0431f75
+2026-10-27T13:25:19Z | agent-securite | F-020 | SECURITY GATE: PASS | 0c3cd0431f75
+2026-10-27T13:26:20Z | agent-architecte | F-020 | ARCHITECTURE GATE: FAIL | 0c3cd0431f75
+2026-10-27T13:26:22Z | reviewer-frontend | F-020 | CHANGES_REQUESTED | 0c3cd0431f75
+2026-10-27T13:26:22Z | agent-craft | F-020 | CRAFT GATE: PASS | 0c3cd0431f75
 2026-10-27T12:06:50Z | agent-securite | F-019 | SECURITY GATE: PASS | b1a3ea0bbe22
 2026-10-27T12:07:32Z | reviewer-frontend | F-019 | CHANGES_REQUESTED | b1a3ea0bbe22
 2026-10-27T12:07:34Z | agent-architecte | F-019 | ARCHITECTURE GATE: FAIL | b1a3ea0bbe22
@@ -315,3 +324,18 @@
 2026-10-28T16:16:07Z | agent-craft | F-021 | CRAFT GATE: PASS | 1dc242eba1e6
 2026-10-30T09:25:54Z | reviewer-frontend | F-021 | REPRISE D-046 | 1dc242eba1e6
 2026-10-30T09:25:54Z | agent-architecte | F-021 | REPRISE D-046 | 1dc242eba1e6
+2026-10-28T16:03:36Z | reviewer-frontend | F-020 | CHANGES_REQUESTED | 3561466ce570
+2026-10-28T16:04:37Z | agent-securite | F-020 | SECURITY GATE: PASS | 3561466ce570
+2026-10-28T16:11:44Z | agent-architecte | F-020 | ARCHITECTURE GATE: FAIL | 3561466ce570
+2026-10-28T16:11:45Z | agent-craft | F-020 | CRAFT GATE: PASS | 3561466ce570
+2026-10-28T16:14:13Z | reviewer-frontend | F-020 | REPRISE D-044 | 3561466ce570
+2026-10-28T16:14:13Z | agent-architecte | F-020 | REPRISE D-044 | 3561466ce570
+2026-10-28T16:25:42Z | reviewer-frontend | F-020 | CHANGES_REQUESTED | eaa38831f221
+2026-10-28T16:27:09Z | agent-securite | F-020 | SECURITY GATE: PASS | eaa38831f221
+2026-10-28T16:29:37Z | agent-architecte | F-020 | ARCHITECTURE GATE: UNVERIFIED | eaa38831f221
+2026-10-28T16:29:37Z | agent-craft | F-020 | CRAFT GATE: PASS | eaa38831f221
+2026-10-28T16:44:40Z | reviewer-frontend | F-020 | APPROVED | 90d768bf2f44
+2026-10-28T16:45:58Z | agent-securite | F-020 | SECURITY GATE: PASS | 90d768bf2f44
+2026-10-28T16:46:00Z | agent-architecte | F-020 | UNVERIFIED (la commande de gate a échoué (code 1), voir /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md et /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md.err) | 90d768bf2f44
+2026-10-28T16:46:00Z | agent-craft | F-020 | CRAFT GATE: PASS | 90d768bf2f44
+2026-10-30T07:31:25Z | agent-architecte | F-020 | ARCHITECTURE GATE: PASS | 90d768bf2f44

@@ -1,7 +1,9 @@
-// Zone d'annonce polie des vues d'une table (F-018, F-021) : partagée par la vue Tableau et la vue
-// Calendrier.
+// La zone d'annonce des vues de table (F-018, F-020-AC15) : partagée par la vue « Tableau », la vue
+// « Kanban » et la vue « Calendrier » (F-021). Les vues partagent aussi, depuis la grille (F-018), `BoiteNouvelleColonne` et
+// `Confirmation` (`Boites.tsx`) et `creerUneColonne` (`actions.ts`) : les modifier touche les trois vues.
 import { useEffect, useRef, useState } from "react";
 
+/** Délai entre le vidage de la zone d'annonce et sa réécriture, pour qu'un texte identique soit relu. */
 const RELECTURE_D_ANNONCE_MS = 150;
 
 // La zone d'annonce (`role="status"`) ne relit pas un texte inchangé : une annonce identique à la

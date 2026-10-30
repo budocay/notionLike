@@ -208,9 +208,14 @@ describe("réglages sur l'appareil (F-018-AC40 à AC42)", () => {
 });
 
 describe("vue active et sélecteur de vues (F-018-AC44)", () => {
-  it("F-018-AC44 F-021-AC30 un sélecteur ne paraît que dès deux vues : « Tableau » seul n'en a pas, « Tableau » et « Calendrier » en ont un", () => {
+  it("F-018-AC44 la liste compte « Tableau », « Kanban » (F-020-AC27) puis « Calendrier » (F-021-AC30) : le sélecteur paraît dès deux vues", () => {
     rendreLaTable(deuxColonnes);
-    expect(screen.queryByRole("group", { name: "Vue de la table" })).not.toBeNull();
+    const selecteur = screen.getByRole("group", { name: "Vue de la table" });
+    expect(
+      within(selecteur)
+        .getAllByRole("button")
+        .map((bouton) => bouton.textContent),
+    ).toEqual(["Tableau", "Kanban", "Calendrier"]);
     expect(avecSelecteur([{ id: "tableau", libelle: "Tableau" }])).toBe(false);
     expect(
       avecSelecteur([
@@ -221,7 +226,7 @@ describe("vue active et sélecteur de vues (F-018-AC44)", () => {
   });
 
   it("F-018-AC44 une vue enregistrée absente de la liste : la grille « Tableau » s'affiche, et l'enregistrement n'est pas réécrit à l'ouverture", () => {
-    const texte = JSON.stringify({ version: 1, sections: { vue: { active: "kanban" } } });
+    const texte = JSON.stringify({ version: 1, sections: { vue: { active: "agenda" } } });
     localStorage.setItem(CLE, texte);
     rendreLaTable(deuxColonnes);
     expect(screen.getByRole("grid")).toBeDefined();
@@ -236,7 +241,7 @@ describe("un changement n'écrit que sa section (F-018-AC41, F-018-AC44, H4)", (
       JSON.stringify({
         version: 1,
         sections: {
-          vue: { active: "kanban", tri: "f-020" },
+          vue: { active: "agenda", tri: "f-020" },
           tableau: { largeurs: {}, gelees: 2 },
         },
       }),
@@ -248,14 +253,14 @@ describe("un changement n'écrit que sa section (F-018-AC41, F-018-AC44, H4)", (
     expect(enregistre()).toEqual({
       version: 1,
       sections: {
-        vue: { active: "kanban", tri: "f-020" },
+        vue: { active: "agenda", tri: "f-020" },
         tableau: { largeurs: { [nom]: 196 }, gelees: 2 },
       },
     });
     await utilisateur.keyboard("{ArrowLeft}");
     expect(enregistre()).toEqual({
       version: 1,
-      sections: { vue: { active: "kanban", tri: "f-020" }, tableau: { gelees: 2 } },
+      sections: { vue: { active: "agenda", tri: "f-020" }, tableau: { gelees: 2 } },
     });
   });
 
@@ -303,7 +308,7 @@ describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {
     const tableau = { largeurs: { inconnue: 300 }, gelees: 2 };
     localStorage.setItem(
       CLE,
-      JSON.stringify({ version: 1, sections: { vue: { active: "kanban" }, tableau } }),
+      JSON.stringify({ version: 1, sections: { vue: { active: "agenda" }, tableau } }),
     );
     const { result } = renderHook(() =>
       useReglages({ idEspace: ESPACE_A, idTable: TABLE_D_ESSAI }, []),
@@ -311,14 +316,19 @@ describe("sections écrites (F-018-AC40, F-018-AC41, H4)", () => {
     expect(result.current.vueActive).toBe("tableau");
     act(() => result.current.choisirLaVue("tableau"));
     expect(enregistre()).toEqual({ version: 1, sections: { tableau } });
-    // « Calendrier » est livrée depuis F-021 : elle s'enregistre, la section « tableau » reste telle quelle.
+    // « Kanban » (F-020) et « Calendrier » (F-021) sont livrées : elles s'enregistrent, la section « tableau » reste telle quelle.
+    act(() => result.current.choisirLaVue("kanban"));
+    expect(enregistre()).toEqual({
+      version: 1,
+      sections: { tableau, vue: { active: "kanban" } },
+    });
     act(() => result.current.choisirLaVue("calendrier"));
     expect(enregistre()).toEqual({
       version: 1,
       sections: { tableau, vue: { active: "calendrier" } },
     });
     // Une vue hors de la liste est refusée : rien ne change ; revenir à « Tableau » retire la section « vue ».
-    act(() => result.current.choisirLaVue("kanban"));
+    act(() => result.current.choisirLaVue("agenda"));
     expect(enregistre()).toEqual({
       version: 1,
       sections: { tableau, vue: { active: "calendrier" } },

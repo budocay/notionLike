@@ -40,6 +40,8 @@ const LECTEURS_DE_VUES: Readonly<Record<string, () => string[]>> = {
   },
   // Les six lignes n'ont pas de date : le calendrier les présente toutes dans le panneau « Sans date ».
   calendrier: () => lignesDuPanneau().map((ligne) => ligne.textContent?.split("Définir")[0] ?? ""),
+  // Les six lignes sont dans la même pile « En cours » après le filtre : les cartes y suivent le tri.
+  kanban: () => screen.getAllByRole("listitem").map((carte) => carte.textContent ?? ""),
 };
 
 describe("couture des vues (F-019-AC14)", () => {

@@ -21,6 +21,7 @@ import {
   TitreDuMois,
 } from "../interface/composants/Calendrier.tsx";
 import { ListeDeCorbeille } from "../interface/composants/Corbeille.tsx";
+import { CarteDeKanban, PileDeKanban, PlateauDeKanban } from "../interface/composants/Kanban.tsx";
 import { MarqueDeTable } from "../interface/composants/Rangee.tsx";
 import {
   BarreDeDefinition,
@@ -1128,6 +1129,78 @@ function SpecimenDeLaGrille(): ReactElement {
   );
 }
 
+// Vue kanban (F-020) : un plateau de deux piles, une carte au repère de dépôt, une pile survolée.
+const GLISSER_FICTIF = {
+  ref: sansEffet,
+  ecouteursDuPointeur: {},
+  idDesInstructions: "demonstration-instructions",
+  deplacement: undefined,
+  enGlissement: false,
+  zone: undefined,
+} as const;
+
+function CarteFictive(props: {
+  readonly titre: string;
+  readonly rang: number;
+  readonly zone?: "avant" | "apres";
+}): ReactElement {
+  return (
+    <CarteDeKanban
+      identifiant={props.titre}
+      titre={props.titre}
+      vide={false}
+      rang={props.rang}
+      total={2}
+      courante={props.rang === 1}
+      raccourcis=""
+      glisser={{ ...GLISSER_FICTIF, zone: props.zone }}
+      refCarte={sansEffet}
+      surFocus={sansEffet}
+      nomDesActions={`Actions de la carte ${props.titre}`}
+      menuOuvert={false}
+      surActions={sansEffet}
+    />
+  );
+}
+
+function SpecimenDuKanban(): ReactElement {
+  const T = TABLE_FICTIVE;
+  const cadre = useRef<HTMLDivElement>(null);
+  return (
+    <Specimen etiquette="Kanban, piles, cartes, repère de dépôt">
+      <div className={PAGE.fondZone}>
+        <PlateauDeKanban nom={T.kanban} refCadre={cadre} surTouche={sansEffet}>
+          <PileDeKanban
+            nom={`${T.pileFaire}, 2 cartes`}
+            libelle={T.pileFaire}
+            nombre={2}
+            vide={T.aucuneCarte}
+            refZone={sansEffet}
+            survolee={false}
+            repereEnFin={false}
+            pied={<Bouton libelle={T.nouvelleCarte} surActivation={sansEffet} />}
+          >
+            <CarteFictive titre={T.cartes[0]} rang={1} />
+            <CarteFictive titre={T.cartes[1]} rang={2} zone="avant" />
+          </PileDeKanban>
+          <PileDeKanban
+            nom={`${T.pileFait}, 0 carte`}
+            libelle={T.pileFait}
+            nombre={0}
+            vide={T.aucuneCarte}
+            refZone={sansEffet}
+            survolee
+            repereEnFin={false}
+            pied={<Bouton libelle={T.nouvelleCarte} surActivation={sansEffet} />}
+          >
+            {null}
+          </PileDeKanban>
+        </PlateauDeKanban>
+      </div>
+    </Specimen>
+  );
+}
+
 function SpecimenDesOptions(): ReactElement {
   return (
     <Specimen etiquette="Options d'une colonne">
@@ -1233,6 +1306,7 @@ function SectionTables(): ReactElement {
         </Specimen>
         <SpecimenDeLaGrille />
         <SpecimenDesOptions />
+        <SpecimenDuKanban />
         <Specimen etiquette="Barre de filtres, élément inactif, marque de tri, ligne hors filtre">
           <div className={PAGE.fondZone}>
             <BarreDeDefinition

@@ -176,6 +176,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       // F-021 : composants de la vue calendrier.
       "CadreDuCalendrier",
       // F-018 : composants de l'écran de table.
+      // F-020 : vue kanban.
+      "CarteDeKanban",
       "CaseDeCellule",
       "CaseDuCalendrier",
       "CelluleDeGrille",
@@ -230,6 +232,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "PanneauDeLien",
       "Partie",
       "Pictogramme",
+      "PileDeKanban",
+      "PlateauDeKanban",
       // F-006 : poignées d'un bloc.
       "PoigneeDeBloc",
       "PoigneeDuCurseur",

@@ -51,12 +51,12 @@ function enTete(colonne: IdColonne, rang: number): Courante {
   return { ligne: null, colonne, place: { rang: 0, colonne: rang + 1 } };
 }
 
-/** Crée la colonne en dernière position ; son identifiant, ou le message du refus. */
+/** La colonne créée en dernière position, ou le message du refus (nom trop long, lecture seule). */
 export function creerUneColonne(
   moyens: Pick<Moyens, "table" | "lectureSeule">,
   nom: string,
   type: TypeDeColonne,
-): { readonly colonne: IdColonne } | { readonly refus: string } {
+): { readonly id: IdColonne } | { readonly refus: string } {
   if (moyens.lectureSeule !== undefined) {
     return { refus: moyens.lectureSeule };
   }
@@ -64,7 +64,10 @@ export function creerUneColonne(
     return { refus: NOM_TROP_LONG };
   }
   const issue = ecrire(() => moyens.table.creerColonne(nom, type));
-  return issue.reussie ? { colonne: issue.valeur } : { refus: issue.message };
+  if (!issue.reussie) {
+    return { refus: issue.message };
+  }
+  return { id: issue.valeur };
 }
 
 /** Rend `undefined` si la colonne est créée, sinon le message du refus (garde la boîte ouverte). */
@@ -73,12 +76,12 @@ export function ajouterUneColonne(
   nom: string,
   type: TypeDeColonne,
 ): string | undefined {
-  const issue = creerUneColonne(moyens, nom, type);
-  if ("refus" in issue) {
-    return issue.refus;
+  const creee = creerUneColonne(moyens, nom, type);
+  if ("refus" in creee) {
+    return creee.refus;
   }
   moyens.signaler(undefined);
-  moyens.allerVers(enTete(issue.colonne, moyens.lue.colonnes.length));
+  moyens.allerVers(enTete(creee.id, moyens.lue.colonnes.length));
   return undefined;
 }
 

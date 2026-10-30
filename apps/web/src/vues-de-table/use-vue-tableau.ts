@@ -28,10 +28,10 @@ import { SANS_SURVEILLANCE, type Surveillance } from "./ecritures.ts";
 import { type MenuDeGrille, useMenuDeGrille } from "./menu-de-grille.ts";
 import { deplacer, type Position } from "./navigation-grille.ts";
 import { CELLULE_SUPPRIMEE } from "./textes.ts";
+import { useAnnonce } from "./use-annonce.ts";
 import type { TriDeColonne } from "./tris.ts";
 import { type CouranteDeLaGrille, useCourante } from "./use-courante.ts";
 import { type EditionDeLaGrille, useEdition } from "./use-edition.ts";
-import { useAnnonce } from "./use-annonce.ts";
 import { type FenetreDeLaGrille, useFenetre } from "./use-fenetre.ts";
 
 /** Ce que l'écran de table donne à une vue de la définition et de l'affichage figé (F-019). */

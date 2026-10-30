@@ -20,15 +20,27 @@ function importeurs(nom: string, depuis: string): string[] {
 }
 
 const CONTRATS: readonly (readonly [string, string, readonly string[]])[] = [
-  ["BoiteNouvelleColonne", "Boites.tsx", [`${MODULE}/VueCalendrier.tsx`]],
-  ["Confirmation", "Boites.tsx", [`${MODULE}/VueCalendrier.tsx`]],
+  [
+    "BoiteNouvelleColonne",
+    "Boites.tsx",
+    [`${MODULE}/VueCalendrier.tsx`, `${MODULE}/kanban/VueKanban.tsx`],
+  ],
+  ["Confirmation", "Boites.tsx", [`${MODULE}/VueCalendrier.tsx`, `${MODULE}/kanban/VueKanban.tsx`]],
   [
     "useAnnonce",
     "use-annonce.ts",
-    [`${MODULE}/use-vue-calendrier.ts`, `${MODULE}/use-vue-tableau.ts`],
+    [
+      `${MODULE}/kanban/use-vue-kanban.ts`,
+      `${MODULE}/use-vue-calendrier.ts`,
+      `${MODULE}/use-vue-tableau.ts`,
+    ],
   ],
   ["ecouterLeDehors", "menu-de-grille.ts", [`${MODULE}/use-menu-calendrier.ts`]],
-  ["creerUneColonne", "actions.ts", [`${MODULE}/use-ecritures-calendrier.ts`]],
+  [
+    "creerUneColonne",
+    "actions.ts",
+    [`${MODULE}/kanban/VueKanban.tsx`, `${MODULE}/use-ecritures-calendrier.ts`],
+  ],
   ["ajouterUneColonne", "actions.ts", [`${MODULE}/Boites.tsx`]],
 ];
 
@@ -40,12 +52,16 @@ describe("appelants des contrats partagés (F-021)", () => {
     },
   );
 
-  it("F-021-AC7 la boîte de nouvelle colonne reçoit `ajouter` et `fermer` de ses deux appelants, et plus d'objet de la vue Tableau", () => {
-    for (const chemin of [`${MODULE}/Boites.tsx`, `${MODULE}/VueCalendrier.tsx`]) {
+  it("F-021-AC7 la boîte de nouvelle colonne reçoit `ajouter` et `fermerLaBoite` de ses appelants, et plus d'objet de la vue Tableau", () => {
+    for (const chemin of [
+      `${MODULE}/Boites.tsx`,
+      `${MODULE}/VueCalendrier.tsx`,
+      `${MODULE}/kanban/VueKanban.tsx`,
+    ]) {
       const texte = lire(chemin);
       const appel = /<BoiteNouvelleColonne(.*?)\/>/s.exec(texte)?.[1] ?? "";
       expect(appel, chemin).toMatch(/ajouter=/);
-      expect(appel, chemin).toMatch(/fermer=/);
+      expect(appel, chemin).toMatch(/fermerLaBoite=/);
       expect(appel, chemin).not.toMatch(/\bvue=/);
     }
   });

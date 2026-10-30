@@ -902,6 +902,32 @@ const MODULES_QUI_LISENT_LE_DOCUMENT: Readonly<Record<string, string>> = {
   "apps/web/src/vues-de-table/use-vue-tableau.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
   "apps/web/src/vues-de-table/valider.ts": "apps/web/test/vues-de-table/colonnes.test.tsx",
   "apps/web/src/vues-de-table/Separateur.tsx": "apps/web/test/vues-de-table/reglages.test.tsx",
+  // F-020 : la vue kanban.
+  "apps/web/src/vues-de-table/kanban/VueKanban.tsx":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/actions-de-carte.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/deplacement.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/destination.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/identifiants.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/moyens.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/navigation.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/piles.ts": "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/reglages-kanban.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/use-limites.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/use-regroupement.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/use-titre-de-carte.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
+  "apps/web/src/vues-de-table/kanban/use-vue-kanban.ts":
+    "apps/web/test/vues-de-table/kanban-ecran.test.tsx",
   "apps/web/src/vues-de-table/use-reglages.ts": "apps/web/test/vues-de-table/reglages.test.tsx",
   // F-021 : la vue calendrier de la table, atteinte par l'écran de table que ses tests rendent.
   "apps/web/src/vues-de-table/ecritures-du-calendrier.ts":

@@ -91,6 +91,11 @@ interface ProprietesBouton {
   readonly resterFocalisable?: boolean | undefined;
   readonly type?: "button" | "submit" | undefined;
   readonly refBouton?: Ref<HTMLButtonElement> | undefined;
+  /** Hors de l'ordre de tabulation (-1) : un arrêt d'une composition à flèches (F-020-AC15). */
+  readonly tabIndex?: number | undefined;
+  readonly surFocus?: (() => void) | undefined;
+  /** Identifiant de l'arrêt que ce bouton forme dans une composition à flèches (F-020-AC15). */
+  readonly arret?: string | undefined;
 }
 
 export function Bouton(props: ProprietesBouton): ReactElement {
@@ -108,6 +113,9 @@ export function Bouton(props: ProprietesBouton): ReactElement {
         aria-disabled={sansEffet ? true : undefined}
         aria-describedby={raison === undefined ? undefined : idRaison}
         onClick={sansEffet ? undefined : props.surActivation}
+        tabIndex={props.tabIndex}
+        onFocus={props.surFocus}
+        data-arret={props.arret}
       >
         {props.libelle}
       </button>

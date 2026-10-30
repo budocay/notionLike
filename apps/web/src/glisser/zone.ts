@@ -18,3 +18,11 @@ export function zoneDuPoint(cible: BordsVerticaux, ordonnee: number): ZoneDeDepo
   }
   return relative > 1 - QUART ? "apres" : "dans";
 }
+
+/**
+ * Moitié survolée d'une carte d'une pile (F-020-AC12) : moitié haute, la carte glissée se pose avant
+ * elle ; moitié basse, après elle.
+ */
+export function moitieDuPoint(cible: BordsVerticaux, ordonnee: number): "avant" | "apres" {
+  return cible.hauteur > 0 && ordonnee - cible.haut >= cible.hauteur / 2 ? "apres" : "avant";
+}

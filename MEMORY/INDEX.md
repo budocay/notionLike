@@ -24,3 +24,4 @@
 - F-018 Vue tableau d'une table — 2026-10-22 — features/F-018.md
 - F-032 Plusieurs espaces sur un appareil — 2026-10-27 — features/F-032.md
 - F-019 Filtres et tris d'une vue — 2026-10-27 — features/F-019.md
+- F-020 Vue kanban — 2026-10-30 — features/F-020.md

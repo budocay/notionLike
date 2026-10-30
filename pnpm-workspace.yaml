@@ -10,7 +10,3 @@ minimumReleaseAge: 10080
 
 overrides:
   better-auth>drizzle-kit: "-"
-# Risque accepté par le dev le 2026-10-27, à retirer le 29/10 avec body-parser 2.4.0
-auditConfig:
-  ignoreGhsas:
-    - GHSA-27r3-jxmh-p828

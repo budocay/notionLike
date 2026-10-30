@@ -64,10 +64,13 @@ const COMPOSANTS_CHANGES: Readonly<
       "src/vues-de-table/VueTableau.tsx",
       // F-021 : les menus d'une case et d'une entrée du calendrier.
       "src/vues-de-table/MenuDuCalendrier.tsx",
+      // F-020-AC23 : le menu des actions d'une carte ; ses entrées portent la raison « Lecture seule ».
+      "src/vues-de-table/kanban/VueKanban.tsx",
     ],
     production: {
       "src/interface/RangeePage.tsx": "raison,",
       "src/vues-de-table/menus.ts": "raison,",
+      "src/vues-de-table/kanban/entrees.ts": "raison: lectureSeule",
     },
   },
   Rangee: {
@@ -90,6 +93,8 @@ const TYPES_CHANGES: Readonly<Record<string, readonly string[]>> = {
     "src/vues-de-table/menus.ts",
     // F-021 : les menus d'une case et d'une entrée du calendrier.
     "src/vues-de-table/MenuDuCalendrier.tsx",
+    // F-020 : les entrées du menu d'une carte.
+    "src/vues-de-table/kanban/entrees.ts",
   ],
   BoutonDeRangee: ["src/interface/composants/Rangee.tsx"],
   EcranBarre: [

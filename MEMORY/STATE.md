@@ -1,12 +1,12 @@
-# STATE — notionLike — 2026-10-27
+# STATE — notionLike — 2026-10-30
 
 ## Où on en est
 
 Dépôt : `git@github.com:budocay/notionLike.git`. Clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` porte vingt-trois features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (PR #15, dérogation D-040). F-019 (filtres et tris) : DONE par dérogation D-043, PR en cours. Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` porte vingt-quatre features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (dérogation D-040), F-019 (PR #16, dérogation D-043). F-020 (vue kanban) : DONE, PR en cours (5 passages, reprise D-044 levée). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
-En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-020 kanban et F-021 calendrier, `main` intégrée, un tour de correctifs fait, specs retouchées (AC27, AC30, AC17) et revalidées, dossier et gates en cours ; F-026 courriels et F-023 PWA, conception faite (ADR-0022, 0023 ; ADR-0020), specs revalidées, `main` intégrée dans F-023 ; F-015, conception en cours. Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag RC1.
+En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-021 calendrier, 3e tour court (`c6a7145`), REPRISE D-046 et correction de H13 attendues du dev ; F-034 (création de lignes linéaire, D-041) : spec en brouillon sur la branche `F-034` (`b75a31b`), en attente pour le lot RC1 ; F-026 courriels et F-023 PWA, conception faite (ADR-0022, 0023 ; ADR-0020), specs revalidées, `main` intégrée dans F-023 ; F-015, conception en cours. Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag RC1.
 
 CI GitHub Actions (`.github/workflows/ci.yml`) : `main` protégée par un ruleset (PR obligatoire, merge commit seul, checks `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression). Hooks git débranchés le 2026-10-21 : la CI est la seule barrière.
 
@@ -18,13 +18,13 @@ Décisions du dev en vigueur : plusieurs features en parallèle si leurs dossier
 
 ## Prochaine action prévue
 
-1. F-019 : PR, fusion quand les 4 checks sont verts.
-2. F-020, puis F-021 : verdicts du passage en cours, correctifs ou dérogation, intégrer `main` (avec F-019), brancher F-020-AC16 et F-021-AC25 (« Tri actif ») sur F-019, traçabilité, PR.
-3. Tag `v0.1.0` (RC1), puis lot de correctifs : D-042 en premier, D-040, D-043, bugs relevés par le dev.
-4. F-026, F-023 : ADR acceptées et fichiers protégés commités par le dev (annexes des notes de conception), puis code par blocs ; bloc Compose Mailpit de F-026 livrable dès le 2026-10-29.
-5. 2026-10-29 après 11 h 40 UTC : body-parser 2.4.0, retrait de l'exception (`auditConfig.ignoreGhsas` de `pnpm-workspace.yaml`, `.trivyignore`).
+1. F-020 : PR, fusion quand les 4 checks sont verts.
+2. F-021 : REPRISE D-046 et correction de H13 par le dev, intégrer `main` (avec F-020), brancher F-021-AC25 (« Tri actif ») sur F-019, gates, traçabilité, PR.
+3. Tag `v0.1.0` (RC1), puis lot de correctifs : D-042 en premier, D-045, D-040, D-043, D-041 (F-034), socle UNVERIFIED (D-047 réservée), bugs relevés par le dev.
+4. F-026, F-023 : ADR acceptées et fichiers protégés commités par le dev (annexes des notes de conception), puis code par blocs ; bloc Compose Mailpit de F-026 livrable.
+5. body-parser 2.4.0 (publié après le 2026-10-29 11 h 40 UTC, date passée, à faire) : retrait de l'exception (`auditConfig.ignoreGhsas` de `pnpm-workspace.yaml`, `.trivyignore`).
 6. Puis F-015, F-016.
-7. Au dev : bout en bout filtres-et-tris, kanban, calendrier, largeurs, F-032-AC34 ; disposition étroite du calendrier ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; F-018 (H9, AC56), F-033-AC26 manuel ; D-030, D-033, D-037 ; F-031-AC28.
+7. Au dev : bout en bout filtres-et-tris, kanban (AC29), calendrier, largeurs, F-032-AC34 ; disposition étroite du calendrier ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; F-018 (H9, AC56), F-033-AC26 manuel ; D-030, D-033, D-037 ; F-031-AC28.
 
 ## Dettes ouvertes
 
@@ -52,13 +52,14 @@ Décisions du dev en vigueur : plusieurs features en parallèle si leurs dossier
 - D-037 Sur écran étroit, un bloc vide ne se déplace qu'au clavier — retouche de spec à décider.
 - D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) échoue sur `main` — depuis F-018.
 - D-040 F-032 par dérogation : AC32 (couture de l'ouverture d'un espace ajouté), AC2 (commande désactivée hors connexion) — lot RC1.
-- D-041 `creerLigne` de `@notionlike/document` quadratique (5 000 lignes ≈ 52 s en test).
-- D-042 Tests de F-032 instables : `espace-ajout.test.tsx` l.144 et l.393, `espace-changement.test.tsx` l.353 (focus ou annonce sans attente) — lot RC1, en premier.
+- D-041 `creerLigne` de `@notionlike/document` quadratique (500 lignes 0,3 s, 1 000 1,5 s, 2 000 9,8 s, 4 000 55 s ; cause probable : `lireEtat` complet à chaque `creerLigne`) — spec F-034 en brouillon, lot RC1.
+- D-042 Tests de F-032 instables : `espace-ajout.test.tsx` l.144, l.347, l.393 et l.516, `espace-changement.test.tsx` l.353 (focus, annonce ou zone lus sans attente) — lot RC1, en premier.
 - D-043 F-019 par dérogation (architecture) : coutures de `ecrireLaValeur`/`validerLeChamp` et du retrait de `LARGEUR_DES_ACTIONS`, non bloquants dans `MEMORY/features/F-019.md` — lot RC1.
+- D-045 Tests lents sous charge : `vues-de-table/filtres-et-tris.test.ts` l.289 et `recalcul.test.tsx` l.48 (F-019-AC28), `fenetre.test.tsx` l.151 (F-018-AC47) dépassent 5 s si plusieurs suites tournent ; délai explicite ou référence plus rapide, à trancher par le dev — lot RC1.
 
 ## État des contrôles / gates
 
-Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-019 : `controles.sh main` code 0 sur `76fe0b0206b2` (251 fichiers, 5 037 tests) ; passage 3 : reviewer-frontend APPROVED, sécurité et craft PASS, architecture FAIL, DEROGATION D-043. Exception datée du dev (`6677b7b`) : body-parser CVE-2026-111181 / GHSA-27r3-jxmh-p828 ignorée par `pnpm audit` et trivy jusqu'au 2026-10-29.
+Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-020 : `controles.sh main` code 0 sur `90d768bf2f44` (5 164 tests) ; passage 5 : reviewer-frontend APPROVED, sécurité, architecture, craft PASS ; D-044 levée. Exception datée du dev (`6677b7b`) : body-parser CVE-2026-111181 / GHSA-27r3-jxmh-p828 ignorée par `pnpm audit` et trivy jusqu'au 2026-10-29 (échue).
 
 ## Pièges actifs
 
@@ -73,3 +74,4 @@ Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-019 : `cont
 - Conflit sur `ARCHITECTURE.md` ou `MEMORY/VEILLE.md` : résolu par leur propriétaire (architecte, veille).
 - Une nouvelle vue de table modifie forcément des tests de F-018 et les listes de coutures : les nommer dans la spec (modèle : F-020-AC27, H12).
 - Branches d'archive à ne pas fusionner : `planification-reunie`, `F-008`, `archive-arbre-2026-10-08`, `archive-F-008-dernier-tour` ; distantes `F-011`, `F-003` : copies de F-010.
+- Après un redémarrage, la conversation principale peut tourner sous `token-eco:eco`, dont le hook de périmètre refuse Write : la traçabilité passe alors par agent-planif.

@@ -41,50 +41,44 @@ function estUnType(valeur: string): valeur is TypeDeColonne {
 }
 
 function ChoixDuType(props: {
-  readonly type: TypeDeColonne;
-  readonly setType: (type: TypeDeColonne) => void;
+  readonly valeur: TypeDeColonne;
+  readonly surChoix: (type: TypeDeColonne) => void;
 }): ReactElement {
   return (
     <Choix
       nom={TYPE_DE_LA_COLONNE}
-      valeur={props.type}
+      valeur={props.valeur}
       options={OPTIONS_DE_TYPE}
       surChoix={(valeur) => {
         if (estUnType(valeur)) {
-          props.setType(valeur);
+          props.surChoix(valeur);
         }
       }}
     />
   );
 }
 
-interface ProprietesNouvelleColonne {
-  /** Crée la colonne ; rend le message du refus (la boîte reste ouverte), sinon `undefined`. */
-  readonly ajouter: (nom: string, type: TypeDeColonne) => string | undefined;
-  /** Ferme la boîte ; `true` rend le focus à la commande d'origine. */
-  readonly fermer: (rendreLeFocus: boolean) => void;
-  readonly typeInitial?: TypeDeColonne;
-}
-
 /**
- * Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). La
- * vue calendrier (F-021-AC7) l'ouvre avec le type « Date » choisi.
+ * Nom et type de la nouvelle colonne, « Texte » par défaut ; créée en dernière position (AC18). Le
+ * kanban l'ouvre avec le type « Sélection » choisi (F-020-AC5), le calendrier avec « Date » (F-021-AC7).
  */
-export function BoiteNouvelleColonne({
-  ajouter,
-  fermer: fermerLaBoite,
-  typeInitial = "texte",
-}: ProprietesNouvelleColonne): ReactElement {
+export function BoiteNouvelleColonne(props: {
+  /** Crée la colonne ; rend le message du refus, ou `undefined` (la boîte se ferme). */
+  readonly ajouter: (nom: string, type: TypeDeColonne) => string | undefined;
+  /** Ferme la boîte ; vrai : le focus revient à la commande d'origine. */
+  readonly fermerLaBoite: (rendreLeFocus: boolean) => void;
+  readonly typeInitial?: TypeDeColonne | undefined;
+}): ReactElement {
   const [nom, setNom] = useState("");
-  const [type, setType] = useState<TypeDeColonne>(typeInitial);
+  const [type, setType] = useState<TypeDeColonne>(props.typeInitial ?? "texte");
   const [faute, setFaute] = useState<string | undefined>(undefined);
   const champ = useRef<HTMLInputElement>(null);
-  const fermer = (): void => fermerLaBoite(true);
+  const fermer = (): void => props.fermerLaBoite(true);
   const creer = (): void => {
-    const refus = ajouter(nom, type);
+    const refus = props.ajouter(nom, type);
     setFaute(refus);
     if (refus === undefined) {
-      fermerLaBoite(false);
+      props.fermerLaBoite(false);
     }
   };
   return (
@@ -106,7 +100,7 @@ export function BoiteNouvelleColonne({
             setFaute(undefined);
           }}
         />
-        <ChoixDuType type={type} setType={setType} />
+        <ChoixDuType valeur={type} surChoix={setType} />
         <Actions>
           <Bouton type="submit" libelle={CREER_LA_COLONNE} />
           <Bouton libelle={ANNULER} surActivation={fermer} />
@@ -187,7 +181,7 @@ export function BoiteOuverte({ vue }: { readonly vue: VueTableau }): ReactElemen
       return (
         <BoiteNouvelleColonne
           ajouter={(nom, type) => ajouterUneColonne(vue.moyens, nom, type)}
-          fermer={vue.fermerBoite}
+          fermerLaBoite={vue.fermerBoite}
         />
       );
     case "supprimer-colonne":
