@@ -14,6 +14,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 
 import { afterEach, describe, expect, it } from "vitest";
+import WebSocket from "ws";
 
 import {
   attendreQue,
@@ -22,17 +23,13 @@ import {
   pause,
   priseDeFournisseur,
 } from "./aides-synchro.ts";
-import type { ServeurDEssai } from "./fabrique.ts";
-
-const ETAT_FERME = 3;
-const ETAT_EN_CONNEXION = 0;
 
 let ecoute: Server | undefined;
 const connexions = new Set<Socket>();
 
 // Un serveur TCP qui accepte la connexion mais ne répond jamais à la poignée de main : la prise
 // du client reste en cours de connexion tant qu'on ne la ferme pas.
-async function serveurMuet(): Promise<ServeurDEssai> {
+async function serveurMuet(): Promise<{ urlDeSynchro: string; urlPublique: string }> {
   const serveur = createServer((connexion) => {
     connexions.add(connexion);
     connexion.on("error", () => undefined);
@@ -46,7 +43,22 @@ async function serveurMuet(): Promise<ServeurDEssai> {
   return {
     urlDeSynchro: `ws://127.0.0.1:${String(port)}/synchro`,
     urlPublique: `http://127.0.0.1:${String(port)}`,
-  } as ServeurDEssai;
+  };
+}
+
+// Ouvre une prise qui reste en cours de connexion et rend son objet WebSocket.
+async function priseEnConnexion(): Promise<{ socket: WebSocket }> {
+  const serveur = await serveurMuet();
+  const prise = priseDeFournisseur(serveur, "session=essai");
+  fournisseur(prise, "document-d-essai");
+  await attendreQue(
+    () => prise.webSocket?.readyState === WebSocket.CONNECTING && connexions.size === 1,
+  );
+  const socket = prise.webSocket;
+  if (socket === null) {
+    throw new Error("prise absente");
+  }
+  return { socket: socket as unknown as WebSocket };
 }
 
 afterEach(async () => {
@@ -62,63 +74,102 @@ afterEach(async () => {
 
 describe("fermerLesClients (F-046-AC3, D-028)", () => {
   it("F-046-AC3 ferme une prise encore en cours de connexion sans erreur non gérée et la laisse close", async () => {
-    const serveur = await serveurMuet();
-    const prise = priseDeFournisseur(serveur, "session=essai");
-    fournisseur(prise, "document-d-essai");
-    await attendreQue(
-      () => prise.webSocket?.readyState === ETAT_EN_CONNEXION && connexions.size === 1,
-    );
-    const socket = prise.webSocket;
-    if (socket === null) {
-      throw new Error("prise absente");
-    }
+    const { socket } = await priseEnConnexion();
 
     await fermerLesClients();
     // Le ws émet son erreur de fermeture au tick suivant : un rapport « Unhandled Errors » de
-    // vitest tomberait pendant cette pause, et l'écouteur permanent la rend sans effet.
+    // vitest tomberait pendant cette pause. Sans le correctif de `close`, ce test échoue.
     await pause(100);
 
-    expect(socket.readyState).toBe(ETAT_FERME);
-    expect((socket as unknown as EventEmitter).listenerCount("error")).toBeGreaterThan(0);
+    expect(socket.readyState).toBe(WebSocket.CLOSED);
+    // L'absorption est consommée : elle ne survit pas à la fermeture.
+    expect((socket as EventEmitter).listenerCount("error")).toBe(0);
     await attendreQue(() => connexions.size === 0);
   });
 
-  it("F-046-AC3 fermer deux fois, ou une prise déjà close, ne lève rien", async () => {
-    const serveur = await serveurMuet();
-    const prise = priseDeFournisseur(serveur, "session=essai");
-    fournisseur(prise, "document-d-essai");
-    await attendreQue(() => prise.webSocket?.readyState === ETAT_EN_CONNEXION);
+  it("F-046-AC3 une autre erreur de prise, hors fermeture, reste visible", async () => {
+    const { socket } = await priseEnConnexion();
+    // Le fournisseur a retiré ses écouteurs à la destruction : on les retire ici pour constater
+    // qu'aucun écouteur permanent de l'aide n'absorbe une erreur de prise.
+    socket.removeAllListeners("error");
+    const autre = new Error("erreur de protocole simulée");
 
-    await fermerLesClients();
-    await fermerLesClients();
-    await pause(100);
+    expect(() => socket.emit("error", autre)).toThrow(autre);
 
-    expect(prise.webSocket).toBeNull();
+    const vues: Error[] = [];
+    socket.on("error", (erreur) => vues.push(erreur));
+    socket.emit("error", autre);
+    expect(vues).toEqual([autre]);
+  });
+
+  it("F-046-AC3 une prise déjà close est laissée close, sans erreur, et plus aucune connexion ne reste", async () => {
+    const { socket } = await priseEnConnexion();
+    const incidents: unknown[] = [];
+    const noter = (incident: unknown): void => {
+      incidents.push(incident);
+    };
+    process.on("uncaughtException", noter);
+    process.on("unhandledRejection", noter);
+    try {
+      socket.close();
+      await attendreQue(() => socket.readyState === WebSocket.CLOSED);
+
+      await fermerLesClients();
+      await pause(100);
+
+      expect(socket.readyState).toBe(WebSocket.CLOSED);
+      expect(incidents).toEqual([]);
+      await attendreQue(() => connexions.size === 0);
+      // Les ensembles de l'aide sont vidés : un second appel ne retouche rien.
+      await fermerLesClients();
+      expect(socket.readyState).toBe(WebSocket.CLOSED);
+    } finally {
+      process.off("uncaughtException", noter);
+      process.off("unhandledRejection", noter);
+    }
   });
 });
 
 describe("couture des appelants de priseDeFournisseur (F-046-AC7)", () => {
-  it("F-046-AC7 aucun appelant n'attend une erreur de prise non gérée, que l'écouteur permanent absorbe", () => {
+  it("F-046-AC7 les incidents que constatent synchro-limites et synchro-plafonds ne passent pas par la prise corrigée", () => {
     const dossier = new URL("./", import.meta.url);
-    const appelants = readdirSync(dossier)
-      .filter((nom) => nom.endsWith(".ts") && nom !== "aides-synchro.test.ts")
-      .filter((nom) =>
-        /priseDeFournisseur|fermerLesClients/.test(readFileSync(new URL(nom, dossier), "utf8")),
-      );
-
-    expect(appelants).toContain("synchro-document.test.ts");
-    expect(appelants).toContain("synchro-connexion.test.ts");
-    const dependants = appelants.filter((nom) =>
-      /uncaughtException|unhandledRejection|\.on\("error"|\.once\("error"/.test(
-        readFileSync(new URL(nom, dossier), "utf8"),
-      ),
+    const contenus = new Map(
+      readdirSync(dossier)
+        .filter((nom) => nom.endsWith(".ts") && nom !== "aides-synchro.test.ts")
+        .map((nom) => [nom, readFileSync(new URL(nom, dossier), "utf8")] as const),
     );
-    // Deux fichiers seulement touchent aux incidents : `synchro-limites` constate leur absence
-    // (l'écouteur permanent ne peut qu'en retirer), `synchro-plafonds` écoute une requête HTTP sans
-    // lien avec les prises du client. Un nouvel appelant doit être examiné ici.
-    expect(dependants.filter((nom) => nom !== "aides-synchro.ts")).toEqual([
-      "synchro-limites.test.ts",
-      "synchro-plafonds.test.ts",
-    ]);
+    const utilisentLaPrise = [...contenus]
+      .filter(([, texte]) => /priseDeFournisseur|fermerLesClients/.test(texte))
+      .map(([nom]) => nom);
+    expect(utilisentLaPrise).toContain("synchro-document.test.ts");
+    expect(utilisentLaPrise).toContain("synchro-connexion.test.ts");
+
+    // Seuls ces deux fichiers posent des écouteurs d'incident ; un nouveau doit être examiné ici.
+    const observentDesIncidents = [...contenus]
+      .filter(([nom]) => utilisentLaPrise.includes(nom))
+      .filter(([, texte]) =>
+        /uncaughtException|unhandledRejection|\.on\("error"|\.once\("error"/.test(texte),
+      )
+      .map(([nom]) => nom)
+      .filter((nom) => nom !== "aides-synchro.ts");
+    expect(observentDesIncidents).toEqual(["synchro-limites.test.ts", "synchro-plafonds.test.ts"]);
+
+    // La classe corrigée n'existe que dans `priseDeFournisseur` (fournisseur Hocuspocus). Ces deux
+    // fichiers n'ouvrent ni fournisseur ni prise de ce type : `synchro-limites` observe le
+    // processus pendant des clients bruts (`connecterBrut`), `synchro-plafonds` une requête HTTP.
+    // L'absorption n'est armée que par `close()` sur une prise en connexion (test ci-dessus), et
+    // `fermerLesClients` n'y est appelé qu'en `afterEach`, hors des fenêtres d'observation.
+    for (const nom of observentDesIncidents) {
+      const texte = contenus.get(nom) ?? "";
+      expect(texte).not.toMatch(/priseDeFournisseur|fournisseurSynchronise|\bfournisseur\(/);
+      expect(texte).not.toMatch(/HocuspocusProvider/);
+    }
+    const limites = contenus.get("synchro-limites.test.ts") ?? "";
+    const fenetre = limites.slice(
+      limites.indexOf('process.on("uncaughtException"'),
+      limites.indexOf('process.off("unhandledRejection"'),
+    );
+    expect(fenetre.length).toBeGreaterThan(0);
+    expect(fenetre).not.toContain("fermerLesClients");
   });
 });
