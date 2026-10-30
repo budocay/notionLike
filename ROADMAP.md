@@ -1,12 +1,18 @@
 # ROADMAP — notionLike
 
-Dernière mise à jour : 2026-10-23
+Dernière mise à jour : 2026-10-30
 
 Source du besoin : `.agents/fiche.yaml`. Trente-trois features ont une spec (`specs/F-001.md` à `specs/F-033.md`) ; toutes portent `Statut : validée` au 2026-10-23 (relu à leur ligne `Statut :` ; F-032 revalidée par le dev le 2026-10-21, `78ce6bc`). Vingt-deux sont terminées et fusionnées dans `main` (section « Terminé »), dont F-006 (`c58fd89`), F-005 (`57f01aa`), F-033 (`99460ef`) et F-018 (`d592ad8`) ; deux sont en cours (section « En cours ») : F-032, code livré et en revue, et F-015, conception faite et spec revalidée, code après F-032 ; neuf restent à faire. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
 
 Ce que cette ROADMAP ne dit pas, et où le lire : l'état d'une feature en cours ou terminée fait foi dans `MEMORY/STATE.md` et `MEMORY/features/<F-id>.md`, le verdict de chaque gate dans `MEMORY/gates.log`, le déroulé d'une feature terminée dans `PROJECT_LOG.md`, le statut d'une spec à sa ligne `Statut :`, et la structure livrée dans `ARCHITECTURE.md`. Cette ROADMAP ne tient que l'ordre, les dépendances, les décisions d'ordonnancement et les reports.
 
 ## Décisions du dev en vigueur
+
+Retours du dev sur la RC1 (2026-10-30), trois specs en brouillon à valider, à livrer l'une après l'autre dans cet ordre (elles touchent toutes le module d'édition d'`apps/web` : `Edition.tsx`, `edition.classes.ts`, `messages.ts`, `structure-edition.test.ts`, `EditeurDePage.tsx` ; F-015 intègre `main` ensuite et son propriétaire résout les conflits) :
+
+- F-040 sortie du bloc code et paragraphe final (« je ne peux rien ajouter en dessous ») : décisions du dev, les trois gestes ; elle amende F-005-AC3 (H4 de sa spec) ; paragraphe final affiché par la vue, écrit à un geste (H1 : choix de format à valider).
+- F-041 coloration du code plus riche (« pas la couleur qui devrait être présente ») : ponctuation, opérateurs, balises ; amende F-033 H5 ; thème clair non introduit (H2), détection de langage à trancher (H3).
+- F-042 précision du glisser-déposer des blocs (« pas très précise ») : mesure d'abord (AC1), puis cible par la géométrie, repère aligné, toucher ; `structurel` ; amende F-006-AC15 et AC37.
 
 Décision du dev du 2026-10-16 (plusieurs espaces sur un appareil avant la présence) :
 
@@ -64,6 +70,7 @@ Préalable de la CI (décision du 2026-10-16) : levé, CI en place.
 
 Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste ; F-031 placée en tête par sa décision du même jour (« pile Docker d'abord ») ; F-032 placée juste avant F-015 par sa décision du même jour (F-015 H12). F-028, F-006, F-017, F-031, F-005 et F-018 sont terminées, comme F-033, ajoutée le 2026-10-21 ; F-032 et F-015 sont en cours (section « En cours »).
 
+- [ ] F-040 Sortie du bloc de code et paragraphe final — tier: standard — dépend de: F-005, F-033, F-013 (livrées) — agents: agent-frontend — spec: specs/F-040.md (brouillon, à valider par le dev) — 1re du lot RC1 (F-040, F-041, F-042 l'une après l'autre) — branche `F-040`, worktree `notionLike-F-040`
 - [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-016.md (validée)
 - [ ] F-019 Filtres et tris d'une vue — tier: standard — dépend de: F-018 — agents: agent-frontend (agent-veille sur déclencheur) — spec: specs/F-019.md (validée)
 - [ ] F-020 Vue kanban — tier: standard — dépend de: F-006, F-018 — agents: agent-veille, agent-frontend — spec: specs/F-020.md (validée ; veille de F-020 H6 avant le code)
