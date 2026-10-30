@@ -4,7 +4,8 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { AUCUN_RANG_ADMIS } from "../src/rang.ts";
+import { creerDocumentTable } from "../src/document-table.ts";
+import { refusDe } from "./aides-table.ts";
 
 const etat = vi.hoisted(() => ({ refuser: false }));
 
@@ -17,12 +18,8 @@ vi.mock("../src/rang.ts", async (importer) => {
   };
 });
 
-const { creerDocumentTable } = await import("../src/index.ts");
-const { refusDe } = await import("./aides-table.ts");
-
 describe("F-034 rang-indisponible", () => {
   it("F-034-AC5 le refus vient après tous les autres et rien n'est écrit sur 5 000 lignes", () => {
-    expect(AUCUN_RANG_ADMIS).toBeDefined();
     const table = creerDocumentTable();
     const colonne = table.creerColonne("Nom", "texte");
     for (let i = 0; i < 5000; i += 1) {

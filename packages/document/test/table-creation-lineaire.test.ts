@@ -293,6 +293,12 @@ describe("F-034 abonnés, convergence", () => {
   });
 });
 
+// F-034-AC8 : la cible de 2 s pour 5 000 créations en fin est un objectif relevé dans le rapport de
+// la feature, non asserté ici (H4). F-034-AC9 : la signature de `creerLigne` est inchangée ; les
+// appelants de la façade restent corrects sans modification, ce que `pnpm typecheck` et les tests
+// d'`apps/web` établissent. F-034-AC10 : la résorption de D-041 est portée par la traçabilité
+// (`MEMORY/STATE.md`, `PROJECT_LOG.md`), pas par ce test.
+
 // ── Performance (F-034-AC7) ──────────────────────────────────────────────────────────────────────
 
 function creerN(n: number, placer: (i: number) => number | undefined): number {
