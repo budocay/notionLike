@@ -47,6 +47,10 @@ export const EDITION = {
   optionActive:
     "flex min-h-cible cursor-pointer items-center rounded-moyen bg-surface-active px-petit text-interface font-fort text-texte-principal etroit:pointer-fine:min-h-rangee",
   menuVide: "px-petit py-mince text-interface text-texte-discret",
+  // Zone de fin de page (F-040-AC1, AC11) : sous le dernier bloc, hors du contenu ; la ligne de fin
+  // y tient la place du paragraphe final tant que le dernier bloc n'est pas un paragraphe.
+  finDePage: "min-h-cible cursor-text",
+  ligneDeFin: "min-h-cible",
   // Région d'état de l'éditeur : lue par les technologies d'assistance, hors de la vue.
   annonce: "sr-only",
   // Curseur de dépôt de l'éditeur (F-006-AC37) : sa couleur est celle de cette classe.

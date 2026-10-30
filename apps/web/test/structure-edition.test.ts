@@ -50,6 +50,8 @@ describe("aucun HTML brut", () => {
       "src/edition/deplacement-de-bloc.ts",
       "src/edition/depot.ts",
       "src/edition/filtre-des-commandes.ts",
+      // F-040 : zone et ligne de fin de page.
+      "src/edition/fin-de-page.ts",
       // F-033 : indentation et sortie au clavier du bloc code.
       "src/edition/indentation.ts",
       "src/edition/index.ts",
@@ -137,6 +139,8 @@ describe("confinement de la bibliothèque d'édition", () => {
       // F-006 : poignée de bloc, curseur de dépôt, déplacement d'un bloc (F-006-AC32).
       "src/edition/deplacement-de-bloc.ts",
       "src/edition/depot.ts",
+      // F-040 : zone et ligne de fin de page.
+      "src/edition/fin-de-page.ts",
       // F-033 : indentation du bloc code.
       "src/edition/indentation.ts",
       "src/edition/invite.ts",
@@ -345,8 +349,8 @@ describe("coutures avec F-004", () => {
     // la sélection du navigateur, F-028-AC30), 22 depuis F-006 (déplacement d'un bloc, lâcher,
     // poignée du curseur), 29 depuis F-005 (bloc code, langages, filtre, menu slash et son
     // affichage, commandes de bloc, origine de la liaison), 32 depuis F-033 (bornes, coloration et
-    // indentation du bloc code).
-    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(32);
+    // indentation du bloc code), 33 depuis F-040 (zone et ligne de fin de page).
+    expect(FICHIERS_DE_LA_FEATURE).toHaveLength(33);
     for (const chemin of [...FICHIERS_DE_LA_FEATURE, FEUILLE_D_ENTREE]) {
       expect(controlerFichier(chemin, lire(chemin), contexte), chemin).toEqual([]);
     }

@@ -216,17 +216,18 @@ describe("règle de saisie du bloc code", () => {
 });
 
 describe("clavier dans un bloc code", () => {
-  it("F-005-AC3 Entrée insère un saut de ligne dans le bloc, sans créer de bloc, même après deux sauts de ligne", () => {
+  // Amendé par F-040-AC4 (H4) : la troisième Entrée en fin de bloc sort du bloc ; les deux premières
+  // insèrent un saut de ligne, et la saisie qui suit reste dans le bloc.
+  it("F-005-AC3 Entrée insère un saut de ligne dans le bloc, sans créer de bloc, jusqu'à deux lignes vides finales (la troisième sort : F-040-AC4)", () => {
     const { doc } = monterLEditeur();
     entrerDansLEditeur();
     taperUnBlocCode(["ab"]);
 
     presser("Enter");
     presser("Enter");
-    presser("Enter");
     taper("c");
 
-    expect(blocsCodeLus(doc)).toEqual([{ texte: "ab\n\n\nc", attributs: {} }]);
+    expect(blocsCodeLus(doc)).toEqual([{ texte: "ab\n\nc", attributs: {} }]);
     expect(fragmentBrut(doc).length).toBe(1);
   });
 

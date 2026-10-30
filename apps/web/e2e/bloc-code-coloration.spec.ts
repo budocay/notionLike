@@ -20,7 +20,8 @@ import {
 
 const TITRE_DE_LA_PAGE = "Coloration";
 const TEXTE_ATTENDU = 'function f() {\n  return "a";\n}';
-const AIDE = "Tab indente. Échap puis Tab : quitter l'éditeur.";
+const AIDE =
+  "Tab indente. Échap puis Tab : quitter l'éditeur. Entrée trois fois en fin de bloc : sortir du bloc.";
 
 function zoneDeSaisie(page: Page): Locator {
   return page.getByRole("textbox", { name: "Contenu de la page" });

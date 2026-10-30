@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { Transaction } from "@tiptap/pm/state";
 import type * as Y from "yjs";
 
 import {
@@ -24,6 +25,7 @@ import {
   ZoneDEdition,
   ZoneDeSaisie,
 } from "../interface/composants/Edition.tsx";
+import { EDITION } from "../interface/composants/edition.classes.ts";
 import {
   ADRESSE_DU_LIEN_REFUSEE,
   AIDE_DU_BLOC_CODE,
@@ -60,6 +62,7 @@ import {
   type SensDuDeplacement,
 } from "./deplacement-de-bloc.ts";
 import type { OptionsDuDepot } from "./depot.ts";
+import { activerLaFinDePage, annonceDeFin, useLigneDeFin } from "./fin-de-page.ts";
 import { type Langage, LANGAGES } from "./langages.ts";
 import type { ElementsInscrits, OptionsDesMarques } from "./marques.ts";
 import type { EtatDuMenu, OptionsDuMenu } from "./menu-slash.ts";
@@ -142,6 +145,7 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       <ZoneDeSaisie>
         <EditorContent editor={editeur} />
       </ZoneDeSaisie>
+      <FinDePage editeur={lectureSeule ? null : editeur} />
       {menu.etat !== undefined && <MenuDeCommandes {...proprietesDuMenu(menu, menu.etat)} />}
       <Poignees
         editeur={poignees ? editeur : null}
@@ -160,6 +164,39 @@ export function EditeurDePage(props: ProprietesEditeurDePage): ReactElement {
       )}
     </ZoneDEdition>
   );
+}
+
+/**
+ * Zone de fin de page (F-040-AC1 à AC3) : sous la zone de saisie, hors du contenu ; masquée aux
+ * technologies d'assistance et non focalisable. Un clic ou un toucher l'active ; l'appui de la
+ * souris n'ôte pas le focus à l'éditeur. La ligne de fin n'est rendue que si le dernier bloc n'est
+ * pas un paragraphe.
+ */
+function ZoneDeFinDePage(props: {
+  readonly ligne: boolean;
+  readonly surActivation: () => void;
+}): ReactElement {
+  return (
+    <div
+      role="presentation"
+      aria-hidden="true"
+      data-fin-de-page=""
+      className={EDITION.finDePage}
+      onMouseDown={(evenement) => evenement.preventDefault()}
+      onClick={props.surActivation}
+    >
+      {props.ligne && <div data-ligne-de-fin="" className={EDITION.ligneDeFin} />}
+    </div>
+  );
+}
+
+/** La zone de fin de page (F-040), absente en lecture seule : elle n'y est pas active (AC6). */
+function FinDePage({ editeur }: { readonly editeur: Editor | null }): ReactElement | null {
+  const ligne = useLigneDeFin(editeur);
+  if (editeur === null) {
+    return null;
+  }
+  return <ZoneDeFinDePage ligne={ligne} surActivation={() => void activerLaFinDePage(editeur)} />;
 }
 
 /** La barre de blocs affichée, et le panneau de lien sous elle quand il est ouvert. */
@@ -543,6 +580,13 @@ function useEditeur(
       },
       { surChangement: surChangementDuMenu },
     );
+    const dire = ({ transaction }: { readonly transaction: Transaction }): void => {
+      const texte = annonceDeFin(transaction);
+      if (texte !== undefined) {
+        annoncer(texte);
+      }
+    };
+    cree.on("transaction", dire);
     setEditeur(cree);
     return () => {
       cesserDeGarder();

@@ -68,7 +68,13 @@ export const AUCUNE_COMMANDE = "Aucune commande";
 export const SELECTEUR_DE_LANGAGE = "Langage du bloc code";
 export const TEXTE_BRUT = "Texte brut";
 // Bloc code (F-033-AC9, AC23) : l'aide de la sortie au clavier, et pourquoi un bloc n'est pas coloré.
-export const AIDE_DU_BLOC_CODE = "Tab indente. Échap puis Tab : quitter l'éditeur.";
+export const AIDE_DU_BLOC_CODE =
+  "Tab indente. Échap puis Tab : quitter l'éditeur. Entrée trois fois en fin de bloc : sortir du bloc.";
+
+// Paragraphe ajouté sous le dernier bloc, par un clic dans la zone de fin de page ou par Entrée
+// trois fois en fin de bloc code (F-040-AC9) : annoncé dans la région d'état de l'éditeur.
+export const PARAGRAPHE_AJOUTE_APRES_LE_CODE = "Paragraphe ajouté après le bloc de code";
+export const PARAGRAPHE_AJOUTE_EN_FIN_DE_PAGE = "Paragraphe ajouté en fin de page";
 export const COLORATION_DESACTIVEE_BLOC =
   "Coloration désactivée : bloc de plus de 10 000 caractères.";
 export const COLORATION_DESACTIVEE_LIGNE =

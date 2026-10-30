@@ -28,6 +28,7 @@ import {
   type SelectionDuBlocCode,
   selectionDuBlocCode,
 } from "./indentation.ts";
+import { PARAGRAPHE_DE_FIN } from "./fin-de-page.ts";
 import { estAppliqueeDepuisYjs } from "./liaison.ts";
 
 const ATTRIBUT_DU_LANGAGE = "language";
@@ -329,14 +330,43 @@ function indenter(editeur: Editor, calculer: Calcul): boolean {
   });
 }
 
+// Deux lignes vides finales (F-040-AC4, H3) : deux sauts de ligne de suite en fin de texte, chacun
+// pouvant porter l'indentation reprise par F-033-AC18 (espaces ou tabulations seuls).
+const DEUX_LIGNES_VIDES_FINALES = /\n[ \t]*\n[ \t]*$/;
+
 /**
- * Entrée : un saut de ligne qui reprend l'indentation, en une transaction (F-033-AC18). Rien ne
- * dépend de l'événement : l'Entrée synthétique qu'Android et iOS font rappeler suit ce chemin.
+ * Entrée, curseur à la toute fin d'un bloc code qui se termine par deux lignes vides : elles sont
+ * retirées et un paragraphe suit le bloc dans son parent, comme Mod+Entrée, en une seule transaction
+ * (F-040-AC4). Le seuil se lit dans le texte, sans état : il tient après un rechargement.
+ */
+function sortieParEntree(editeur: Editor, lue: SelectionDuBlocCode): boolean {
+  const texte = lue.bloc.textContent;
+  const fin = DEUX_LIGNES_VIDES_FINALES.exec(texte);
+  if (lue.ancre !== lue.tete || lue.tete !== texte.length || fin === null) {
+    return false;
+  }
+  return editeur
+    .chain()
+    .command(({ tr }) => {
+      tr.delete(lue.debut + fin.index, lue.debut + texte.length).setMeta(PARAGRAPHE_DE_FIN, "code");
+      return true;
+    })
+    .exitCode()
+    .run();
+}
+
+/**
+ * Entrée : un saut de ligne qui reprend l'indentation, en une transaction (F-033-AC18), sauf en fin
+ * de bloc après deux lignes vides, où elle sort du bloc (F-040-AC4). Rien ne dépend de
+ * l'événement : l'Entrée synthétique qu'Android et iOS font rappeler suit ce chemin.
  */
 function sautDeLigneIndente(editeur: Editor): boolean {
   const lue = selectionPrise(editeur);
   if (lue === undefined) {
     return false;
+  }
+  if (sortieParEntree(editeur, lue)) {
+    return true;
   }
   const [de, a] = [Math.min(lue.ancre, lue.tete), Math.max(lue.ancre, lue.tete)];
   const modification = modificationDEntree(lue.bloc.textContent, de, a);
@@ -427,8 +457,9 @@ export const BlocCode = CodeBlock.extend({
     ];
   },
 }).configure({
-  // F-005-AC3 : Entrée insère toujours un saut de ligne, sans sortie par Entrée répétée ; Tab et
-  // Maj+Tab sont ceux de l'application (F-033-AC15 à AC17, H3), pas l'indentation de l'extension.
+  // F-005-AC3 amendé par F-040-AC4 : la sortie par Entrée répétée est celle de l'application
+  // (`sortieParEntree`), pas celle de l'extension ; Tab et Maj+Tab sont ceux de l'application
+  // (F-033-AC15 à AC17, H3), pas l'indentation de l'extension.
   exitOnTripleEnter: false,
   enableTabIndentation: false,
 });

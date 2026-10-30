@@ -194,15 +194,15 @@ describe("Entrée reprend l'indentation", () => {
     },
   );
 
-  it("F-033-AC18 F-005-AC3 Entrée répétée ne sort pas du bloc", () => {
+  // Amendé par F-040-AC4 (H4) : la troisième Entrée en fin de bloc sort du bloc.
+  it("F-033-AC18 F-005-AC3 Entrée répétée ne sort pas du bloc tant que le texte ne se termine pas par deux lignes vides", () => {
     const { doc } = blocCode("  ab");
     selectionnerDansLeBloc("ab", 4);
 
     presser("Enter");
     presser("Enter");
-    presser("Enter");
 
-    expect(textesDesBlocsCode(doc)).toEqual(["  ab\n  \n  \n  "]);
+    expect(textesDesBlocsCode(doc)).toEqual(["  ab\n  \n  "]);
     expect(zoneDeSaisie().querySelectorAll("p")).toHaveLength(0);
   });
 
