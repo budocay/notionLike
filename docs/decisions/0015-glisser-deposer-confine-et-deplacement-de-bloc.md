@@ -33,6 +33,25 @@ Déplacement d'un bloc :
 - **Poignée au bloc du curseur** (F-006-AC14) : la poignée de Tiptap ne suit que le pointeur ; l'application rend la même poignée, non glissable, au bloc du curseur tant que le focus est dans la zone d'édition (barre de blocs comprise), que l'éditeur est modifiable et que celle de Tiptap ne montre rien (`apps/web/src/edition/poignee.ts`) ; activée, elle sélectionne le bloc et mène aux commandes « Monter le bloc » et « Descendre le bloc » de la barre de blocs. Depuis F-005, qui n'affiche plus la barre dans un bloc vide (F-005 H11), un bloc sans texte est sélectionné comme nœud entier (`NodeSelection`, `selectionnerLeBlocDuCurseur`), sélection non vide qui fait paraître la barre (F-003-AC41) ; `blocDeLaSelection` et `deplacerLeBloc` (`deplacement-de-bloc.ts`) la reconnaissent et la gardent après le déplacement ; la demande de focus sur « Monter le bloc » ne vaut que pour le rendu qui suit (`useVersLesCommandesDeDeplacement`, `EditeurDePage.tsx`). Un bloc code vide ainsi sélectionné montre la barre sans le sélecteur de langage. Aucune poignée sur écran étroit ni sous pointeur imprécis : le bloc s'y déplace par la barre de blocs, affichée sur une sélection non vide, et par le clavier ; un bloc vide, hors bloc code, n'y fait pas paraître la barre et ne s'y déplace qu'au clavier.
 - **Format** : aucun nœud, attribut, marque ni identifiant ajouté ; aucune version élevée par un déplacement.
 
+### Amendement F-042 (2026-10-30) : geste de la poignée par événements de pointeur, cible par la géométrie
+
+Statut : proposé. Spec : `specs/F-042.md` (validée, H3 a, H4 b). Note de conception : `docs/decisions/F-042-conception.md`.
+
+Contexte : le dev juge imprécis le déplacement des blocs. La cible du lâcher venait de `posAtCoords` et `dropPoint` (positions du document), le repère de `Dropcursor` : deux calculs, et aucun geste au doigt.
+
+Options étudiées :
+
+- A. Garder le glisser natif et corriger le seul calcul du lâcher. Écarté par H4 : le repère resterait celui de `Dropcursor`, et le glisser natif n'existe pas au doigt.
+- B. Passer les blocs à dnd-kit. Écarté : ancienne famille confinée à `glisser/` (D-035), et ses zones ne connaissent pas l'éditeur.
+- C. **Geste maison par événements de pointeur** (retenue) : un seul geste pour la souris et le doigt, une fonction pure de cible, un repère maison.
+
+Décision :
+
+- La poignée de Tiptap reste pour son placement au survol ; pendant un geste elle est verrouillée (`lockDragHandle`, donc non `draggable`). Un `dragstart` né de la poignée est annulé en capture.
+- La cible est l'intervalle que rend `cibleDeDepot` (`apps/web/src/edition/cible-de-depot.ts`, pure, n'importe rien, règle `web-cible-de-depot-pure`), à partir des bords affichés des blocs de premier niveau et de l'ordonnée du pointeur, une fois par image ; le repère et le lâcher lisent cette même valeur. Le lâcher appelle `deplacerLeBloc(editeur, de, vers)`, inchangée.
+- `depot.ts` ne lit plus `posAtCoords` ni `dropPoint` ; il garde le refus des fichiers, le clavier et un `handleDrop` qui avale un lâcher de la poignée. `Dropcursor` reste pour le contenu venu d'ailleurs.
+- Au doigt : la poignée du curseur, 44 pixels au moins, `touch-action: none`.
+
 ## Conséquences
 
 - L'ancienne famille dnd-kit peut ne plus recevoir de correctif, ni de compatibilité avec une version future de React. La remplacer (option B devenue stable, ou C) ne touche que `src/glisser/` tant que son interface reste celle-ci ; F-020 étendra cette interface (plusieurs conteneurs) sans y laisser entrer de type de la bibliothèque.
@@ -42,3 +61,5 @@ Déplacement d'un bloc :
 - Écrit le 2026-10-16 avant le code et relu après lui (`eb01a5f`, puis après les correctifs `7f42f60` et `3135f66`) : les écarts du code avec la note de conception sont datés dans sa « Note de fin ».
 - Alt+Maj+Flèche haut et bas sont pris dans l'éditeur : sous macOS, l'extension de la sélection par paragraphe au clavier n'y existe plus (F-006 H5). Changer la combinaison ne touche que `interface/raccourcis.ts`. Depuis F-005, un menu slash ouvert prend Alt+Maj+Flèche haut et bas pour parcourir sa liste (priorité 101, aucun modificateur lu) : le bloc ne bouge pas et rien n'est annoncé.
 - `deplacerPage` a un appelant de production pour la première fois : l'ADR-0007 (« ni `deplacerPage` (hors périmètre de F-002) ») est amendé en conséquence (« Amendement F-006 », `3a4e08e`).
+- Amendement F-042 : « Le geste au pointeur sur un bloc n'est offert qu'aux écrans larges sous pointeur fin » ne vaut plus : le geste est offert au doigt par la poignée du curseur. Le glisser natif n'est plus utilisé pour les blocs ; un navigateur qui démarrerait quand même un glisser natif depuis la poignée verrouillée est paré par l'annulation en capture et `handleDrop`.
+- Amendement F-042 : la cible dépend de la mise en page affichée ; sous jsdom elle ne se prouve que par la fonction pure, l'alignement et le doigt en bout en bout.
