@@ -79,3 +79,32 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - Le serveur ne lit pas le document de table et ne contrôle pas sa version (ADR-0013) : il relaie et stocke ce qu'un `editeur` écrit. Un pair qui contourne le module peut rendre une table illisible (version forgée, type racine étranger) pour tous ses membres, sans perte de contenu.
 - Revenir sur cette forme (passer les lignes en `Y.Array`, retirer les drapeaux, déplacer la version) demanderait une migration de chaque document de table sur chaque appareil et sur le serveur.
 - Amendement F-018 : un document de table qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la table) s'ouvrait avant F-018 et est désormais refusé, sans rien en retirer. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue. La forme de `versions` est désormais partagée par trois formats (ADR-0002, amendement F-018) : la changer change celle des trois.
+
+### Amendement F-045 (2026-10-30) : colonne `etiquettes`, couleur d'option, version 2
+
+Statut : proposé. Spec : `specs/F-045.md` (validée). Note de conception : `docs/decisions/F-045-conception.md`.
+
+Contexte : F-045 ajoute un sixième type de colonne (multi-sélection), une couleur par option et la création d'option à la frappe. Un nouveau type de colonne est un cas nommé de la règle d'élévation ; une valeur de cellule à plusieurs éléments pose la question de sa forme stockée sous écritures concurrentes (F-045 H3 : fusion par étiquette).
+
+Options étudiées pour la cellule `etiquettes` :
+
+- A. Un `Y.Array` d'identifiants dans `cellules`, créé à la première étiquette. Écarté : un type imbriqué créé paresseusement par deux répliques concurrentes n'en garde qu'un (constat 1 de la veille de F-017) ; deux ajouts concurrents à une cellule vide perdraient l'un d'eux. Le créer avec la ligne coûterait un type par ligne et par colonne `etiquettes`, et une colonne créée après les lignes retomberait dans le cas paresseux.
+- B. Une liste entière écrite comme valeur simple (dernière écriture gagne). Écarté : contraire à H3, deux ajouts concurrents de deux étiquettes différentes en perdraient un.
+- C. **Clés composées à plat dans la `Y.Map` `cellules` existante** (retenue) : une étiquette portée s'écrit `cellules["<idColonne>/<idOption>"] = true`. Deux ajouts concurrents de deux étiquettes sont deux clés, gardées toutes les deux ; un ajout et un retrait concurrents de la même étiquette se départagent par la règle de la `Y.Map`. Aucun type imbriqué n'est créé.
+
+Décision :
+
+- **Type `etiquettes`.** Il rejoint les valeurs du champ `type` d'une colonne. Comme une colonne `selection`, une colonne `etiquettes` reçoit sa `Y.Map` `options` dans la transaction qui la crée.
+- **Cellule `etiquettes`.** Une étiquette portée par une ligne est la clé `<idColonne>/<idOption>` de valeur `true` dans les `cellules` de la ligne. L'identifiant de colonne étant un UUID, le séparateur `/` ne peut pas y figurer, et aucune clé de cellule existante ne le contient. Retirer une étiquette retire sa clé ; vider la cellule retire, en une transaction, toutes les clés de ce préfixe ; aucune clé `<idColonne>` simple n'est écrite pour une colonne `etiquettes`. Lecture : les clés du préfixe de valeur `true` dont l'option est lue (ni absente, ni supprimée, ni ignorée), rangées dans l'ordre lu des options, cent au plus (les suivantes sont ignorées) ; aucune : cellule vide. Une clé simple `<idColonne>` sous une colonne `etiquettes`, une valeur autre que `true`, ou une clé composée sous une colonne d'un autre type, est ignorée. Retirer une option ne touche aucune cellule.
+- **Couleur d'option.** Champ facultatif `couleur` d'une option (`selection` ou `etiquettes`), l'une des dix valeurs `defaut`, `gris`, `marron`, `orange`, `jaune`, `vert`, `bleu`, `violet`, `rose`, `rouge` (F-045 H4). Absent ou inconnu, il se lit `defaut`. Une réplique de la version 1 l'ignore (champ en plus toléré) et ne le réécrit jamais : elle affiche l'option sans couleur, sans rien perdre.
+- **Version 2.** Le module prend en charge les versions 1 et 2 (constante interne `2`). La version 2 est inscrite dans la transaction même qui crée la première colonne `etiquettes` d'un document lu inférieur, et seulement là. **Précision de la règle d'élévation** : une couleur écrite sur une option d'un document de version 1 n'élève pas la version (F-045-AC11). Un champ n'appelle pas d'élévation quand la version N le tolère, ne le réécrit jamais et ne lit pas autrement ce qu'elle lisait avant, si bien que son absence ne dégrade que l'affichage. Tout autre ajout suit la règle de la décision.
+- **Liste blanche** des types racine : inchangée (`colonnes`, `lignes`, `versions`).
+- **Pas de garde côté serveur.** Le serveur ne lit toujours pas le document de table (ADR-0013). La version 2 part dans la même mise à jour que la première colonne `etiquettes` ; une réplique de la version 1 la refuse (`version-non-prise-en-charge`) sans rien en retirer.
+
+Conséquences :
+
+- Une application de la version 1 ne peut plus ouvrir une table dès qu'une colonne `etiquettes` y a été créée, même retirée ensuite : la version ne redescend jamais. Une table colorée sans colonne `etiquettes` reste lisible.
+- La forme des clés de `cellules` n'est plus « une clé par colonne » : tout code qui énumère les clés de `cellules` doit passer par `format-table.ts`. Une feature future qui en dériverait d'autres règles (par exemple les modèles de ligne de F-044) reprend la même forme pour les mêmes types.
+- Le coût d'une cellule est d'une clé par étiquette portée ; une étiquette retirée laisse son tombeau dans l'historique, comme toute valeur réécrite.
+- Un pair forgé peut écrire des milliers de clés sous un préfixe : la lecture les borne à cent, et la taille d'une mise à jour reste bornée par le serveur. Il peut aussi forger une version 1 sur une table qui porte des colonnes `etiquettes` (une liste de `versions` ne se raccourcit pas par le module, mais un pair qui contourne le module peut réécrire le document) : la menace est celle des conséquences ci-dessus (table rendue illisible ou mal lue par ses membres, sans garde serveur), inchangée.
+- Revenir sur les clés composées (vers un type imbriqué) demanderait une migration de chaque table portant des étiquettes.
