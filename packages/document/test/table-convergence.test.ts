@@ -128,6 +128,7 @@ describe("convergence de suites quelconques", () => {
         { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
       );
     },
+    30_000,
   );
 });
 

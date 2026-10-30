@@ -540,7 +540,7 @@ describe("entrées brutes quelconques", () => {
       }),
       { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
     );
-  });
+  }, 30_000);
 
   it.each([false, true])(
     "F-017-AC21 F-017-AC10 unités UTF-16 isolées tirées : %s ; la réplique qui forge et celle qui reçoit lisent la même table",

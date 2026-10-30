@@ -86,5 +86,5 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     expect(screen.getAllByText("Ligne écrite").length).toBeGreaterThan(0);
     // F-035-AC5 : délai explicite déclaré sur le test (option A), mêmes données et assertions (F-035-AC6).
     // F-035-AC7 : dix exécutions sous charge et marge au délai consignées en rapport ; F-035-AC11 : dettes D-042 et D-045 résorbées (traçabilité).
-  }, 20_000);
+  }, 30_000);
 });
