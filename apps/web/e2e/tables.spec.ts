@@ -185,3 +185,239 @@ test("F-018-AC56 créer, remplir au clavier, refuser un nombre, descendre une li
   expect((await nomsDesBases(page)).filter((nom) => nom.endsWith(`:${idTable}`))).toEqual([]);
   expect(await cleDesReglages(page, idTable)).toEqual([]);
 });
+
+// F-038 : l'ajout de colonne est découvrable. Les mesures se prennent dans le navigateur : la boîte,
+// la fenêtre et le recouvrement ne se voient pas sous jsdom.
+const LARGEURS_DE_FENETRE = [1280, 360] as const;
+const HAUTEUR_DE_FENETRE = 800;
+
+async function creerUneTableVide(page: Page, titre: string): Promise<void> {
+  await ouvrir(page);
+  await page.getByRole("button", { name: "Nouvelle table", exact: true }).click();
+  await saisirTitre(page, titre);
+  await expect(lienDeTable(page, titre)).toBeVisible();
+}
+
+interface MesureDuBouton {
+  readonly nombre: number;
+  readonly desactive: boolean;
+  readonly largeur: number;
+  readonly hauteur: number;
+  readonly dansLaFenetre: boolean;
+  readonly libre: boolean;
+}
+
+/** Boîte, fenêtre et recouvrement du bouton de nom exact donné (le premier, s'il y en a plusieurs). */
+async function mesurerLeBouton(page: Page, nom: string): Promise<MesureDuBouton> {
+  const boutons = page.getByRole("button", { name: nom, exact: true });
+  const nombre = await boutons.count();
+  if (nombre === 0) {
+    return {
+      nombre,
+      desactive: true,
+      largeur: 0,
+      hauteur: 0,
+      dansLaFenetre: false,
+      libre: false,
+    };
+  }
+  return boutons.first().evaluate((element, total) => {
+    const boite = element.getBoundingClientRect();
+    const centre = document.elementFromPoint(
+      boite.left + boite.width / 2,
+      boite.top + boite.height / 2,
+    );
+    return {
+      nombre: total,
+      desactive: (element as HTMLButtonElement).disabled,
+      largeur: boite.width,
+      hauteur: boite.height,
+      dansLaFenetre:
+        boite.left >= 0 &&
+        boite.top >= 0 &&
+        boite.right <= window.innerWidth &&
+        boite.bottom <= window.innerHeight,
+      libre: centre !== null && element.contains(centre),
+    };
+  }, nombre);
+}
+
+test("F-038-AC1 la table sans colonne, puis la colonne « zer » : le bouton « Ajouter une colonne » est exposé, actif, de boîte non nulle, dans la fenêtre et non recouvert, à 1280 et à 360", async ({
+  page,
+}) => {
+  await creerUneTableVide(page, "Sans titre");
+  await ajouterUneColonne(page, "zer", "Texte");
+  await expect(cellule(page, 1, 2)).toHaveText(/zer/);
+  for (const largeur of LARGEURS_DE_FENETRE) {
+    await page.setViewportSize({ width: largeur, height: HAUTEUR_DE_FENETRE });
+    const bouton = page.getByRole("button", { name: "Ajouter une colonne", exact: true }).first();
+    await bouton.scrollIntoViewIfNeeded();
+    const mesure = await mesurerLeBouton(page, "Ajouter une colonne");
+    // Un message par mesure : le résultat de chaque mesure est consigné dans la traçabilité.
+    expect(mesure.nombre, `${String(largeur)} px : bouton exposé`).toBeGreaterThan(0);
+    expect(mesure.desactive, `${String(largeur)} px : non désactivé`).toBe(false);
+    expect(
+      mesure.largeur > 0 && mesure.hauteur > 0,
+      `${String(largeur)} px : boîte non nulle`,
+    ).toBe(true);
+    expect(mesure.dansLaFenetre, `${String(largeur)} px : dans la fenêtre`).toBe(true);
+    expect(mesure.libre, `${String(largeur)} px : non recouvert`).toBe(true);
+  }
+});
+
+const NOM_DU_PLUS = "Ajouter une colonne à droite";
+
+/** Table de `nombre` colonnes, bâtie sur grand écran (la barre latérale s'y voit), puis mise à la largeur. */
+async function creerUneTableDeColonnes(
+  page: Page,
+  nombre: number,
+  largeur: number = LARGEURS_DE_FENETRE[0],
+): Promise<void> {
+  await creerUneTableVide(page, "Large");
+  for (let rang = 1; rang <= nombre; rang += 1) {
+    await ajouterUneColonne(page, `C${String(rang)}`, "Texte");
+  }
+  await expect(grille(page)).toHaveAttribute("aria-colcount", String(nombre + 1));
+  await page.setViewportSize({ width: largeur, height: HAUTEUR_DE_FENETRE });
+}
+
+/** Fait défiler la zone de la grille à son extrémité droite (ou à gauche), dans sa propre zone. */
+async function defilerLaGrille(page: Page, finale: boolean): Promise<void> {
+  await grille(page)
+    .locator("> div")
+    .evaluate((zone, aDroite) => {
+      zone.scrollLeft = aDroite ? zone.scrollWidth : 0;
+    }, finale);
+}
+
+interface PositionDuPlus {
+  readonly plus: { x: number; y: number; width: number; height: number };
+  readonly dernier: { x: number; y: number; width: number; height: number };
+  readonly fenetre: { largeur: number; hauteur: number };
+  readonly page: { contenu: number };
+}
+
+async function positionDuPlus(page: Page): Promise<PositionDuPlus> {
+  const plus = await page.getByRole("button", { name: NOM_DU_PLUS, exact: true }).boundingBox();
+  const dernier = await grille(page).getByRole("columnheader").last().boundingBox();
+  if (plus === null || dernier === null) {
+    throw new Error("Le « + » ou le dernier en-tête n'est pas affiché.");
+  }
+  return {
+    plus,
+    dernier,
+    fenetre: await page.evaluate(() => ({
+      largeur: window.innerWidth,
+      hauteur: window.innerHeight,
+    })),
+    page: await page.evaluate(() => ({ contenu: document.documentElement.scrollWidth })),
+  };
+}
+
+test("F-038-AC3 trois colonnes A, B, C par la barre d'outils : trois en-têtes dans l'ordre, la commande reste disponible, aria-colcount exact", async ({
+  page,
+}) => {
+  await creerUneTableVide(page, "Trois");
+  for (const nom of ["A", "B", "C"]) {
+    await ajouterUneColonne(page, nom, "Texte");
+    await expect(
+      page.getByRole("button", { name: "Ajouter une colonne", exact: true }).first(),
+    ).toBeEnabled();
+  }
+  await expect(grille(page).getByRole("columnheader")).toHaveText(["", /^A/, /^B/, /^C/]);
+  await expect(grille(page)).toHaveAttribute("aria-colcount", "4");
+});
+
+for (const colonnes of [3, 12]) {
+  for (const largeur of LARGEURS_DE_FENETRE) {
+    test(`F-038-AC4 F-038-AC11 « + » après le dernier en-tête, dans la fenêtre, aligné sur la rangée, sans défilement de la page : ${String(colonnes)} colonnes à ${String(largeur)} px`, async ({
+      page,
+    }) => {
+      await creerUneTableDeColonnes(page, colonnes, largeur);
+      const nom = page.getByRole("button", { name: NOM_DU_PLUS, exact: true });
+      await expect(nom).toBeVisible();
+      for (const finale of [false, true]) {
+        await defilerLaGrille(page, finale);
+        const mesure = await positionDuPlus(page);
+        const { plus, dernier, fenetre } = mesure;
+        expect(plus.x, "dans la fenêtre, à gauche").toBeGreaterThanOrEqual(0);
+        expect(plus.x + plus.width, "dans la fenêtre, à droite").toBeLessThanOrEqual(
+          fenetre.largeur,
+        );
+        // Même axe vertical que la rangée d'en-têtes, à 1 pixel près.
+        expect(
+          Math.abs(plus.y + plus.height / 2 - (dernier.y + dernier.height / 2)),
+        ).toBeLessThanOrEqual(1);
+        if (finale) {
+          // Fin de défilement : le dernier en-tête est entier, à gauche du « + ».
+          expect(dernier.x + dernier.width).toBeLessThanOrEqual(plus.x + 1);
+        }
+        expect(mesure.page.contenu, "la page ne défile pas en largeur").toBeLessThanOrEqual(
+          fenetre.largeur,
+        );
+      }
+      if (colonnes === 3 && largeur === 1280) {
+        await defilerLaGrille(page, false);
+        const { plus, dernier } = await positionDuPlus(page);
+        // Juste après la dernière colonne.
+        expect(plus.x - (dernier.x + dernier.width)).toBeGreaterThanOrEqual(-1);
+        expect(plus.x - (dernier.x + dernier.width)).toBeLessThanOrEqual(2);
+      }
+    });
+  }
+}
+
+test("F-038-AC5 le « + » mesure au moins 44 pixels à 360 avec un pointeur imprécis, et au moins 24 de large sinon", async ({
+  browser,
+  baseURL,
+  page,
+}) => {
+  await creerUneTableDeColonnes(page, 2);
+  const compact = await page.getByRole("button", { name: NOM_DU_PLUS, exact: true }).boundingBox();
+  expect(compact?.width ?? 0).toBeGreaterThanOrEqual(24);
+  expect(compact?.height ?? 0).toBeLessThanOrEqual(32);
+
+  const contexte = await browser.newContext({
+    ...(baseURL === undefined ? {} : { baseURL }),
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: LARGEURS_DE_FENETRE[0], height: HAUTEUR_DE_FENETRE },
+  });
+  const tactile = await contexte.newPage();
+  await creerUneTableDeColonnes(tactile, 2, 360);
+  expect(await tactile.evaluate(() => window.matchMedia("(pointer: coarse)").matches)).toBe(true);
+  const grand = await tactile.getByRole("button", { name: NOM_DU_PLUS, exact: true }).boundingBox();
+  expect(grand?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(grand?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await contexte.close();
+});
+
+test("F-038-AC7 F-038-AC8 avec 12 colonnes, la 13e ajoutée par le « + » est focalisée, entièrement visible, annoncée ; Échap rend le focus au « + » ; le « + » se tabule juste après la grille", async ({
+  page,
+}) => {
+  await creerUneTableDeColonnes(page, 12, 360);
+  const plus = page.getByRole("button", { name: NOM_DU_PLUS, exact: true });
+
+  await plus.click();
+  const boite = page.getByRole("dialog", { name: "Nouvelle colonne" });
+  await page.keyboard.press("Escape");
+  await expect(boite).toBeHidden();
+  await expect(plus).toBeFocused();
+
+  await plus.click();
+  await boite.getByRole("textbox", { name: "Nom de la colonne" }).fill("Dernière");
+  await boite.getByRole("button", { name: "Créer la colonne" }).click();
+  const enTete = cellule(page, 1, 14);
+  await expect(enTete).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: "Colonne Dernière ajoutée" })).toHaveText(
+    "Colonne Dernière ajoutée, position 13 sur 13.",
+  );
+  const { plus: boitePlus, dernier, fenetre } = await positionDuPlus(page);
+  expect(dernier.x).toBeGreaterThanOrEqual(0);
+  expect(dernier.x + dernier.width, "entièrement visible, à gauche du « + »").toBeLessThanOrEqual(
+    Math.min(fenetre.largeur, boitePlus.x + 1),
+  );
+
+  await page.keyboard.press("Tab");
+  await expect(plus).toBeFocused();
+});

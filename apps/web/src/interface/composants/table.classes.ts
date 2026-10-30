@@ -32,6 +32,11 @@ export const TABLE = {
   // Les en-têtes, en ligne comme les cellules d'une rangée.
   enTetesRangee: "flex",
   corps: "relative",
+  // « + » d'ajout de colonne (F-038) : posé sur la rangée d'en-têtes, hors de la grille, sans voiler
+  // les en-têtes hors de sa propre boîte.
+  ajout: "pointer-events-none sur-les-en-tetes flex items-center plan-menu",
+  ajoutVide: "min-w-nul",
+  ajoutBouton: "pointer-events-auto flex flex-none rounded-petit bg-surface-relief",
   rangee: "absolute left-nul top-nul flex text-interface text-texte-principal filet-bas",
   // Ligne affichée qui ne satisfait plus les filtres (F-019-AC18) : texte atténué et en italique.
   rangeeHorsFiltre:

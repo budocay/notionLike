@@ -13,8 +13,10 @@ import {
   type Ref,
   type UIEvent,
   useId,
+  useRef,
 } from "react";
 
+import { BoutonIcone } from "./BoutonIcone.tsx";
 import { Pictogramme } from "./Pictogramme.tsx";
 import { TABLE } from "./table.classes.ts";
 
@@ -107,11 +109,70 @@ interface ProprietesGrille {
   readonly surFocus: (evenement: FocusEvent<HTMLDivElement>) => void;
   readonly enTetes: ReactNode;
   readonly rangees: ReactNode;
+  /**
+   * Commande « + » d'ajout de colonne (F-038) : hors de la grille, donc ni cellule ni arrêt de ses
+   * flèches, et juste après elle dans l'ordre de tabulation.
+   */
+  readonly ajout?: ProprietesAjoutDeColonne | undefined;
   /** Menu, liste de choix : posés au-dessus de la zone défilante. */
   readonly flottante?: ReactNode | undefined;
 }
 
+/** Place gardée à droite des en-têtes : le dernier est amené en vue à gauche du « + » collé au bord. */
+const RESERVE_DU_PLUS = 44;
+const RESERVE_NULLE = 0;
+
+interface ProprietesAjoutDeColonne {
+  /** Nom accessible du bouton ; son pictogramme est masqué aux technologies d'assistance. */
+  readonly nom: string;
+  readonly hauteur: number;
+  /** Raison d'une table en lecture seule : le bouton est désactivé et la cite en description. */
+  readonly raison?: string | undefined;
+  readonly surActivation: () => void;
+}
+
+// Le « + » est posé sur la rangée d'en-têtes, juste après la dernière colonne ; la grille défilant, il
+// reste collé au bord droit de la zone visible (H2). Le vide qui le précède a la largeur des colonnes,
+// recule du défilement (marge négative) et rétrécit quand la place manque : aucune mesure, une seule
+// marge posée au défilement.
+function AjoutDeColonne(
+  props: ProprietesAjoutDeColonne & {
+    readonly apres: number;
+    readonly refVide: Ref<HTMLSpanElement>;
+  },
+) {
+  const idRaison = useId();
+  return (
+    <div className={TABLE.ajout} style={{ height: props.hauteur }}>
+      <span
+        ref={props.refVide}
+        aria-hidden="true"
+        className={TABLE.ajoutVide}
+        style={{ width: props.apres }}
+      />
+      <div className={TABLE.ajoutBouton}>
+        <BoutonIcone
+          nom={props.nom}
+          pictogramme="plus"
+          lieu="barre"
+          disabled={props.raison !== undefined}
+          aria-describedby={props.raison === undefined ? undefined : idRaison}
+          onClick={props.surActivation}
+        />
+        {props.raison !== undefined && (
+          <span id={idRaison} className={TABLE.annonce}>
+            {props.raison}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Grille(props: ProprietesGrille): ReactElement {
+  const vide = useRef<HTMLSpanElement>(null);
+  const largeurDesEnTetes =
+    props.largeur + (props.ajout === undefined ? RESERVE_NULLE : RESERVE_DU_PLUS);
   return (
     <div ref={props.refCadre} className={TABLE.cadre}>
       <div
@@ -127,9 +188,15 @@ export function Grille(props: ProprietesGrille): ReactElement {
           ref={props.refDefilement}
           className={TABLE.defilement}
           style={{ height: props.hauteurDeLaZone }}
-          onScroll={props.surDefilement}
+          onScroll={(evenement) => {
+            // Le vide qui précède le « + » recule de ce dont la grille a défilé : sans rendu.
+            if (vide.current !== null) {
+              vide.current.style.marginLeft = `${String(-evenement.currentTarget.scrollLeft)}px`;
+            }
+            props.surDefilement(evenement);
+          }}
         >
-          <div role="rowgroup" className={TABLE.enTetes} style={{ width: props.largeur }}>
+          <div role="rowgroup" className={TABLE.enTetes} style={{ width: largeurDesEnTetes }}>
             {props.enTetes}
           </div>
           <div
@@ -141,6 +208,9 @@ export function Grille(props: ProprietesGrille): ReactElement {
           </div>
         </div>
       </div>
+      {props.ajout !== undefined && (
+        <AjoutDeColonne {...props.ajout} apres={props.largeur} refVide={vide} />
+      )}
       {props.flottante}
     </div>
   );

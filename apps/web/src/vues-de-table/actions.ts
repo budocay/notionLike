@@ -16,6 +16,7 @@ import type { Courante } from "./courante.ts";
 import { ecrire, type Surveillance } from "./ecritures.ts";
 import { positionDeDeplacement } from "./positions.ts";
 import {
+  colonneAjoutee,
   colonneDeplacee,
   DEJA_LA_DERNIERE_COLONNE,
   DEJA_LA_DERNIERE_LIGNE,
@@ -81,7 +82,9 @@ export function ajouterUneColonne(
     return creee.refus;
   }
   moyens.signaler(undefined);
-  moyens.allerVers(enTete(creee.id, moyens.lue.colonnes.length));
+  const rang = moyens.lue.colonnes.length;
+  moyens.allerVers(enTete(creee.id, rang));
+  moyens.annoncer(colonneAjoutee(nom, rang + 1, rang + 1));
   return undefined;
 }
 

@@ -40,6 +40,15 @@
   min-width: 0;
 }
 
+/* « + » d'ajout de colonne (F-038) : posé sur la rangée d'en-têtes, au bord intérieur du filet de la
+   grille. */
+@utility sur-les-en-tetes {
+  position: absolute;
+  top: var(--epaisseur-filet);
+  right: var(--epaisseur-filet);
+  left: var(--epaisseur-filet);
+}
+
 @utility filet {
   border: var(--epaisseur-filet) solid var(--color-surface-filet);
 }

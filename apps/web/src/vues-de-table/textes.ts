@@ -24,6 +24,8 @@ export const INVITATION_SANS_COLONNE =
   "Cette table n'a encore aucune colonne. Ajoutez-en une pour commencer à la remplir.";
 export const AJOUTER_UNE_COLONNE = "Ajouter une colonne";
 export const NOUVELLE_LIGNE = "Nouvelle ligne";
+/** Le « + » de la rangée d'en-têtes (F-038) : la colonne naît toujours en dernière position. */
+export const AJOUTER_UNE_COLONNE_A_DROITE = "Ajouter une colonne à droite";
 
 // ── Vues (AC44) ──────────────────────────────────────────────────────────────────────────────────
 export const TABLEAU = "Tableau";
@@ -89,6 +91,9 @@ export const NOM_TROP_LONG = `Le nom d'une colonne compte au plus ${String(LONGU
 
 export function deplacerLaColonne(nom: string, sens: "gauche" | "droite"): string {
   return `Déplacer la colonne ${nomAffiche(nom)} à ${sens}`;
+}
+export function colonneAjoutee(nom: string, rang: number, total: number): string {
+  return `Colonne ${nomAffiche(nom)} ajoutée, position ${String(rang)} sur ${String(total)}.`;
 }
 export function colonneDeplacee(nom: string, rang: number, total: number): string {
   return `Colonne ${nomAffiche(nom)} déplacée en position ${String(rang)} sur ${String(total)}.`;

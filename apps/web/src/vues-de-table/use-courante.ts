@@ -56,19 +56,27 @@ function focusPerduOuDans(grille: HTMLElement | null): boolean {
   return actif === null || actif === document.body || grille?.contains(actif) === true;
 }
 
-// Le focus demandé est posé dès que l'élément de la cellule est rendu.
+// Le focus demandé est posé dès que l'élément de la cellule est rendu. Une boîte de dialogue qui
+// se ferme dans le même rendu laisse encore le reste de la page inerte jusqu'à l'effet qui la
+// démonte : le focus posé à la mise en page est alors refusé, il est redemandé après cet effet
+// (F-038-AC7, colonne ajoutée par une boîte).
 function useFocusDiffere(
   cellules: RefObject<Map<string, HTMLElement>>,
   aFocaliser: RefObject<string | undefined>,
 ): void {
-  useLayoutEffect(() => {
+  const poser = (dernierEssai: boolean): void => {
     const cle = aFocaliser.current;
     const element = cle === undefined ? undefined : cellules.current.get(cle);
-    if (element?.isConnected === true) {
-      aFocaliser.current = undefined;
-      element.focus();
+    if (element?.isConnected !== true) {
+      return;
     }
-  });
+    element.focus();
+    if (dernierEssai || document.activeElement === element) {
+      aFocaliser.current = undefined;
+    }
+  };
+  useLayoutEffect(() => poser(false));
+  useEffect(() => poser(true));
 }
 
 export function useCourante({ lignes, colonnes, grille, amener }: Options): CouranteDeLaGrille {

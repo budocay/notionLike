@@ -23,6 +23,7 @@ import { entreesDeColonne, entreesDeLigne, type Commandes } from "./menus.ts";
 import { RangeesDeLaGrille } from "./Rangees.tsx";
 import {
   AJOUTER_UNE_COLONNE,
+  AJOUTER_UNE_COLONNE_A_DROITE,
   AUCUNE_LIGNE_CORRESPONDANTE,
   INVITATION_SANS_COLONNE,
   nomActionsDeLaColonne,
@@ -103,6 +104,12 @@ function GrilleDeLaTable({ vue }: { readonly vue: Vue }): ReactElement {
       }}
       enTetes={<RangeeDesEnTetes vue={vue} />}
       rangees={<RangeesDeLaGrille vue={vue} largeur={largeur} />}
+      ajout={{
+        nom: AJOUTER_UNE_COLONNE_A_DROITE,
+        hauteur: HAUTEUR_DE_RANGEE,
+        raison: vue.proprietes.lectureSeule,
+        surActivation: () => vue.ouvrirBoite({ sorte: "nouvelle-colonne" }),
+      }}
       flottante={
         <>
           <MenuOuvert vue={vue} />
