@@ -4,13 +4,14 @@
 // l'onglet, « Ouvrir cet espace » l'ouvre dans l'éditeur (F-032-AC5, AC10) : sans requête s'il est
 // sur l'appareil, compte connecté ou non (AC2), par l'ajout à l'appareil sinon ; hors connexion, un
 // espace que l'appareil ne détient pas garde la commande, désactivée avec sa raison (F-036-AC5).
-import { type ReactElement, useId, useSyncExternalStore } from "react";
+import { type ReactElement, useSyncExternalStore } from "react";
 
 import type { Compte, ErreurDEspaces, EspaceLu } from "../compte/index.ts";
 import { fragmentDEcran } from "../navigation/route.ts";
 import { ActionsDeLEspace } from "./ActionsDeLEspace.tsx";
 import { useAjoutALAppareil } from "./ajout-a-l-appareil.ts";
 import { cibleSurLAppareil, useAppareilDesEcrans } from "./appareil-des-ecrans.ts";
+import { libelleDeLAppareil } from "./commandes-espaces.ts";
 import { nomDeLEspace } from "./changement-d-espace.ts";
 import {
   Actions,
@@ -21,7 +22,6 @@ import {
   Lien,
   Texte,
 } from "./composants/Espaces.tsx";
-import { ESPACES } from "./composants/compte.classes.ts";
 import { useEcranDUnEspace } from "./contexte-espace.ts";
 import { InvitationsDeLEspace } from "./InvitationsDeLEspace.tsx";
 import {
@@ -31,7 +31,6 @@ import {
   libelleDuRole,
   NOM_INCONNU_SUR_CET_APPAREIL,
   nomOuvrirCetEspace,
-  OUVRIR_CET_ESPACE,
   PLUS_ACCESSIBLE,
   REESSAYER,
   RELIRE_L_ESPACE,
@@ -168,23 +167,13 @@ function OuvertureHorsConnexion(props: {
  * n'est connu que du serveur : aucun nom n'est inventé.
  */
 function OuvrirDesactive({ raison }: { readonly raison: string }): ReactElement {
-  const idRaison = useId();
   return (
-    <>
-      <button
-        type="button"
-        className={ESPACES.bouton}
-        aria-label={nomOuvrirCetEspace(NOM_INCONNU_SUR_CET_APPAREIL)}
-        aria-disabled="true"
-        aria-describedby={idRaison}
-        onClick={(evenement) => evenement.preventDefault()}
-      >
-        {OUVRIR_CET_ESPACE}
-      </button>
-      <span id={idRaison} className={ESPACES.raison}>
-        {raison}
-      </span>
-    </>
+    <Bouton
+      nom={nomOuvrirCetEspace(NOM_INCONNU_SUR_CET_APPAREIL)}
+      libelle={libelleDeLAppareil("ouvrir-sur-l-appareil")}
+      raison={raison}
+      indisponible
+    />
   );
 }
 

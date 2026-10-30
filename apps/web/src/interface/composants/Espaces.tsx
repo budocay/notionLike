@@ -91,11 +91,14 @@ interface ProprietesBouton {
   readonly surFocus?: (() => void) | undefined;
   /** Identifiant de l'arrêt que ce bouton forme dans une composition à flèches (F-020-AC15). */
   readonly arret?: string | undefined;
+  /** Avec `raison` : `aria-disabled` au lieu de `disabled`, atteignable au clavier, sans effet (F-036-AC5). */
+  readonly indisponible?: boolean | undefined;
 }
 
 export function Bouton(props: ProprietesBouton): ReactElement {
   const idRaison = useId();
   const raison = props.raison;
+  const indisponible = props.indisponible === true && raison !== undefined;
   return (
     <>
       <button
@@ -103,9 +106,10 @@ export function Bouton(props: ProprietesBouton): ReactElement {
         type={props.type ?? "button"}
         className={ESPACES.bouton}
         aria-label={props.nom}
-        disabled={raison !== undefined || props.desactive === true}
+        disabled={!indisponible && (raison !== undefined || props.desactive === true)}
+        aria-disabled={indisponible ? "true" : undefined}
         aria-describedby={raison === undefined ? undefined : idRaison}
-        onClick={props.surActivation}
+        onClick={indisponible ? (evenement) => evenement.preventDefault() : props.surActivation}
         tabIndex={props.tabIndex}
         onFocus={props.surFocus}
         data-arret={props.arret}

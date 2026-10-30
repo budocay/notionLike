@@ -11,7 +11,7 @@
 // - F-036-AC12 : la signature d'`OuvertureHorsConnexion` ne change pas (`EcranDUnEspace.tsx` seul
 //   l'appelle) ; `pnpm typecheck` et les tests d'`apps/web` passent sans adapter un appelant.
 // - F-036-AC13 : dettes D-040 et D-043 résorbées, tracées dans `PROJECT_LOG.md` et `MEMORY/STATE.md`.
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -20,6 +20,8 @@ import {
   NOM_INCONNU_SUR_CET_APPAREIL,
   nomOuvrirCetEspace,
 } from "../src/interface/messages-espaces.ts";
+import { Bouton } from "../src/interface/composants/Espaces.tsx";
+import { lireDossier } from "./aides-disque.ts";
 import { contenuDeLAppareil, E_ALPHA, E_GAMMA } from "./aides-appareil.ts";
 import { enveloppe, moi200, moi401, ROUTES, serveurSimule } from "./aides-compte.tsx";
 import {
@@ -161,5 +163,39 @@ describe("retour à la connexion (F-036-AC6)", () => {
     const active = await screen.findByRole("button", { name: nomOuvrirCetEspace("Gamma") });
     expect(active.getAttribute("aria-disabled")).toBeNull();
     expect(screen.queryByRole("button", { name: COMMANDE })).toBeNull();
+  });
+});
+
+describe("couture de la prop indisponible de Bouton", () => {
+  it("F-036-AC5 F-036-AC11 seul EcranDUnEspace fournit la prop ; les autres appelants gardent disabled", () => {
+    const appelants = [...lireDossier("src")]
+      .filter(([chemin]) => chemin.endsWith(".tsx"))
+      .filter(([, texte]) => /<Bouton[\s/>]/.test(texte));
+    expect(appelants.length).toBeGreaterThan(1);
+    const ailleurs = [...lireDossier("src")]
+      .filter(
+        ([chemin]) =>
+          !chemin.endsWith("EcranDUnEspace.tsx") && !chemin.endsWith("composants/Espaces.tsx"),
+      )
+      .filter(([, texte]) => /^\s*indisponible\s*$|\bindisponible=/m.test(texte));
+    expect(ailleurs).toEqual([]);
+    expect(lireDossier("src").get("src/interface/EcranDUnEspace.tsx")).toMatch(
+      /^\s*indisponible\s*$/m,
+    );
+  });
+
+  it("F-036-AC5 sans la prop, un Bouton avec raison reste disabled et sans aria-disabled", () => {
+    render(<Bouton libelle="Agir" raison="Parce que" />);
+    const bouton = screen.getByRole("button", { name: "Agir" });
+    expect(bouton.hasAttribute("disabled")).toBe(true);
+    expect(bouton.getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("F-036-AC5 avec la prop, le bouton est aria-disabled, atteignable et décrit par sa raison", () => {
+    render(<Bouton libelle="Agir" raison="Parce que" indisponible />);
+    const bouton = screen.getByRole("button", { name: "Agir" });
+    expect(bouton.hasAttribute("disabled")).toBe(false);
+    expect(bouton.getAttribute("aria-disabled")).toBe("true");
+    expect(bouton.getAttribute("aria-describedby")).not.toBeNull();
   });
 });
