@@ -24,6 +24,25 @@ import {
   priseDeFournisseur,
 } from "./aides-synchro.ts";
 
+// Liste fermée, triée, des fichiers de test qui atteignent la prise corrigée (voir la couture).
+const APPELANTS: string[] = [
+  "droits.test.ts",
+  "synchro-arret.test.ts",
+  "synchro-connexion.test.ts",
+  "synchro-document.test.ts",
+  "synchro-droits.test.ts",
+  "synchro-fermetures.test.ts",
+  "synchro-limites.test.ts",
+  "synchro-ouverture.test.ts",
+  "synchro-plafonds.test.ts",
+  "synchro-reponse.test.ts",
+  "synchro-reverification.test.ts",
+  "synchro-sessions.test.ts",
+  "synchro-stockage.test.ts",
+];
+// Ceux de ces fichiers qui posent un observateur d'incident (processus ou prise).
+const OBSERVENT: string[] = ["synchro-limites.test.ts", "synchro-plafonds.test.ts"];
+
 let ecoute: Server | undefined;
 const connexions = new Set<Socket>();
 
@@ -89,17 +108,15 @@ describe("fermerLesClients (F-046-AC3, D-028)", () => {
 
   it("F-046-AC3 une autre erreur de prise, hors fermeture, reste visible", async () => {
     const { socket } = await priseEnConnexion();
-    // Le fournisseur a retiré ses écouteurs à la destruction : on les retire ici pour constater
-    // qu'aucun écouteur permanent de l'aide n'absorbe une erreur de prise.
-    socket.removeAllListeners("error");
+    await fermerLesClients();
+    await pause(100);
+    // Le fournisseur a retiré ses écouteurs et l'absorption de `close` est consommée : aucun
+    // écouteur permanent de l'aide ne doit rester. Sinon cette erreur serait avalée au lieu d'être
+    // levée par Node (aucun `removeAllListeners` ici, qui masquerait justement cet écouteur).
     const autre = new Error("erreur de protocole simulée");
 
+    expect((socket as EventEmitter).listeners("error")).toEqual([]);
     expect(() => socket.emit("error", autre)).toThrow(autre);
-
-    const vues: Error[] = [];
-    socket.on("error", (erreur) => vues.push(erreur));
-    socket.emit("error", autre);
-    expect(vues).toEqual([autre]);
   });
 
   it("F-046-AC3 une prise déjà close est laissée close, sans erreur, et plus aucune connexion ne reste", async () => {
@@ -130,6 +147,46 @@ describe("fermerLesClients (F-046-AC3, D-028)", () => {
   });
 });
 
+// Noms exportés de aides-synchro.ts qui atteignent la prise corrigée, dérivés du code : on part de
+// la construction de `PriseAvecCookie` (`priseDeFournisseur`), de l'ensemble qui la retient et du
+// fournisseur officiel, puis on ajoute toute fonction exportée dont le corps cite un nom déjà retenu.
+function aidesQuiAtteignentLaPrise(source: string): Set<string> {
+  const exportees = [...source.matchAll(/^export (?:async )?function (\w+)/gm)].map(
+    (m, i, tout) => ({
+      nom: m[1] ?? "",
+      corps: source.slice(m.index, tout[i + 1]?.index ?? source.length),
+    }),
+  );
+  const atteignent = new Set<string>(["priseDeFournisseur", "prisesDeFournisseurs"]);
+  for (const { nom, corps } of exportees) {
+    if (/HocuspocusProvider/.test(corps)) atteignent.add(nom);
+  }
+  for (let change = true; change;) {
+    change = false;
+    for (const { nom, corps } of exportees) {
+      if (!atteignent.has(nom) && [...atteignent].some((autre) => corps.includes(autre))) {
+        atteignent.add(nom);
+        change = true;
+      }
+    }
+  }
+  atteignent.delete("prisesDeFournisseurs");
+  return atteignent;
+}
+
+function importsDe(texte: string, module: string): string[] {
+  const motif = new RegExp(
+    `import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*"\\./${module}\\.ts"`,
+    "g",
+  );
+  return [...texte.matchAll(motif)].flatMap((m) =>
+    (m[1] ?? "").split(",").map((nom) => (nom.trim().split(/\s+as\s+/)[0] ?? "").trim()),
+  );
+}
+
+const OBSERVATEURS =
+  /uncaughtException|unhandledRejection|\.on\("error"|\.once\("error"|addEventListener\("error"|onerror/;
+
 describe("couture des appelants de priseDeFournisseur (F-046-AC7)", () => {
   it("F-046-AC7 les incidents que constatent synchro-limites et synchro-plafonds ne passent pas par la prise corrigée", () => {
     const dossier = new URL("./", import.meta.url);
@@ -138,38 +195,57 @@ describe("couture des appelants de priseDeFournisseur (F-046-AC7)", () => {
         .filter((nom) => nom.endsWith(".ts") && nom !== "aides-synchro.test.ts")
         .map((nom) => [nom, readFileSync(new URL(nom, dossier), "utf8")] as const),
     );
-    const utilisentLaPrise = [...contenus]
-      .filter(([, texte]) => /priseDeFournisseur|fermerLesClients/.test(texte))
-      .map(([nom]) => nom);
-    expect(utilisentLaPrise).toContain("synchro-document.test.ts");
-    expect(utilisentLaPrise).toContain("synchro-connexion.test.ts");
+    const source = contenus.get("aides-synchro.ts") ?? "";
+    expect(source, "aides-synchro.ts introuvable").not.toBe("");
+    const atteignent = aidesQuiAtteignentLaPrise(source);
+    // Garde-fou de la dérivation : ces aides atteignent la prise, sinon la dérivation est cassée.
+    for (const nom of [
+      "priseDeFournisseur",
+      "fournisseur",
+      "fournisseurSynchronise",
+      "fermerLesClients",
+    ]) {
+      expect(atteignent.has(nom), `${nom} devrait atteindre la prise`).toBe(true);
+    }
 
-    // Seuls ces deux fichiers posent des écouteurs d'incident ; un nouveau doit être examiné ici.
-    const observentDesIncidents = [...contenus]
-      .filter(([nom]) => utilisentLaPrise.includes(nom))
-      .filter(([, texte]) =>
-        /uncaughtException|unhandledRejection|\.on\("error"|\.once\("error"/.test(texte),
+    // Fichiers qui importent une de ces aides, ou le fournisseur Hocuspocus directement.
+    const appelants = [...contenus]
+      .filter(([nom]) => nom !== "aides-synchro.ts")
+      .filter(
+        ([, texte]) =>
+          importsDe(texte, "aides-synchro").some((nom) => atteignent.has(nom)) ||
+          /@hocuspocus\/provider/.test(texte),
       )
       .map(([nom]) => nom)
-      .filter((nom) => nom !== "aides-synchro.ts");
-    expect(observentDesIncidents).toEqual(["synchro-limites.test.ts", "synchro-plafonds.test.ts"]);
+      .sort();
+    // Liste fermée : un appelant nouveau ou disparu fait échouer ce test et doit être examiné.
+    expect(appelants).toEqual(APPELANTS);
 
-    // La classe corrigée n'existe que dans `priseDeFournisseur` (fournisseur Hocuspocus). Ces deux
-    // fichiers n'ouvrent ni fournisseur ni prise de ce type : `synchro-limites` observe le
-    // processus pendant des clients bruts (`connecterBrut`), `synchro-plafonds` une requête HTTP.
-    // L'absorption n'est armée que par `close()` sur une prise en connexion (test ci-dessus), et
-    // `fermerLesClients` n'y est appelé qu'en `afterEach`, hors des fenêtres d'observation.
-    for (const nom of observentDesIncidents) {
+    // Aucun appelant n'attend l'erreur que la prise corrigée absorbe.
+    for (const nom of appelants) {
+      expect(contenus.get(nom) ?? "", nom).not.toMatch(
+        /closed before the connection was established/,
+      );
+    }
+
+    // Parmi eux, ceux qui observent les incidents du processus ou des prises.
+    const observent = appelants.filter((nom) => OBSERVATEURS.test(contenus.get(nom) ?? ""));
+    expect(observent).toEqual(OBSERVENT);
+
+    // La classe corrigée n'existe que dans `priseDeFournisseur`. Ces fichiers n'ouvrent ni
+    // fournisseur ni prise de ce type ; l'absorption n'est armée que par `close()` sur une prise en
+    // connexion, et `fermerLesClients` n'y est appelé qu'en `afterEach`, hors des fenêtres.
+    for (const nom of observent) {
       const texte = contenus.get(nom) ?? "";
-      expect(texte).not.toMatch(/priseDeFournisseur|fournisseurSynchronise|\bfournisseur\(/);
-      expect(texte).not.toMatch(/HocuspocusProvider/);
+      expect(texte, nom).not.toMatch(/priseDeFournisseur|fournisseurSynchronise|\bfournisseur\(/);
+      expect(texte, nom).not.toMatch(/HocuspocusProvider/);
     }
     const limites = contenus.get("synchro-limites.test.ts") ?? "";
-    const fenetre = limites.slice(
-      limites.indexOf('process.on("uncaughtException"'),
-      limites.indexOf('process.off("unhandledRejection"'),
-    );
-    expect(fenetre.length).toBeGreaterThan(0);
-    expect(fenetre).not.toContain("fermerLesClients");
+    const debut = limites.indexOf('process.on("uncaughtException"');
+    const fin = limites.indexOf('process.off("unhandledRejection"');
+    expect(debut, "début de la fenêtre d'observation de synchro-limites introuvable").not.toBe(-1);
+    expect(fin, "fin de la fenêtre d'observation de synchro-limites introuvable").not.toBe(-1);
+    expect(fin, "fenêtre d'observation de synchro-limites à l'envers").toBeGreaterThan(debut);
+    expect(limites.slice(debut, fin)).not.toContain("fermerLesClients");
   });
 });
