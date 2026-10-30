@@ -309,6 +309,9 @@ export function priseDeFournisseur(serveur: ServeurDEssai, cookie: string) {
   class PriseAvecCookie extends WebSocket {
     constructor(url: string) {
       super(url, { headers: { Cookie: cookie, Origin: serveur.urlPublique } });
+      // Fermée en cours de connexion, la prise émet son erreur au tick suivant, après que le
+      // fournisseur a retiré ses écouteurs : sans écouteur permanent, Node la lève (D-028).
+      this.on("error", () => undefined);
     }
   }
   const prise = new HocuspocusProviderWebsocket({
