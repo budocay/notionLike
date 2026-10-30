@@ -1,5 +1,6 @@
 // Un élément de la liste glissable : ce que la rangée pose sur son DOM pour être saisie, survolée et
 // déplacée. Seuls des types de React, du DOM et des chaînes en sortent (F-006-AC32).
+import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type DOMAttributes, useContext } from "react";
@@ -50,4 +51,17 @@ export function useElementGlissable(id: string): ElementGlissable {
     enGlissement: isDragging,
     zone: survol !== undefined && survol.cible === id ? survol.zone : undefined,
   };
+}
+
+/** Ce qu'une pile pose sur son DOM pour recevoir un dépôt, même sans carte (F-020-AC12, AC25). */
+export interface ZoneDePile {
+  readonly ref: (element: HTMLElement | null) => void;
+  /** Vrai quand la pile elle-même est la cible survolée : en tête ou en fin de pile, ou pile vide. */
+  readonly survolee: boolean;
+}
+
+export function useZoneDePile(id: string): ZoneDePile {
+  const { setNodeRef } = useDroppable({ id, data: { pile: true } });
+  const survol = useContext(ContexteDuSurvol);
+  return { ref: setNodeRef, survolee: survol !== undefined && survol.cible === id };
 }

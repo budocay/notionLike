@@ -82,8 +82,10 @@ describe("navigation de cellule en cellule (F-018-AC33)", () => {
     const { utilisateur } = rendreLaTable(quatreLignes);
     const arrets = cellulesDeLaGrille().filter((element) => element.tabIndex === 0);
     expect(arrets).toHaveLength(1);
-    await utilisateur.tab();
-    await utilisateur.tab();
+    // Avant la grille : les deux vues du sélecteur, « Ajouter une colonne » et « Nouvelle ligne ».
+    for (let arret = 0; arret < 4; arret += 1) {
+      await utilisateur.tab();
+    }
     await utilisateur.tab();
     expect(focus()).toBe(arrets[0]);
     await utilisateur.tab();

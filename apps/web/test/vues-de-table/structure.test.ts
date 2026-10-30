@@ -97,7 +97,7 @@ describe("aucune requête réseau (F-018-AC39)", () => {
 
 describe("ce que les vues partagent (F-018-AC45)", () => {
   it("F-018-AC45 chaque vue de la liste reçoit les lignes calculées ; seul lignes-affichees.ts lit les lignes de la table lue pour les afficher", () => {
-    expect(VUES.map(({ id }) => id)).toEqual(["tableau"]);
+    expect(VUES.map(({ id }) => id)).toEqual(["tableau", "kanban"]);
     const ecran = sansCommentaires(lire(`${MODULE}/EcranDeTable.tsx`));
     // F-019-AC13 : la fonction reçoit aussi la définition ; l'appel est dans `use-affichage.ts`.
     expect(ecran).toMatch(/lignes=\{affichage\.lignes\}/);
@@ -107,9 +107,13 @@ describe("ce que les vues partagent (F-018-AC45)", () => {
     const lecteurs = sourcesDuModule()
       .filter(([, texte]) => /\b(lue|table)\.lignes\b/.test(texte))
       .map(([chemin]) => chemin);
-    // Les commandes de ligne situent la ligne dans l'ordre manuel, que la façade attend pour un
-    // déplacement : ce n'est pas un affichage.
-    expect(lecteurs).toEqual([`${MODULE}/actions.ts`, `${MODULE}/lignes-affichees.ts`]);
+    // Les commandes de ligne et le déplacement d'une carte (F-020-AC9) situent la ligne dans l'ordre
+    // manuel, que la façade attend pour un déplacement : ce n'est pas un affichage.
+    expect(lecteurs).toEqual([
+      `${MODULE}/actions.ts`,
+      `${MODULE}/kanban/deplacement.ts`,
+      `${MODULE}/lignes-affichees.ts`,
+    ]);
     expect(sansCommentaires(lire(`${MODULE}/actions.ts`)).match(/\blue\.lignes\b/g)).toHaveLength(
       1,
     );

@@ -41,6 +41,30 @@ export const RACCOURCIS = {
 } as const satisfies Readonly<Record<string, Combinaison>>;
 
 /**
+ * Carte du kanban qui a le focus (F-020-AC13, AC15) : les quatre commandes de déplacement, sur le
+ * modèle de F-006 H5, et l'ouverture du menu des actions. Une carte n'est pas une zone de texte :
+ * le conflit de macOS décrit par F-006 H5 ne s'y pose pas.
+ */
+export const TOUCHES_DE_LA_CARTE = {
+  pilePrecedente: { touche: "ArrowLeft", modificateurs: ["Alt", "Maj"] },
+  pileSuivante: { touche: "ArrowRight", modificateurs: ["Alt", "Maj"] },
+  monter: { touche: "ArrowUp", modificateurs: ["Alt", "Maj"] },
+  descendre: { touche: "ArrowDown", modificateurs: ["Alt", "Maj"] },
+  menu: { touche: "ContextMenu", modificateurs: [] },
+  menuAutrement: { touche: "F10", modificateurs: ["Maj"] },
+  /** Le focus se déplace, sans rien écrire (F-020-AC15). */
+  haut: { touche: "ArrowUp", modificateurs: [] },
+  bas: { touche: "ArrowDown", modificateurs: [] },
+  gauche: { touche: "ArrowLeft", modificateurs: [] },
+  droite: { touche: "ArrowRight", modificateurs: [] },
+  debut: { touche: "Home", modificateurs: [] },
+  fin: { touche: "End", modificateurs: [] },
+  /** La saisie du titre (F-020-AC7). */
+  titre: { touche: "Enter", modificateurs: [] },
+  titreAutrement: { touche: "F2", modificateurs: [] },
+} as const satisfies Readonly<Record<string, Combinaison>>;
+
+/**
  * Grille d'une table, hors mode édition (F-018-AC33) : les touches qui déplacent la cellule
  * courante, chacune sous le nom de son déplacement. Mod+Début et Mod+Fin vont aux coins.
  */

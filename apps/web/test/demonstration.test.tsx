@@ -174,6 +174,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "CadreDeBarre",
       "CadreDeCompte",
       // F-018 : composants de l'écran de table.
+      // F-020 : vue kanban.
+      "CarteDeKanban",
       "CaseDeCellule",
       "CelluleDeGrille",
       "ChampDeCellule",
@@ -219,6 +221,8 @@ describe("page de démonstration : ce qu'elle montre", () => {
       "PanneauDeLien",
       "Partie",
       "Pictogramme",
+      "PileDeKanban",
+      "PlateauDeKanban",
       // F-006 : poignées d'un bloc.
       "PoigneeDeBloc",
       "PoigneeDuCurseur",

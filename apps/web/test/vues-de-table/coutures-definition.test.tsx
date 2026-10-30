@@ -12,7 +12,7 @@ import {
   SECTION_TABLEAU,
   SECTION_VUE,
 } from "../../src/vues-de-table/reglages.ts";
-import { IDS_DES_VUES } from "../../src/vues-de-table/vues.ts";
+import { IDS_DES_VUES, VUES } from "../../src/vues-de-table/vues.ts";
 import { lire, lister } from "../aides-disque.ts";
 import { ESPACE_A } from "../aides-persistance.ts";
 import {
@@ -36,6 +36,8 @@ const LECTEURS_DE_VUES: Readonly<Record<string, () => string[]>> = {
     expect(screen.getByRole("grid").getAttribute("aria-rowcount")).toBe("4");
     return noms();
   },
+  // Les six lignes sont dans la même pile « En cours » après le filtre : les cartes y suivent le tri.
+  kanban: () => screen.getAllByRole("listitem").map((carte) => carte.textContent ?? ""),
 };
 
 describe("couture des vues (F-019-AC14)", () => {
@@ -50,6 +52,8 @@ describe("couture des vues (F-019-AC14)", () => {
     await choisir(utilisateur, "Sens du tri sur Nom", "Décroissant");
 
     for (const id of IDS_DES_VUES) {
+      const vue = VUES.find((une) => une.id === id);
+      await utilisateur.click(screen.getByRole("button", { name: vue?.libelle ?? id }));
       const lecteur = LECTEURS_DE_VUES[id];
       expect(lecteur, `la vue « ${id} » n'a pas de lecteur`).toBeDefined();
       expect(lecteur?.()).toEqual(["Zèbre", "École", "Banane"]);

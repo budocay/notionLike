@@ -534,12 +534,13 @@ module.exports = {
       name: "web-vues-de-table-liste-blanche",
       severity: "error",
       comment:
-        "F-018-AC54, ADR-0019 : le module des vues de table n'importe que lui-même, l'interface de la persistance (réglages de vue), le type d'état de la session de table, les composants de présentation, les textes et les raccourcis de l'interface, les exports de @notionlike/document, react, react-dom et la seule bibliothèque de table admise : ni yjs (aucun type partagé lu ou écrit), ni bibliothèque de défilement virtuel, de dates ou de glisser-déposer.",
+        "F-018-AC54, ADR-0019 : le module des vues de table n'importe que lui-même, l'interface de la persistance (réglages de vue), le type d'état de la session de table, les composants de présentation, les textes et les raccourcis de l'interface, les exports de @notionlike/document, react, react-dom et la seule bibliothèque de table admise : ni yjs (aucun type partagé lu ou écrit), ni bibliothèque de défilement virtuel, de dates ou de glisser-déposer (le geste passe par l'interface `src/glisser/index.ts`, F-020-AC25).",
       from: { path: "^apps/web/src/vues-de-table/" },
       to: {
         pathNot: [
           "^apps/web/src/vues-de-table/",
           "^apps/web/src/persistance/index\\.ts$",
+          "^apps/web/src/glisser/index\\.ts$",
           "^apps/web/src/table/session-table\\.ts$",
           "^apps/web/src/interface/composants/",
           "^apps/web/src/interface/(messages|raccourcis)\\.ts$",

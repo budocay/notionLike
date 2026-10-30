@@ -92,6 +92,20 @@ const IMPORTATEURS_DU_DOCUMENT = [
   "src/vues-de-table/use-vue-tableau.ts",
   "src/vues-de-table/valeur-de-filtre.ts",
   "src/vues-de-table/valider.ts",
+  // F-020 : la vue kanban.
+  "src/vues-de-table/kanban/VueKanban.tsx",
+  "src/vues-de-table/kanban/actions-de-carte.ts",
+  "src/vues-de-table/kanban/deplacement.ts",
+  "src/vues-de-table/kanban/destination.ts",
+  "src/vues-de-table/kanban/identifiants.ts",
+  "src/vues-de-table/kanban/moyens.ts",
+  "src/vues-de-table/kanban/navigation.ts",
+  "src/vues-de-table/kanban/piles.ts",
+  "src/vues-de-table/kanban/reglages-kanban.ts",
+  "src/vues-de-table/kanban/use-limites.ts",
+  "src/vues-de-table/kanban/use-regroupement.ts",
+  "src/vues-de-table/kanban/use-titre-de-carte.ts",
+  "src/vues-de-table/kanban/use-vue-kanban.ts",
 ];
 
 // Modules de src/ qui construisent un `Y.Doc` : la session porte le document d'espace, le témoin

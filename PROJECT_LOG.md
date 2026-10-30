@@ -407,3 +407,39 @@
 - Tests: aucun modifié — état: intermittents — preuve: sorties du crochet `Stop`
 - Gates: aucun
 - Mesures: 3 cas en 4 échecs
+
+## [2026-10-30] F-020 Vue kanban
+
+- TYPE: FEATURE
+- Tier: standard
+- Scope: `apps/web/src/vues-de-table/` (vue kanban), `apps/web/src/glisser/` (piles) — agents: agent-veille, agent-frontend, agent-planif — commits: ee38029..03f9272, 72939ac et la traçabilité
+- Détail: vue kanban groupée par une colonne « Sélection » (piles, « Sans valeur »), déplacement des cartes au pointeur et au clavier, annonces, repère de fin de pile, « Tri actif », lecture seule. Écritures par `ecrire` de F-019. Retouche d'AC27 et de H12 revalidée par le dev. 4 tours de correctifs ; au 3e passage, reprise D-044 du dev.
+- Dette: introduite D-044 (reprise, levée par les 4 PASS du passage 5) et D-045 ; limites dans `MEMORY/features/F-020.md`
+- ADR: aucune
+- Tests: 5164 tests — état: verts — preuve: checks.txt (empreinte `90d768bf2f44`) ; bout en bout AC29 au dev
+- Gates: passages 1 à 3 : SECURITY et CRAFT PASS, reviewer-frontend CHANGES_REQUESTED, ARCHITECTURE FAIL (escalade au 3e) ; REPRISE D-044 ; passage 4 sur `eaa38831f221` : reviewer-frontend CHANGES_REQUESTED, ARCHITECTURE UNVERIFIED ; passage 5 sur `90d768bf2f44` : reviewer-frontend APPROVED, SECURITY, ARCHITECTURE, CRAFT PASS
+- Mesures: boucles 5 passages, 4 tours de correctifs · constats confirmés : place non annoncée sous tri, écritures hors surveillance, repère trompeur, pile absente des annonces d'abandon, focus après création de colonne, test d'AC21 sur un composant du test · coût non mesuré
+
+## [2026-10-28] D-044 Reprise de F-020 après escalade
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: F-020 — agents: dev — commits: 3b0256f
+- Détail: au 3e passage, reviewer-frontend et architecture refusent encore ; le dev choisit un 3e tour court (lignes REPRISE D-044) plutôt qu'une dérogation.
+- Dette: introduite D-044, levée par les 4 PASS du passage 5 (2026-10-30)
+- ADR: aucun
+- Tests: aucun — état: verts — preuve: checks.txt
+- Gates: voir F-020
+- Mesures: 1 tour supplémentaire
+
+## [2026-10-28] D-045 Tests lents sous charge
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/web/test/vues-de-table/filtres-et-tris.test.ts` (l.289, F-019-AC28), `apps/web/test/vues-de-table/recalcul.test.tsx` (l.48, F-019-AC28), `apps/web/test/vues-de-table/fenetre.test.tsx` (l.151, F-018-AC47) — agents: orchestrateur — commits: aucun
+- Détail: ces trois tests dépassent 5 s quand plusieurs suites tournent. Seul, F-019-AC28 prend 2,4 à 2,7 s, dont 1,6 s pour le tri de référence écrit dans le test ; il n'appelle pas `creerLigne`, donc D-041 n'y est pour rien. À trancher par le dev : délai explicite ou référence plus rapide. D-042 s'étend à `espace-ajout.test.tsx` l.347 et l.516 (annonce ou zone lues sans attente). D-041 : mesure corrigée le 2026-10-28 (500 lignes 0,3 s, 1 000 1,5 s, 2 000 9,8 s, 4 000 55 s ; cause probable : `lireEtat` complet à chaque `creerLigne`) ; spec `F-034` en brouillon sur la branche `F-034` (`b75a31b`).
+- Dette: introduite D-045 ; D-042 et D-041 mises à jour
+- ADR: aucun
+- Tests: aucun modifié — état: lents sous charge — preuve: sorties de F-020
+- Gates: aucun
+- Mesures: 3 tests
