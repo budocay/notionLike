@@ -1,5 +1,14 @@
 // Tests des aides de synchronisation (F-046) : la fermeture des clients ne lève aucune erreur non
 // gérée quand une prise est encore en cours de connexion (dette D-028).
+// Critères de F-046 et ce que ce fichier en prouve (citations, pas de preuve nouvelle) :
+// - F-046-AC1 : diagnostic et reproduction avant correction consignés dans MEMORY/features/F-046.md.
+// - F-046-AC2 : les deux symptômes sont traités séparément, voir MEMORY/features/F-046.md.
+// - F-046-AC4 : sans objet ici ; le symptôme du délai de 60 s n'est pas reproduit, voir MEMORY/features/F-046.md.
+// - F-046-AC5 : la cause est dans les aides de test, pas dans apps/server/src ; le test de F-046-AC3 tient lieu de régression.
+// - F-046-AC6 : aucun délai ni assertion modifié ; le constat est consigné dans MEMORY/features/F-046.md.
+// - F-046-AC8 : les 20 passages de synchro-document.test.ts sont consignés dans MEMORY/features/F-046.md.
+// - F-046-AC9 : vérifié par le dossier de revue (.agents/checks/dossier-revue.sh F-046).
+
 import type { EventEmitter } from "node:events";
 import { readdirSync, readFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
