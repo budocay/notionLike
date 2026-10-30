@@ -313,3 +313,5 @@
 2026-10-28T16:13:39Z | agent-securite | F-021 | SECURITY GATE: PASS | 1dc242eba1e6
 2026-10-28T16:16:07Z | agent-architecte | F-021 | ARCHITECTURE GATE: FAIL | 1dc242eba1e6
 2026-10-28T16:16:07Z | agent-craft | F-021 | CRAFT GATE: PASS | 1dc242eba1e6
+2026-10-30T09:25:54Z | reviewer-frontend | F-021 | REPRISE D-046 | 1dc242eba1e6
+2026-10-30T09:25:54Z | agent-architecte | F-021 | REPRISE D-046 | 1dc242eba1e6
