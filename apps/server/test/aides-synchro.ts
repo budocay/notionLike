@@ -305,10 +305,25 @@ export interface Fournisseur {
 
 const prisesDeFournisseurs = new Set<HocuspocusProviderWebsocket>();
 
-export function priseDeFournisseur(serveur: ServeurDEssai, cookie: string) {
+export function priseDeFournisseur(
+  serveur: Pick<ServeurDEssai, "urlDeSynchro" | "urlPublique">,
+  cookie: string,
+) {
   class PriseAvecCookie extends WebSocket {
     constructor(url: string) {
       super(url, { headers: { Cookie: cookie, Origin: serveur.urlPublique } });
+    }
+
+    // Fermée en cours de connexion, la prise émet son erreur au tick suivant, après que le
+    // fournisseur a retiré ses écouteurs : sans écouteur, Node la lève (D-028). On n'absorbe que
+    // cette erreur-là, et une seule fois (`readyState` passe à `CLOSING` juste après `super.close()`,
+    // donc un second appel de `close()` n'ajoute pas d'écouteur) ; toute autre erreur de prise reste
+    // visible.
+    override close(code?: number, donnees?: string | Buffer): void {
+      if (this.readyState === WebSocket.CONNECTING) {
+        this.once("error", () => undefined);
+      }
+      super.close(code, donnees);
     }
   }
   const prise = new HocuspocusProviderWebsocket({

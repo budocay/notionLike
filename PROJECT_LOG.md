@@ -443,3 +443,27 @@
 - Tests: aucun modifié — état: lents sous charge — preuve: sorties de F-020
 - Gates: aucun
 - Mesures: 3 tests
+
+## [2026-10-30] F-046 Stabilité de synchro-document.test.ts : erreur non gérée à la fermeture des clients
+
+- TYPE: FIX
+- Tier: standard
+- Scope: `apps/server/test` — agents: agent-backend, agent-planif — commits: 00b9ded..15f8e91
+- Détail: cause prouvée de l'erreur non gérée « WebSocket was closed before the connection was established » : `fermerLesClients` ferme une prise `ws` encore CONNECTING (`PriseAvecCookie.close`), `ws` émet `error` au tick suivant (`abortHandshake`) après que `destroy()` du fournisseur a retiré ses écouteurs ; Node lève l'événement en exception non interceptée. Reproduction avant correction : déterministe dans `aides-synchro.test.ts`, 1 exécution sur 12 dans le fichier réel sous charge. Correctif resserré après revue : `PriseAvecCookie.close()` pose `once("error")` seulement en CONNECTING, une seule erreur ; refus de connexion et erreurs de protocole ou de session restent visibles. Aucun fichier de `src`, aucun délai, aucune assertion touchés. Spec revalidée (3519bff) : le délai de 60 s, non reproduit, passe en D-048.
+- Dette: D-028 levée pour l'erreur non gérée / introduite D-048 (dépassement de délai de 60 s de `synchro-document.test.ts` sous charge, non reproduit en 64 exécutions ; premiers passages sous saturation en échec de `synchro-fermetures.test.ts` 1/8 et `synchro-reponse.test.ts` 4 ignorés, sortie perdue, non reproduits en 5/5)
+- ADR: aucun
+- Tests: `apps/server/test/aides-synchro.test.ts` (4 : fermeture en connexion, autre erreur visible, prise déjà close, couture des appelants F-046-AC7) ; 20 passages du fichier (10 en série, 10 sous charge) 71/71 — état: verts (260 fichiers, 5168 tests) — preuve: checks.txt (empreinte `84adfc9c5842`)
+- Gates: tour 1 : reviewer-backend CHANGES_REQUESTED, SECURITY PASS, ARCHITECTURE UNVERIFIED, CRAFT PASS ; tour 2 : reviewer-backend CHANGES_REQUESTED, SECURITY, ARCHITECTURE, CRAFT PASS ; tour 3 sur `84adfc9c5842` : reviewer-backend APPROVED, SECURITY, ARCHITECTURE, CRAFT PASS · revue route A
+- Mesures: boucles 3 tours (reviewer-backend 3, sécurité 3, architecture 3, craft 3) · constats confirmés : écouteur trop large, ROADMAP hors liste fermée, mémoire incohérente (tour 1) ; test qui ne pouvait pas échouer, couture non fermée (tour 2) · faux positifs 0 · coût non mesuré
+
+## [2026-10-30] D-048 Délai de 60 s de synchro-document.test.ts sous charge non reproduit
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/server/test/synchro-document.test.ts`, `synchro-fermetures.test.ts`, `synchro-reponse.test.ts` — agents: agent-planif — commits: aucun
+- Détail: dépassement « Test timed out in 60000ms » constaté sous charge (D-028, symptôme 2), non reproduit en 64 exécutions de F-046 ; premiers passages sous saturation en échec de `synchro-fermetures` (1 test sur 8) et `synchro-reponse` (4 ignorés), sortie perdue, non reproduits en 5/5. Aucune cause nommée, aucun délai allongé ; à reprendre si le symptôme revient avec sa sortie. Détail : `MEMORY/features/F-046.md`.
+- Dette: introduite D-048
+- ADR: aucun
+- Tests: aucun — état: non reproduit — preuve: `MEMORY/features/F-046.md`
+- Gates: voir F-046
+- Mesures: 64 exécutions du fichier, 10 des deux autres

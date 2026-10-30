@@ -25,3 +25,4 @@
 - F-032 Plusieurs espaces sur un appareil — 2026-10-27 — features/F-032.md
 - F-019 Filtres et tris d'une vue — 2026-10-27 — features/F-019.md
 - F-020 Vue kanban — 2026-10-30 — features/F-020.md
+- F-046 Stabilité de synchro-document.test.ts : erreur non gérée (D-028, D-048) — 2026-10-30 — features/F-046.md

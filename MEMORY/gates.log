@@ -324,3 +324,15 @@
 2026-10-28T16:46:00Z | agent-architecte | F-020 | UNVERIFIED (la commande de gate a échoué (code 1), voir /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md et /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md.err) | 90d768bf2f44
 2026-10-28T16:46:00Z | agent-craft | F-020 | CRAFT GATE: PASS | 90d768bf2f44
 2026-10-30T07:31:25Z | agent-architecte | F-020 | ARCHITECTURE GATE: PASS | 90d768bf2f44
+2026-10-30T14:34:15Z | reviewer-backend | F-046 | CHANGES_REQUESTED | 089298582b1d
+2026-10-30T14:34:51Z | agent-securite | F-046 | SECURITY GATE: PASS | 089298582b1d
+2026-10-30T14:36:10Z | agent-architecte | F-046 | ARCHITECTURE GATE: UNVERIFIED | 089298582b1d
+2026-10-30T14:36:10Z | agent-craft | F-046 | CRAFT GATE: PASS | 089298582b1d
+2026-10-30T14:57:06Z | reviewer-backend | F-046 | CHANGES_REQUESTED | 4889840a0519
+2026-10-30T14:57:51Z | agent-securite | F-046 | SECURITY GATE: PASS | 4889840a0519
+2026-10-30T14:58:53Z | agent-architecte | F-046 | ARCHITECTURE GATE: PASS | 4889840a0519
+2026-10-30T14:58:53Z | agent-craft | F-046 | CRAFT GATE: PASS | 4889840a0519
+2026-10-30T15:43:58Z | reviewer-backend | F-046 | APPROVED | 84adfc9c5842
+2026-10-30T15:44:48Z | agent-securite | F-046 | SECURITY GATE: PASS | 84adfc9c5842
+2026-10-30T15:45:34Z | agent-architecte | F-046 | ARCHITECTURE GATE: PASS | 84adfc9c5842
+2026-10-30T15:45:34Z | agent-craft | F-046 | CRAFT GATE: PASS | 84adfc9c5842
