@@ -73,6 +73,7 @@ Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-
 - [ ] F-024 Raccourcis clavier et palette de commandes — tier: structurel — dépend de: F-003 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-024.md (validée)
 - [ ] F-025 RGPD : export des données d'un compte, suppression d'un compte, effacement et hygiène — tier: structurel — dépend de: F-011, F-012, F-013 (F-016, F-018, F-022, F-026 et F-027 conditionnelles : F-025 H16, H17) — agents: agent-veille, agent-architecte-conception, agent-bdd, agent-backend, agent-devops, agent-frontend — spec: specs/F-025.md (validée ; sa spec recommande en tête une scission, F-025 H0)
 - [ ] F-026 Courriels : vérification d'adresse et réinitialisation du mot de passe — tier: structurel — dépend de: F-009 (F-010 et F-011 conditionnelles : F-026 H10, F-026-AC20) — agents: agent-veille, agent-architecte-conception, agent-devops, agent-bdd, agent-backend, agent-frontend (F-010 étant fusionnée, ses écrans F-026-AC35 à AC39 sont dans le périmètre : F-026 H10) — spec: specs/F-026.md (validée)
+- [ ] F-043 Administrateur d'instance : voir et gérer tous les espaces — tier: structurel — dépend de: F-037 (F-011, F-012, F-014, F-032 livrées) — agents: agent-architecte-conception, agent-bdd, agent-backend, agent-frontend — spec: specs/F-043.md (brouillon ; décision du dev du 2026-10-30 ; migration `0003`, contrat de `moi` ; conflit probable avec F-036 sur `EcranDUnEspace.tsx`)
 
 F-031 est fusionnée (`f6871c3`) : la proposition de la mener en parallèle de F-005 est sans objet. F-005 et F-018, menées en parallèle, sont fusionnées (`57f01aa`, `d592ad8`).
 
@@ -113,7 +114,7 @@ Parallélisme, état au 2026-10-16 :
 À prévoir, sans ligne dans la liste :
 
 - Part retirée de F-014 le 2026-10-13 : planifiée le 2026-10-16 sous le numéro F-032 (« En cours », avant F-015), avec la réparation de l'identifiant d'espace sur le registre de F-013 (F-032-AC23, D-009).
-- Question au dev : veut-il une spec de panneau d'administration ? Aucune spec ni ligne ne le porte.
+- Panneau d'administration : demandé par le dev le 2026-10-30 (« un admin peut tout gérer en terme d'espace et tout voir ») ; porté par F-043 (spec en brouillon, panneau minimal recommandé).
 
 Notes d'ordonnancement :
 
@@ -169,7 +170,7 @@ Manques signalés, sans feature (le dev décide si l'un d'eux devient une featur
 - La coloration syntaxique du bloc code, exclue de F-005 (H4) : portée depuis le 2026-10-21 par F-033, avec l'indentation au clavier (fusionnée le 2026-10-21, `99460ef`).
 - Déplacer un élément de liste seul est exclu de F-006 ; aucune ligne ne le porte.
 - L'aperçu d'une invitation avant acceptation est exclu de F-014 (H3) : il demanderait une route nouvelle ; aucune ligne ne le porte.
-- Panneau d'administration : voir « À prévoir ».
+- Panneau d'administration : F-043 (brouillon).
 
 ## Refactors planifiés (par blocs)
 
