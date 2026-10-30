@@ -67,6 +67,24 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - **Règle de lecture complétée** (puce « Type racine `versions` » ci-dessus) : outre une entrée qui n'est pas un entier supérieur ou égal à 1 et une entrée nommée, un élément non compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom, que `forEach` et `toArray` passaient sous silence) rend le document non pris en charge. `ouvrirDocumentTable` lève `version-non-prise-en-charge`, avant la liste blanche, sans rien écrire. Le reste de la reconnaissance est inchangé.
 - **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `format-table.ts` (F-018-AC58).
 
+### Amendement F-044 (2026-10-30) : modèles de ligne, version 3
+
+Statut : proposé. Spec : `specs/F-044.md` (validée, H6), moitié « table » dont la note de conception propose la scission en une feature à part. Note de conception : `docs/decisions/F-044-conception.md`. Suppose l'amendement F-045 (version 2, clés composées).
+
+Contexte : un modèle de ligne est un nom et une valeur par défaut par colonne ; il vit dans le document de la table qu'il sert (H6).
+
+Options étudiées :
+
+- A. Modèles comme lignes marquées dans `lignes`. Écarté : la table lue et chaque appelant de `lignes` (filtres, tris, kanban, calendrier) devraient les écarter, et une application ancienne les afficherait comme des lignes.
+- B. **Type racine `modeles`** (retenue), lu à part, avec élévation de version : une application ancienne refuse le document entier au lieu de le refuser par la liste blanche sans le dire (F-044-AC22).
+
+Décision :
+
+- Type racine `modeles`, une `Y.Map` : clé, l'identifiant du modèle (UUID) ; valeur, une `Y.Map` à champs `nom`, `rang`, `supprimee`, `valeurs`, une `Y.Map` créée dans la transaction qui crée le modèle, de même forme que `cellules` (clé `<idColonne>` pour une valeur simple, `<idColonne>/<idOption>` pour une étiquette).
+- Version 3, inscrite dans la transaction qui crée le premier modèle d'un document lu inférieur. La liste blanche devient `colonnes`, `lignes`, `versions`, `modeles`.
+- Lecture distincte (`lireModelesDeLigne()`) ; la table lue ne change pas. Une valeur par défaut est lue comme une cellule : vide si sa colonne est absente ou supprimée, si son option est retirée ou si elle n'est pas conforme ; une colonne lue dont la valeur stockée ne se lit pas est rendue « inactive ».
+- Une ligne créée depuis un modèle reçoit ses valeurs lues par la création de ligne existante, en une transaction ; aucun lien n'est gardé.
+
 ## Conséquences
 
 - Un document de table ne rétrécit jamais par une suppression de colonne, d'option ou de ligne : elles gardent tout leur poids (constat 8). L'effacement réel est à F-025, comme pour une page supprimée ; le ramasse-miettes actif borne au moins l'historique des cellules réécrites.
@@ -79,3 +97,5 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - Le serveur ne lit pas le document de table et ne contrôle pas sa version (ADR-0013) : il relaie et stocke ce qu'un `editeur` écrit. Un pair qui contourne le module peut rendre une table illisible (version forgée, type racine étranger) pour tous ses membres, sans perte de contenu.
 - Revenir sur cette forme (passer les lignes en `Y.Array`, retirer les drapeaux, déplacer la version) demanderait une migration de chaque document de table sur chaque appareil et sur le serveur.
 - Amendement F-018 : un document de table qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la table) s'ouvrait avant F-018 et est désormais refusé, sans rien en retirer. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue. La forme de `versions` est désormais partagée par trois formats (ADR-0002, amendement F-018) : la changer change celle des trois.
+- Amendement F-044 : dès son premier modèle de ligne, une table n'est plus lisible par une application de la version 2 ; un modèle supprimé garde la version 3.
+- Amendement F-044 : une valeur par défaut garde son poids après la suppression de sa colonne ou de son modèle (drapeaux), comme une cellule.
