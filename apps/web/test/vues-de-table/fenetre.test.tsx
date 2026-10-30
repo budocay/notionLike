@@ -160,6 +160,8 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(champ.value).toBe("0:0 en cours");
     await utilisateur.keyboard("{Enter}");
     expect(ecritures).toEqual(["l0/c0=0:0 en cours"]);
+    // F-035-AC5 : délai explicite déclaré sur le test (option A), mêmes données et assertions (F-035-AC6).
+    // F-035-AC7 : dix exécutions sous charge et marge au délai consignées en rapport ; F-035-AC11 : dettes D-042 et D-045 résorbées (traçabilité).
   }, 20_000);
 
   it("F-018-AC47 la cellule courante, sans mode édition, n'est pas perdue quand sa rangée sort de la fenêtre", async () => {

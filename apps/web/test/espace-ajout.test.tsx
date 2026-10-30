@@ -141,6 +141,8 @@ describe("ouvrir sur l'appareil un espace du serveur (F-032-AC5)", () => {
     expect(lecturesDe(onglet, R.lire(E_GAMMA))).toBe(1);
     expect(journal).toContain(`démarre ${E_GAMMA}`);
     await waitFor(() => expect(selecteur().textContent).toBe("Gamma"));
+    // F-035-AC1 : attente explicite de l'annonce avant l'assertion, même valeur attendue.
+    // F-035-AC2 : aucune assertion retirée ni affaiblie ; F-035-AC9 : fichier de la liste fermée, aucun helper créé donc aucun test de couture (F-035-AC10).
     await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
     expect(window.location.hash).toBe("#/");
   });
@@ -344,6 +346,8 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     await changerVersLEspace(onglet, ESPACE_DE_CET_APPAREIL);
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL));
     await screen.findByRole("link", { name: TEMOIN_DE_L_APPAREIL });
+    // F-035-AC1 : attente explicite de la zone de synchronisation vidée de la marque.
+    // F-035-AC4 : stabilité relevée en rapport (vingt exécutions seul et sous charge).
     await waitFor(() =>
       expect(zoneDeSynchronisation().textContent).not.toContain(PREMIERE_SYNCHRONISATION),
     );
@@ -392,6 +396,7 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     act(() => simulee.poser(E_GAMMA, { affiche: "en-cours" }));
     relancer(onglet, options);
     await screen.findByText(INVITATION_PREMIERE_PAGE);
+    // F-035-AC1 : même attente, lecture de la région « Synchronisation ».
     await waitFor(() =>
       expect(screen.getByRole("region", { name: "Synchronisation" }).textContent).not.toContain(
         PREMIERE_SYNCHRONISATION,
@@ -425,6 +430,8 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     ]) {
       expect(boite.textContent).toContain(phrase);
     }
+    // F-035-AC1 : attente explicite du focus sur le bouton de la boîte d'alerte.
+    // F-035-AC8 : un focus resté hors de la boîte fait échouer cette assertion nommée (preuve locale au rapport).
     await waitFor(() =>
       expect(document.activeElement).toBe(within(boite).getByRole("button", { name: "Annuler" })),
     );
@@ -519,6 +526,7 @@ describe("clavier (F-032-AC29)", () => {
     await onglet.utilisateur.keyboard("{Enter}");
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_GAMMA)));
     await waitFor(() => expect(document.activeElement).toBe(selecteur()));
+    // F-035-AC1 : attente explicite de l'annonce avant l'assertion.
     await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
   });
 });

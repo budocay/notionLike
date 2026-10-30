@@ -318,6 +318,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
     expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
+    // F-035-AC3 : même motif, annonce lue après une action asynchrone, attente ajoutée.
     await waitFor(() => expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1));
     act(() => simulee.avancer(1999));
     // La commande d'un autre espace est désactivée avec sa raison ; l'activer ne fait rien.
@@ -350,6 +351,7 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
 
     const boite = await screen.findByRole("alertdialog");
     expect(within(boite).getByText(modificationsNonTransmises("Alpha"))).toBeDefined();
+    // F-035-AC1 : attente explicite du focus sur « Rester sur cet espace ».
     await waitFor(() =>
       expect(document.activeElement).toBe(
         within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
@@ -441,6 +443,7 @@ describe("modifications enregistrées nulle part (F-032-AC13, AC29)", () => {
     expect(within(boite).getByText(modificationsEnregistreesNullePart("Alpha"))).toBeDefined();
     expect(simulee.attentes).toEqual([]);
     const rester = within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE });
+    // F-035-AC3 : même motif, focus attendu avant lecture.
     await waitFor(() => expect(document.activeElement).toBe(rester));
     await onglet.utilisateur.tab();
     await onglet.utilisateur.tab();
