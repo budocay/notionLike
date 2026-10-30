@@ -319,3 +319,8 @@
 2026-10-28T16:27:09Z | agent-securite | F-020 | SECURITY GATE: PASS | eaa38831f221
 2026-10-28T16:29:37Z | agent-architecte | F-020 | ARCHITECTURE GATE: UNVERIFIED | eaa38831f221
 2026-10-28T16:29:37Z | agent-craft | F-020 | CRAFT GATE: PASS | eaa38831f221
+2026-10-28T16:44:40Z | reviewer-frontend | F-020 | APPROVED | 90d768bf2f44
+2026-10-28T16:45:58Z | agent-securite | F-020 | SECURITY GATE: PASS | 90d768bf2f44
+2026-10-28T16:46:00Z | agent-architecte | F-020 | UNVERIFIED (la commande de gate a échoué (code 1), voir /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md et /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md.err) | 90d768bf2f44
+2026-10-28T16:46:00Z | agent-craft | F-020 | CRAFT GATE: PASS | 90d768bf2f44
+2026-10-30T07:31:25Z | agent-architecte | F-020 | ARCHITECTURE GATE: PASS | 90d768bf2f44
