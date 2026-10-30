@@ -1,6 +1,6 @@
 # ROADMAP — notionLike
 
-Dernière mise à jour : 2026-10-30
+Dernière mise à jour : 2026-10-23
 
 Source du besoin : `.agents/fiche.yaml`. Trente-trois features ont une spec (`specs/F-001.md` à `specs/F-033.md`) ; toutes portent `Statut : validée` au 2026-10-23 (relu à leur ligne `Statut :` ; F-032 revalidée par le dev le 2026-10-21, `78ce6bc`). Vingt-deux sont terminées et fusionnées dans `main` (section « Terminé »), dont F-006 (`c58fd89`), F-005 (`57f01aa`), F-033 (`99460ef`) et F-018 (`d592ad8`) ; deux sont en cours (section « En cours ») : F-032, code livré et en revue, et F-015, conception faite et spec revalidée, code après F-032 ; neuf restent à faire. Les titres, les tiers, les agents et les dépendances de chaque ligne sont ceux de l'en-tête de sa spec. L'historique détaillé de la planification jusqu'au 2026-10-08 reste sur les branches d'archive `planification-reunie` (tête `e92f43c` côté planification) et `F-008` (`5ab0d0b`) ; celui des décisions d'ordonnancement jusqu'au 2026-10-13 se lit dans les versions précédentes de ce fichier (`git log -- ROADMAP.md`).
 
@@ -64,7 +64,6 @@ Préalable de la CI (décision du 2026-10-16) : levé, CI en place.
 
 Ordre donné par le dev le 2026-10-16 : F-028 (livrée), F-005, F-006, F-015, F-016, F-017, F-018, puis le reste dans l'ordre de la liste ; F-031 placée en tête par sa décision du même jour (« pile Docker d'abord ») ; F-032 placée juste avant F-015 par sa décision du même jour (F-015 H12). F-028, F-006, F-017, F-031, F-005 et F-018 sont terminées, comme F-033, ajoutée le 2026-10-21 ; F-032 et F-015 sont en cours (section « En cours »).
 
-- [ ] F-046 Stabilité de `synchro-document.test.ts` : erreur non gérée à la fermeture des clients, délai sous charge (D-028) — tier: standard — dépend de: F-012 (livrée) — agents: agent-backend — spec: specs/F-046.md (brouillon, à valider par le dev) — branche `F-046`, worktree `notionLike-F-046` ; fait échouer le contrôle `tests` de tous les dossiers de revue : à livrer avant les prochaines revues
 - [ ] F-016 Commentaires sur une page — tier: structurel — dépend de: F-013 — agents: agent-veille, agent-architecte-conception, agent-frontend — spec: specs/F-016.md (validée)
 - [ ] F-019 Filtres et tris d'une vue — tier: standard — dépend de: F-018 — agents: agent-frontend (agent-veille sur déclencheur) — spec: specs/F-019.md (validée)
 - [ ] F-020 Vue kanban — tier: standard — dépend de: F-006, F-018 — agents: agent-veille, agent-frontend — spec: specs/F-020.md (validée ; veille de F-020 H6 avant le code)
