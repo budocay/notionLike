@@ -14,6 +14,7 @@ import {
   ecrireNouvelleOption,
   ecrireRang,
   ecrireSuppression,
+  lireColonnes,
   lireEntrees,
   type RangAdmis,
   type RefusDuDocument,
@@ -78,17 +79,52 @@ export function creerDocumentTable(): DocumentTable {
   return ouvrirDocumentTable(new Y.Doc({ gc: true }));
 }
 
+/**
+ * Ordre lu des lignes retenues (identifiants et rangs), gardé par la façade entre deux créations
+ * (F-034, D-041) : `creerLigne` n'a besoin que de lui, et le relire en entier à chaque création rend
+ * n créations quadratiques. Il n'est valide que si aucune transaction autre que la création
+ * elle-même n'a touché le document depuis qu'il a été lu.
+ */
+interface OrdreDesLignes {
+  ids: string[];
+  rangs: string[];
+  valide: boolean;
+  /** Transaction ouverte par la création en cours : la seule dont l'effet est déjà dans l'ordre. */
+  propre: Y.Transaction | null;
+}
+
 export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   let lecture = lectureDe(doc);
+  let perimee = false;
   let fermee = false;
   const abonnes = new Set<() => void>();
+  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null };
+
+  // Sans abonné, personne n'attend la relecture : elle se fait à la prochaine lecture ou au prochain
+  // abonnement, et rend la même référence tant que la table lue n'a pas changé.
+  const rafraichir = (): void => {
+    if (perimee) {
+      perimee = false;
+      const relue = lectureDe(doc);
+      if (!memeLecture(relue, lecture)) {
+        lecture = relue;
+      }
+    }
+  };
 
   // Une notification par transaction qui change la table lue, ou qui fait entrer dans un refus ou en
   // sortir (F-017-AC9) : ni `afterTransaction` ni `observeDeep` ne le disent seuls (veille, constat 4).
-  const apresTransaction = (): void => {
+  const apresTransaction = (transaction: Y.Transaction): void => {
     // Yjs appelle les écouteurs présents au début de l'émission : celui d'une façade fermée entre-temps
     // ne doit ni relire ni notifier.
     if (fermee) {
+      return;
+    }
+    if (transaction !== ordre.propre) {
+      ordre.valide = false;
+    }
+    if (abonnes.size === 0) {
+      perimee = true;
       return;
     }
     const relue = lectureDe(doc);
@@ -110,11 +146,15 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
 
   return {
     doc,
-    lire: () => (typeof lecture === "string" ? refuser(lecture) : lecture),
+    lire: () => {
+      rafraichir();
+      return typeof lecture === "string" ? refuser(lecture) : lecture;
+    },
     abonner: (rappel) => {
       if (fermee) {
         return () => undefined;
       }
+      rafraichir();
       const notifier = (): void => rappel();
       abonnes.add(notifier);
       return () => void abonnes.delete(notifier);
@@ -130,7 +170,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     deplacerOption: (colonne, option, position) =>
       ouverte(() => deplacerOption(doc, colonne, option, position)),
     retirerOption: (colonne, option) => ouverte(() => retirerOption(doc, colonne, option)),
-    creerLigne: (valeurs, position) => ouverte(() => creerLigne(doc, valeurs, position)),
+    creerLigne: (valeurs, position) => ouverte(() => creerLigne(doc, ordre, valeurs, position)),
     deplacerLigne: (ligne, position) => ouverte(() => deplacerLigne(doc, ligne, position)),
     supprimerLigne: (ligne) => ouverte(() => supprimerLigne(doc, ligne)),
     ecrireCellule: (ligne, colonne, valeur) =>
@@ -479,20 +519,58 @@ function cellulesInitiales(
   return cellules;
 }
 
+function relireOrdre(doc: Y.Doc, ordre: OrdreDesLignes): void {
+  const etat = lireEtat(doc);
+  ordre.ids = identifiants(etat.table.lignes);
+  ordre.rangs = [...etat.rangsDesLignes];
+  ordre.valide = true;
+}
+
+// L'ordre reste celui que la lecture donnerait : la ligne créée prend sa position, et les lignes
+// réattribuées gardent la leur, leurs rangs restant strictement croissants (F-029).
+function inscrireCreation(
+  ordre: OrdreDesLignes,
+  id: string,
+  position: number,
+  place: Placement,
+): void {
+  ordre.ids.splice(position, 0, id);
+  ordre.rangs.splice(position, 0, place.rang);
+  if (place.reattribues.size > 0) {
+    ordre.ids.forEach((autre, indice) => {
+      const rang = place.reattribues.get(autre);
+      if (rang !== undefined) {
+        ordre.rangs[indice] = rang;
+      }
+    });
+  }
+}
+
+// Seules les colonnes sont lues, puis l'ordre des lignes si la façade ne l'a pas déjà : le coût d'une
+// création ne croît plus avec les lignes présentes (F-034). Ordre des contrôles inchangé : colonnes,
+// valeurs, position, puis `rang-indisponible` (F-029-AC10).
 function creerLigne(
   doc: Y.Doc,
+  ordre: OrdreDesLignes,
   valeurs: ReadonlyMap<IdColonne, ValeurDeCellule | null> | undefined,
   position: number | undefined,
 ): IdLigne {
-  const etat = lireEtat(doc);
-  const cellules = cellulesInitiales(etat, valeurs ?? new Map());
-  const lignes = identifiants(etat.table.lignes);
-  const place = placement(lignes, etat.rangsDesLignes, positionAdmise(position, lignes.length));
+  const cellules = cellulesInitiales(lireEtatTable(lireColonnes(doc), []), valeurs ?? new Map());
+  if (!ordre.valide) {
+    relireOrdre(doc, ordre);
+  }
+  const visee = positionAdmise(position, ordre.ids.length);
+  const place = placement(ordre.ids, ordre.rangs, visee);
   const id = crypto.randomUUID();
-  doc.transact(() => {
+  doc.transact((transaction) => {
+    ordre.propre = transaction;
     ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
     ecrireReattribues(doc, place.reattribues, ligneVisee);
   });
+  ordre.propre = null;
+  if (ordre.valide) {
+    inscrireCreation(ordre, id, visee, place);
+  }
   return id;
 }
 

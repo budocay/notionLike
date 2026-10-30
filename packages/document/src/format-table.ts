@@ -208,6 +208,11 @@ export function lireEntrees(doc: Y.Doc): EntreesDeTable {
   };
 }
 
+/** Les seules colonnes, sans parcourir les lignes (F-034 : une création n'a pas à relire la table). */
+export function lireColonnes(doc: Y.Doc): readonly EntreeColonne[] {
+  return lireRacine(doc, TYPE_COLONNES, lireColonne);
+}
+
 /**
  * Seul point de contrôle du rang écrit (F-029-AC6, ADR-0016) : toute écriture de `rang` exige un
  * `RangAdmis`, obtenu ici avant l'ouverture de la transaction. Un rang non admis est refusé par
