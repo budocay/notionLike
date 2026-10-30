@@ -64,6 +64,23 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - **Seconde barrière inchangée** : la réplique de la page affichée (`apps/web/src/synchronisation/miroir.ts`, `lireVersionPage`) ne juge que le numéro ; un tel élément la passe, comme une entrée mal formée (amendement F-012 et F-013), et c'est la façade qui le refuse.
 - **Couture** : `packages/document/test/formes-forgees.test.ts` énumère les appelants de `lireFormeStockee` dans les sources et éprouve l'ouverture de chacun, dont `document-page.ts` (F-018-AC58).
 
+### Amendement F-044 (2026-10-30) : copie du contenu d'une page
+
+Statut : proposé. Spec : `specs/F-044.md` (validée, H4). Note de conception : `docs/decisions/F-044-conception.md`.
+
+Contexte : « Enregistrer comme modèle » et « Nouvelle page depuis un modèle » copient le contenu d'un document de page dans un autre, sans identifiant Yjs partagé, en gardant la version de la source (F-044-AC5).
+
+Options étudiées :
+
+- A. Encoder l'état de la source et l'appliquer à la cible (`encodeStateAsUpdate`). Écarté : la cible partagerait les identifiants d'éléments et l'historique de la source ; une modification de l'une se fondrait dans l'autre si les deux mises à jour se rencontraient.
+- B. `clone()` de Yjs sur chaque nœud. Écarté : il recopie tout, y compris un nœud, un attribut ou une marque forgés que la version de la source n'admet pas.
+- C. **Copie filtrée par la table des versions** (retenue), dans `@notionlike/document`.
+
+Décision :
+
+- Opération `copierDe(source)` de la façade `DocumentPage`, dans `packages/document/src/copie-de-page.ts`. Une transaction sur la cible : la version de la cible est portée au moins à celle de la source, puis le contenu de la cible est remplacé par des éléments neufs (`Y.XmlElement`, `Y.XmlText` par `applyDelta`) qui ne gardent que les nœuds, attributs et marques de la dernière ligne de `TABLE_DES_VERSIONS_PAGE`. Un nœud non admis est omis avec son sous-arbre. Rien n'est écrit dans la source.
+- La façade ne rend toujours pas le `Y.Doc` ; `apps/web` n'importe pas Yjs pour copier.
+
 ## Conséquences
 
 - Entorse à l'ADR-0003 : le paquet expose un type partagé, le fragment du contenu. Le reste du format (noms des types racines, forme de la version) n'en sort pas.
@@ -73,3 +90,5 @@ Statut : accepté par le dev le 2026-10-21, avec l'amendement F-018 de l'ADR-000
 - Un document conservé par le client et par le serveur garde le tableau `versions` pour toujours ; il ne grandit que d'une entrée par version atteinte et par réplique qui l'élève.
 - Amendement F-012 et F-013 : la page affichée vit en deux `Y.Doc` dans l'onglet, le document lié et sa réplique, chacun avec l'état complet de la page ; la mémoire d'une page affichée double.
 - Amendement F-018 : un document de page qui porte déjà un élément non compté dans `versions` (forgé hors de l'application ; le serveur ne lit pas la page) s'ouvrait avant F-018 et est désormais refusé par la façade, qui n'y retire rien. Seule une mise à jour qui supprime l'élément le rend lisible ; aucun code de l'application ne l'écrit, et aucune réparation n'est prévue.
+- Amendement F-044 : une page copiée ne garde aucun lien avec sa source ; son historique commence à la copie. Ce qui n'est pas admis par la version courante n'est pas recopié : une copie peut être plus courte qu'une source forgée, jamais plus longue.
+- Amendement F-044 : la copie et la création de l'entrée de page touchent deux documents et ne sont pas atomiques : une interruption laisse une page au bon titre et au contenu vide.

@@ -176,6 +176,26 @@ Relevé sur la branche `F-018` à `d4fb6e5` (paquet : `c4e891c`, `60258d0` ; ser
 - **Élément non compté dans `versions`** : `lireFormeStockee` (`format-page.ts`) parcourt les éléments du type, supprimés exceptés, et rend la forme non admise dès qu'un élément n'est pas compté (attribut de mise en forme d'un `Y.Text` écrit sous ce nom), ce que `forEach` et `toArray` passaient sous silence. La fonction étant commune, la règle vaut aussi pour la version des documents de page (ADR-0009) et de table (ADR-0016) : un tel document de page ou de table est désormais refusé par sa façade. Le serveur refuse de même la mise à jour qui l'apporte dans un document d'espace.
 - **Règle du serveur, telle qu'écrite** (`versionAdmiseApres`, `apps/server/src/synchro-stockage.ts`, sans `@notionlike/document`) : après la mise à jour, le document doit être bien formé (`meta.version` absente ou entier supérieur ou égal à 1, `meta` sans contenu de liste, `versions` sans entrée nommée ni élément non compté, chaque entrée un tel entier), sa version lue dans `VERSION_DU_DOCUMENT_D_ESPACE.admises` (`[1, 2]`), et ni la version lue ni `meta.version` (clé absente comptée 1) ne doivent avoir baissé. La baisse ne se juge que si le document d'avant était bien formé : un document déjà mal formé n'a pas de version à défendre, seul l'après compte. La table des cas forgés est tenue en un seul endroit (`apps/server/test/aides-versions.ts`), et sa couture la joue contre la lecture du paquet (`refuseParLePaquet`).
 
+### Amendement F-044 (2026-10-30) : modèles de page
+
+Statut : proposé. Spec : `specs/F-044.md` (validée). Note de conception : `docs/decisions/F-044-conception.md`.
+
+Contexte : F-044 ajoute des modèles de page, listés hors de l'arborescence. H2 en fait des entrées du document d'espace ; H3 demande s'il faut élever la version du format (2).
+
+Options étudiées :
+
+- A. Document dédié aux modèles de l'espace. Écarté par H2 : second document par espace, nouvelle autorisation côté serveur.
+- B. Entrée marquée, version 3 du document d'espace. Écarté : toute application de la version 2 refuserait l'espace entier (garde du serveur, F-018-AC57) pour éviter un affichage dégradé ; changement de `packages/contrats` et du serveur.
+- C. **Entrée marquée, sans élévation** (retenue) : une application de la version 2 ignore le champ et lit le modèle comme une page de la racine, sans rien perdre.
+
+Décision :
+
+- **Champ `modele`** d'une entrée de `pages`, écrit `true` dans la transaction qui crée l'entrée (`ecrireNouvellePage`, complétée de ce champ), jamais réécrit ni retiré par le module. Une entrée est un modèle si et seulement si `modele === true` et son type se lit `page` ; toute autre valeur, ou une marque sur une table, est ignorée et l'entrée se lit comme avant.
+- **Lecture de l'arborescence** : les modèles sont écartés avant la construction de l'arbre ; ni `racines` ni `corbeille` de `lire()` n'en contiennent. Une entrée dont le parent enregistré est un modèle se lit à la racine, comme un parent qui ne désigne aucune entrée.
+- **Lecture des modèles** : `lireModeles()`, de type `Arborescence` : `racines`, les modèles hors corbeille, à plat ; `corbeille`, les modèles jetés. Ordre : rang, puis identifiant. Le parent et la place d'un modèle ne sont pas lus pour l'arbre ; son rang ordonne la section.
+- **Écritures** : `creerModele(titre)` crée l'entrée à la racine, rang après le dernier modèle. Renommer, jeter, restaurer et supprimer définitivement s'appliquent à un modèle comme à une page ; un modèle restauré reste un modèle. Déplacer un modèle, ou créer une page ou une table sous un modèle, est refusé (`page-introuvable`).
+- **Version** : inchangée (2). `VERSION_DU_DOCUMENT_D_ESPACE` de `packages/contrats` et la garde du serveur ne changent pas.
+
 ## Conséquences
 
 - La convergence (F-001-AC7) découle de celle de Yjs : la lecture étant une fonction pure de l'état, deux répliques de même état lisent la même chose. C'est vérifiable par des tests de propriétés.
@@ -195,3 +215,6 @@ Relevé sur la branche `F-018` à `d4fb6e5` (paquet : `c4e891c`, `60258d0` ; ser
 - Amendement F-018 : trois formats partagent désormais le type racine `versions` et sa fonction de lecture (`format-page.ts`) : changer cette forme change celle des trois documents. Un document d'espace ne peut toujours pas être pris pour une table (il a `meta` et `pages`, hors de la liste blanche de l'ADR-0016).
 - Amendement F-018, addendum du 2026-10-21 : un document d'espace que le serveur porte déjà sous une forme désormais refusée (contenu de liste sous `meta` ou élément non compté dans `versions`, admis par le serveur de F-012 avant F-018) n'est plus lu par aucune application de F-018 (espace refusé), et le serveur n'y admet plus qu'une mise à jour qui le rend bien formé : pour un élément non compté, celle qui le supprime (les éléments supprimés ne comptent pas) ; pour un contenu de liste sous `meta`, aucune, un élément supprimé restant dans la chaîne que lisent les deux côtés (`_start`), si bien que le document est figé, sans rien en retirer. Aucun code de l'application n'écrit cette suppression. Le cas suppose un `editeur` qui forge sa mise à jour hors de l'application avant le déploiement de F-018 ; aucune réparation n'est prévue.
 - Amendement F-018 : le type d'une page n'est protégé par rien d'autre que l'absence d'opération qui l'écrive ; un pair qui contourne le module peut réécrire `type` d'une entrée existante (dernière écriture gagne) et faire d'une page une table ou l'inverse. Le contenu n'est pas perdu (les documents `page:` et `table:` sont distincts, F-012 H2), mais l'écran ouvre l'autre document, vide. Le serveur ne lit pas les entrées (amendement F-012).
+- Amendement F-044 : une application de la version 2 affiche les modèles comme des pages de la racine ; elle peut les renommer, les déplacer, les jeter ou leur créer des sous-pages, sans effacer la marque. Ces sous-pages se lisent à la racine dans l'application courante. Dégradation acceptée, sans perte.
+- Amendement F-044 : un modèle et ses éventuels descendants forgés ne sont jamais visibles dans l'arbre lu ; tout code qui doit voir les modèles passe par `lireModeles()`. Revenir sur la marque (vers un document dédié) demanderait de recopier chaque modèle.
+- Amendement F-044 : un modèle reste une page pour la base locale, la synchronisation, les droits et l'effacement (F-018-AC49) : le serveur n'a rien à distinguer.
