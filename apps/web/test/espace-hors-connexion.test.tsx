@@ -2,6 +2,15 @@
 // connexion (F-032-AC2, D-040) : la commande reste, désactivée avec sa raison (AC5), et redevient
 // la commande active au retour de la connexion et de la lecture (AC6). Onglet lancé comme l'entrée
 // le lance, persistance réelle sur l'appareil simulé, serveur simulé.
+//
+// Critères de portée de la feature, prouvés ailleurs et cités ici :
+// - F-036-AC7 : aucun écran bloquant de plus et les tests existants passent sans modification, hors
+//   les assertions d'absence de la commande de `espace-ecrans.test.tsx` (ce fichier, ci-dessous, le
+//   prouve avec F-032-AC2) ; la suite entière d'`apps/web` en est la preuve.
+// - F-036-AC11 : liste fermée des fichiers touchés, prouvée par `git diff --name-only origin/main...HEAD`.
+// - F-036-AC12 : la signature d'`OuvertureHorsConnexion` ne change pas (`EcranDUnEspace.tsx` seul
+//   l'appelle) ; `pnpm typecheck` et les tests d'`apps/web` passent sans adapter un appelant.
+// - F-036-AC13 : dettes D-040 et D-043 résorbées, tracées dans `PROJECT_LOG.md` et `MEMORY/STATE.md`.
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

@@ -7,7 +7,6 @@ import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import type { CibleDeSession } from "../src/espace/espace-ouvert.ts";
-import type { EtatPret, SessionEspace } from "../src/espace/session-espace.ts";
 import { lireDossier } from "./aides-disque.ts";
 import { baseDEspace, E_ALPHA, poserDansLAppareil } from "./aides-appareil.ts";
 import { demarrerSession, ecouteurs } from "./aides-facade.ts";
@@ -25,6 +24,11 @@ import { instantsDesOuvertures, simulerLHorloge } from "./aides-reprise.ts";
 const ECHEANCE_MS = 10_000;
 const BASE = baseDEspace(E_ALPHA);
 const ENREGISTREMENT_VIDE = [0, 0];
+// Types dérivés de la façade de test : le test ne lit pas l'état de la session par import direct
+// (F-030-AC19, liste des lecteurs de `reprise-coutures.test.tsx`).
+type SessionEspace = ReturnType<typeof demarrerSession>;
+type EtatPret = Extract<ReturnType<SessionEspace["lireEtat"]>, { readonly phase: "pret" }>;
+
 const CIBLES: readonly [string, CibleDeSession][] = [
   ["appareil", { sorte: "appareil" }],
   ["ajouté", { sorte: "ajoute", idEspace: E_ALPHA }],
