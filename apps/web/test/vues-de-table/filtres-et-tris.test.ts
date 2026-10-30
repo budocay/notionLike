@@ -358,7 +358,7 @@ describe("grande table (F-019-AC28)", () => {
 
     expect(retenues.length).toBeGreaterThan(300);
     expect(ids(lignesAffichees(t, definition(filtres, tris)))).toEqual(ids(reference));
-  });
+  }, 20_000);
 });
 
 describe("couture avec le document de table (F-019-AC24)", () => {

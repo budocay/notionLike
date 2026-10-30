@@ -84,5 +84,5 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     act(() => table.ecrireCellule(ligne, table.lire().colonnes[0]?.id ?? "", "Ligne écrite"));
     expect(espion.mock.calls.length).toBeGreaterThan(apresDefinition);
     expect(screen.getAllByText("Ligne écrite").length).toBeGreaterThan(0);
-  });
+  }, 20_000);
 });

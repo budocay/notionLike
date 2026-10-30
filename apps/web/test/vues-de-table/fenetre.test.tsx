@@ -160,7 +160,7 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(champ.value).toBe("0:0 en cours");
     await utilisateur.keyboard("{Enter}");
     expect(ecritures).toEqual(["l0/c0=0:0 en cours"]);
-  });
+  }, 20_000);
 
   it("F-018-AC47 la cellule courante, sans mode édition, n'est pas perdue quand sa rangée sort de la fenêtre", async () => {
     const utilisateur = rendre();

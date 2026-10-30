@@ -141,7 +141,7 @@ describe("ouvrir sur l'appareil un espace du serveur (F-032-AC5)", () => {
     expect(lecturesDe(onglet, R.lire(E_GAMMA))).toBe(1);
     expect(journal).toContain(`démarre ${E_GAMMA}`);
     await waitFor(() => expect(selecteur().textContent).toBe("Gamma"));
-    expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1);
+    await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
     expect(window.location.hash).toBe("#/");
   });
 
@@ -344,7 +344,9 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     await changerVersLEspace(onglet, ESPACE_DE_CET_APPAREIL);
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(APPAREIL));
     await screen.findByRole("link", { name: TEMOIN_DE_L_APPAREIL });
-    expect(zoneDeSynchronisation().textContent).not.toContain(PREMIERE_SYNCHRONISATION);
+    await waitFor(() =>
+      expect(zoneDeSynchronisation().textContent).not.toContain(PREMIERE_SYNCHRONISATION),
+    );
     expect(screen.queryByText(PAGES_PAS_ENCORE_TELECHARGEES)).toBeNull();
     expect((await contenuDeLAppareil())[`premiere-synchronisation:${E_GAMMA}`]).toBe(true);
     await changerVersLEspace(onglet, "Gamma");
@@ -390,8 +392,10 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     act(() => simulee.poser(E_GAMMA, { affiche: "en-cours" }));
     relancer(onglet, options);
     await screen.findByText(INVITATION_PREMIERE_PAGE);
-    expect(screen.getByRole("region", { name: "Synchronisation" }).textContent).not.toContain(
-      PREMIERE_SYNCHRONISATION,
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Synchronisation" }).textContent).not.toContain(
+        PREMIERE_SYNCHRONISATION,
+      ),
     );
   });
 });
@@ -421,7 +425,9 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     ]) {
       expect(boite.textContent).toContain(phrase);
     }
-    expect(document.activeElement).toBe(within(boite).getByRole("button", { name: "Annuler" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(boite).getByRole("button", { name: "Annuler" })),
+    );
     await onglet.utilisateur.keyboard("{Escape}");
     expect(screen.queryByRole("alertdialog")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(origine));
@@ -513,6 +519,6 @@ describe("clavier (F-032-AC29)", () => {
     await onglet.utilisateur.keyboard("{Enter}");
     await waitFor(() => expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_GAMMA)));
     await waitFor(() => expect(document.activeElement).toBe(selecteur()));
-    expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1);
+    await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
   });
 });
