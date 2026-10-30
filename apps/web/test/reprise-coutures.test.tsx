@@ -61,6 +61,9 @@ const APPELANTS_DE_PRODUCTION: Readonly<Record<string, string>> = {
     "lit l'état de la persistance d'une table, s'y abonne, lui soumet l'état relu, la ferme sur un refus",
   // F-018-AC40 : lit et écrit les réglages de vue, sans persistance de document.
   "src/vues-de-table/use-reglages.ts": "lit et écrit les réglages de vue de la table affichée",
+  // F-020-AC4 : lit et écrit la section `kanban` des réglages de vue, sans persistance de document.
+  "src/vues-de-table/kanban/use-regroupement.ts":
+    "lit et écrit la colonne de regroupement du kanban",
   // F-032-AC19 : la mémoire de l'appareil, sans persistance de document.
   "src/espace/appareil.ts":
     "lit et écrit ce que la base de l'appareil retient des espaces (registre, noms, marque, retenu)",
@@ -298,6 +301,7 @@ describe("appelants de l'interface de persistance", () => {
         "soumettreLEtatRelu",
       ],
       "src/vues-de-table/use-reglages.ts": [],
+      "src/vues-de-table/kanban/use-regroupement.ts": [],
       // F-032 : aucune persistance de document, seulement la base de l'appareil.
       "src/espace/appareil.ts": [],
     });

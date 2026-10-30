@@ -1,5 +1,6 @@
-// Le geste de glisser-déposer d'une liste (F-006-AC1, AC7, AC8, AC36, ADR-0015) : seul fichier, avec
-// les autres de ce module, qui emploie la bibliothèque. Il ne porte que le geste : ni document, ni
+// Le geste de glisser-déposer d'une liste (F-006-AC1, AC7, AC8, AC36, ADR-0015) et de piles (F-020 :
+// `PilesGlissables`, plusieurs listes liées) : seul fichier, avec les autres de ce module, qui
+// emploie la bibliothèque. Il ne porte que le geste : ni document, ni
 // destination, ni texte ; ce qu'une zone admet, ce que fait le lâcher et ce qui est annoncé lui sont
 // donnés par l'application.
 import {
@@ -18,8 +19,9 @@ import {
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
+import { useZoneDePile, type ZoneDePile } from "./element.ts";
 import { ContexteDuSurvol, type Survol } from "./survol.ts";
-import { type ZoneDeDepot, zoneDuPoint } from "./zone.ts";
+import { moitieDuPoint, type ZoneDeDepot, zoneDuPoint } from "./zone.ts";
 
 /** Textes adressés aux technologies d'assistance, fournis par l'application, en français. */
 export interface AnnoncesDuGlisser {
@@ -212,5 +214,208 @@ export function ListeGlissable(props: ProprietesListeGlissable): ReactElement {
         <ContexteDuSurvol value={geste.survol}>{props.children}</ContexteDuSurvol>
       </SortableContext>
     </DndContext>
+  );
+}
+
+// ——— Éléments répartis en plusieurs conteneurs : les piles d'un kanban (F-020-AC12, AC21, AC25) ———
+//
+// Un `DndContext`, un `SortableContext` par pile et chaque pile aussi zone de dépôt (H6, veille du
+// 2026-10-27). La bibliothèque ne déplace rien d'une pile à l'autre : ce module ne dit que la nature
+// de la cible (une carte ou une pile) et la pile ; le rang d'insertion est calculé par l'application
+// (indice de la carte pour une cible carte, fin de pile pour une cible pile). Au pointeur seul : aucun
+// capteur clavier n'est enregistré pour les piles, l'équivalent au clavier est fait de commandes
+// (F-020-AC13).
+
+/** Où la carte glissée tombe : sur une carte (avant ou après elle) ou sur une pile. */
+export interface DepotSurUnePile {
+  readonly sorte: "carte" | "pile";
+  readonly actif: string;
+  /** La pile de destination : celle de la carte survolée, ou la pile survolée. */
+  readonly pile: string;
+  /** La carte survolée, pour une cible carte. */
+  readonly cible: string | undefined;
+  /** Moitié de la carte survolée, pour une cible carte. */
+  readonly zone: "avant" | "apres" | undefined;
+}
+
+/** Textes adressés aux technologies d'assistance pour les piles, fournis en français par l'application. */
+export interface AnnoncesDesPiles {
+  readonly instructions: string;
+  saisie(actif: string): string;
+  survol(actif: string, depot: DepotSurUnePile | undefined): string;
+  depot(actif: string, depot: DepotSurUnePile | undefined): string;
+  abandon(actif: string): string;
+}
+
+export interface ProprietesPilesGlissables {
+  /** Identifiants des cartes et des piles affichées : un geste dont l'un a disparu n'écrit rien. */
+  readonly identifiants: readonly string[];
+  /** Vrai : aucun geste ne démarre (lecture seule, saisie ouverte). */
+  readonly desactivee: boolean;
+  readonly surLacher: (depot: DepotSurUnePile) => void;
+  readonly annonces: AnnoncesDesPiles;
+  /** Vrai : le geste ne vise que des piles, jamais une place entre deux cartes (un seul repère par pile). */
+  readonly repereParPile?: boolean | undefined;
+  readonly children: ReactNode;
+}
+
+interface DonneesDeCible {
+  readonly pile?: boolean;
+  readonly sortable?: { readonly containerId?: unknown };
+}
+
+function depotDe(evenement: DragMoveEvent, parPile: boolean): DepotSurUnePile | undefined {
+  const { over, active } = evenement;
+  if (over === null) {
+    return undefined;
+  }
+  const donnees = (over.data.current ?? {}) as DonneesDeCible;
+  const actif = String(active.id);
+  if (donnees.pile === true) {
+    return { sorte: "pile", actif, pile: String(over.id), cible: undefined, zone: undefined };
+  }
+  const conteneur = donnees.sortable?.containerId;
+  if (typeof conteneur !== "string") {
+    return undefined;
+  }
+  if (parPile) {
+    return { sorte: "pile", actif, pile: conteneur, cible: undefined, zone: undefined };
+  }
+  // Sur sa propre place : la carte y reste (ni abandon, ni déplacement).
+  if (over.id === active.id) {
+    return { sorte: "carte", actif, pile: conteneur, cible: actif, zone: undefined };
+  }
+  const ordonnee = ordonneeDuGeste(evenement);
+  if (ordonnee === undefined) {
+    return undefined;
+  }
+  const zone = moitieDuPoint({ haut: over.rect.top, hauteur: over.rect.height }, ordonnee);
+  return { sorte: "carte", actif, pile: conteneur, cible: String(over.id), zone };
+}
+
+function survolDuDepot(depot: DepotSurUnePile | undefined): Survol | undefined {
+  return depot === undefined || depot.cible === depot.actif
+    ? undefined
+    : {
+        actif: depot.actif,
+        cible: depot.cible ?? depot.pile,
+        zone: depot.zone ?? "dans",
+      };
+}
+
+function annoncesDesPilesDe(
+  annonces: AnnoncesDesPiles,
+  depotCourant: () => DepotSurUnePile | undefined,
+): Announcements {
+  return {
+    onDragStart: ({ active }) => annonces.saisie(String(active.id)),
+    onDragOver: ({ active, over }) =>
+      over === null || over.id === active.id
+        ? undefined
+        : annonces.survol(String(active.id), depotCourant()),
+    onDragEnd: ({ active }) => annonces.depot(String(active.id), depotCourant()),
+    onDragCancel: ({ active }) => annonces.abandon(String(active.id)),
+  };
+}
+
+// Le dernier dépôt survolé reste lu jusqu'au geste suivant : l'annonce du dépôt, émise après le
+// lâcher, le nomme encore. Une carte ou une pile qui n'est plus affichée n'est plus une cible.
+function useSuiviDesPiles(props: ProprietesPilesGlissables) {
+  const [survol, setSurvol] = useState<Survol | undefined>(undefined);
+  const dernier = useRef<DepotSurUnePile | undefined>(undefined);
+  const recues = useRef(props);
+  useEffect(() => {
+    recues.current = props;
+  });
+  const affiche = (depot: DepotSurUnePile | undefined): DepotSurUnePile | undefined =>
+    depot !== undefined &&
+    [depot.actif, depot.pile, depot.cible ?? depot.pile].every((id) =>
+      recues.current.identifiants.includes(id),
+    )
+      ? depot
+      : undefined;
+  const suivre = (evenement: DragMoveEvent): void => {
+    dernier.current = affiche(depotDe(evenement, recues.current.repereParPile === true));
+    const suivant = survolDuDepot(dernier.current);
+    setSurvol((avant) =>
+      avant?.cible === suivant?.cible && avant?.zone === suivant?.zone ? avant : suivant,
+    );
+  };
+  const { annonces } = props;
+  const accessibilite = useMemo(
+    () => ({
+      announcements: annoncesDesPilesDe(annonces, () => dernier.current),
+      screenReaderInstructions: { draggable: annonces.instructions },
+    }),
+    [annonces],
+  );
+  return {
+    survol,
+    accessibilite,
+    commencer: () => {
+      dernier.current = undefined;
+    },
+    suivre,
+    abandonner: () => setSurvol(undefined),
+    lacher: (evenement: DragMoveEvent) => {
+      suivre(evenement);
+      setSurvol(undefined);
+      // Sur sa propre place, la carte reste où elle est : rien à écrire.
+      if (dernier.current !== undefined && dernier.current.cible !== dernier.current.actif) {
+        recues.current.surLacher(dernier.current);
+      }
+    },
+  };
+}
+
+const CAPTEUR_AU_POINTEUR = { activationConstraint: { distance: DISTANCE_D_ACTIVATION } };
+// Désactivé, le capteur reste en place (la bibliothèque relit la liste des capteurs à chaque rendu et
+// n'admet pas qu'elle change de taille) mais aucune distance ne suffit à démarrer un geste.
+const CAPTEUR_BLOQUE = { activationConstraint: { distance: Number.POSITIVE_INFINITY } };
+
+export function PilesGlissables(props: ProprietesPilesGlissables): ReactElement {
+  const capteurs = useSensors(
+    useSensor(PointerSensor, props.desactivee ? CAPTEUR_BLOQUE : CAPTEUR_AU_POINTEUR),
+  );
+  const geste = useSuiviDesPiles(props);
+  return (
+    <DndContext
+      sensors={capteurs}
+      collisionDetection={pointerWithin}
+      accessibility={geste.accessibilite}
+      onDragStart={geste.commencer}
+      onDragMove={geste.suivre}
+      onDragOver={geste.suivre}
+      onDragCancel={geste.abandonner}
+      onDragEnd={geste.lacher}
+    >
+      <ContexteDuSurvol value={geste.survol}>{props.children}</ContexteDuSurvol>
+    </DndContext>
+  );
+}
+
+function ContenuDePile(props: {
+  readonly id: string;
+  readonly children: (pile: ZoneDePile) => ReactNode;
+}): ReactNode {
+  return props.children(useZoneDePile(props.id));
+}
+
+/** Une pile : ses cartes, dans l'ordre affiché, forment un contexte triable ; elle reçoit aussi un dépôt. */
+export function PileGlissable(props: {
+  readonly id: string;
+  readonly identifiants: readonly string[];
+  readonly desactivee: boolean;
+  readonly children: (pile: ZoneDePile) => ReactNode;
+}): ReactElement {
+  return (
+    <SortableContext
+      id={props.id}
+      items={props.identifiants as string[]}
+      strategy={SANS_ECARTEMENT}
+      disabled={props.desactivee}
+    >
+      <ContenuDePile id={props.id}>{props.children}</ContenuDePile>
+    </SortableContext>
   );
 }

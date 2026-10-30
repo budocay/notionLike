@@ -62,10 +62,13 @@ const COMPOSANTS_CHANGES: Readonly<
       "test/composants.test.tsx",
       // F-018-AC52 : les menus d'en-tête et de ligne de la grille ; leurs entrées portent la raison.
       "src/vues-de-table/VueTableau.tsx",
+      // F-020-AC23 : le menu des actions d'une carte ; ses entrées portent la raison « Lecture seule ».
+      "src/vues-de-table/kanban/VueKanban.tsx",
     ],
     production: {
       "src/interface/RangeePage.tsx": "raison,",
       "src/vues-de-table/menus.ts": "raison,",
+      "src/vues-de-table/kanban/entrees.ts": "raison: lectureSeule",
     },
   },
   Rangee: {
@@ -86,6 +89,8 @@ const TYPES_CHANGES: Readonly<Record<string, readonly string[]>> = {
     "src/interface/composants/MenuActions.tsx",
     // F-018 : les menus de la grille d'une table.
     "src/vues-de-table/menus.ts",
+    // F-020 : les entrées du menu d'une carte.
+    "src/vues-de-table/kanban/entrees.ts",
   ],
   BoutonDeRangee: ["src/interface/composants/Rangee.tsx"],
   EcranBarre: [

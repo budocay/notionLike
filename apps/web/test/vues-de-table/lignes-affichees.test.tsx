@@ -6,6 +6,7 @@
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { nomDeLaPile, nomDeLaVue } from "../../src/vues-de-table/kanban/textes.ts";
 import { nomDeLaGrille, SELECTEUR_DE_VUES } from "../../src/vues-de-table/textes.ts";
 import { avecSelecteur, VUES } from "../../src/vues-de-table/vues.ts";
 import { ESPACE_A } from "../aides-persistance.ts";
@@ -42,6 +43,15 @@ const LECTEURS: Readonly<Record<string, LecteurDeVue>> = {
       return noms;
     },
   },
+  // Les cartes de la pile « Sans valeur » : la table d'essai a une colonne Sélection, sans option.
+  kanban: {
+    estAffichee: () =>
+      screen.queryByRole("group", { name: nomDeLaVue("Budget", "Statut") }) !== null,
+    noms: () =>
+      within(screen.getByRole("group", { name: nomDeLaPile(null, 3) }))
+        .getAllByRole("listitem")
+        .map((carte) => carte.textContent?.replace(/Actions de la carte.*$/, "") ?? ""),
+  },
 };
 
 const CLE = cleDesReglages({ idEspace: ESPACE_A, idTable: TABLE_D_ESSAI });
@@ -57,6 +67,7 @@ describe("lignes affichées (F-018-AC45)", () => {
 
       rendreLaTable((table) => {
         const nom = table.creerColonne("Nom", "texte");
+        table.creerColonne("Statut", "selection");
         for (const texte of ["A", "B", "C", "D", "E"]) {
           table.creerLigne(new Map([[nom, texte]]));
         }

@@ -15,10 +15,11 @@ import {
   TABLE_DE_VERSION_NON_PRISE_EN_CHARGE,
   TABLE_ILLISIBLE,
 } from "./textes.ts";
+import { VueKanban } from "./kanban/VueKanban.tsx";
 import { compilerLesTris, triDeLaColonne } from "./tris.ts";
 import { useAffichage } from "./use-affichage.ts";
 import { useReglages } from "./use-reglages.ts";
-import { avecSelecteur, VUES } from "./vues.ts";
+import { avecSelecteur, VUE_KANBAN, VUES } from "./vues.ts";
 import { VueTableau } from "./VueTableau.tsx";
 
 export interface ProprietesEcranDeTable {
@@ -50,8 +51,55 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
   if (lue === undefined) {
     return <NoteDePage texte={TABLE_DE_VERSION_NON_PRISE_EN_CHARGE} />;
   }
+  const selecteur = avecSelecteur() ? (
+    <SelecteurDeVues
+      nom={SELECTEUR_DE_VUES}
+      vues={VUES}
+      active={reglages.vueActive}
+      surChoix={reglages.choisirLaVue}
+    />
+  ) : undefined;
+  if (reglages.vueActive === VUE_KANBAN) {
+    const tris = compilerLesTris(lue, definition.tris);
+    return (
+      <VueKanban
+        table={table}
+        lue={lue}
+        lignes={affichage.lignes}
+        titre={props.titre}
+        lectureSeule={props.lectureSeule}
+        designation={props}
+        selecteur={selecteur}
+        surveillance={affichage.surveillance}
+        triActif={tris.length > 0}
+      />
+    );
+  }
+  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau ».
+  return (
+    <TableauAffiche
+      {...props}
+      lue={lue}
+      reglages={reglages}
+      affichage={affichage}
+      selecteur={selecteur}
+    />
+  );
+}
+
+interface ProprietesTableauAffiche extends ProprietesEcranDeTable {
+  readonly table: DocumentTable;
+  readonly lue: TableLue;
+  readonly reglages: ReturnType<typeof useReglages>;
+  readonly affichage: ReturnType<typeof useAffichage>;
+  readonly selecteur: ReactElement | undefined;
+}
+
+/** La vue Tableau : la définition de vue, les tris compilés et les largeurs de colonnes. */
+function TableauAffiche(props: ProprietesTableauAffiche) {
+  const { table, lue, reglages, affichage, selecteur } = props;
+  const { definition } = reglages;
   const tris = compilerLesTris(lue, definition.tris);
-  // F-018-AC44 : la vue enregistrée absente de la liste est lue « Tableau » ; la seule livrée.
   return (
     <VueTableau
       table={table}
@@ -72,16 +120,7 @@ function TableAffichee(props: ProprietesEcranDeTable & { readonly table: Documen
       lectureSeule={props.lectureSeule}
       largeurDe={reglages.largeurDe}
       reglerLargeur={reglages.reglerLargeur}
-      selecteur={
-        avecSelecteur() ? (
-          <SelecteurDeVues
-            nom={SELECTEUR_DE_VUES}
-            vues={VUES}
-            active={reglages.vueActive}
-            surChoix={reglages.choisirLaVue}
-          />
-        ) : undefined
-      }
+      selecteur={selecteur}
     />
   );
 }
