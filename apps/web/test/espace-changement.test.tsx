@@ -227,6 +227,7 @@ describe("changement d'espace (F-032-AC10, AC29)", () => {
     await waitFor(() => expect(selecteur().textContent).toBe("Alpha"));
     await waitFor(() => expect(document.activeElement).toBe(selecteur()));
     await waitFor(() => expect(annonces(espaceOuvert("Alpha"))).toHaveLength(1));
+    expect(annonces(espaceOuvert("Alpha"))).toHaveLength(1);
     await waitFor(async () => expect((await contenuDeLAppareil())["espace-retenu"]).toBe(E_ALPHA));
 
     await onglet.utilisateur.click(await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL));
@@ -234,6 +235,7 @@ describe("changement d'espace (F-032-AC10, AC29)", () => {
     expect(await screen.findByRole("link", { name: "Témoin de l'appareil" })).toBeDefined();
     await waitFor(() => expect(selecteur().textContent).toBe(ESPACE_DE_CET_APPAREIL));
     await waitFor(() => expect(annonces(espaceOuvert(ESPACE_DE_CET_APPAREIL))).toHaveLength(1));
+    expect(annonces(espaceOuvert(ESPACE_DE_CET_APPAREIL))).toHaveLength(1);
     await waitFor(async () =>
       expect(await contenuDeLAppareil()).not.toHaveProperty("espace-retenu"),
     );
@@ -320,11 +322,12 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
     // F-035-AC3 : même motif, annonce lue après une action asynchrone, attente ajoutée.
     await waitFor(() => expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1));
+    expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1);
     act(() => simulee.avancer(1999));
     // La commande d'un autre espace est désactivée avec sa raison ; l'activer ne fait rien.
     const versBeta = commande("Bêta");
-    expect(estDesactive(versBeta)).toBe(true);
-    expect(descriptionDe(versBeta)).toBe(CHANGEMENT_D_ESPACE_EN_COURS);
+    await waitFor(() => expect(estDesactive(versBeta)).toBe(true));
+    await waitFor(() => expect(descriptionDe(versBeta)).toBe(CHANGEMENT_D_ESPACE_EN_COURS));
     await onglet.utilisateur.click(versBeta);
     await act(() => laisserIndexedDbTravailler());
     expect(simulee.attentes).toHaveLength(1);
@@ -361,7 +364,8 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
 
     await onglet.utilisateur.keyboard("{Escape}");
 
-    expect(screen.queryByRole("alertdialog")).toBeNull();
+    // Attente positive préalable : le focus sur « Rester sur cet espace » (waitFor ci-dessus) prouve que la boîte était rendue.
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
     await waitFor(() => expect(document.activeElement).toBe(commande(ESPACE_DE_CET_APPAREIL)));
 

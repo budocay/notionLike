@@ -3,6 +3,9 @@
 // persistance réelle sur l'appareil simulé, synchronisation simulée, client des espaces sur un
 // serveur simulé). Ajout (AC5), échecs de l'ajout (AC6), première synchronisation (AC8), retrait
 // (AC20), onglets (AC22), clavier et annonces (AC29), aucune erreur non gérée (AC31).
+// F-035 (attentes sans délai fixe) : F-035-AC2 et F-035-AC9, preuve par le diff (git diff origin/main...HEAD),
+// non par un test ; F-035-AC10, aucun helper créé, pas de couture requise ; F-035-AC11, traçabilité
+// (STATE.md, PROJECT_LOG.md) à la fusion, consignée dans MEMORY/features/F-035.md.
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -124,7 +127,8 @@ describe("ouvrir sur l'appareil un espace du serveur (F-032-AC5)", () => {
     const ouvrir = await screen.findByRole("button", { name: "Ouvrir cet espace : Gamma" });
     await onglet.utilisateur.click(ouvrir);
     await waitFor(() => expect(descriptionDe(ouvrir)).toBe(REQUETE_EN_COURS));
-    expect(estDesactive(ouvrir)).toBe(true);
+    // F-035-AC3 : état désactivé attendu aussi, sans supposer qu'il est rendu avec la description.
+    await waitFor(() => expect(estDesactive(ouvrir)).toBe(true));
     await onglet.utilisateur.click(ouvrir);
     expect(lecturesDe(onglet, R.lire(E_GAMMA))).toBe(1);
     expect(await basesDe(E_GAMMA)).toEqual([]);
@@ -142,9 +146,8 @@ describe("ouvrir sur l'appareil un espace du serveur (F-032-AC5)", () => {
     expect(journal).toContain(`démarre ${E_GAMMA}`);
     await waitFor(() => expect(selecteur().textContent).toBe("Gamma"));
     // F-035-AC1 : attente explicite de l'annonce avant l'assertion, même valeur attendue.
-    // F-035-AC10 : aucun helper créé, pas de couture requise.
-    // F-035-AC2 et F-035-AC9 : preuve par le diff (git diff origin/main...HEAD), non par ce test ; F-035-AC11 : traçabilité (STATE.md, PROJECT_LOG.md) à la fusion, non vérifiée ici.
     await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
+    expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1);
     expect(window.location.hash).toBe("#/");
   });
 
@@ -349,6 +352,7 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     await screen.findByRole("link", { name: TEMOIN_DE_L_APPAREIL });
     // F-035-AC1 : attente explicite de la zone de synchronisation vidée de la marque.
     // F-035-AC4 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
+    // Attente positive préalable : findByRole du lien « Témoin de l'appareil » (ligne précédente) prouve que l'écran est rendu.
     await waitFor(() =>
       expect(zoneDeSynchronisation().textContent).not.toContain(PREMIERE_SYNCHRONISATION),
     );
@@ -397,6 +401,7 @@ describe("première synchronisation visible (F-032-AC8)", () => {
     act(() => simulee.poser(E_GAMMA, { affiche: "en-cours" }));
     relancer(onglet, options);
     await screen.findByText(INVITATION_PREMIERE_PAGE);
+    // Attente positive préalable : findByText de l'invitation (ligne précédente) prouve que l'écran est rendu.
     // F-035-AC1 : même attente, lecture de la région « Synchronisation ».
     await waitFor(() =>
       expect(screen.getByRole("region", { name: "Synchronisation" }).textContent).not.toContain(
@@ -429,14 +434,16 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
       "reste sur le serveur pour ses membres",
       "rouvrir",
     ]) {
-      expect(boite.textContent).toContain(phrase);
+      // F-035-AC3 : texte de la boîte attendu, sans supposer qu'il est complet au premier rendu.
+      await waitFor(() => expect(boite.textContent).toContain(phrase));
     }
     // F-035-AC3 : même motif que AC1 ; F-035-AC8 : preuve par cassure locale, consignée dans MEMORY/features/F-035.md.
     await waitFor(() =>
       expect(document.activeElement).toBe(within(boite).getByRole("button", { name: "Annuler" })),
     );
     await onglet.utilisateur.keyboard("{Escape}");
-    expect(screen.queryByRole("alertdialog")).toBeNull();
+    // Attente positive préalable : le focus sur « Annuler » (waitFor ci-dessus) prouve que la boîte était rendue.
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(origine));
     expect(await nomsDesBases()).toEqual(basesAvant);
 
@@ -453,6 +460,7 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     await onglet.utilisateur.keyboard("{Enter}");
 
     await waitFor(() => expect(annonces(espaceRetireDeLAppareil("Bêta"))).toHaveLength(1));
+    expect(annonces(espaceRetireDeLAppareil("Bêta"))).toHaveLength(1);
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(rangeesDe(SUR_CET_APPAREIL)).toHaveLength(1);
     await waitFor(() =>
@@ -532,5 +540,6 @@ describe("clavier (F-032-AC29)", () => {
     await waitFor(() => expect(document.activeElement).toBe(selecteur()));
     // F-035-AC1 : attente explicite de l'annonce avant l'assertion.
     await waitFor(() => expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1));
+    expect(annonces(espaceOuvert("Gamma"))).toHaveLength(1);
   });
 });
