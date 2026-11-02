@@ -62,7 +62,13 @@ function verifierDesactivee(raison: string): void {
   const commande = commandeDesactivee();
   expect(commande.getAttribute("aria-disabled")).toBe("true");
   expect(descriptionDe(commande)).toBe(raison);
-  expect(screen.getAllByText(raison, { exact: false }).length).toBeGreaterThan(0);
+  // La raison est visible : l'élément que `aria-describedby` désigne existe, n'est ni caché ni
+  // réservé aux lecteurs d'écran.
+  const description = document.getElementById(commande.getAttribute("aria-describedby") ?? "");
+  expect(description).not.toBeNull();
+  expect(description?.textContent).toBe(raison);
+  expect(description?.hidden).toBe(false);
+  expect(description?.closest(".sr-only, [hidden], [aria-hidden='true']")).toBeNull();
 }
 
 /** Une WebSocket qui ne s'établit jamais, et le nombre de celles qu'on a tenté d'ouvrir. */
@@ -274,6 +280,20 @@ describe("retour à la connexion (F-036-AC6)", () => {
     expect(screen.getByRole("button", { name: "Réessayer" })).toBeTruthy();
   });
 
+  it("F-036-AC6 F-032-AC2 connecté, la lecture échoue pour un espace que l'appareil détient : « Réessayer » seul, aucune commande « Ouvrir cet espace » sur l'écran d'échec (comportement livré, non régressé)", async () => {
+    await poserLAppareil();
+    const serveur = serveurSimule({ [ROUTES.moi]: () => moi200() });
+    serveur.poser(R.lire(E_ALPHA), () => enveloppe(500, "erreur-interne"));
+    lancerLOnglet({ serveur });
+    await screen.findByRole("link", { name: TEMOIN_DE_L_APPAREIL });
+
+    aller(`#/espaces/${E_ALPHA}`);
+
+    await screen.findByRole("button", { name: "Réessayer" });
+    expect(serveur.routesAppelees()).toContain(R.lire(E_ALPHA));
+    expect(screen.queryAllByRole("button", { name: /^Ouvrir cet espace/ })).toEqual([]);
+  });
+
   it("F-036-AC6 le compte passe de déconnecté à connecté : la commande désactivée est remplacée par la commande active, sans rechargement", async () => {
     await poserLAppareil();
     let connecte = false;
@@ -455,6 +475,7 @@ describe("couture de la prop indisponible de Bouton", () => {
   });
 
   it("F-036-AC5 le type lie `indisponible` à `raison` : l'une sans l'autre ne compile pas ; sans `raison`, la prop est sans effet à l'exécution (bouton actif, jamais aria-disabled)", () => {
+    // La moitié « ne compile pas » est prouvée par le check CI `typecheck` (Vitest ne vérifie pas les types).
     // @ts-expect-error `indisponible` sans `raison` est refusé par le type (union discriminée).
     render(<Bouton libelle="Agir" indisponible />);
     const bouton = screen.getByRole("button", { name: "Agir" });

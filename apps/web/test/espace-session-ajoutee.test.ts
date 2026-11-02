@@ -3,16 +3,30 @@
 // joué pour les deux sortes de cible, sur la même base (`notionlike:espace:<id>`), et leurs
 // observations sont comparées : délai de 10 secondes et échec (AC1), reprise (AC2), version non
 // prise en charge (AC3), un seul chemin vers la persistance de l'espace ajouté (AC4).
+import { screen } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import type { CibleDeSession } from "../src/espace/espace-ouvert.ts";
+import { TITRE_VERSION_NON_PRISE_EN_CHARGE } from "../src/interface/messages.ts";
 import { lireDossier } from "./aides-disque.ts";
-import { baseDEspace, E_ALPHA, poserDansLAppareil } from "./aides-appareil.ts";
+import {
+  baseDEspace,
+  E_ALPHA,
+  E_APPAREIL,
+  ECRITURE,
+  poserDansLAppareil,
+} from "./aides-appareil.ts";
 import { demarrerSession, ecouteurs } from "./aides-facade.ts";
 import { ecrireUneEntreeDePage } from "./aides-format.ts";
-import { poserUnEspace, poserUnEspaceDUneAutreVersion } from "./aides-onglet.tsx";
+import {
+  ajoute,
+  lancerLOnglet,
+  ouvertMaintenant,
+  poserUnEspace,
+  poserUnEspaceDUneAutreVersion,
+} from "./aides-onglet.tsx";
 import {
   enregistrements,
   laisserIndexedDbTravailler,
@@ -105,6 +119,8 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
       async (cible) => {
         const avant = await enregistrements(BASE);
         vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        // La session de l'appareil ouvre d'abord la base de l'appareil, que la passe laisse aboutir :
+        // dans les deux passes, la première ouverture retenue est celle de la base de l'espace.
         const ouvertures = retenirLesOuvertures(cible.sorte === "appareil" ? 2 : 1);
         const session = demarrerSession(cible);
 
@@ -181,11 +197,17 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
       () => poserLEspace(["Enregistrée avant"]),
       async (cible) => {
         const avant = await enregistrements(BASE);
-        const ajouter = IDBObjectStore.prototype.add;
-        vi.spyOn(IDBObjectStore.prototype, "getAll").mockImplementation(function (
-          this: IDBObjectStore,
-        ) {
-          return ajouter.call(this, new Uint8Array(), 1) as unknown as IDBRequest<unknown[]>;
+        // Une demande de lecture qui échoue, fabriquée : son `onerror` est appelé comme le fait
+        // IndexedDB, sans dépendre du mode de la transaction.
+        vi.spyOn(IDBObjectStore.prototype, "getAll").mockImplementation(() => {
+          const demande = {
+            onsuccess: null,
+            onerror: null as ((evenement: Event) => void) | null,
+            result: undefined,
+            error: new DOMException("lecture", "UnknownError"),
+          };
+          setImmediate(() => demande.onerror?.(new Event("error", { cancelable: true })));
+          return demande as unknown as IDBRequest<unknown[]>;
         });
         const session = demarrerSession(cible);
         await laisserIndexedDbTravailler();
@@ -256,9 +278,9 @@ describe("reprise après une coupure (F-036-AC2)", () => {
         const session = demarrerSession(cible);
         vi.advanceTimersByTime(302_000);
         await laisserIndexedDbTravailler();
-        const alAbandon = observer(session);
+        const apresLesRefus = observer(session);
         session.fermer();
-        return { instants: [...instants], alAbandon };
+        return { instants: [...instants], apresLesRefus };
       },
     );
 
@@ -266,7 +288,7 @@ describe("reprise après une coupure (F-036-AC2)", () => {
     expect(ajoute.instants).toEqual([
       0, 2_000, 6_000, 14_000, 30_000, 62_000, 122_000, 182_000, 242_000, 302_000,
     ]);
-    expect(ajoute.alAbandon).toMatchObject({ phase: "pret", enregistre: false });
+    expect(ajoute.apresLesRefus).toMatchObject({ phase: "pret", enregistre: false });
   });
 
   it("F-036-AC2 F-030-AC7 F-030-AC1 tentatives sans réponse : abandonnées à 10 secondes, l'attente comptée de la fin de la précédente, jamais deux tentatives ensemble, mêmes instants que pour l'espace de l'appareil", async () => {
@@ -372,6 +394,28 @@ describe("version de format non prise en charge (F-036-AC3)", () => {
     }
     expect(ajoute.apresUneEcriture).toEqual(ajoute.apres);
     expect(appareil.apresUneEcriture).toEqual(appareil.apres);
+  });
+});
+
+describe("écran bloquant d'un espace ajouté de version non prise en charge (F-036-AC3)", () => {
+  it("F-036-AC3 F-002-AC17 rendu réel : l'espace retenu est un espace ajouté d'une version refusée, l'écran bloquant « Mise à jour nécessaire » s'affiche, comme pour l'espace de l'appareil", async () => {
+    await poserUnEspaceDUneAutreVersion(E_ALPHA);
+    await poserUnEspace(E_APPAREIL, ["Témoin de l'appareil"]);
+    await poserDansLAppareil({
+      "espace-local": E_APPAREIL,
+      "espace-retenu": E_ALPHA,
+      [`registre:${E_ALPHA}`]: ECRITURE,
+      [`nom:${E_ALPHA}`]: "Alpha",
+    });
+
+    const onglet = lancerLOnglet();
+
+    const titre = await screen.findByRole("heading", {
+      level: 1,
+      name: TITRE_VERSION_NON_PRISE_EN_CHARGE,
+    });
+    expect(titre).toBeDefined();
+    expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ajoute(E_ALPHA));
   });
 });
 

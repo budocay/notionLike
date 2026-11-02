@@ -128,7 +128,10 @@ describe("appelants de ecrireLaValeur et validerLeChamp (F-036-AC8)", () => {
       ["src/c.ts", 'export { ecrireLaValeur } from "./valider.ts";'],
       ["src/d.ts", 'const m = await import("./valider.ts");'],
       ["src/h.ts", 'export * from "./valider.ts";'],
-      ["src/e.ts", 'import {\n  validerLeChamp,\n  ecrireLaValeur,\n} from "./valider.ts";'],
+      [
+        "src/e.ts",
+        'import {\n  validerLeChamp,\n  ecrireLaValeur,\n} from "./valider.ts";\nvaliderLeChamp(1);',
+      ],
     ]);
     const sans = new Map([
       ["src/f.ts", 'import { autre } from "./valider.ts";\nautre();'],
@@ -150,6 +153,8 @@ describe("appelants de ecrireLaValeur et validerLeChamp (F-036-AC8)", () => {
     ]);
     expect(importeursDe("ecrireLaValeur", sans)).toEqual([]);
     expect(appelsDe("ecrireLaValeur", fautifs)).toEqual(["src/b.ts"]);
+    expect(appelsDe("validerLeChamp", fautifs)).toEqual(["src/e.ts"]);
+    expect(appelsDe("validerLeChamp", sans)).toEqual([]);
   });
 
   it("F-036-AC8 chaque appelant est joint à un test existant d'écriture conforme et à un test de refus, qui portent ces titres", () => {
