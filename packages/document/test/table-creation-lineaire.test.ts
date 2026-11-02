@@ -298,9 +298,8 @@ describe("F-034 abonnés, convergence", () => {
   });
 });
 
-// AC8 (cible de 2 s), AC9 (couture des appelants : signature inchangée, `pnpm typecheck` et tests
-// d'`apps/web`) et AC10 (résorption de D-041) : preuve consignée dans MEMORY/features/F-034.md, pas
-// par ce fichier.
+// F-034-AC8 F-034-AC9 F-034-AC10 : aucun test ne les vérifie ; preuve consignée dans
+// MEMORY/features/F-034.md.
 
 // ── Performance (F-034-AC7) ──────────────────────────────────────────────────────────────────────
 
