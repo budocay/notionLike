@@ -322,10 +322,9 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     await waitFor(() => expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1));
     act(() => simulee.avancer(1999));
     // La commande d'un autre espace est désactivée avec sa raison ; l'activer ne fait rien.
-    const versBeta = commande("Bêta");
-    await waitFor(() => expect(estDesactive(versBeta)).toBe(true));
-    await waitFor(() => expect(descriptionDe(versBeta)).toBe(CHANGEMENT_D_ESPACE_EN_COURS));
-    await onglet.utilisateur.click(versBeta);
+    await waitFor(() => expect(estDesactive(commande("Bêta"))).toBe(true));
+    await waitFor(() => expect(descriptionDe(commande("Bêta"))).toBe(CHANGEMENT_D_ESPACE_EN_COURS));
+    await onglet.utilisateur.click(commande("Bêta"));
     await act(() => laisserIndexedDbTravailler());
     expect(simulee.attentes).toHaveLength(1);
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
@@ -360,12 +359,11 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
         within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
       ),
     );
-    // F-035-AC3 : absence lue sous attente, comme les lectures voisines.
-    await waitFor(() => expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(0));
+    // Lecture synchrone voulue : l'absence doit être vraie à l'instant du rendu (le focus attendu ci-dessus prouve la boîte rendue).
+    expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(0);
 
     await onglet.utilisateur.keyboard("{Escape}");
 
-    // Attente positive préalable : le focus sur « Rester sur cet espace » (waitFor ci-dessus) prouve que la boîte était rendue.
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
     await waitFor(() => expect(document.activeElement).toBe(commande(ESPACE_DE_CET_APPAREIL)));
