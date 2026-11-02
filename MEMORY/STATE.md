@@ -40,7 +40,7 @@ Chacune a sa feature ; une dette sans feature est close au `PROJECT_LOG.md`.
 - D-040 F-032 : AC32, AC2 ; D-043 F-019 : coutures de `ecrireLaValeur`, `validerLeChamp`, `LARGEUR_DES_ACTIONS` — F-036.
 - D-041 `creerLigne` quadratique (5 000 lignes : 48 à 52 s) — F-034.
 - D-046 Reprise du dev sur F-021 (revue, architecture) — close à la fusion de F-021.
-- D-049 Tests lents hors F-035, `beforeAll` de `connexion`, `passe`, `refus` au-delà de 10 s, `adoption.test.ts:33` — F-054.
+- D-049 Tests lents hors F-035, `beforeAll` de `connexion`, `passe`, `refus` au-delà de 10 s, `adoption.test.ts:33`, `table-abonnement`, `compte-ecrans`, `page-ouverture`, `table-coutures` (crochet `Stop`, charge 40 à 165), cause racine le crochet `Stop` — F-054.
 
 Closes le 2026-11-02 : D-004, D-006 à D-009, D-013, D-014 à D-029 sauf celles citées ci-dessus, D-032 à D-035, D-047, D-048 (détail au journal).
 
