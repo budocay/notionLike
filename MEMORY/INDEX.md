@@ -27,3 +27,4 @@
 - F-020 Vue kanban — 2026-10-30 — features/F-020.md
 - F-046 Stabilité de synchro-document.test.ts : erreur non gérée (D-028, D-048) — 2026-10-30 — features/F-046.md
 - F-035 Tests fiables : attente de l'état observable (D-042) et délai des tests lents (D-045) — 2026-11-02 — features/F-035.md
+- F-036 Coutures de l'ouverture d'un espace ajouté et de l'écriture des cellules, commande désactivée hors connexion (D-040, D-043) — 2026-11-02 — features/F-036.md

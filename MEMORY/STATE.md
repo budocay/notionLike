@@ -4,7 +4,7 @@
 
 Dépôt : `git@github.com:budocay/notionLike.git`. Clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` porte vingt-six features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (dérogation D-040), F-019 (dérogation D-043), F-020 (PR #17), F-046 (PR #19, stabilité de `synchro-document.test.ts`, D-028 levée, délai de 60 s en D-048). F-035 (tests fiables, D-042 et D-045) : DONE sur la branche `F-035`, PR à venir (5 tours de gates, reprise D-042 du dev après l'escalade du tour 3, tour 5 sur `495100ce2178` tout vert). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` porte vingt-six features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032, F-019, F-020 (PR #17), F-046 (PR #19, stabilité de `synchro-document.test.ts`, D-028 levée, délai de 60 s en D-048). F-035 (tests fiables, D-042 et D-045) : DONE sur la branche `F-035`, PR à venir (5 tours de gates, reprise D-042 du dev après l'escalade du tour 3, tour 5 sur `495100ce2178` tout vert). F-036 (coutures de D-040 et D-043) : DONE sur la branche `F-036`, PR à venir (3 tours de gates, tour 3 sur `c438b3923b0c` tout vert) ; D-040 résorbée, D-043 réduite à ses non-bloquants sans couture (H2). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
 En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-034 (création de lignes linéaire, D-041) tour 2 en cours, spec amendée (AC11) validée par le dev ; F-021 calendrier, 3e tour court (`c6a7145`), REPRISE D-046 et correction de H13 attendues du dev ; F-026 courriels et F-023 PWA, conception faite (ADR-0022, 0023 ; ADR-0020), specs revalidées ; F-015, conception en cours. Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag RC1.
 
@@ -20,9 +20,9 @@ Décisions du dev en vigueur : plusieurs features en parallèle si leurs dossier
 
 1. F-035 : PR, fusion quand les 4 checks sont verts (`main` à intégrer avant : STATE, INDEX et ROADMAP y ont bougé avec F-046). Au dev : garder 30 000 ms (H2) ou prendre 12 000 ms (marge x 3,2, proposée dans `MEMORY/features/F-035.md`).
 2. F-034 : tour 2 en cours (spec amendée AC11 validée par le dev).
-3. Dossiers : F-036, F-040, F-038, F-021 (REPRISE D-046 et H13 du dev, intégrer `main`, brancher F-021-AC25 sur F-019).
+3. F-036 : PR, fusion quand les 4 checks sont verts (`main` à intégrer avant : STATE, INDEX et ROADMAP y bougent). Dossiers : F-040, F-038, F-021 (REPRISE D-046 et H13 du dev, intégrer `main`, brancher F-021-AC25 sur F-019).
 4. Conceptions : F-037, F-043, F-042, F-044, F-045, F-047 ; puis le tag `v0.1.0` (RC2).
-5. Lot de correctifs restant : D-040, D-043, D-041 (F-034), D-048, socle UNVERIFIED (D-047 réservée), bugs relevés par le dev ; F-026, F-023 : ADR acceptées et fichiers protégés commités par le dev ; puis F-015, F-016.
+5. Lot de correctifs restant : D-043 (non-bloquants sans couture), D-041 (F-034), D-048, socle UNVERIFIED (D-047 réservée), bugs relevés par le dev ; F-026, F-023 : ADR acceptées et fichiers protégés commités par le dev ; puis F-015, F-016.
 6. Au dev : bout en bout filtres-et-tris, kanban (AC29), calendrier, largeurs, F-032-AC34 ; disposition étroite du calendrier ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; F-018 (H9, AC56), F-033-AC26 manuel ; D-030, D-033, D-037 ; F-031-AC28 ; D-038 (H3 de F-035 : feature avant la RC ou non).
 
 ## Dettes ouvertes
@@ -47,14 +47,13 @@ Décisions du dev en vigueur : plusieurs features en parallèle si leurs dossier
 - D-035 dnd-kit ancienne famille, sans publication depuis décembre 2024 — confinée dans `apps/web/src/glisser/`.
 - D-037 Sur écran étroit, un bloc vide ne se déplace qu'au clavier — retouche de spec à décider.
 - D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) échoue sur `main` — depuis F-018.
-- D-040 F-032 par dérogation : AC32 (couture de l'ouverture d'un espace ajouté), AC2 (commande désactivée hors connexion) — lot RC1.
 - D-041 `creerLigne` de `@notionlike/document` quadratique (500 lignes 0,3 s, 1 000 1,5 s, 2 000 9,8 s, 4 000 55 s ; cause probable : `lireEtat` complet à chaque `creerLigne`) — spec F-034 en brouillon, lot RC1.
-- D-043 F-019 par dérogation (architecture) : coutures de `ecrireLaValeur`/`validerLeChamp` et du retrait de `LARGEUR_DES_ACTIONS`, non bloquants dans `MEMORY/features/F-019.md` — lot RC1.
+- D-043 F-019 (architecture), réduite par F-036 à ses non-bloquants sans couture : mémoïsation de `triActif`/`triDe` dans `useAffichage`, commentaires périmés de `use-vue-tableau.ts:73` et `BarresDeDefinition.tsx:2-3`, branche `return 0` inatteignable de `tris.ts:52` (H2 de la spec) — lot RC1.
 - D-048 Dépassement de délai de 60 s de `apps/server/test/synchro-document.test.ts` sous charge, non reproduit en 64 exécutions (D-028, symptôme 2) ; premiers passages sous saturation en échec de `synchro-fermetures.test.ts` (1/8) et `synchro-reponse.test.ts` (4 skipped), sortie perdue, non reproduits en 5/5 — depuis F-046.
 
 ## État des contrôles / gates
 
-Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-035 : tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, sécurité, architecture, craft PASS. F-046 : dossier OK (5 168 tests), tour 3 sur `84adfc9c5842` tout vert, fusionnée (PR #19). Exception body-parser retirée (2.4.0 en place).
+Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-036 : tour 3 sur `c438b3923b0c` : reviewer-frontend APPROVED, sécurité, architecture, craft PASS (tours 1 et 2 : reviewer CHANGES_REQUESTED). F-035 : tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, sécurité, architecture, craft PASS. F-046 : dossier OK (5 168 tests), tour 3 sur `84adfc9c5842` tout vert, fusionnée (PR #19). Exception body-parser retirée (2.4.0 en place).
 
 ## Pièges actifs
 
