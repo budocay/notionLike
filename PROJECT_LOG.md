@@ -443,3 +443,39 @@
 - Tests: aucun modifié — état: lents sous charge — preuve: sorties de F-020
 - Gates: aucun
 - Mesures: 3 tests
+
+## [2026-10-30] F-046 Stabilité de synchro-document.test.ts : erreur non gérée à la fermeture des clients
+
+- TYPE: FIX
+- Tier: standard
+- Scope: `apps/server/test` — agents: agent-backend, agent-planif — commits: 00b9ded..15f8e91
+- Détail: cause prouvée de l'erreur non gérée « WebSocket was closed before the connection was established » : `fermerLesClients` ferme une prise `ws` encore CONNECTING (`PriseAvecCookie.close`), `ws` émet `error` au tick suivant (`abortHandshake`) après que `destroy()` du fournisseur a retiré ses écouteurs ; Node lève l'événement en exception non interceptée. Reproduction avant correction : déterministe dans `aides-synchro.test.ts`, 1 exécution sur 12 dans le fichier réel sous charge. Correctif resserré après revue : `PriseAvecCookie.close()` pose `once("error")` seulement en CONNECTING, une seule erreur ; refus de connexion et erreurs de protocole ou de session restent visibles. Aucun fichier de `src`, aucun délai, aucune assertion touchés. Spec revalidée (3519bff) : le délai de 60 s, non reproduit, passe en D-048.
+- Dette: D-028 levée pour l'erreur non gérée / introduite D-048 (dépassement de délai de 60 s de `synchro-document.test.ts` sous charge, non reproduit en 64 exécutions ; premiers passages sous saturation en échec de `synchro-fermetures.test.ts` 1/8 et `synchro-reponse.test.ts` 4 ignorés, sortie perdue, non reproduits en 5/5)
+- ADR: aucun
+- Tests: `apps/server/test/aides-synchro.test.ts` (4 : fermeture en connexion, autre erreur visible, prise déjà close, couture des appelants F-046-AC7) ; 20 passages du fichier (10 en série, 10 sous charge) 71/71 — état: verts (260 fichiers, 5168 tests) — preuve: checks.txt (empreinte `84adfc9c5842`)
+- Gates: tour 1 : reviewer-backend CHANGES_REQUESTED, SECURITY PASS, ARCHITECTURE UNVERIFIED, CRAFT PASS ; tour 2 : reviewer-backend CHANGES_REQUESTED, SECURITY, ARCHITECTURE, CRAFT PASS ; tour 3 sur `84adfc9c5842` : reviewer-backend APPROVED, SECURITY, ARCHITECTURE, CRAFT PASS · revue route A
+- Mesures: boucles 3 tours (reviewer-backend 3, sécurité 3, architecture 3, craft 3) · constats confirmés : écouteur trop large, ROADMAP hors liste fermée, mémoire incohérente (tour 1) ; test qui ne pouvait pas échouer, couture non fermée (tour 2) · faux positifs 0 · coût non mesuré
+
+## [2026-10-30] D-048 Délai de 60 s de synchro-document.test.ts sous charge non reproduit
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/server/test/synchro-document.test.ts`, `synchro-fermetures.test.ts`, `synchro-reponse.test.ts` — agents: agent-planif — commits: aucun
+- Détail: dépassement « Test timed out in 60000ms » constaté sous charge (D-028, symptôme 2), non reproduit en 64 exécutions de F-046 ; premiers passages sous saturation en échec de `synchro-fermetures` (1 test sur 8) et `synchro-reponse` (4 ignorés), sortie perdue, non reproduits en 5/5. Aucune cause nommée, aucun délai allongé ; à reprendre si le symptôme revient avec sa sortie. Détail : `MEMORY/features/F-046.md`.
+- Dette: introduite D-048
+- ADR: aucun
+- Tests: aucun — état: non reproduit — preuve: `MEMORY/features/F-046.md`
+- Gates: voir F-046
+- Mesures: 64 exécutions du fichier, 10 des deux autres
+
+## [2026-11-02] F-035 Tests fiables : attente de l'état observable (D-042) et délai des tests lents (D-045)
+
+- TYPE: FIX
+- Tier: standard
+- Scope: tests de `apps/web/test/` (F-032, F-019, F-018, F-020) et `packages/document/test/` (F-017), aucun fichier de `src/` — agents: agent-planif, agent-frontend, dev (reprise D-042) — commits: 90d72be..cbf0b77
+- Détail: les lectures de focus, d'annonce et de zone de `espace-ajout.test.tsx` et `espace-changement.test.tsx` attendent l'état observable (`waitFor`, même `expect`), lectures voisines comprises (inventaire d'AC3 dans `MEMORY/features/F-035.md`) ; six tests lents (F-019-AC28 deux fois, F-018-AC47, F-020-AC8, F-017-AC20/AC21, F-017-AC10) reçoivent un délai explicite de 30 000 ms (H1 option A, aucun oracle touché). AC4 : 20/20 par fichier, seul et sous `pnpm test` racine ; AC7 : 10/10 sous charge, pire temps 3 761 ms (marge x 8,0) ; AC8 : trois cassures locales de `src/` font échouer 7 tests sur l'assertion nommée. H2 : 30 000 ms tranché par l'orchestrateur sur délégation du dev (2026-11-02), 12 000 ms (marge x 3,2) reste proposée au dev. Réserve : le dépassement de 5 s décrit par la spec n'a pas été reproduit sous la charge de l'AC7.
+- Dette: résorbées D-042 (cinq lectures nommées et lectures voisines, reprise du dev après l'escalade du tour 3) et D-045 (les six tests lents) ; aucune introduite
+- ADR: aucun
+- Tests: 8 fichiers de test modifiés, aucun test ajouté ni supprimé — état: verts — preuve: relevés d'AC4 et d'AC7 de `MEMORY/features/F-035.md` ; `controles.sh` à la PR
+- Gates: tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, SECURITY PASS, ARCHITECTURE PASS, CRAFT PASS ; tours 1 à 4 : reviewer-frontend CHANGES_REQUESTED, escalade §5.6 au tour 3 (3 rejets), REPRISE D-042 du dev (`88ce24a`) ; revue reviewer-frontend (gate.sh) sur le dossier, route non précisée par le skill
+- Mesures: boucles reviewer-frontend 5 passages (4 CHANGES_REQUESTED, 1 APPROVED, plus la reprise) · sécurité 5 PASS · architecture 5 passages (1 UNVERIFIED, commande de gate en échec, puis 4 PASS) · craft 5 PASS · constats confirmés non comptés par gate dans `gates.log` · faux positifs non relevés · coût non mesuré

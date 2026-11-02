@@ -318,13 +318,13 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     await onglet.utilisateur.click(commande(ESPACE_DE_CET_APPAREIL));
 
     expect(simulee.attentes.map(({ delaiMs }) => delaiMs)).toEqual([2000]);
-    expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1);
+    // F-035-AC3 : même motif, annonce lue après une action asynchrone, attente ajoutée.
+    await waitFor(() => expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(1));
     act(() => simulee.avancer(1999));
     // La commande d'un autre espace est désactivée avec sa raison ; l'activer ne fait rien.
-    const versBeta = commande("Bêta");
-    expect(estDesactive(versBeta)).toBe(true);
-    expect(descriptionDe(versBeta)).toBe(CHANGEMENT_D_ESPACE_EN_COURS);
-    await onglet.utilisateur.click(versBeta);
+    await waitFor(() => expect(estDesactive(commande("Bêta"))).toBe(true));
+    await waitFor(() => expect(descriptionDe(commande("Bêta"))).toBe(CHANGEMENT_D_ESPACE_EN_COURS));
+    await onglet.utilisateur.click(commande("Bêta"));
     await act(() => laisserIndexedDbTravailler());
     expect(simulee.attentes).toHaveLength(1);
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
@@ -349,21 +349,34 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     act(() => simulee.avancer(1));
 
     const boite = await screen.findByRole("alertdialog");
-    expect(within(boite).getByText(modificationsNonTransmises("Alpha"))).toBeDefined();
-    expect(document.activeElement).toBe(
-      within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
+    // F-035-AC3 : texte de la boîte attendu.
+    await waitFor(() =>
+      expect(within(boite).getByText(modificationsNonTransmises("Alpha"))).toBeDefined(),
     );
+    // F-035-AC1 : attente explicite du focus sur « Rester sur cet espace ».
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
+      ),
+    );
+    // Lecture synchrone voulue : l'absence doit être vraie à l'instant du rendu (le focus attendu ci-dessus prouve la boîte rendue).
     expect(annonces(CHANGEMENT_D_ESPACE_EN_COURS)).toHaveLength(0);
 
     await onglet.utilisateur.keyboard("{Escape}");
 
-    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(ouvertMaintenant(onglet.pilote).cible).toEqual(ALPHA);
     await waitFor(() => expect(document.activeElement).toBe(commande(ESPACE_DE_CET_APPAREIL)));
 
     await onglet.utilisateur.keyboard("{Enter}");
     act(() => simulee.avancer(2000));
     const seconde = await screen.findByRole("alertdialog");
+    // F-035-AC3 : focus initial attendu avant la tabulation.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(seconde).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
+      ),
+    );
     await onglet.utilisateur.tab();
     expect(document.activeElement).toBe(
       within(seconde).getByRole("button", { name: CHANGER_D_ESPACE }),
@@ -436,10 +449,14 @@ describe("modifications enregistrées nulle part (F-032-AC13, AC29)", () => {
     await onglet.utilisateur.click(await ouvrirCetEspace(ESPACE_DE_CET_APPAREIL));
 
     const boite = await screen.findByRole("alertdialog");
-    expect(within(boite).getByText(modificationsEnregistreesNullePart("Alpha"))).toBeDefined();
+    // F-035-AC3 : texte de la boîte attendu.
+    await waitFor(() =>
+      expect(within(boite).getByText(modificationsEnregistreesNullePart("Alpha"))).toBeDefined(),
+    );
     expect(simulee.attentes).toEqual([]);
     const rester = within(boite).getByRole("button", { name: RESTER_SUR_CET_ESPACE });
-    expect(document.activeElement).toBe(rester);
+    // F-035-AC3 : même motif, focus attendu avant lecture.
+    await waitFor(() => expect(document.activeElement).toBe(rester));
     await onglet.utilisateur.tab();
     await onglet.utilisateur.tab();
     expect(document.activeElement).toBe(rester);
