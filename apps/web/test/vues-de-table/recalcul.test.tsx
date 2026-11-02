@@ -45,6 +45,8 @@ function premiereRangeeRendue(): number {
 }
 
 describe("recalcul des lignes affichées (F-019-AC28)", () => {
+  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-019-AC28 le défilement et la navigation au clavier d'une grande table ne rappellent pas le calcul ; un changement de définition ou de table le rappelle", async () => {
     const { table, utilisateur } = rendreLaTable((une) => {
       remplirSixLignes(une);
@@ -84,7 +86,5 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     act(() => table.ecrireCellule(ligne, table.lire().colonnes[0]?.id ?? "", "Ligne écrite"));
     expect(espion.mock.calls.length).toBeGreaterThan(apresDefinition);
     expect(screen.getAllByText("Ligne écrite").length).toBeGreaterThan(0);
-    // F-035-AC5 : délai explicite déclaré sur le test (option A), mêmes données et assertions (F-035-AC6).
-    // F-035-AC7 : dix exécutions sous charge et marge au délai consignées en rapport ; F-035-AC11 : dettes D-042 et D-045 résorbées (traçabilité).
   }, 30_000);
 });

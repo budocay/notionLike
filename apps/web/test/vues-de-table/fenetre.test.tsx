@@ -148,6 +148,8 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(lignesPresentes()).toContain(LIGNES - 1);
   });
 
+  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-018-AC47 la rangée d'une cellule en mode édition reste présente quand le défilement l'éloigne ; la saisie en cours n'est pas perdue", async () => {
     const utilisateur = rendre();
     (screen.getAllByRole("gridcell")[0] as HTMLElement).focus();
@@ -160,8 +162,6 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(champ.value).toBe("0:0 en cours");
     await utilisateur.keyboard("{Enter}");
     expect(ecritures).toEqual(["l0/c0=0:0 en cours"]);
-    // F-035-AC5 : délai explicite déclaré sur le test (option A), mêmes données et assertions (F-035-AC6).
-    // F-035-AC7 : dix exécutions sous charge et marge au délai consignées en rapport ; F-035-AC11 : dettes D-042 et D-045 résorbées (traçabilité).
   }, 30_000);
 
   it("F-018-AC47 la cellule courante, sans mode édition, n'est pas perdue quand sa rangée sort de la fenêtre", async () => {

@@ -519,6 +519,8 @@ function verifierConformite(lue: TableLue): void {
 }
 
 describe("entrées brutes quelconques", () => {
+  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-017-AC20 F-017-AC21 pour toute forge, lire() ne lève jamais, toute valeur exposée est conforme, et deux répliques qui la reçoivent dans des ordres différents lisent la même table", () => {
     fc.assert(
       fc.property(forge(true), forge(true), (premiere, seconde) => {

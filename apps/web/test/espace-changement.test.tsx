@@ -368,6 +368,12 @@ describe("modifications non acquittées (F-032-AC12, AC29)", () => {
     await onglet.utilisateur.keyboard("{Enter}");
     act(() => simulee.avancer(2000));
     const seconde = await screen.findByRole("alertdialog");
+    // F-035-AC3 : focus initial attendu avant la tabulation.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(seconde).getByRole("button", { name: RESTER_SUR_CET_ESPACE }),
+      ),
+    );
     await onglet.utilisateur.tab();
     expect(document.activeElement).toBe(
       within(seconde).getByRole("button", { name: CHANGER_D_ESPACE }),

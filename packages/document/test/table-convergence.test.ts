@@ -105,6 +105,8 @@ function livrerDansLOrdre(repliques: readonly RepliqueDeTable[], cles: readonly 
 }
 
 describe("convergence de suites quelconques", () => {
+  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it.each([2, 3])(
     "F-017-AC10 %i répliques, opérations sans se voir, échanges partiels, livraison finale dans un ordre tiré : même table partout, égale à celle d'un observateur qui reçoit tout",
     (nombre) => {
