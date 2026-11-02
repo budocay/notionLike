@@ -426,7 +426,9 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     const basesAvant = await nomsDesBases();
 
     await onglet.utilisateur.click(origine);
-    let boite = screen.getByRole("alertdialog", { name: titreDuRetraitDeLAppareil("Bêta") });
+    let boite = await screen.findByRole("alertdialog", {
+      name: titreDuRetraitDeLAppareil("Bêta"),
+    });
     for (const phrase of [
       "« Bêta »",
       "irréversible sur cet appareil",
@@ -448,7 +450,7 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     expect(await nomsDesBases()).toEqual(basesAvant);
 
     await onglet.utilisateur.keyboard("{Enter}");
-    boite = screen.getByRole("alertdialog");
+    boite = await screen.findByRole("alertdialog");
     // F-035-AC3 : focus initial attendu avant la tabulation arrière.
     await waitFor(() =>
       expect(document.activeElement).toBe(within(boite).getByRole("button", { name: "Annuler" })),
@@ -460,7 +462,6 @@ describe("retrait de l'appareil (F-032-AC20, AC29)", () => {
     await onglet.utilisateur.keyboard("{Enter}");
 
     await waitFor(() => expect(annonces(espaceRetireDeLAppareil("Bêta"))).toHaveLength(1));
-    expect(annonces(espaceRetireDeLAppareil("Bêta"))).toHaveLength(1);
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(rangeesDe(SUR_CET_APPAREIL)).toHaveLength(1);
     await waitFor(() =>

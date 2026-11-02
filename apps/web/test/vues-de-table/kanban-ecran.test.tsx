@@ -256,7 +256,7 @@ describe("titre et suppression d'une carte (F-020-AC7)", () => {
 });
 
 describe("piles longues (F-020-AC8)", () => {
-  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // Délai explicite de 30 000 ms : ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-020-AC8 une table de 5 000 lignes en quatre piles : au plus 100 cartes présentes par pile, le nombre total dans l'en-tête, 100 de plus à la demande", async () => {
     // La vue ne lit la table que par ses props (comme fenetre.test.tsx) : créer 5 000 lignes par la

@@ -148,7 +148,7 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(lignesPresentes()).toContain(LIGNES - 1);
   });
 
-  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // Délai explicite de 30 000 ms : ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-018-AC47 la rangée d'une cellule en mode édition reste présente quand le défilement l'éloigne ; la saisie en cours n'est pas perdue", async () => {
     const utilisateur = rendre();

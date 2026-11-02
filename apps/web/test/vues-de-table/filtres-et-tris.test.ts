@@ -286,7 +286,7 @@ describe("lignes affichées sans élément actif (F-019-AC13)", () => {
 });
 
 describe("grande table (F-019-AC28)", () => {
-  // Délai explicite de 30 000 ms : ce test dépasse le défaut de 5 s de Vitest quand d'autres suites tournent en même temps.
+  // Délai explicite de 30 000 ms : ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   // F-035-AC5 : délai déclaré sur le test, mêmes données et assertions (F-035-AC6) ; F-035-AC7 : preuve par relevés, consignée dans MEMORY/features/F-035.md.
   it("F-019-AC28 5 000 lignes sous trois filtres et deux tris : le résultat égale celui d'un calcul de référence", () => {
     const options = ["a", "b", "c", "d"];
