@@ -45,6 +45,7 @@ function premiereRangeeRendue(): number {
 }
 
 describe("recalcul des lignes affichées (F-019-AC28)", () => {
+  // F-035-AC5 F-035-AC6 F-035-AC7 : délai de 30 000 ms, ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   it("F-019-AC28 le défilement et la navigation au clavier d'une grande table ne rappellent pas le calcul ; un changement de définition ou de table le rappelle", async () => {
     const { table, utilisateur } = rendreLaTable((une) => {
       remplirSixLignes(une);
@@ -84,5 +85,5 @@ describe("recalcul des lignes affichées (F-019-AC28)", () => {
     act(() => table.ecrireCellule(ligne, table.lire().colonnes[0]?.id ?? "", "Ligne écrite"));
     expect(espion.mock.calls.length).toBeGreaterThan(apresDefinition);
     expect(screen.getAllByText("Ligne écrite").length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 });

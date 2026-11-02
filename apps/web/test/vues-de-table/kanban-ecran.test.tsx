@@ -256,6 +256,7 @@ describe("titre et suppression d'une carte (F-020-AC7)", () => {
 });
 
 describe("piles longues (F-020-AC8)", () => {
+  // F-035-AC5 F-035-AC6 F-035-AC7 : délai de 30 000 ms, ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   it("F-020-AC8 une table de 5 000 lignes en quatre piles : au plus 100 cartes présentes par pile, le nombre total dans l'en-tête, 100 de plus à la demande", async () => {
     // La vue ne lit la table que par ses props (comme fenetre.test.tsx) : créer 5 000 lignes par la
     // façade prendrait près d'une minute et ne prouverait rien de la vue.
@@ -312,7 +313,7 @@ describe("piles longues (F-020-AC8)", () => {
     await utilisateur.click(plus);
     expect(within(pile("À faire, 1250 cartes")).getAllByRole("listitem")).toHaveLength(200);
     expect(within(pile("Fait, 1250 cartes")).getAllByRole("listitem")).toHaveLength(100);
-  });
+  }, 30_000);
 
   it("F-020-AC8 F-020-AC15 la commande « Afficher 100 cartes de plus » est atteinte par les flèches, hors de l'ordre de tabulation ; Entrée présente la suite et le focus passe à la première carte qui paraît", async () => {
     const cent_cinq = Array.from({ length: 105 }, (_, rang): [string, number] => [

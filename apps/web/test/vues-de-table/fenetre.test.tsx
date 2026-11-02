@@ -148,6 +148,7 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(lignesPresentes()).toContain(LIGNES - 1);
   });
 
+  // F-035-AC5 F-035-AC6 F-035-AC7 : délai de 30 000 ms, ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   it("F-018-AC47 la rangée d'une cellule en mode édition reste présente quand le défilement l'éloigne ; la saisie en cours n'est pas perdue", async () => {
     const utilisateur = rendre();
     (screen.getAllByRole("gridcell")[0] as HTMLElement).focus();
@@ -160,7 +161,7 @@ describe("cellule courante hors de la fenêtre (F-018-AC47)", () => {
     expect(champ.value).toBe("0:0 en cours");
     await utilisateur.keyboard("{Enter}");
     expect(ecritures).toEqual(["l0/c0=0:0 en cours"]);
-  });
+  }, 30_000);
 
   it("F-018-AC47 la cellule courante, sans mode édition, n'est pas perdue quand sa rangée sort de la fenêtre", async () => {
     const utilisateur = rendre();
