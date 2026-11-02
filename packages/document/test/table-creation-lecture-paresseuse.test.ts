@@ -61,7 +61,9 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
   });
 
   // Sans abonné, lire() dans une transaction englobante rend la table que rendrait une relecture
-  // complète, que la lecture gardée soit à jour (lire() juste avant) ou déjà périmée.
+  // complète, que la lecture gardée soit à jour (lire() juste avant) ou déjà périmée. Le nombre de
+  // lignes de départ est connu (pas de lire() qui rafraîchirait la lecture), et l'état périmé est
+  // vérifié : les créations n'ont déclenché aucune relecture complète.
   it.each([
     ["lecture à jour avant la transaction", true],
     ["lecture déjà périmée avant la transaction", false],
@@ -71,13 +73,17 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
       const table = creerDocumentTable();
       table.creerColonne("Nom", "texte");
       table.creerLigne();
+      let avant = 1;
       if (aJour) {
         expect(table.lire().lignes).toHaveLength(1);
       } else {
         table.creerLigne();
-        table.doc.transact(() => undefined);
+        table.creerLigne();
+        avant = 3;
       }
-      const avant = table.lire().lignes.length;
+      compte.appels = 0;
+      table.doc.transact(() => undefined);
+      expect(compte.appels).toBe(0);
       table.doc.transact(() => {
         table.creerLigne();
         expect(table.lire().lignes).toHaveLength(avant + 1);
@@ -90,6 +96,42 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
       neuve.fermer();
     },
   );
+
+  // Revue du tour 5 : aucun abonné, N créations (lecture gardée périmée), puis abonner() et lire() dans
+  // la même transaction : lire() ne rend jamais la lecture périmée.
+  it("F-034-AC11 lecture gardée périmée, abonner() puis lire() dans la même transaction : N lignes, jamais la lecture périmée", () => {
+    const table = creerDocumentTable();
+    table.creerColonne("Nom", "texte");
+    for (let i = 0; i < 4; i += 1) {
+      table.creerLigne();
+    }
+    compte.appels = 0;
+    let notifications = 0;
+    let vue = -1;
+    table.doc.transact(() => {
+      table.abonner(() => {
+        notifications += 1;
+      });
+      vue = table.lire().lignes.length;
+    });
+    expect(compte.appels).toBeGreaterThan(0);
+    expect(vue).toBe(4);
+    expect(notifications).toBe(0);
+    expect(table.lire().lignes).toHaveLength(4);
+  });
+
+  it("F-034-AC11 lecture gardée à jour, abonné inscrit : lire() en transaction rend la lecture gardée, sans relecture", () => {
+    const table = creerDocumentTable();
+    table.creerColonne("Nom", "texte");
+    table.creerLigne();
+    const gardee = table.lire();
+    table.abonner(() => undefined);
+    table.doc.transact(() => {
+      compte.appels = 0;
+      expect(table.lire()).toBe(gardee);
+      expect(compte.appels).toBe(0);
+    });
+  });
 
   // Règle : la base de comparaison d'un abonné est la table lue à son inscription ; en transaction,
   // une relecture fraîche. Les écritures d'avant l'inscription ne le notifient pas, celles d'après si.

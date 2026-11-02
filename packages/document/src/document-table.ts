@@ -112,6 +112,7 @@ function lectureGardee(doc: Y.Doc) {
   };
   return {
     courante: (): Lecture => lecture,
+    estPerimee: (): boolean => perimee,
     perimer: (): void => {
       perimee = true;
     },
@@ -188,37 +189,17 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   return {
     doc,
     lire: () => {
-      let rendue = gardee.courante();
-      if (!enTransaction()) {
-        gardee.rafraichir();
-        rendue = gardee.courante();
-      } else if (abonnes.size === 0) {
-        // Sans abonné, la lecture gardée n'est pas tenue à jour : on rend ce qu'une relecture complète
-        // rendrait maintenant (F-034-AC11), sans remplacer la lecture gardée ni la marquer à jour.
-        const relue = lectureDe(doc);
-        rendue = memeLecture(relue, rendue) ? rendue : relue;
-      }
+      const rendue = enTransaction()
+        ? lectureEnTransaction(doc, gardee, abonnes.size > 0)
+        : lectureHorsTransaction(gardee);
       return typeof rendue === "string" ? refuser(rendue) : rendue;
     },
     abonner: (rappel) => {
       if (fermee) {
         return () => undefined;
       }
-      // Règle : la base de l'abonné est la table lue à son inscription. Hors transaction c'est la lecture
-      // gardée remise à jour ; en transaction, une relecture fraîche de l'état courant (la lecture gardée
-      // peut être périmée). Les écritures d'avant l'inscription ne le notifient pas, celles d'après le
-      // notifient à la fin de la transaction.
-      let base: Lecture;
-      if (enTransaction()) {
-        const fraiche = lectureDe(doc);
-        const courante = gardee.courante();
-        base = memeLecture(fraiche, courante) ? courante : fraiche;
-      } else {
-        gardee.rafraichir();
-        base = gardee.courante();
-      }
       const notifier = (): void => rappel();
-      abonnes.set(notifier, base);
+      abonnes.set(notifier, baseDInscription(doc, gardee, enTransaction()));
       return () => void abonnes.delete(notifier);
     },
     creerColonne: (nom, type, position) => ouverte(() => creerColonne(doc, nom, type, position)),
@@ -236,7 +217,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       ouverte(() =>
         creerLigne(
           doc,
-          { ordre, sur: !enTransaction() && ordre.propre === null },
+          { ordre, ordreFiable: !enTransaction() && ordre.propre === null },
           valeurs,
           position,
         ),
@@ -255,6 +236,41 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       doc.off("afterTransaction", apresTransaction);
     },
   };
+}
+
+type LectureGardee = ReturnType<typeof lectureGardee>;
+
+// Règles de `lire()` (F-034-AC11) :
+// - hors transaction : la lecture gardée remise à jour ;
+// - en transaction, avec abonné et lecture gardée à jour : la lecture gardée (comme avant la feature) ;
+// - en transaction, sans abonné ou lecture gardée périmée : une relecture fraîche, jamais la lecture
+//   périmée ; la lecture gardée n'est ni remplacée ni marquée à jour, et la référence gardée est rendue
+//   si la relecture est égale.
+function lectureHorsTransaction(gardee: LectureGardee): Lecture {
+  gardee.rafraichir();
+  return gardee.courante();
+}
+
+function lectureEnTransaction(doc: Y.Doc, gardee: LectureGardee, avecAbonne: boolean): Lecture {
+  const courante = gardee.courante();
+  if (avecAbonne && !gardee.estPerimee()) {
+    return courante;
+  }
+  const relue = lectureDe(doc);
+  return memeLecture(relue, courante) ? courante : relue;
+}
+
+// Règle d'`abonner()` : la base de l'abonné est la table lue à son inscription. Hors transaction c'est la
+// lecture gardée remise à jour ; en transaction, une relecture fraîche de l'état courant (la lecture
+// gardée peut être périmée). Les écritures d'avant l'inscription ne le notifient pas, celles d'après le
+// notifient à la fin de la transaction.
+function baseDInscription(doc: Y.Doc, gardee: LectureGardee, enTransaction: boolean): Lecture {
+  if (!enTransaction) {
+    return lectureHorsTransaction(gardee);
+  }
+  const fraiche = lectureDe(doc);
+  const courante = gardee.courante();
+  return memeLecture(fraiche, courante) ? courante : fraiche;
 }
 
 function lectureDe(doc: Y.Doc): Lecture {
@@ -626,21 +642,21 @@ function inscrireCreation(
 // valeurs, position, puis `rang-indisponible` (F-029-AC10).
 function creerLigne(
   doc: Y.Doc,
-  { ordre, sur }: { ordre: OrdreDesLignes; sur: boolean },
+  { ordre, ordreFiable }: { ordre: OrdreDesLignes; ordreFiable: boolean },
   valeurs: ReadonlyMap<IdColonne, ValeurDeCellule | null> | undefined,
   position: number | undefined,
 ): IdLigne {
   const cellules = cellulesInitiales(lireEtatTable(lireColonnes(doc), []), valeurs ?? new Map());
-  // `sur` : le cache n'est fiable qu'hors de toute transaction ouverte (la nôtre exceptée) ; dans une
+  // `ordreFiable` : le cache n'est fiable qu'hors de toute transaction ouverte (la nôtre exceptée) ; dans une
   // transaction englobante, ou depuis un écouteur d'`afterTransaction` passé avant la façade, il peut
   // être périmé. Alors on relit comme avant la feature, sans faire confiance au cache ensuite.
-  if (!sur || !ordre.valide) {
+  if (!ordreFiable || !ordre.valide) {
     relireOrdre(doc, ordre);
   }
   const visee = positionAdmise(position, ordre.ids.length);
   const place = placement(ordre.ids, ordre.rangs, visee);
   const id = crypto.randomUUID();
-  ecrireEtSuivre(doc, ordre, sur, () => {
+  ecrireEtSuivre(doc, ordre, ordreFiable, () => {
     ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
     ecrireReattribues(doc, place.reattribues, ligneVisee);
   });
@@ -661,23 +677,23 @@ export function transactionOuverte(doc: Y.Doc): boolean {
 function ecrireEtSuivre(
   doc: Y.Doc,
   ordre: OrdreDesLignes,
-  sur: boolean,
+  ordreFiable: boolean,
   ecriture: () => void,
 ): void {
   let ecrite = false;
   try {
     doc.transact((transaction) => {
-      if (sur) {
+      if (ordreFiable) {
         ordre.propre = transaction;
       }
       ecriture();
     });
     ecrite = true;
   } finally {
-    if (sur) {
+    if (ordreFiable) {
       ordre.propre = null;
     }
-    if (!ecrite || !sur) {
+    if (!ecrite || !ordreFiable) {
       ordre.valide = false;
     }
   }

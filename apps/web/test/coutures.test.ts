@@ -55,11 +55,6 @@ const AIDES_SUIVIES = [
   "apps/server/test/aides-facade.ts",
 ];
 const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
-// F-034-AC11 : la preuve d'intégration enveloppe `ouvrirDocumentTable` par un mock du paquet, qu'elle
-// importe dynamiquement (importer, importActual, typeof import) sans nommer ni appeler d'ouverture d'espace.
-const IMPORT_DU_PAQUET_POUR_ENVELOPPER_LA_TABLE = [
-  "apps/web/test/table-session-hors-transaction.test.ts",
-];
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [
   "packages/document/test/abonnement.test.ts",
   "packages/document/test/aides.ts",
@@ -262,7 +257,6 @@ describe("énumération des fichiers qui ouvrent une façade", () => {
       ...JUGES_D_UN_TEMOIN,
       ...AIDES_SUIVIES,
       ...IMPORT_ENTIER_SANS_OUVERTURE,
-      ...IMPORT_DU_PAQUET_POUR_ENVELOPPER_LA_TABLE,
       ...FACADES_DE_TEST_DE_F001_NON_MODIFIABLES,
     ];
 
@@ -487,19 +481,6 @@ describe("ce que chaque sorte d'ouvrant exige", () => {
       ).toBe(importsDynamiques);
       expect(declarationsDe(texte).some(nommeUneOuverture)).toBe(false);
       expect(appelsDOuverture(texte)).toBe(0);
-    },
-  );
-
-  it.each(IMPORT_DU_PAQUET_POUR_ENVELOPPER_LA_TABLE)(
-    "F-002-AC31 F-034-AC11 import du paquet pour envelopper la table %s : aucune fonction d'ouverture d'espace n'y est nommée ni appelée",
-    (chemin) => {
-      const texte = texteDe(chemin);
-
-      expect(texte).toContain("ouvrirDocumentTable");
-      expect(declarationsDe(texte).some(nommeUneOuverture)).toBe(false);
-      expect(definitUneOuverture(texte)).toBe(false);
-      expect(appelsDOuverture(texte)).toBe(0);
-      expect(exporteUneOuverture(chemin, texte)).toBe(false);
     },
   );
 

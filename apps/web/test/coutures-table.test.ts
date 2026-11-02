@@ -91,16 +91,16 @@ export function ouvrantUneTransaction(fichiers: Fichiers): string[] {
 /** Écart entre deux listes, multiplicités comprises (aucun `Set`). */
 export function ecart(trouves: readonly string[], attendus: readonly string[]): string[] {
   const restants = [...attendus];
-  const en_trop: string[] = [];
+  const enTrop: string[] = [];
   for (const ligne of trouves) {
     const indice = restants.indexOf(ligne);
     if (indice >= 0) {
       restants.splice(indice, 1);
     } else {
-      en_trop.push(`en trop : ${ligne}`);
+      enTrop.push(`en trop : ${ligne}`);
     }
   }
-  return [...en_trop, ...restants.map((ligne) => `manquant : ${ligne}`)];
+  return [...enTrop, ...restants.map((ligne) => `manquant : ${ligne}`)];
 }
 
 const SESSION = "apps/web/src/table/session-table.ts";
@@ -226,9 +226,11 @@ describe("F-034-AC11 couture : appelants de lire(), abonner() et fermer()", () =
     expect(ecart(appelants(fichiers), ADMIS.map(([cle]) => cle).sort())).toEqual([]);
   });
 
-  it("chaque entrée de la liste dit pourquoi elle est sûre", () => {
-    for (const [cle, raison] of ADMIS) {
-      expect(raison.length, cle).toBeGreaterThan(5);
+  it("chaque clé de la liste fermée est une ligne réellement présente dans le fichier qu'elle désigne", () => {
+    for (const [cle] of ADMIS) {
+      const coupure = cle.indexOf(" | ");
+      expect(coupure, cle).toBeGreaterThan(0);
+      expect(fichiers.get(cle.slice(0, coupure)) ?? "", cle).toContain(cle.slice(coupure + 3));
     }
   });
 
@@ -254,6 +256,14 @@ describe("F-034-AC11 couture : les contrôles détectent les cas fautifs", () =>
   it("alias : `const t = table; t.lire()` est relevé (aucun filtre de nom de variable)", () => {
     const f = new Map([[facade, `${SOURCE}const t = table;\nt.lire();\n`]]);
     expect(appelants(f)).toEqual([`${facade} | t.lire();`]);
+  });
+
+  // Limite connue du motif `APPEL` : il cherche `.lire`, `.abonner`, `.fermer` ; une déstructuration
+  // n'est pas relevée. Elle est documentée ici, non corrigée : aucun fichier de `apps/*/src` ne le fait
+  // et la façade est correcte en transaction (cette couture n'est plus la seule garantie).
+  it("limite : `const { lire } = table; lire()` n'est pas relevé (déstructuration)", () => {
+    const f = new Map([[facade, `${SOURCE}const { lire } = table;\nlire();\n`]]);
+    expect(appelants(f)).toEqual([]);
   });
 
   it("fichier qui ne reçoit la façade que par un type inféré : il est dans la fermeture par son import", () => {
