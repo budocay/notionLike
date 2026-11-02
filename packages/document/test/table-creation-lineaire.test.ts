@@ -524,7 +524,7 @@ describe("F-034-AC1 cache d'ordre : mêmes résultats qu'avant la feature", () =
     expect(grandeSuite(3000)).toBe("fdcea2fe1e62724c:3000");
   });
 
-  it("l'empreinte distingue deux contenus", () => {
+  it("contrôle de l'outil de mesure : l'empreinte distingue deux contenus", () => {
     expect(empreinte("a")).not.toBe(empreinte("b"));
   });
 });

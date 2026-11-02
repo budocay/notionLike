@@ -9,6 +9,9 @@
 // détecteur de changement d'appelant ; la preuve d'intégration (la vraie persistance n'atteint jamais
 // la façade en transaction) est dans `table-session-hors-transaction.test.ts`.
 //
+// Changement voulu : `abonner()` appelé dans une transaction ne notifie plus pour les écritures faites
+// avant l'inscription dans la même transaction (la base de comparaison est la table lue à l'inscription).
+//
 // Règle d'énumération, sans filtre de nom de variable. Un fichier peut tenir une façade s'il nomme
 // `DocumentTable`, `ouvrirDocumentTable` ou `creerDocumentTable`, ou s'il importe (transitivement, par
 // import relatif) un fichier qui le fait : le type d'une façade ne peut lui parvenir que par là, même
@@ -27,6 +30,8 @@ const TRANSACTION = /\btransact\(/;
 
 type Fichiers = ReadonlyMap<string, string>;
 
+// Limite : seuls les imports statiques avec liaison sont vus, ni `import("./…")` dynamique ni import de
+// simple effet (comme la déstructuration, déjà hors de portée).
 function importsRelatifs(chemin: string, texte: string, fichiers: Fichiers): string[] {
   const trouves: string[] = [];
   for (const [, visee] of texte.matchAll(/from\s+"(\.[^"]+)"/g)) {

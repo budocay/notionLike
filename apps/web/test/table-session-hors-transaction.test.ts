@@ -2,6 +2,8 @@
 // la vraie persistance IndexedDB (fake-indexeddb), n'appelle jamais `lire()`, `abonner()` ni `fermer()`
 // de la façade pendant une transaction du document après son ouverture. Aucun mock de module : un
 // espion est posé sur l'instance de façade que rend la session (son comportement reste réel).
+// Limite : l'espion ne détecte une transaction que par `doc._transaction` ; l'état `enCours > 0` (transaction
+// commencée, `afterTransaction` pas encore passé à la façade) n'est couvert qu'en partie.
 import { describe, expect, it } from "vitest";
 
 import { creerTablesOuvertes } from "../src/table/tables-ouvertes.ts";

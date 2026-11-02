@@ -189,9 +189,12 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   return {
     doc,
     lire: () => {
-      const rendue = enTransaction()
-        ? lectureEnTransaction(doc, gardee, abonnes.size > 0)
-        : lectureHorsTransaction(gardee);
+      // Façade fermée : la table lue à la fermeture, jamais une relecture (F-034-AC11, troisième cas).
+      const rendue = fermee
+        ? gardee.courante()
+        : enTransaction()
+          ? lectureEnTransaction(doc, gardee, abonnes.size > 0)
+          : lectureHorsTransaction(gardee);
       return typeof rendue === "string" ? refuser(rendue) : rendue;
     },
     abonner: (rappel) => {
@@ -231,6 +234,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       // lue, comme avant la feature, et non l'état que le document aura plus tard.
       gardee.rafraichir();
       fermee = true;
+      enCours = 0;
       abonnes.clear();
       doc.off("beforeTransaction", avantTransaction);
       doc.off("afterTransaction", apresTransaction);
