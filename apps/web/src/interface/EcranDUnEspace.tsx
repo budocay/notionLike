@@ -2,7 +2,8 @@
 // actions, ses membres et ses invitations. Chaque commande n'est rendue que si le dernier rôle donné
 // par le serveur la permet (F-014-AC27) ; le serveur reste seul juge (F-014-AC28). Avec le pilote de
 // l'onglet, « Ouvrir cet espace » l'ouvre dans l'éditeur (F-032-AC5, AC10) : sans requête s'il est
-// sur l'appareil, compte connecté ou non (AC2), par l'ajout à l'appareil sinon.
+// sur l'appareil, compte connecté ou non (AC2), par l'ajout à l'appareil sinon ; hors connexion, un
+// espace que l'appareil ne détient pas garde la commande, désactivée avec sa raison (F-036-AC5).
 import { type ReactElement, useSyncExternalStore } from "react";
 
 import type { Compte, ErreurDEspaces, EspaceLu } from "../compte/index.ts";
@@ -10,6 +11,7 @@ import { fragmentDEcran } from "../navigation/route.ts";
 import { ActionsDeLEspace } from "./ActionsDeLEspace.tsx";
 import { useAjoutALAppareil } from "./ajout-a-l-appareil.ts";
 import { cibleSurLAppareil, useAppareilDesEcrans } from "./appareil-des-ecrans.ts";
+import { libelleDeLAppareil } from "./commandes-espaces.ts";
 import { nomDeLEspace } from "./changement-d-espace.ts";
 import {
   Actions,
@@ -27,6 +29,8 @@ import {
   CONNECTEZ_VOUS,
   DEMANDE_UNE_CONNEXION,
   libelleDuRole,
+  NOM_INCONNU_SUR_CET_APPAREIL,
+  nomOuvrirCetEspace,
   PLUS_ACCESSIBLE,
   REESSAYER,
   RELIRE_L_ESPACE,
@@ -56,11 +60,12 @@ export function EcranDUnEspace({ compte, idEspace, revenirALaListe }: Proprietes
     </Actions>
   );
   if (etat.statut !== "connecte") {
+    const raison = etat.statut === "deconnecte" ? CONNECTEZ_VOUS : DEMANDE_UNE_CONNEXION;
     return (
       <EcranDEspaces titre={TITRE_DES_ESPACES}>
         {retour}
-        <Texte>{etat.statut === "deconnecte" ? CONNECTEZ_VOUS : DEMANDE_UNE_CONNEXION}</Texte>
-        <OuvertureHorsConnexion idEspace={idEspace} />
+        <Texte>{raison}</Texte>
+        <OuvertureHorsConnexion idEspace={idEspace} raison={raison} />
       </EcranDEspaces>
     );
   }
@@ -68,7 +73,7 @@ export function EcranDUnEspace({ compte, idEspace, revenirALaListe }: Proprietes
     return (
       <EcranDEspaces titre={TITRE_DES_ESPACES}>
         {retour}
-        <EspaceNonLu echec={ecran.echecDeLecture} relire={ecran.relireTout} />
+        <EspaceNonLu echec={ecran.echecDeLecture} relire={ecran.relireTout} idEspace={idEspace} />
       </EcranDEspaces>
     );
   }
@@ -121,13 +126,21 @@ function OuvertureDepuisLEcran(props: {
 
 /**
  * Compte non connecté : un espace de l'appareil s'ouvre encore depuis ses bases, sous son dernier
- * nom connu (F-032-AC2, AC24) ; un espace que l'appareil ne détient pas, non.
+ * nom connu (F-032-AC2, AC24) ; un espace que l'appareil ne détient pas garde sa commande,
+ * désactivée avec sa raison (F-036-AC5).
  */
-function OuvertureHorsConnexion({ idEspace }: { readonly idEspace: string }): ReactElement | null {
+function OuvertureHorsConnexion(props: {
+  readonly idEspace: string;
+  readonly raison: string;
+}): ReactElement | null {
+  const { idEspace, raison } = props;
   const appareil = useAppareilDesEcrans();
-  const cible = appareil === undefined ? undefined : cibleSurLAppareil(appareil.etat, idEspace);
-  if (appareil === undefined || cible === undefined) {
+  if (appareil === undefined) {
     return null;
+  }
+  const cible = cibleSurLAppareil(appareil.etat, idEspace);
+  if (cible === undefined) {
+    return <OuvertureDesactivee raison={raison} />;
   }
   return (
     <OuvertureDUnEspace
@@ -139,10 +152,53 @@ function OuvertureHorsConnexion({ idEspace }: { readonly idEspace: string }): Re
   );
 }
 
-/** L'espace pas encore lu : son chargement, ou l'échec de la lecture avec « Réessayer ». */
+/**
+ * La lecture d'un espace échoue : seule la commande d'un espace que l'appareil ne détient pas est
+ * rendue, désactivée ; un espace de l'appareil ne gagne pas de commande sur cet écran d'échec.
+ */
+function OuvertureAbsente(props: {
+  readonly idEspace: string;
+  readonly raison: string;
+}): ReactElement | null {
+  const appareil = useAppareilDesEcrans();
+  if (appareil === undefined || cibleSurLAppareil(appareil.etat, props.idEspace) !== undefined) {
+    return null;
+  }
+  return <OuvertureDesactivee raison={props.raison} />;
+}
+
+function OuvertureDesactivee({ raison }: { readonly raison: string }): ReactElement {
+  return (
+    <Actions>
+      <OuvrirDesactive raison={raison} />
+    </Actions>
+  );
+}
+
+/**
+ * « Ouvrir cet espace » sans serveur : atteignable au clavier (`aria-disabled`, pas `disabled`),
+ * sans effet à l'activation, sa raison visible et en description accessible. Le nom de l'espace
+ * n'est connu que du serveur : aucun nom n'est inventé.
+ */
+function OuvrirDesactive({ raison }: { readonly raison: string }): ReactElement {
+  return (
+    <Bouton
+      nom={nomOuvrirCetEspace(NOM_INCONNU_SUR_CET_APPAREIL)}
+      libelle={libelleDeLAppareil("ouvrir-sur-l-appareil")}
+      raison={raison}
+      indisponible
+    />
+  );
+}
+
+/**
+ * L'espace pas encore lu : son chargement, ou l'échec de la lecture avec « Réessayer » ; un espace
+ * que l'appareil ne détient pas garde alors sa commande, désactivée (F-036-AC5, AC6).
+ */
 function EspaceNonLu(props: {
   readonly echec: ErreurDEspaces | undefined;
   readonly relire: () => void;
+  readonly idEspace: string;
 }): ReactElement {
   if (props.echec === undefined) {
     return <Texte>{CHARGEMENT_DE_L_ESPACE}</Texte>;
@@ -150,6 +206,7 @@ function EspaceNonLu(props: {
   return (
     <>
       <Alerte phrases={texteDEchec(props.echec)} />
+      <OuvertureAbsente idEspace={props.idEspace} raison={DEMANDE_UNE_CONNEXION} />
       <Actions>
         <Bouton libelle={REESSAYER} surActivation={props.relire} />
       </Actions>

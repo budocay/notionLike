@@ -40,7 +40,10 @@ export const ESPACES = {
   annonce: "wrap-anywhere text-interface text-texte-secondaire",
   alerte: "flex flex-col gap-mince wrap-anywhere text-interface text-texte-erreur",
   actions: "flex flex-wrap items-center gap-petit",
-  bouton: `${CIBLE} w-auto bg-surface-active font-moyen text-texte-principal hover:bg-surface-survol`,
+  // F-036-AC5 : `aria-disabled` (atteignable au clavier) paraît désactivé comme `disabled` : curseur
+  // par défaut, texte discret comme `disabled:` (AA sur chaque surface, `jetons.test.ts`), pas de
+  // survol ; le contour de focus de `CIBLE` reste.
+  bouton: `${CIBLE} w-auto bg-surface-active font-moyen text-texte-principal hover:bg-surface-survol aria-disabled:cursor-default aria-disabled:text-texte-discret aria-disabled:hover:bg-surface-active`,
   lien: `${CIBLE} w-auto text-texte-principal underline hover:bg-surface-active`,
   raison: "text-petit text-texte-secondaire",
   tableau: "contour-interieur w-full text-left text-interface",

@@ -4,11 +4,11 @@
 
 Dépôt : `git@github.com:budocay/notionLike.git`. Clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` (`322fe0d`) porte vingt-sept features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (dérogation D-040), F-019 (dérogation D-043), F-020 (PR #17), F-046 (PR #19), F-035 (PR #20, 2026-11-02). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` (`5eae856`) porte vingt-huit features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (dérogation D-040), F-019 (dérogation D-043), F-020 (PR #17), F-046 (PR #19), F-035 (PR #20, 2026-11-02), F-036 (PR #21, 2026-11-02 ; D-040 résorbée, D-043 réduite et portée par F-050). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
-Décision du dev du 2026-11-02 : zéro dette ouverte. Tout ce qui est accepté est clos au `PROJECT_LOG.md` ; ce qui reste ouvert a une feature (F-034, F-036, F-048 à F-056). Les specs F-048 à F-056 sont des brouillons à valider une par une. Le tag `v0.1.0` (RC1) attend F-053 (D-038) ; le dev joue les e2e manuels avant le tag.
+Décision du dev du 2026-11-02 : zéro dette ouverte. Tout ce qui est accepté est clos au `PROJECT_LOG.md` ; ce qui reste ouvert a une feature (F-034, F-048 à F-056). Les specs F-048 à F-056 sont des brouillons à valider une par une. Le tag `v0.1.0` (RC1) attend F-053 (D-038) ; le dev joue les e2e manuels avant le tag.
 
-En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-034 (passage à une structure persistante décidé, conception en cours) ; F-036 (spec amendée AC5 et AC11, brouillon à revalider) ; F-021 (REPRISE D-046 et H13 du dev, intégrer `main`) ; F-015, F-026, F-023 (conception faite) ; F-016 ; F-037 à F-045 et F-047 (specs validées, dossiers ouverts). Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag.
+En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-034 (passage à une structure persistante décidé, conception en cours) ; F-021 (REPRISE D-046 et H13 du dev, intégrer `main`) ; F-015, F-026, F-023 (conception faite) ; F-016 ; F-037 à F-045 et F-047 (specs validées, dossiers ouverts). Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag.
 
 CI GitHub Actions (`.github/workflows/ci.yml`) : `main` protégée (PR obligatoire, merge commit seul, checks `commits`, `controles`, `typecheck`, `gates`, branche à jour). Hooks git débranchés le 2026-10-21 : la CI est la seule barrière.
 
@@ -20,9 +20,9 @@ Décisions du dev en vigueur : features en parallèle si leurs dossiers sont dis
 
 ## Prochaine action prévue
 
-1. Au dev : valider les specs F-048 à F-056 (une par commit), revalider F-036.
+1. Au dev : valider les specs F-048 à F-056 (une par commit).
 2. F-053 en premier (bloque la RC1), puis le tag `v0.1.0` après les e2e manuels du dev.
-3. F-034 (conception), F-036, F-021 (REPRISE D-046, H13), puis F-037 à F-045 et F-047 ; F-015, F-016, F-023, F-026 (fichiers protégés commités par le dev).
+3. F-034 (conception), F-021 (REPRISE D-046, H13), puis F-037 à F-045 et F-047 ; F-015, F-016, F-023, F-026 (fichiers protégés commités par le dev).
 4. Lot de dettes : F-054, F-048, F-050, F-049, F-055, F-056 ; F-051 puis F-052 (le dev commite `ci.yml`).
 5. Au dev : règle dependency-cruiser `espaces-par-un-seul-module` ; shellcheck dans `.agents/outils.env` ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; e2e manuels (filtres-et-tris, kanban AC29, calendrier, largeurs, F-032-AC34, F-018 H9 et AC56, F-033-AC26, F-031-AC28).
 
@@ -37,7 +37,7 @@ Chacune a sa feature ; une dette sans feature est close au `PROJECT_LOG.md`.
 - D-016 Coutures de `creerApplication`, `lireConfiguration`, variables du service ; D-024 AC41, AC10, AC45 de F-013 — F-056.
 - D-020, D-022 Débordement à 360 px de la légende du `Tableau` ; D-037 bloc vide sans poignée sur écran étroit ; D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) rouge sur `main`, conteneurs de 479 et 589 px pour 326, origine « depuis F-018 » ou « venu de F-014 » à nommer — F-053, bloquante pour la RC1.
 - D-030 Compose 2.24.0 à 2.24.3 admises sans preuve (plancher 2.24.4 si publiée, sinon close) ; D-031 `PGPASSWORD` dans l'environnement du client `docker` — F-055.
-- D-040 F-032 : AC32, AC2 ; D-043 F-019 : coutures de `ecrireLaValeur`, `validerLeChamp`, `LARGEUR_DES_ACTIONS` — F-036.
+- D-043 F-019, réduite par F-036 à ses non-bloquants sans couture (mémoïsation de `triActif`/`triDe`, commentaires périmés de `use-vue-tableau.ts:73` et `BarresDeDefinition.tsx:2-3`, branche `return 0` de `tris.ts:52`) — portée par F-050 (AC11 à AC15). D-040 résorbée par F-036.
 - D-041 `creerLigne` quadratique (5 000 lignes : 48 à 52 s) — F-034.
 - D-046 Reprise du dev sur F-021 (revue, architecture) — close à la fusion de F-021.
 - D-049 Tests lents hors F-035, `beforeAll` de `connexion`, `passe`, `refus` au-delà de 10 s, `adoption.test.ts:33`, `table-abonnement`, `compte-ecrans`, `page-ouverture`, `table-coutures` (crochet `Stop`, charge 40 à 165), cause racine le crochet `Stop` — F-054.
@@ -46,7 +46,7 @@ Closes le 2026-11-02 : D-004, D-006 à D-009, D-013, D-014 à D-029 sauf celles 
 
 ## État des contrôles / gates
 
-Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-035 : tour 5 tout vert, reprise D-042 du dev ; F-046 : tour 3 tout vert. UNVERIFIED listé : aucun. Les dossiers des branches F-021, F-034, F-036 sont à refaire après intégration de `main`.
+Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-035 : tour 5 tout vert, reprise D-042 du dev ; F-046 : tour 3 tout vert. UNVERIFIED listé : aucun. F-036 : tour 3 sur `c438b3923b0c` tout vert, fusionnée (PR #21). Les dossiers des branches F-021, F-034 sont à refaire après intégration de `main`.
 
 ## Pièges actifs
 
