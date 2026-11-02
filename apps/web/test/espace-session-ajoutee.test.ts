@@ -3,6 +3,7 @@
 // joué pour les deux sortes de cible, sur la même base (`notionlike:espace:<id>`), et leurs
 // observations sont comparées : délai de 10 secondes et échec (AC1), reprise (AC2), version non
 // prise en charge (AC3), un seul chemin vers la persistance de l'espace ajouté (AC4).
+import { IDBFactory } from "fake-indexeddb";
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
@@ -67,17 +68,32 @@ function pret(session: SessionEspace): EtatPret {
   return etat;
 }
 
-/** Joue le scénario pour chaque cible, avec une base et une horloge neuves, et rend les résultats. */
+// Les octets d'un enregistrement portent l'identifiant du client Yjs, tiré au hasard à chaque
+// document posé : deux passes se comparent par le compte et par ce que chacune a laissé inchangé.
+function memesEnregistrements(a: readonly number[][], b: readonly number[][]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Joue le scénario pour chaque cible et rend les résultats. Chaque passe part d'un appareil neuf :
+ * une usine de bases neuve (rien de la passe précédente, pas même l'enregistrement vide de deux
+ * octets), `preparer`, puis les remises à zéro de l'horloge et des doublures, même si le scénario
+ * échoue.
+ */
 async function pourChaqueCible<T>(
   preparer: () => Promise<void>,
   jouer: (cible: CibleDeSession) => Promise<T>,
 ): Promise<readonly [T, T]> {
   const resultats: T[] = [];
   for (const [, cible] of CIBLES) {
-    await preparer();
-    resultats.push(await jouer(cible));
-    vi.useRealTimers();
-    vi.restoreAllMocks();
+    try {
+      vi.stubGlobal("indexedDB", new IDBFactory());
+      await preparer();
+      resultats.push(await jouer(cible));
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
   }
   return [resultats[0] as T, resultats[1] as T];
 }
@@ -111,8 +127,9 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
           alEcheance,
           apresSaisie,
           apresLaReponse,
-          avant,
-          enregistrementsApres,
+          nombreAvant: avant.length,
+          nombreApres: enregistrementsApres.length,
+          inchanges: memesEnregistrements(enregistrementsApres, avant),
         };
       },
     );
@@ -128,7 +145,8 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
     expect(ajoute.apresSaisie.titres).toEqual(["Tenue en mémoire"]);
     expect(ajoute.apresLaReponse).toEqual({ ...ajoute.apresSaisie });
     expect(ajoute.apresLaReponse.enregistre).toBe(false);
-    expect(ajoute.enregistrementsApres).toEqual(ajoute.avant);
+    expect(ajoute.inchanges).toBe(true);
+    expect(ajoute.nombreAvant).toBeGreaterThan(0);
   });
 
   it.each([
@@ -178,7 +196,13 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
         vi.restoreAllMocks();
         const enregistrementsApres = await enregistrements(BASE);
         session.fermer();
-        return { alOuverture, apres, avant, enregistrementsApres };
+        return {
+          alOuverture,
+          apres,
+          nombreAvant: avant.length,
+          nombreApres: enregistrementsApres.length,
+          inchanges: memesEnregistrements(enregistrementsApres, avant),
+        };
       },
     );
 
@@ -189,7 +213,8 @@ describe("délai de 10 secondes et échec de la persistance (F-036-AC1)", () => 
       baseRelue: false,
     });
     expect(ajoute.apres.titres).toEqual(["Malgré l'échec"]);
-    expect(ajoute.enregistrementsApres).toEqual(ajoute.avant);
+    expect(ajoute.inchanges).toBe(true);
+    expect(ajoute.nombreAvant).toBeGreaterThan(0);
   });
 
   it("F-036-AC1 F-002-AC16 écriture en échec : la modification est gardée en mémoire et signalée non enregistrée, comme pour l'espace de l'appareil", async () => {
@@ -333,6 +358,11 @@ describe("version de format non prise en charge (F-036-AC3)", () => {
       },
     );
 
+    // Les deux passes partent du même état, et chacune ajoute au plus l'enregistrement vide.
+    expect(ajoute.avant.length).toBe(appareil.avant.length);
+    expect(ajoute.avant.length).toBeGreaterThan(0);
+    expect(ajoute.apres.length - ajoute.avant.length).toBeLessThanOrEqual(1);
+    expect(appareil.apres.length - appareil.avant.length).toBeLessThanOrEqual(1);
     expect(ajoute.phase).toBe("version-non-prise-en-charge");
     expect(ajoute.phase).toBe(appareil.phase);
     expect(ajoute.ecouteursApres).toBe(appareil.ecouteursApres);
@@ -345,17 +375,81 @@ describe("version de format non prise en charge (F-036-AC3)", () => {
   });
 });
 
-describe("un seul chemin vers la persistance de l'espace ajouté (F-036-AC4)", () => {
-  it("F-036-AC4 F-036-AC10 `ouvrirEspaceInscrit(` n'est appelée, dans src/, que par la session d'espace (hors sa définition) : délai, échec et reprise d'AC1 à AC3 restent ceux de la session", () => {
-    const appelants = [...lireDossier("src")]
-      .filter(([chemin, texte]) => {
-        return (
-          chemin !== "src/persistance/espace-local.ts" && /\bouvrirEspaceInscrit\(/.test(texte)
-        );
-      })
-      .map(([chemin]) => chemin)
-      .sort();
+const DEFINITION_DE_LA_PERSISTANCE = "src/persistance/espace-local.ts";
+const SESSION = "src/espace/session-espace.ts";
+const BARIL = "src/persistance/index.ts";
 
-    expect(appelants).toEqual(["src/espace/session-espace.ts"]);
+/**
+ * Les fichiers de `src/` qui importent, renomment, ré-exportent ou importent dynamiquement
+ * `ouvrirEspaceInscrit` (ou un espace de noms de son module ou du baril de la persistance), hors de
+ * sa définition : un appel sous un autre nom ou par référence n'y échappe pas.
+ */
+function importeursDeLOuverture(sources: ReadonlyMap<string, string>): string[] {
+  const module = String.raw`[^"']*(?:espace-local(?:\.ts)?|persistance(?:/index(?:\.ts)?)?)`;
+  const statique = new RegExp(
+    String.raw`(?:import|export)\s+(?:type\s+)?([^;]*?)\s+from\s+["']${module}["']`,
+    "g",
+  );
+  const dynamique = new RegExp(String.raw`import\(\s*["']${module}["']\s*\)`);
+  return [...sources]
+    .filter(([chemin]) => chemin !== DEFINITION_DE_LA_PERSISTANCE)
+    .filter(
+      ([, texte]) =>
+        dynamique.test(texte) ||
+        [...texte.matchAll(statique)].some(
+          ([, clause = ""]) =>
+            /\bouvrirEspaceInscrit\b/.test(clause) || /^\*\s*(?:as\b|$)/.test(clause.trim()),
+        ),
+    )
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+function appelantsDeLOuverture(sources: ReadonlyMap<string, string>): string[] {
+  return [...sources]
+    .filter(
+      ([chemin, texte]) =>
+        chemin !== DEFINITION_DE_LA_PERSISTANCE && /(?<![\w#])ouvrirEspaceInscrit\(/.test(texte),
+    )
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+describe("un seul chemin vers la persistance de l'espace ajouté (F-036-AC4)", () => {
+  it("F-036-AC4 F-036-AC10 `ouvrirEspaceInscrit` n'est appelée, dans src/, que par la session d'espace ; seuls la session et le baril de la persistance l'importent, sous quelque nom que ce soit : délai, échec et reprise d'AC1 à AC3 restent ceux de la session", () => {
+    const sources = lireDossier("src");
+
+    expect(appelantsDeLOuverture(sources)).toEqual([SESSION]);
+    expect(importeursDeLOuverture(sources)).toEqual([SESSION, BARIL]);
+  });
+
+  it("F-036-AC4 F-036-AC10 la détection voit un appel direct, un import renommé, d'espace de noms, dynamique et un ré-export, et pas un fichier sans rapport", () => {
+    const fautifs = new Map([
+      [
+        "src/a.ts",
+        'import { ouvrirEspaceInscrit } from "../persistance/index.ts";\nouvrirEspaceInscrit(d, i);',
+      ],
+      [
+        "src/b.ts",
+        'import { ouvrirEspaceInscrit as ouvrir } from "../persistance/espace-local.ts";',
+      ],
+      ["src/c.ts", 'import * as p from "../persistance/index.ts";\np.ouvrirEspaceInscrit(d, i);'],
+      ["src/d.ts", 'const p = await import("../persistance");'],
+      ["src/e.ts", 'export {\n  ouvrirEspaceInscrit,\n} from "./espace-local.ts";'],
+    ]);
+    const sans = new Map([
+      ["src/f.ts", 'import { ouvrirEspaceLocal } from "../persistance/index.ts";'],
+      ["src/g.ts", 'import { ouvrirEspaceInscrit } from "./ailleurs.ts";'],
+    ]);
+    expect(importeursDeLOuverture(fautifs)).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+      "src/c.ts",
+      "src/d.ts",
+      "src/e.ts",
+    ]);
+    expect(appelantsDeLOuverture(fautifs)).toEqual(["src/a.ts", "src/c.ts"]);
+    expect(importeursDeLOuverture(sans)).toEqual([]);
+    expect(appelantsDeLOuverture(sans)).toEqual([]);
   });
 });

@@ -65,10 +65,43 @@ const APPELANTS: Readonly<Record<string, Appelant>> = {
   },
 };
 
-function appelsDe(symbole: string): string[] {
-  const motif = new RegExp(String.raw`(?<![\w.#])${symbole}\(`);
-  return [...SOURCES]
+// Appels `symbole(` et `espace.symbole(` (import d'espace de noms) ; `#` et un mot collé sont exclus.
+function appelsDe(symbole: string, sources: ReadonlyMap<string, string> = SOURCES): string[] {
+  const motif = new RegExp(String.raw`(?<![\w#])${symbole}\(`);
+  return [...sources]
     .filter(([chemin, texte]) => chemin !== DEFINITION && motif.test(texte))
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+/**
+ * Les fichiers qui importent (ou ré-exportent, ou importent dynamiquement) `valider.ts` d'une
+ * manière qui donne accès à `symbole` : import nommé, renommé (`symbole as autre`) ou d'espace de
+ * noms (`* as v`). Un appel sous un autre nom n'échappe donc pas à la liste.
+ */
+function importeursDe(symbole: string, sources: ReadonlyMap<string, string> = SOURCES): string[] {
+  const statique = /(?:import|export)\s+(?:type\s+)?([^;]*?)\s+from\s+["'][^"']*valider\.ts["']/g;
+  const dynamique = /import\(\s*["'][^"']*valider\.ts["']\s*\)/;
+  return [...sources]
+    .filter(([chemin]) => chemin !== DEFINITION)
+    .filter(([, texte]) => {
+      const clauses = [...texte.matchAll(statique)].map(([, clause = ""]) => clause);
+      return (
+        dynamique.test(texte) ||
+        clauses.some(
+          (clause) =>
+            new RegExp(String.raw`\b${symbole}\b`).test(clause) ||
+            /^\*\s*(?:as\b|$)/.test(clause.trim()),
+        )
+      );
+    })
+    .map(([chemin]) => chemin)
+    .sort();
+}
+
+function attendusPour(symbole: string): string[] {
+  return Object.entries(APPELANTS)
+    .filter(([, { symboles }]) => symboles.includes(symbole))
     .map(([chemin]) => chemin)
     .sort();
 }
@@ -77,14 +110,47 @@ describe("appelants de ecrireLaValeur et validerLeChamp (F-036-AC8)", () => {
   it.each(["ecrireLaValeur", "validerLeChamp"])(
     "F-036-AC8 F-036-AC10 `%s(` n'est appelée, dans src/ hors de valider.ts, que par les fichiers de la liste ; un fichier de plus ou de moins fait échouer ce test en le nommant",
     (symbole) => {
-      const attendus = Object.entries(APPELANTS)
-        .filter(([, { symboles }]) => symboles.includes(symbole))
-        .map(([chemin]) => chemin)
-        .sort();
-
-      expect(appelsDe(symbole)).toEqual(attendus);
+      expect(appelsDe(symbole)).toEqual(attendusPour(symbole));
     },
   );
+
+  it.each(["ecrireLaValeur", "validerLeChamp"])(
+    "F-036-AC8 F-036-AC10 les importeurs de `%s` (import nommé, renommé, d'espace de noms, ré-export, dynamique) sont ceux de la liste : un nouvel importeur échoue même sous un autre nom",
+    (symbole) => {
+      expect(importeursDe(symbole)).toEqual(attendusPour(symbole));
+    },
+  );
+
+  it("F-036-AC8 F-036-AC10 la détection voit un import renommé, un import d'espace de noms, un ré-export et un import dynamique, et pas un fichier sans rapport", () => {
+    const fautifs = new Map([
+      ["src/a.ts", 'import { ecrireLaValeur as ecrire } from "./valider.ts";\necrire(1);'],
+      ["src/b.ts", 'import * as v from "../vues-de-table/valider.ts";\nv.ecrireLaValeur(1);'],
+      ["src/c.ts", 'export { ecrireLaValeur } from "./valider.ts";'],
+      ["src/d.ts", 'const m = await import("./valider.ts");'],
+      ["src/h.ts", 'export * from "./valider.ts";'],
+      ["src/e.ts", 'import {\n  validerLeChamp,\n  ecrireLaValeur,\n} from "./valider.ts";'],
+    ]);
+    const sans = new Map([
+      ["src/f.ts", 'import { autre } from "./valider.ts";\nautre();'],
+      ["src/g.ts", 'import { ecrireLaValeur } from "./ailleurs.ts";'],
+    ]);
+    expect(importeursDe("ecrireLaValeur", fautifs)).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+      "src/c.ts",
+      "src/d.ts",
+      "src/e.ts",
+      "src/h.ts",
+    ]);
+    expect(importeursDe("validerLeChamp", fautifs)).toEqual([
+      "src/b.ts",
+      "src/d.ts",
+      "src/e.ts",
+      "src/h.ts",
+    ]);
+    expect(importeursDe("ecrireLaValeur", sans)).toEqual([]);
+    expect(appelsDe("ecrireLaValeur", fautifs)).toEqual(["src/b.ts"]);
+  });
 
   it("F-036-AC8 chaque appelant est joint à un test existant d'écriture conforme et à un test de refus, qui portent ces titres", () => {
     for (const [chemin, appelant] of Object.entries(APPELANTS)) {
