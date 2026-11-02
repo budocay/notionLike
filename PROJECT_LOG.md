@@ -479,3 +479,15 @@
 - Tests: 8 fichiers de test modifiés, aucun test ajouté ni supprimé — état: verts — preuve: relevés d'AC4 et d'AC7 de `MEMORY/features/F-035.md` ; `controles.sh` à la PR
 - Gates: tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, SECURITY PASS, ARCHITECTURE PASS, CRAFT PASS ; tours 1 à 4 : reviewer-frontend CHANGES_REQUESTED, escalade §5.6 au tour 3 (3 rejets), REPRISE D-042 du dev (`88ce24a`) ; revue reviewer-frontend (gate.sh) sur le dossier, route non précisée par le skill
 - Mesures: boucles reviewer-frontend 5 passages (4 CHANGES_REQUESTED, 1 APPROVED, plus la reprise) · sécurité 5 PASS · architecture 5 passages (1 UNVERIFIED, commande de gate en échec, puis 4 PASS) · craft 5 PASS · constats confirmés non comptés par gate dans `gates.log` · faux positifs non relevés · coût non mesuré
+
+## [2026-11-02] F-036 Coutures laissées par dérogation : ouverture d'un espace ajouté (D-040) et écriture des cellules (D-043)
+
+- TYPE: FEATURE
+- Tier: standard
+- Scope: `apps/web` (tests de couture, `EcranDUnEspace.tsx`, `composants/Espaces.tsx`, `composants/compte.classes.ts`) — agents: agent-planif, agent-frontend, dev (validations de spec) — commits: 78b4939..a6c1060
+- Détail: la commande « Ouvrir cet espace » d'un espace non détenu par l'appareil s'affiche désactivée (`aria-disabled`, raison visible et en description, atteignable au clavier) hors connexion ou quand la lecture de l'espace échoue, au lieu de disparaître (AC5, AC6) ; `Bouton` gagne une prop `indisponible` liée à `raison` par le type. Trois fichiers de test nouveaux : session d'un espace ajouté (délai de 10 s, échec, reprise, version, appelants de `ouvrirEspaceInscrit`, AC1 à AC4), commande hors connexion (AC5, AC6, AC11, AC12), coutures d'écriture (appelants de `ecrireLaValeur`/`validerLeChamp`, retrait de `LARGEUR_DES_ACTIONS`, AC8, AC9). Preuves d'échec des coutures (AC10) et du typage dans `MEMORY/features/F-036.md`. Spec amendée au tour 2 (AC5 sur la lecture de l'espace, AC11 + `compte.classes.ts`) et revalidée par le dev (`5f01a9b`). H1 : `ContenuDuServeur` inchangé ; H2 : non-bloquants de F-019 hors coutures laissés en dette
+- Dette: résorbée D-040 (AC32 par AC1 à AC4, AC2 par AC5 ; `ContenuDuServeur` sans objet, H1) ; D-043 réduite, coutures résorbées (AC8, AC9), restent ses non-bloquants sans couture (mémoïsation, commentaires périmés, branche `return 0` de `tris.ts:52`) ; aucune introduite
+- ADR: aucun
+- Tests: 3 fichiers ajoutés, `espace-ecrans.test.tsx` adapté (AC7) — état: verts — preuve: `MEMORY/features/F-036.md`, `pnpm typecheck` vert ; `controles.sh` à la PR
+- Gates: tour 3 sur `c438b3923b0c` : reviewer-frontend APPROVED, SECURITY PASS, ARCHITECTURE PASS, CRAFT PASS ; revue reviewer-frontend (gate.sh) sur le dossier, route non précisée par le skill
+- Mesures: boucles 3 par gate (reviewer-frontend : 2 CHANGES_REQUESTED puis APPROVED ; architecture : FAIL, PASS, PASS ; sécurité 3 PASS ; craft 3 PASS) · constats confirmés non comptés par gate dans `gates.log` (ceux des tours 1 et 2 sont dans les rapports de tour) · faux positifs non relevés · coût non mesuré
