@@ -105,8 +105,6 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   const abonnes = new Set<() => void>();
   const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null, enCours: 0 };
 
-  // Sans abonné, personne n'attend la relecture : elle se fait à la prochaine lecture ou au prochain
-  // abonnement, et rend la même référence tant que la table lue n'a pas changé.
   // Relit la table et dit si la lecture gardée a changé (elle est alors remplacée).
   const relireEtComparer = (): boolean => {
     const relue = lectureDe(doc);
@@ -116,6 +114,8 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     lecture = relue;
     return true;
   };
+  // Sans abonné, personne n'attend la relecture : elle se fait à la prochaine lecture ou au prochain
+  // abonnement, et rend la même référence tant que la table lue n'a pas changé.
   const rafraichir = (): void => {
     if (perimee) {
       perimee = false;
@@ -575,21 +575,44 @@ function creerLigne(
   // Le cache n'est sûr qu'hors de toute transaction ouverte (la nôtre exceptée) : dans une transaction
   // englobante, ou depuis un écouteur d'`afterTransaction` passé avant la façade, il peut être périmé.
   // Alors on relit comme avant la feature, sans faire confiance au cache ensuite.
-  const sur = doc._transaction === null && ordre.enCours === 0 && ordre.propre === null;
+  const sur = !transactionOuverte(doc) && ordre.enCours === 0 && ordre.propre === null;
   if (!sur || !ordre.valide) {
     relireOrdre(doc, ordre);
   }
   const visee = positionAdmise(position, ordre.ids.length);
   const place = placement(ordre.ids, ordre.rangs, visee);
   const id = crypto.randomUUID();
+  ecrireEtSuivre(doc, ordre, sur, () => {
+    ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
+    ecrireReattribues(doc, place.reattribues, ligneVisee);
+  });
+  if (ordre.valide) {
+    inscrireCreation(ordre, { id, position: visee, place });
+  }
+  return id;
+}
+
+// Lecture du champ interne `_transaction` de Yjs (vérifié sur yjs 13.6.33 : non nul pendant un
+// `transact`, nul sinon). Un test le fige : une montée de version qui le renomme le fait échouer.
+export function transactionOuverte(doc: Y.Doc): boolean {
+  return doc._transaction !== null;
+}
+
+// Écrit dans une transaction ; quand le cache est sûr, la marque comme la nôtre pour qu'`afterTransaction`
+// ne l'invalide pas. Le cache est invalidé si l'écriture échoue ou si elle n'était pas sûre.
+function ecrireEtSuivre(
+  doc: Y.Doc,
+  ordre: OrdreDesLignes,
+  sur: boolean,
+  ecriture: () => void,
+): void {
   let ecrite = false;
   try {
     doc.transact((transaction) => {
       if (sur) {
         ordre.propre = transaction;
       }
-      ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
-      ecrireReattribues(doc, place.reattribues, ligneVisee);
+      ecriture();
     });
     ecrite = true;
   } finally {
@@ -600,10 +623,6 @@ function creerLigne(
       ordre.valide = false;
     }
   }
-  if (ordre.valide) {
-    inscrireCreation(ordre, { id, position: visee, place });
-  }
-  return id;
 }
 
 function deplacerLigne(doc: Y.Doc, ligne: IdLigne, position: number): void {

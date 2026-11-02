@@ -200,6 +200,15 @@ export function lireApresFermer(abonne: boolean): string {
 }
 
 /** Suite de quelques milliers de créations à positions variées, valeurs variées, cache actif. */
+// Quatre régimes par tranche de 250, indexés par mode : en tête (rangs qui s'allongent), en fin,
+// au milieu, au hasard.
+const PLACEMENTS: ReadonlyArray<(n: number, alea: () => number) => number | undefined> = [
+  () => 0,
+  () => undefined,
+  (n) => Math.floor(n / 2),
+  (n, alea) => Math.floor(alea() * (n + 1)),
+];
+
 export function grandeSuite(creations: number): string {
   fixerDesIdentifiantsDisperses();
   const table = creerDocumentTable();
@@ -213,15 +222,7 @@ export function grandeSuite(creations: number): string {
   for (let i = 0; i < creations; i += 1) {
     const n = i;
     const mode = Math.floor(i / 250) % 4;
-    // Quatre régimes par tranche de 250 : en tête (rangs qui s'allongent), en fin, au milieu, au hasard.
-    const position =
-      mode === 0
-        ? 0
-        : mode === 1
-          ? undefined
-          : mode === 2
-            ? Math.floor(n / 2)
-            : Math.floor(alea() * (n + 1));
+    const position = PLACEMENTS[mode]!(n, alea);
     const valeurs = new Map<string, string | number | null>();
     if (i % 3 === 0) valeurs.set(nom, `ligne ${i}`);
     if (i % 5 === 0) valeurs.set(quantite, i);

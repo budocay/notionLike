@@ -230,11 +230,18 @@ describe("F-034 abonnés, convergence", () => {
     }
     expect(notifications).toBe(25);
     expect(table.lire().lignes).toHaveLength(25);
-    table.ecrireCellule(table.lire().lignes[0]!.id, colonne, table.lire().lignes[0]!.cellules[0]!);
+    // Vraie transaction qui laisse la table lue identique : réécrire dans la Y.Map la valeur déjà là.
+    const ligne = table.lire().lignes[0]!.id;
+    const cellules = (table.doc.getMap("lignes").get(ligne) as Y.Map<unknown>).get(
+      "cellules",
+    ) as Y.Map<unknown>;
+    table.doc.transact(() => cellules.set(colonne, cellules.get(colonne)));
+    // Et une transaction vide.
+    table.doc.transact(() => undefined);
     expect(notifications).toBe(25);
   });
 
-  it("F-034-AC4 la lecture reste à jour sans abonné, après des écritures d'un pair", () => {
+  it("F-034-AC11 F-034-AC3 la lecture reste à jour sans abonné, après des écritures d'un pair", () => {
     const a = creerRepliqueDeTable(1);
     const b = creerRepliqueDeTable(2);
     a.table.creerColonne("Nom", "texte");
@@ -507,7 +514,7 @@ describe("F-034-AC4 AC11 lecture paresseuse : abonnés inscrits après des créa
     const { notifications, rappel } = compter();
     table.abonner(rappel);
     const colonne = colonneDe(table);
-    // Écrire la valeur déjà présente (null) ne change pas la table lue.
+    // Écrire la valeur déjà présente (null) n'ouvre aucune transaction ; la transaction vide, si.
     table.ecrireCellule(creees[0] as IdLigne, colonne, null);
     table.doc.transact(() => undefined);
     expect(notifications()).toBe(0);
