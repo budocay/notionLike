@@ -60,14 +60,74 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
     expect(compte.appels).toBe(2);
   });
 
-  it("F-034-AC11 transaction englobante, sans abonné : lire() reflète la transaction en cours", () => {
+  // Sans abonné, lire() dans une transaction englobante rend la table que rendrait une relecture
+  // complète, que la lecture gardée soit à jour (lire() juste avant) ou déjà périmée.
+  it.each([
+    ["lecture à jour avant la transaction", true],
+    ["lecture déjà périmée avant la transaction", false],
+  ])(
+    "F-034-AC11 transaction englobante, sans abonné, %s : lire() rend N+1 lignes",
+    (_nom, aJour) => {
+      const table = creerDocumentTable();
+      table.creerColonne("Nom", "texte");
+      table.creerLigne();
+      if (aJour) {
+        expect(table.lire().lignes).toHaveLength(1);
+      } else {
+        table.creerLigne();
+        table.doc.transact(() => undefined);
+      }
+      const avant = table.lire().lignes.length;
+      table.doc.transact(() => {
+        table.creerLigne();
+        expect(table.lire().lignes).toHaveLength(avant + 1);
+        table.creerLigne();
+        expect(table.lire().lignes).toHaveLength(avant + 2);
+      });
+      const neuve = ouvrirDocumentTable(table.doc);
+      expect(table.lire()).toEqual(neuve.lire());
+      expect(table.lire().lignes).toHaveLength(avant + 2);
+      neuve.fermer();
+    },
+  );
+
+  it("F-034-AC11 transaction englobante, sans abonné : la lecture en cours ne remplace pas la lecture gardée", () => {
     const table = creerDocumentTable();
     table.creerColonne("Nom", "texte");
     table.creerLigne();
+    const gardee = table.lire();
     table.doc.transact(() => {
       table.creerLigne();
-      expect(table.lire().lignes).toHaveLength(2);
+      expect(table.lire()).not.toBe(gardee);
     });
+    // La transaction terminée rend la lecture périmée : la lecture suivante est une relecture.
+    expect(table.lire().lignes).toHaveLength(2);
+  });
+
+  it("F-034-AC11 abonner() dans une transaction : l'abonné est notifié à la fin des écritures déjà faites", () => {
+    for (const aJour of [true, false]) {
+      const table = creerDocumentTable();
+      table.creerColonne("Nom", "texte");
+      table.creerLigne();
+      if (aJour) {
+        table.lire();
+      }
+      let notifications = 0;
+      table.doc.transact(() => {
+        table.creerLigne();
+        table.abonner(() => {
+          notifications += 1;
+        });
+        expect(notifications).toBe(0);
+        // Avec abonné, pas de relecture en cours de transaction : la lecture gardée est rendue, celle
+        // d'avant la transaction (ou plus ancienne si elle était déjà périmée).
+        expect(table.lire().lignes).toHaveLength(aJour ? 1 : 0);
+      });
+      expect(notifications).toBe(1);
+      expect(table.lire().lignes).toHaveLength(2);
+      table.creerLigne();
+      expect(notifications).toBe(2);
+    }
   });
 
   it("F-034-AC11 transaction englobante, avec abonné : lire() garde la dernière table de fin de transaction", () => {

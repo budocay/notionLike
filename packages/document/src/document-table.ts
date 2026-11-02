@@ -91,19 +91,18 @@ interface OrdreDesLignes {
   valide: boolean;
   /** Transaction ouverte par la création en cours : la seule dont l'effet est déjà dans l'ordre. */
   propre: Y.Transaction | null;
-  /**
-   * Transactions commencées (`beforeTransaction`) dont `afterTransaction` n'est pas encore passé à la
-   * façade : Yjs ne l'émet qu'à la fin de la plus externe, l'ordre peut y être périmé sans le savoir.
-   */
-  enCours: number;
 }
 
 export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   let lecture = lectureDe(doc);
   let perimee = false;
   let fermee = false;
+  // Transactions commencées (`beforeTransaction`) dont `afterTransaction` n'est pas encore passé à la
+  // façade : Yjs ne l'émet qu'à la fin de la plus externe, la lecture et l'ordre peuvent y être périmés.
+  let enCours = 0;
   const abonnes = new Set<() => void>();
-  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null, enCours: 0 };
+  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null };
+  const enTransaction = (): boolean => transactionOuverte(doc) || enCours > 0;
 
   // Relit la table et dit si la lecture gardée a changé (elle est alors remplacée).
   const relireEtComparer = (): boolean => {
@@ -131,7 +130,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     if (fermee) {
       return;
     }
-    ordre.enCours = Math.max(0, ordre.enCours - 1);
+    enCours = Math.max(0, enCours - 1);
     if (transaction !== ordre.propre) {
       ordre.valide = false;
     }
@@ -139,12 +138,14 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       perimee = true;
       return;
     }
+    // Un abonnement pris en cours de transaction a laissé la lecture périmée : cette relecture la remet à jour.
+    perimee = false;
     if (relireEtComparer()) {
       diffuser(abonnes);
     }
   };
   const avantTransaction = (): void => {
-    ordre.enCours += 1;
+    enCours += 1;
   };
   doc.on("beforeTransaction", avantTransaction);
   doc.on("afterTransaction", apresTransaction);
@@ -161,14 +162,29 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   return {
     doc,
     lire: () => {
-      rafraichir();
-      return typeof lecture === "string" ? refuser(lecture) : lecture;
+      let rendue = lecture;
+      if (!enTransaction()) {
+        rafraichir();
+        rendue = lecture;
+      } else if (abonnes.size === 0) {
+        // Sans abonné, la lecture gardée n'est pas tenue à jour : on rend ce qu'une relecture complète
+        // rendrait maintenant (F-034-AC11), sans remplacer la lecture gardée ni la marquer à jour.
+        const relue = lectureDe(doc);
+        rendue = memeLecture(relue, lecture) ? lecture : relue;
+      }
+      return typeof rendue === "string" ? refuser(rendue) : rendue;
     },
     abonner: (rappel) => {
       if (fermee) {
         return () => undefined;
       }
-      rafraichir();
+      // En cours de transaction on ne relit pas : la base de comparaison reste la lecture gardée, celle
+      // d'avant la transaction (ou plus ancienne si elle était périmée), et l'abonné est notifié à la fin
+      // de la transaction des écritures déjà faites. Une notification de trop est sans risque, une de
+      // moins en aurait un.
+      if (!enTransaction()) {
+        rafraichir();
+      }
       const notifier = (): void => rappel();
       abonnes.add(notifier);
       return () => void abonnes.delete(notifier);
@@ -184,7 +200,10 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     deplacerOption: (colonne, option, position) =>
       ouverte(() => deplacerOption(doc, colonne, option, position)),
     retirerOption: (colonne, option) => ouverte(() => retirerOption(doc, colonne, option)),
-    creerLigne: (valeurs, position) => ouverte(() => creerLigne(doc, ordre, valeurs, position)),
+    creerLigne: (valeurs, position) =>
+      ouverte(() =>
+        creerLigne(doc, ordre, !enTransaction() && ordre.propre === null, valeurs, position),
+      ),
     deplacerLigne: (ligne, position) => ouverte(() => deplacerLigne(doc, ligne, position)),
     supprimerLigne: (ligne) => ouverte(() => supprimerLigne(doc, ligne)),
     ecrireCellule: (ligne, colonne, valeur) =>
@@ -568,14 +587,14 @@ function inscrireCreation(
 function creerLigne(
   doc: Y.Doc,
   ordre: OrdreDesLignes,
+  sur: boolean,
   valeurs: ReadonlyMap<IdColonne, ValeurDeCellule | null> | undefined,
   position: number | undefined,
 ): IdLigne {
   const cellules = cellulesInitiales(lireEtatTable(lireColonnes(doc), []), valeurs ?? new Map());
-  // Le cache n'est sûr qu'hors de toute transaction ouverte (la nôtre exceptée) : dans une transaction
-  // englobante, ou depuis un écouteur d'`afterTransaction` passé avant la façade, il peut être périmé.
-  // Alors on relit comme avant la feature, sans faire confiance au cache ensuite.
-  const sur = !transactionOuverte(doc) && ordre.enCours === 0 && ordre.propre === null;
+  // `sur` : le cache n'est fiable qu'hors de toute transaction ouverte (la nôtre exceptée) ; dans une
+  // transaction englobante, ou depuis un écouteur d'`afterTransaction` passé avant la façade, il peut
+  // être périmé. Alors on relit comme avant la feature, sans faire confiance au cache ensuite.
   if (!sur || !ordre.valide) {
     relireOrdre(doc, ordre);
   }

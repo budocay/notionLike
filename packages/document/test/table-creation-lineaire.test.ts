@@ -33,7 +33,33 @@ import {
   refusDe,
 } from "./aides-table.ts";
 
+// Les lectures du document sont comptées (AC6 : un refus ne lit rien) et l'écriture d'une ligne peut
+// être faite lever après avoir écrit (une écriture partielle dans une vraie transaction).
+const sonde = vi.hoisted(() => ({ entrees: 0, colonnes: 0, ecritureQuiLeve: false }));
+
+vi.mock("../src/format-table.ts", async (importer) => {
+  const reel = await importer<typeof import("../src/format-table.ts")>();
+  return {
+    ...reel,
+    lireEntrees: (...arguments_: Parameters<typeof reel.lireEntrees>) => {
+      sonde.entrees += 1;
+      return reel.lireEntrees(...arguments_);
+    },
+    lireColonnes: (...arguments_: Parameters<typeof reel.lireColonnes>) => {
+      sonde.colonnes += 1;
+      return reel.lireColonnes(...arguments_);
+    },
+    ecrireNouvelleLigne: (...arguments_: Parameters<typeof reel.ecrireNouvelleLigne>) => {
+      reel.ecrireNouvelleLigne(...arguments_);
+      if (sonde.ecritureQuiLeve) {
+        throw new Error("écriture interrompue");
+      }
+    },
+  };
+});
+
 afterEach(() => {
+  sonde.ecritureQuiLeve = false;
   vi.restoreAllMocks();
 });
 
@@ -42,7 +68,8 @@ const DELAI_DES_REFUS = 60_000;
 
 const RANG_MAX = "z".repeat(1024);
 
-// Les trois contenus de référence ont été relevés sur `main` (dbb8556), avant la feature.
+// Les trois contenus de référence ont été relevés sur le code d'avant la feature (a64bf5f, comme
+// `AVANT_LA_FEATURE` et `aides-creation-lineaire.ts`) : un seul commit de référence pour tout le fichier.
 
 function deuxColonnes(table: DocumentTable): { nom: IdColonne; quantite: IdColonne } {
   return { nom: table.creerColonne("Nom", "texte"), quantite: table.creerColonne("Qté", "nombre") };
@@ -196,7 +223,10 @@ describe("F-034 refus", () => {
     doc.getArray("versions").push([2]);
     const table = ouvrirDocumentTable(doc);
     const avant = contenu(doc);
+    sonde.entrees = 0;
+    sonde.colonnes = 0;
     const resultat = refusDe(doc, () => table.creerLigne());
+    expect([sonde.entrees, sonde.colonnes]).toEqual([0, 0]);
     expect(resultat.code).toBe("version-non-prise-en-charge");
     expect(resultat.misesAJour).toBe(0);
     expect(contenu(doc)).toBe(avant);
@@ -210,7 +240,10 @@ describe("F-034 document refusé", () => {
     doc.getMap("autre").set("x", 1);
     const table = ouvrirDocumentTable(doc);
     const avant = contenu(doc);
+    sonde.entrees = 0;
+    sonde.colonnes = 0;
     const resultat = refusDe(doc, () => table.creerLigne());
+    expect([sonde.entrees, sonde.colonnes]).toEqual([0, 0]);
     expect(resultat.code).toBe("pas-un-document-de-table");
     expect(resultat.misesAJour).toBe(0);
     expect(contenu(doc)).toBe(avant);
@@ -295,7 +328,7 @@ describe("F-034 abonnés, convergence", () => {
       a.table.creerLigne(undefined, 2);
       b.table.creerLigne(undefined, 2);
     }
-    echanger([a, b]);
+    echanger([b, a]);
     a.table.creerLigne(undefined, 7);
     echanger([a, b, c]);
     expect(a.table.lire()).toEqual(b.table.lire());
@@ -473,15 +506,18 @@ describe("F-034-AC1 cache d'ordre : mêmes résultats qu'avant la feature", () =
 
   it("une écriture qui lève ne laisse pas le cache en avance sur le document", () => {
     const { table } = tableSuivie(3);
-    const ecrire = vi.spyOn(Y.Doc.prototype, "transact").mockImplementationOnce(() => {
-      throw new Error("écriture refusée");
-    });
-    expect(() => table.creerLigne(undefined, 0)).toThrow("écriture refusée");
-    ecrire.mockRestore();
-    expect(table.lire().lignes).toHaveLength(3);
-    table.creerLigne(undefined, 3);
+    // La ligne est écrite dans la vraie transaction, puis l'écriture lève : le document a 4 lignes,
+    // l'ordre gardé en a 3 s'il n'est pas invalidé (afterTransaction ne l'invalide pas : la
+    // transaction est la nôtre, seul le `finally` d'`ecrireEtSuivre` le fait).
+    sonde.ecritureQuiLeve = true;
+    expect(() => table.creerLigne(undefined, 0)).toThrow("écriture interrompue");
+    sonde.ecritureQuiLeve = false;
     expect(table.lire().lignes).toHaveLength(4);
-    expect(() => table.creerLigne(undefined, 5)).toThrow(ErreurDocument);
+    // Position 4 : admise par le document (4 lignes), refusée par un ordre resté à 3 lignes.
+    table.creerLigne(undefined, 4);
+    expect(table.lire().lignes).toHaveLength(5);
+    expect(() => table.creerLigne(undefined, 6)).toThrow(ErreurDocument);
+    expect(new Set(table.lire().lignes.map((ligne) => ligne.id)).size).toBe(5);
   });
 
   it("une suite fixée de 3 000 créations à positions variées égale l'empreinte d'avant la feature", () => {
