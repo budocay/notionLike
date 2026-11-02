@@ -105,6 +105,7 @@ function livrerDansLOrdre(repliques: readonly RepliqueDeTable[], cles: readonly 
 }
 
 describe("convergence de suites quelconques", () => {
+  // F-035-AC5 F-035-AC6 F-035-AC7 : délai de 30 000 ms, ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   it.each([2, 3])(
     "F-017-AC10 %i répliques, opérations sans se voir, échanges partiels, livraison finale dans un ordre tiré : même table partout, égale à celle d'un observateur qui reçoit tout",
     (nombre) => {
@@ -128,6 +129,7 @@ describe("convergence de suites quelconques", () => {
         { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
       );
     },
+    30_000,
   );
 });
 

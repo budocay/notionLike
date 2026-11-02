@@ -324,6 +324,27 @@
 2026-10-28T16:46:00Z | agent-architecte | F-020 | UNVERIFIED (la commande de gate a échoué (code 1), voir /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md et /Users/alexislina/dev/notionLike-F-020/.agents/review/F-020/agent-architecte.md.err) | 90d768bf2f44
 2026-10-28T16:46:00Z | agent-craft | F-020 | CRAFT GATE: PASS | 90d768bf2f44
 2026-10-30T07:31:25Z | agent-architecte | F-020 | ARCHITECTURE GATE: PASS | 90d768bf2f44
+2026-10-30T16:19:03Z | reviewer-frontend | F-035 | CHANGES_REQUESTED | 094e0550704a
+2026-10-30T16:36:17Z | agent-securite | F-035 | SECURITY GATE: PASS | 094e0550704a
+2026-10-31T00:05:33Z | agent-architecte | F-035 | UNVERIFIED (la commande de gate a échoué (code 1), voir /Users/alexislina/dev/notionLike-F-035/.agents/review/F-035/agent-architecte.md et /Users/alexislina/dev/notionLike-F-035/.agents/review/F-035/agent-architecte.md.err) | 094e0550704a
+2026-10-31T00:05:33Z | agent-craft | F-035 | CRAFT GATE: PASS | 094e0550704a
+2026-11-02T08:38:52Z | reviewer-frontend | F-035 | CHANGES_REQUESTED | dcb1160fa0ce
+2026-11-02T08:39:25Z | agent-securite | F-035 | SECURITY GATE: PASS | dcb1160fa0ce
+2026-11-02T08:40:07Z | agent-architecte | F-035 | ARCHITECTURE GATE: PASS | dcb1160fa0ce
+2026-11-02T08:40:07Z | agent-craft | F-035 | CRAFT GATE: PASS | dcb1160fa0ce
+2026-11-02T08:48:28Z | reviewer-frontend | F-035 | CHANGES_REQUESTED | 7e17a306fecb
+2026-11-02T08:49:02Z | agent-securite | F-035 | SECURITY GATE: PASS | 7e17a306fecb
+2026-11-02T08:49:46Z | agent-architecte | F-035 | ARCHITECTURE GATE: PASS | 7e17a306fecb
+2026-11-02T08:49:47Z | agent-craft | F-035 | CRAFT GATE: PASS | 7e17a306fecb
+2026-11-02T09:15:39Z | agent-craft | F-035 | CRAFT GATE: PASS | 6d81f47bd6bd
+2026-11-02T09:16:11Z | agent-architecte | F-035 | ARCHITECTURE GATE: PASS | 6d81f47bd6bd
+2026-11-02T09:16:15Z | agent-securite | F-035 | SECURITY GATE: PASS | 6d81f47bd6bd
+2026-11-02T09:21:55Z | reviewer-frontend | F-035 | REPRISE D-042 | 7e17a306fecb
+2026-11-02T09:24:38Z | reviewer-frontend | F-035 | CHANGES_REQUESTED | 6d81f47bd6bd
+2026-11-02T09:31:38Z | agent-craft | F-035 | CRAFT GATE: PASS | 495100ce2178
+2026-11-02T09:32:18Z | agent-architecte | F-035 | ARCHITECTURE GATE: PASS | 495100ce2178
+2026-11-02T09:32:18Z | agent-securite | F-035 | SECURITY GATE: PASS | 495100ce2178
+2026-11-02T09:32:51Z | reviewer-frontend | F-035 | APPROVED | 495100ce2178
 2026-10-30T14:34:15Z | reviewer-backend | F-046 | CHANGES_REQUESTED | 089298582b1d
 2026-10-30T14:34:51Z | agent-securite | F-046 | SECURITY GATE: PASS | 089298582b1d
 2026-10-30T14:36:10Z | agent-architecte | F-046 | ARCHITECTURE GATE: UNVERIFIED | 089298582b1d

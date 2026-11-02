@@ -467,3 +467,15 @@
 - Tests: aucun — état: non reproduit — preuve: `MEMORY/features/F-046.md`
 - Gates: voir F-046
 - Mesures: 64 exécutions du fichier, 10 des deux autres
+
+## [2026-11-02] F-035 Tests fiables : attente de l'état observable (D-042) et délai des tests lents (D-045)
+
+- TYPE: FIX
+- Tier: standard
+- Scope: tests de `apps/web/test/` (F-032, F-019, F-018, F-020) et `packages/document/test/` (F-017), aucun fichier de `src/` — agents: agent-planif, agent-frontend, dev (reprise D-042) — commits: 90d72be..cbf0b77
+- Détail: les lectures de focus, d'annonce et de zone de `espace-ajout.test.tsx` et `espace-changement.test.tsx` attendent l'état observable (`waitFor`, même `expect`), lectures voisines comprises (inventaire d'AC3 dans `MEMORY/features/F-035.md`) ; six tests lents (F-019-AC28 deux fois, F-018-AC47, F-020-AC8, F-017-AC20/AC21, F-017-AC10) reçoivent un délai explicite de 30 000 ms (H1 option A, aucun oracle touché). AC4 : 20/20 par fichier, seul et sous `pnpm test` racine ; AC7 : 10/10 sous charge, pire temps 3 761 ms (marge x 8,0) ; AC8 : trois cassures locales de `src/` font échouer 7 tests sur l'assertion nommée. H2 : 30 000 ms tranché par l'orchestrateur sur délégation du dev (2026-11-02), 12 000 ms (marge x 3,2) reste proposée au dev. Réserve : le dépassement de 5 s décrit par la spec n'a pas été reproduit sous la charge de l'AC7.
+- Dette: résorbées D-042 (cinq lectures nommées et lectures voisines, reprise du dev après l'escalade du tour 3) et D-045 (les six tests lents) ; aucune introduite
+- ADR: aucun
+- Tests: 8 fichiers de test modifiés, aucun test ajouté ni supprimé — état: verts — preuve: relevés d'AC4 et d'AC7 de `MEMORY/features/F-035.md` ; `controles.sh` à la PR
+- Gates: tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, SECURITY PASS, ARCHITECTURE PASS, CRAFT PASS ; tours 1 à 4 : reviewer-frontend CHANGES_REQUESTED, escalade §5.6 au tour 3 (3 rejets), REPRISE D-042 du dev (`88ce24a`) ; revue reviewer-frontend (gate.sh) sur le dossier, route non précisée par le skill
+- Mesures: boucles reviewer-frontend 5 passages (4 CHANGES_REQUESTED, 1 APPROVED, plus la reprise) · sécurité 5 PASS · architecture 5 passages (1 UNVERIFIED, commande de gate en échec, puis 4 PASS) · craft 5 PASS · constats confirmés non comptés par gate dans `gates.log` · faux positifs non relevés · coût non mesuré

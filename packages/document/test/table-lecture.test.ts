@@ -519,6 +519,7 @@ function verifierConformite(lue: TableLue): void {
 }
 
 describe("entrées brutes quelconques", () => {
+  // F-035-AC5 F-035-AC6 F-035-AC7 : délai de 30 000 ms, ce test a dépassé le défaut de 5 s de Vitest sous le crochet Stop.
   it("F-017-AC20 F-017-AC21 pour toute forge, lire() ne lève jamais, toute valeur exposée est conforme, et deux répliques qui la reçoivent dans des ordres différents lisent la même table", () => {
     fc.assert(
       fc.property(forge(true), forge(true), (premiere, seconde) => {
@@ -540,7 +541,7 @@ describe("entrées brutes quelconques", () => {
       }),
       { seed: GRAINE, numRuns: NOMBRE_EXECUTIONS },
     );
-  });
+  }, 30_000);
 
   it.each([false, true])(
     "F-017-AC21 F-017-AC10 unités UTF-16 isolées tirées : %s ; la réplique qui forge et celle qui reçoit lisent la même table",
