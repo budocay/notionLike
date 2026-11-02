@@ -91,6 +91,11 @@ interface OrdreDesLignes {
   valide: boolean;
   /** Transaction ouverte par la création en cours : la seule dont l'effet est déjà dans l'ordre. */
   propre: Y.Transaction | null;
+  /**
+   * Transactions commencées (`beforeTransaction`) dont `afterTransaction` n'est pas encore passé à la
+   * façade : Yjs ne l'émet qu'à la fin de la plus externe, l'ordre peut y être périmé sans le savoir.
+   */
+  enCours: number;
 }
 
 export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
@@ -98,17 +103,23 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   let perimee = false;
   let fermee = false;
   const abonnes = new Set<() => void>();
-  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null };
+  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null, enCours: 0 };
 
   // Sans abonné, personne n'attend la relecture : elle se fait à la prochaine lecture ou au prochain
   // abonnement, et rend la même référence tant que la table lue n'a pas changé.
+  // Relit la table et dit si la lecture gardée a changé (elle est alors remplacée).
+  const relireEtComparer = (): boolean => {
+    const relue = lectureDe(doc);
+    if (memeLecture(relue, lecture)) {
+      return false;
+    }
+    lecture = relue;
+    return true;
+  };
   const rafraichir = (): void => {
     if (perimee) {
       perimee = false;
-      const relue = lectureDe(doc);
-      if (!memeLecture(relue, lecture)) {
-        lecture = relue;
-      }
+      relireEtComparer();
     }
   };
 
@@ -120,6 +131,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     if (fermee) {
       return;
     }
+    ordre.enCours = Math.max(0, ordre.enCours - 1);
     if (transaction !== ordre.propre) {
       ordre.valide = false;
     }
@@ -127,12 +139,14 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       perimee = true;
       return;
     }
-    const relue = lectureDe(doc);
-    if (!memeLecture(relue, lecture)) {
-      lecture = relue;
+    if (relireEtComparer()) {
       diffuser(abonnes);
     }
   };
+  const avantTransaction = (): void => {
+    ordre.enCours += 1;
+  };
+  doc.on("beforeTransaction", avantTransaction);
   doc.on("afterTransaction", apresTransaction);
 
   // Contrôlé avant tout autre refus, puis le refus du document (ordre de la conception de F-017).
@@ -176,8 +190,12 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     ecrireCellule: (ligne, colonne, valeur) =>
       ouverte(() => ecrireUneCellule(doc, ligne, colonne, valeur)),
     fermer: () => {
+      // Sans abonné la relecture était différée : la faire maintenant garde à `lire()` la dernière table
+      // lue, comme avant la feature, et non l'état que le document aura plus tard.
+      rafraichir();
       fermee = true;
       abonnes.clear();
+      doc.off("beforeTransaction", avantTransaction);
       doc.off("afterTransaction", apresTransaction);
     },
   };
@@ -530,9 +548,7 @@ function relireOrdre(doc: Y.Doc, ordre: OrdreDesLignes): void {
 // réattribuées gardent la leur, leurs rangs restant strictement croissants (F-029).
 function inscrireCreation(
   ordre: OrdreDesLignes,
-  id: string,
-  position: number,
-  place: Placement,
+  { id, position, place }: { id: string; position: number; place: Placement },
 ): void {
   ordre.ids.splice(position, 0, id);
   ordre.rangs.splice(position, 0, place.rang);
@@ -556,20 +572,36 @@ function creerLigne(
   position: number | undefined,
 ): IdLigne {
   const cellules = cellulesInitiales(lireEtatTable(lireColonnes(doc), []), valeurs ?? new Map());
-  if (!ordre.valide) {
+  // Le cache n'est sûr qu'hors de toute transaction ouverte (la nôtre exceptée) : dans une transaction
+  // englobante, ou depuis un écouteur d'`afterTransaction` passé avant la façade, il peut être périmé.
+  // Alors on relit comme avant la feature, sans faire confiance au cache ensuite.
+  const sur = doc._transaction === null && ordre.enCours === 0 && ordre.propre === null;
+  if (!sur || !ordre.valide) {
     relireOrdre(doc, ordre);
   }
   const visee = positionAdmise(position, ordre.ids.length);
   const place = placement(ordre.ids, ordre.rangs, visee);
   const id = crypto.randomUUID();
-  doc.transact((transaction) => {
-    ordre.propre = transaction;
-    ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
-    ecrireReattribues(doc, place.reattribues, ligneVisee);
-  });
-  ordre.propre = null;
+  let ecrite = false;
+  try {
+    doc.transact((transaction) => {
+      if (sur) {
+        ordre.propre = transaction;
+      }
+      ecrireNouvelleLigne(doc, { id, rang: place.rang, cellules });
+      ecrireReattribues(doc, place.reattribues, ligneVisee);
+    });
+    ecrite = true;
+  } finally {
+    if (sur) {
+      ordre.propre = null;
+    }
+    if (!ecrite || !sur) {
+      ordre.valide = false;
+    }
+  }
   if (ordre.valide) {
-    inscrireCreation(ordre, id, visee, place);
+    inscrireCreation(ordre, { id, position: visee, place });
   }
   return id;
 }
