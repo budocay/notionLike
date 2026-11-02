@@ -39,7 +39,12 @@ const PRODUCTION = [SESSION_DE_PAGE];
 const AIDE_D_APPS_WEB = "apps/web/test/aides-facade-page.ts";
 const AIDE_DU_PAQUET = "packages/document/test/aides-page.ts";
 const AIDES_SUIVIES = [AIDE_D_APPS_WEB, AIDE_DU_PAQUET];
-const IMPORT_ENTIER_SANS_OUVERTURE = ["apps/web/test/structure.test.ts"];
+// F-034-AC11 : la preuve d'intégration de la table enveloppe `ouvrirDocumentTable` par un mock du
+// paquet entier (importer) ; elle n'appelle ni ne nomme jamais la fonction d'ouverture de page.
+const IMPORT_ENTIER_SANS_OUVERTURE = [
+  "apps/web/test/structure.test.ts",
+  "apps/web/test/table-session-hors-transaction.test.ts",
+];
 // Liste fermée de F-002-AC31, qui ne reçoit aucun fichier de cette feature.
 const FACADES_DE_TEST_DE_F001_NON_MODIFIABLES = [
   "packages/document/test/abonnement.test.ts",
