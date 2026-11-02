@@ -91,24 +91,57 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
     },
   );
 
-  it("F-034-AC11 transaction englobante, sans abonné : la lecture en cours ne remplace pas la lecture gardée", () => {
+  // Règle : la base de comparaison d'un abonné est la table lue à son inscription ; en transaction,
+  // une relecture fraîche. Les écritures d'avant l'inscription ne le notifient pas, celles d'après si.
+  // (La lecture en cours de `lire()` ne peut donc plus changer une notification : propriété inobservable.)
+  function tableDUneLigne() {
     const table = creerDocumentTable();
     table.creerColonne("Nom", "texte");
     table.creerLigne();
-    const gardee = table.lire();
-    table.doc.transact(() => {
+    return table;
+  }
+
+  it("F-034-AC11 lecture gardée périmée, abonner() en transaction sans écriture : 0 notification", () => {
+    const table = creerDocumentTable();
+    table.creerColonne("Nom", "texte");
+    for (let i = 0; i < 5; i += 1) {
       table.creerLigne();
-      expect(table.lire()).not.toBe(gardee);
+    }
+    let notifications = 0;
+    table.doc.transact(() => {
+      table.abonner(() => {
+        notifications += 1;
+      });
     });
-    // La transaction terminée rend la lecture périmée : la lecture suivante est une relecture.
-    expect(table.lire().lignes).toHaveLength(2);
+    expect(notifications).toBe(0);
+    expect(table.lire().lignes).toHaveLength(5);
   });
 
-  it("F-034-AC11 abonner() dans une transaction : l'abonné est notifié à la fin des écritures déjà faites", () => {
-    for (const aJour of [true, false]) {
-      const table = creerDocumentTable();
-      table.creerColonne("Nom", "texte");
+  it.each([true, false])(
+    "F-034-AC11 abonner() puis écriture dans la même transaction : 1 notification à la fin (lecture à jour : %s)",
+    (aJour) => {
+      const table = tableDUneLigne();
+      if (aJour) {
+        table.lire();
+      }
+      let notifications = 0;
+      table.doc.transact(() => {
+        table.abonner(() => {
+          notifications += 1;
+        });
+        table.creerLigne();
+        expect(notifications).toBe(0);
+      });
+      expect(notifications).toBe(1);
       table.creerLigne();
+      expect(notifications).toBe(2);
+    },
+  );
+
+  it.each([true, false])(
+    "F-034-AC11 écriture puis abonner() dans la même transaction : 0 notification (lecture à jour : %s)",
+    (aJour) => {
+      const table = tableDUneLigne();
       if (aJour) {
         table.lire();
       }
@@ -118,16 +151,57 @@ describe("F-034-AC11 lecture paresseuse sans abonné", () => {
         table.abonner(() => {
           notifications += 1;
         });
-        expect(notifications).toBe(0);
-        // Avec abonné, pas de relecture en cours de transaction : la lecture gardée est rendue, celle
-        // d'avant la transaction (ou plus ancienne si elle était déjà périmée).
-        expect(table.lire().lignes).toHaveLength(aJour ? 1 : 0);
       });
-      expect(notifications).toBe(1);
+      expect(notifications).toBe(0);
       expect(table.lire().lignes).toHaveLength(2);
       table.creerLigne();
-      expect(notifications).toBe(2);
-    }
+      expect(notifications).toBe(1);
+    },
+  );
+
+  it("F-034-AC11 deuxième abonné inscrit en transaction après une écriture : seul le premier est notifié", () => {
+    const table = tableDUneLigne();
+    const notifies: string[] = [];
+    table.abonner(() => notifies.push("premier"));
+    table.doc.transact(() => {
+      table.creerLigne();
+      table.abonner(() => notifies.push("second"));
+    });
+    expect(notifies).toEqual(["premier"]);
+    table.creerLigne();
+    expect(notifies).toEqual(["premier", "premier", "second"]);
+  });
+
+  it("F-034-AC11 hors transaction, lecture périmée : 0 notification à l'inscription, 1 à la création", () => {
+    const table = tableDUneLigne();
+    table.creerLigne();
+    table.doc.transact(() => undefined);
+    let notifications = 0;
+    table.abonner(() => {
+      notifications += 1;
+    });
+    expect(notifications).toBe(0);
+    table.creerLigne();
+    expect(notifications).toBe(1);
+  });
+
+  it("F-034-AC11 façade ouverte dans une transaction : le compteur de transactions ne descend pas sous 0", () => {
+    const doc = new Y.Doc();
+    const creatrice = ouvrirDocumentTable(doc);
+    creatrice.creerColonne("Nom", "texte");
+    creatrice.fermer();
+    let table: ReturnType<typeof ouvrirDocumentTable> | undefined;
+    doc.transact(() => {
+      table = ouvrirDocumentTable(doc);
+    });
+    let notifications = 0;
+    table?.abonner(() => {
+      notifications += 1;
+    });
+    table?.creerLigne();
+    expect(notifications).toBe(1);
+    expect(table?.lire().lignes).toHaveLength(1);
+    table?.fermer();
   });
 
   it("F-034-AC11 transaction englobante, avec abonné : lire() garde la dernière table de fin de transaction", () => {

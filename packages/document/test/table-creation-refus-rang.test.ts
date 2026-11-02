@@ -50,6 +50,11 @@ describe("F-034 rang-indisponible", () => {
       code: "position-invalide",
       misesAJour: 0,
     });
+    // Valeurs avant position : le cas combiné rend le refus de la valeur.
+    expect(refusDe(table.doc, () => table.creerLigne(new Map([[colonne, 3]]), 5001))).toEqual({
+      code: "valeur-non-conforme",
+      misesAJour: 0,
+    });
 
     etat.refuser = false;
     expect(Y.encodeStateAsUpdate(table.doc)).toEqual(avant);

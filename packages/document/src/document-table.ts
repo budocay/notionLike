@@ -93,17 +93,14 @@ interface OrdreDesLignes {
   propre: Y.Transaction | null;
 }
 
-export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
+/**
+ * Lecture gardée par la façade (F-034-AC11) : sans abonné personne n'attend la relecture, elle se fait
+ * à la prochaine lecture ou au prochain abonnement et rend la même référence tant que la table lue n'a
+ * pas changé.
+ */
+function lectureGardee(doc: Y.Doc) {
   let lecture = lectureDe(doc);
   let perimee = false;
-  let fermee = false;
-  // Transactions commencées (`beforeTransaction`) dont `afterTransaction` n'est pas encore passé à la
-  // façade : Yjs ne l'émet qu'à la fin de la plus externe, la lecture et l'ordre peuvent y être périmés.
-  let enCours = 0;
-  const abonnes = new Set<() => void>();
-  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null };
-  const enTransaction = (): boolean => transactionOuverte(doc) || enCours > 0;
-
   // Relit la table et dit si la lecture gardée a changé (elle est alors remplacée).
   const relireEtComparer = (): boolean => {
     const relue = lectureDe(doc);
@@ -113,14 +110,36 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     lecture = relue;
     return true;
   };
-  // Sans abonné, personne n'attend la relecture : elle se fait à la prochaine lecture ou au prochain
-  // abonnement, et rend la même référence tant que la table lue n'a pas changé.
-  const rafraichir = (): void => {
-    if (perimee) {
+  return {
+    courante: (): Lecture => lecture,
+    perimer: (): void => {
+      perimee = true;
+    },
+    rafraichir: (): void => {
+      if (perimee) {
+        perimee = false;
+        relireEtComparer();
+      }
+    },
+    /** Relecture immédiate : vrai si la table lue a changé. */
+    mettreAJour: (): boolean => {
       perimee = false;
-      relireEtComparer();
-    }
+      return relireEtComparer();
+    },
   };
+}
+
+export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
+  const gardee = lectureGardee(doc);
+  let fermee = false;
+  // Transactions commencées (`beforeTransaction`) dont `afterTransaction` n'est pas encore passé à la
+  // façade : Yjs ne l'émet qu'à la fin de la plus externe, la lecture et l'ordre peuvent y être périmés.
+  let enCours = 0;
+  // Chaque abonné garde sa base de comparaison : la table lue à son inscription, puis celle de la
+  // dernière transaction (aucune notification pour ce qui précède son inscription).
+  const abonnes = new Map<() => void, Lecture>();
+  const ordre: OrdreDesLignes = { ids: [], rangs: [], valide: false, propre: null };
+  const enTransaction = (): boolean => transactionOuverte(doc) || enCours > 0;
 
   // Une notification par transaction qui change la table lue, ou qui fait entrer dans un refus ou en
   // sortir (F-017-AC9) : ni `afterTransaction` ni `observeDeep` ne le disent seuls (veille, constat 4).
@@ -130,19 +149,26 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     if (fermee) {
       return;
     }
+    // Plancher : une façade ouverte dans une transaction déjà commencée n'a pas vu son
+    // `beforeTransaction` mais reçoit son `afterTransaction` ; le compteur ne descend pas sous 0.
     enCours = Math.max(0, enCours - 1);
     if (transaction !== ordre.propre) {
       ordre.valide = false;
     }
     if (abonnes.size === 0) {
-      perimee = true;
+      gardee.perimer();
       return;
     }
-    // Un abonnement pris en cours de transaction a laissé la lecture périmée : cette relecture la remet à jour.
-    perimee = false;
-    if (relireEtComparer()) {
-      diffuser(abonnes);
+    gardee.mettreAJour();
+    const relue = gardee.courante();
+    const concernes: Array<() => void> = [];
+    for (const [notifier, base] of abonnes) {
+      if (base !== relue && !memeLecture(base, relue)) {
+        concernes.push(notifier);
+      }
+      abonnes.set(notifier, relue);
     }
+    diffuser(concernes, abonnes);
   };
   const avantTransaction = (): void => {
     enCours += 1;
@@ -162,15 +188,15 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
   return {
     doc,
     lire: () => {
-      let rendue = lecture;
+      let rendue = gardee.courante();
       if (!enTransaction()) {
-        rafraichir();
-        rendue = lecture;
+        gardee.rafraichir();
+        rendue = gardee.courante();
       } else if (abonnes.size === 0) {
         // Sans abonné, la lecture gardée n'est pas tenue à jour : on rend ce qu'une relecture complète
         // rendrait maintenant (F-034-AC11), sans remplacer la lecture gardée ni la marquer à jour.
         const relue = lectureDe(doc);
-        rendue = memeLecture(relue, lecture) ? lecture : relue;
+        rendue = memeLecture(relue, rendue) ? rendue : relue;
       }
       return typeof rendue === "string" ? refuser(rendue) : rendue;
     },
@@ -178,15 +204,21 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
       if (fermee) {
         return () => undefined;
       }
-      // En cours de transaction on ne relit pas : la base de comparaison reste la lecture gardée, celle
-      // d'avant la transaction (ou plus ancienne si elle était périmée), et l'abonné est notifié à la fin
-      // de la transaction des écritures déjà faites. Une notification de trop est sans risque, une de
-      // moins en aurait un.
-      if (!enTransaction()) {
-        rafraichir();
+      // Règle : la base de l'abonné est la table lue à son inscription. Hors transaction c'est la lecture
+      // gardée remise à jour ; en transaction, une relecture fraîche de l'état courant (la lecture gardée
+      // peut être périmée). Les écritures d'avant l'inscription ne le notifient pas, celles d'après le
+      // notifient à la fin de la transaction.
+      let base: Lecture;
+      if (enTransaction()) {
+        const fraiche = lectureDe(doc);
+        const courante = gardee.courante();
+        base = memeLecture(fraiche, courante) ? courante : fraiche;
+      } else {
+        gardee.rafraichir();
+        base = gardee.courante();
       }
       const notifier = (): void => rappel();
-      abonnes.add(notifier);
+      abonnes.set(notifier, base);
       return () => void abonnes.delete(notifier);
     },
     creerColonne: (nom, type, position) => ouverte(() => creerColonne(doc, nom, type, position)),
@@ -202,7 +234,12 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     retirerOption: (colonne, option) => ouverte(() => retirerOption(doc, colonne, option)),
     creerLigne: (valeurs, position) =>
       ouverte(() =>
-        creerLigne(doc, ordre, !enTransaction() && ordre.propre === null, valeurs, position),
+        creerLigne(
+          doc,
+          { ordre, sur: !enTransaction() && ordre.propre === null },
+          valeurs,
+          position,
+        ),
       ),
     deplacerLigne: (ligne, position) => ouverte(() => deplacerLigne(doc, ligne, position)),
     supprimerLigne: (ligne) => ouverte(() => supprimerLigne(doc, ligne)),
@@ -211,7 +248,7 @@ export function ouvrirDocumentTable(doc: Y.Doc): DocumentTable {
     fermer: () => {
       // Sans abonné la relecture était différée : la faire maintenant garde à `lire()` la dernière table
       // lue, comme avant la feature, et non l'état que le document aura plus tard.
-      rafraichir();
+      gardee.rafraichir();
       fermee = true;
       abonnes.clear();
       doc.off("beforeTransaction", avantTransaction);
@@ -237,8 +274,11 @@ function memeLecture(a: Lecture, b: Lecture): boolean {
 // ceux qu'un rappel précédent vient de désabonner, et tous dès que la façade est fermée. Un rappel
 // qui lève ne prive pas les suivants et ne remonte pas par la transaction en cours, `Y.applyUpdate`
 // compris : son exception va à la console d'erreur, seul canal.
-function diffuser(abonnes: ReadonlySet<() => void>): void {
-  for (const notifier of [...abonnes]) {
+function diffuser(
+  concernes: readonly (() => void)[],
+  abonnes: ReadonlyMap<() => void, unknown>,
+): void {
+  for (const notifier of concernes) {
     if (abonnes.has(notifier)) {
       try {
         notifier();
@@ -586,8 +626,7 @@ function inscrireCreation(
 // valeurs, position, puis `rang-indisponible` (F-029-AC10).
 function creerLigne(
   doc: Y.Doc,
-  ordre: OrdreDesLignes,
-  sur: boolean,
+  { ordre, sur }: { ordre: OrdreDesLignes; sur: boolean },
   valeurs: ReadonlyMap<IdColonne, ValeurDeCellule | null> | undefined,
   position: number | undefined,
 ): IdLigne {
