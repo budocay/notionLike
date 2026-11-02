@@ -76,7 +76,7 @@ export function Actions({ children }: { readonly children: ReactNode }): ReactEl
   return <div className={ESPACES.actions}>{children}</div>;
 }
 
-interface ProprietesBouton {
+interface ProprietesDeBase {
   readonly libelle: string;
   /** Nom accessible, quand il cite ce qui est visé (F-014-AC36). */
   readonly nom?: string | undefined;
@@ -91,9 +91,16 @@ interface ProprietesBouton {
   readonly surFocus?: (() => void) | undefined;
   /** Identifiant de l'arrêt que ce bouton forme dans une composition à flèches (F-020-AC15). */
   readonly arret?: string | undefined;
-  /** Avec `raison` : `aria-disabled` au lieu de `disabled`, atteignable au clavier, sans effet (F-036-AC5). */
-  readonly indisponible?: boolean | undefined;
 }
+
+/**
+ * `indisponible` exige `raison` (F-036-AC5) : `aria-disabled` au lieu de `disabled`, atteignable au
+ * clavier, sans effet, la raison en description. Le type interdit l'une sans l'autre.
+ */
+type ProprietesBouton = ProprietesDeBase &
+  (
+    { readonly indisponible?: undefined } | { readonly indisponible: true; readonly raison: string }
+  );
 
 export function Bouton(props: ProprietesBouton): ReactElement {
   const idRaison = useId();

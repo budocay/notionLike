@@ -65,7 +65,7 @@ export function EcranDUnEspace({ compte, idEspace, revenirALaListe }: Proprietes
       <EcranDEspaces titre={TITRE_DES_ESPACES}>
         {retour}
         <Texte>{raison}</Texte>
-        <OuvertureHorsConnexion idEspace={idEspace} raison={raison} absentSeulement={false} />
+        <OuvertureHorsConnexion idEspace={idEspace} raison={raison} />
       </EcranDEspaces>
     );
   }
@@ -127,29 +127,20 @@ function OuvertureDepuisLEcran(props: {
 /**
  * Compte non connecté : un espace de l'appareil s'ouvre encore depuis ses bases, sous son dernier
  * nom connu (F-032-AC2, AC24) ; un espace que l'appareil ne détient pas garde sa commande,
- * désactivée avec sa raison (F-036-AC5). Avec `absentSeulement`, seul ce second cas est rendu : la
- * lecture d'un espace de l'appareil qui échoue ne gagne pas de commande.
+ * désactivée avec sa raison (F-036-AC5).
  */
 function OuvertureHorsConnexion(props: {
   readonly idEspace: string;
   readonly raison: string;
-  readonly absentSeulement: boolean;
 }): ReactElement | null {
-  const { idEspace, raison, absentSeulement } = props;
+  const { idEspace, raison } = props;
   const appareil = useAppareilDesEcrans();
   if (appareil === undefined) {
     return null;
   }
   const cible = cibleSurLAppareil(appareil.etat, idEspace);
   if (cible === undefined) {
-    return (
-      <Actions>
-        <OuvrirDesactive raison={raison} />
-      </Actions>
-    );
-  }
-  if (absentSeulement) {
-    return null;
+    return <OuvertureDesactivee raison={raison} />;
   }
   return (
     <OuvertureDUnEspace
@@ -158,6 +149,29 @@ function OuvertureHorsConnexion(props: {
       role={undefined}
       ajout={undefined}
     />
+  );
+}
+
+/**
+ * La lecture d'un espace échoue : seule la commande d'un espace que l'appareil ne détient pas est
+ * rendue, désactivée ; un espace de l'appareil ne gagne pas de commande sur cet écran d'échec.
+ */
+function OuvertureAbsente(props: {
+  readonly idEspace: string;
+  readonly raison: string;
+}): ReactElement | null {
+  const appareil = useAppareilDesEcrans();
+  if (appareil === undefined || cibleSurLAppareil(appareil.etat, props.idEspace) !== undefined) {
+    return null;
+  }
+  return <OuvertureDesactivee raison={props.raison} />;
+}
+
+function OuvertureDesactivee({ raison }: { readonly raison: string }): ReactElement {
+  return (
+    <Actions>
+      <OuvrirDesactive raison={raison} />
+    </Actions>
   );
 }
 
@@ -192,11 +206,7 @@ function EspaceNonLu(props: {
   return (
     <>
       <Alerte phrases={texteDEchec(props.echec)} />
-      <OuvertureHorsConnexion
-        idEspace={props.idEspace}
-        raison={DEMANDE_UNE_CONNEXION}
-        absentSeulement
-      />
+      <OuvertureAbsente idEspace={props.idEspace} raison={DEMANDE_UNE_CONNEXION} />
       <Actions>
         <Bouton libelle={REESSAYER} surActivation={props.relire} />
       </Actions>
