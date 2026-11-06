@@ -8,7 +8,7 @@ Ce que cette ROADMAP ne dit pas, et où le lire : l'état d'une feature en cours
 
 ## Décisions du dev en vigueur
 
-Décision du dev du 2026-11-02 (zéro dette ouverte) : le dev retient les dix-huit recommandations de l'inventaire de la planification du jour (`PROJECT_LOG.md`, entrées du 2026-11-02, une par dette close, acceptée ou ouverte). Une dette « acceptée » est close : la décision est écrite au journal. Ce qui reste ouvert est porté par une feature (F-034, F-036, F-048 à F-056) ; le tag `v0.1.0` (RC1) attend F-053 (D-038), et le dev joue lui-même les scénarios de bout en bout manuels avant le tag. L'amendement de F-017-AC25 (retrait de « et ses tests ») passe par F-054, comme F-033 amende F-005 (F-033 H10) : `specs/F-017.md`, fusionnée, n'est pas retouchée.
+Décision du dev du 2026-11-02 (zéro dette ouverte) : le dev retient les dix-huit recommandations de l'inventaire de la planification du jour (`PROJECT_LOG.md`, entrées du 2026-11-02, une par dette close, acceptée ou ouverte). Une dette « acceptée » est close : la décision est écrite au journal. Ce qui reste ouvert est porté par une feature (F-034, F-036, F-048 à F-057) ; le tag `v0.1.0` (RC1) attend F-053 (D-038), et le dev joue lui-même les scénarios de bout en bout manuels avant le tag. L'amendement de F-017-AC25 (retrait de « et ses tests ») passe par F-054, comme F-033 amende F-005 (F-033 H10) : `specs/F-017.md`, fusionnée, n'est pas retouchée.
 
 Décision du dev du 2026-10-16 (plusieurs espaces sur un appareil avant la présence) :
 
@@ -51,7 +51,7 @@ La chaîne de la collaboration en temps réel, F-001 → F-002 → F-004 → F-0
 
 Chemin critique restant : F-018 est fusionnée (`d592ad8`), comme F-006 (`c58fd89`) ; F-019, F-020 et F-021, qui l'attendaient, n'attendent plus aucune feature. La plus longue chaîne parmi les features à faire est celle de F-025, après F-016, F-022 et F-026, ses dépendances conditionnelles (F-025 H16, H17) : ce sont elles dont le retard repousse F-025, si sa condition est retenue.
 
-Chemin critique de la RC1 (2026-11-02) : F-053 (D-038, bloquante) puis le tag `v0.1.0` ; en parallèle, sans bloquer le tag, F-034 (lot de correctifs), puis F-037 → F-043 (écran d'accès, administrateur). Ordre des deux CI : F-051 avant F-052 (même `ci.yml`), F-053 avant F-052 (le scénario rouge doit d'abord passer). F-054, F-048, F-050, F-049, F-055 et F-056 sont indépendantes entre elles, sous réserve de leurs dossiers (une seule à la fois dans `apps/web/src/interface/` : F-050, F-053).
+Chemin critique de la RC1 (2026-11-02) : F-053 (D-038, bloquante) puis le tag `v0.1.0` ; en parallèle, sans bloquer le tag, F-034 (lot de correctifs), puis F-037 → F-043 (écran d'accès, administrateur). Ordre des deux CI : F-051 avant F-052 (même `ci.yml`), F-053 avant F-052 (le scénario rouge doit d'abord passer). F-054, F-048, F-050, F-049, F-055 et F-056 sont indépendantes entre elles, sous réserve de leurs dossiers (une seule à la fois dans `apps/web/src/interface/` : F-050, F-053, F-057). F-057 (décision du 2026-11-05) vient en dernier du lot : elle attend la fusion de F-038 (elle en retire le contournement) et ne passe pas en parallèle de F-039, F-050 ni F-053 (fichiers communs).
 
 Collaboration à deux appareils, hors chaîne de dépendances mais à signaler : F-013 (H4) et F-015 (H12) ne sont utilisables à deux appareils, hors des tests, qu'avec F-032 (ouvrir un espace du serveur, changer d'espace, plusieurs espaces sur un appareil). Décision du dev du 2026-10-16 : F-032 avant F-015. F-015 ne dépend pas de son code (F-015 H12, F-032 H11) : l'ordre est une décision d'usage, pas une dépendance, et la ligne de F-015 ne la porte donc pas dans « dépend de ».
 
@@ -98,6 +98,7 @@ Lot « zéro dette » (décision du dev du 2026-11-02, specs en brouillon, à va
 - [ ] F-051 CI : tests d'intégration du serveur sur un PostgreSQL réel (D-002) — tier: structurel — dépend de: rien — agents: agent-veille, agent-architecte-conception, agent-devops, agent-backend, agent-bdd — spec: specs/F-051.md (brouillon) — le dev commite `.github/workflows/ci.yml`
 - [ ] F-052 CI : bout en bout Playwright, captures et `preuve:construction` (D-003) — tier: structurel — dépend de: F-051 (même fichier `ci.yml`), F-053 (scénario rouge) — agents: agent-veille, agent-architecte-conception, agent-devops, agent-frontend — spec: specs/F-052.md (brouillon) — le dev commite `.github/workflows/ci.yml`
 - [ ] F-056 Coutures des dérogations de F-008 à F-013 (D-016, D-024) — tier: standard — dépend de: F-052 pour son critère de navigateur — agents: agent-frontend, agent-backend, agent-devops — spec: specs/F-056.md (brouillon)
+- [ ] F-057 Largeur des boutons et des liens : `w-full` de `CIBLE` ne l'emporte plus sur `w-auto`, contournement de F-038 retiré (défaut constaté par F-038) — tier: standard — dépend de: F-038 (fusion) — agents: agent-frontend — spec: specs/F-057.md (brouillon) — décision du dev du 2026-11-05
 
 F-031 est fusionnée (`f6871c3`) : la proposition de la mener en parallèle de F-005 est sans objet. F-005 et F-018, menées en parallèle, sont fusionnées (`57f01aa`, `d592ad8`).
 
