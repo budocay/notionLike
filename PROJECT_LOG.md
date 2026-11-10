@@ -480,6 +480,258 @@
 - Gates: tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, SECURITY PASS, ARCHITECTURE PASS, CRAFT PASS ; tours 1 à 4 : reviewer-frontend CHANGES_REQUESTED, escalade §5.6 au tour 3 (3 rejets), REPRISE D-042 du dev (`88ce24a`) ; revue reviewer-frontend (gate.sh) sur le dossier, route non précisée par le skill
 - Mesures: boucles reviewer-frontend 5 passages (4 CHANGES_REQUESTED, 1 APPROVED, plus la reprise) · sécurité 5 PASS · architecture 5 passages (1 UNVERIFIED, commande de gate en échec, puis 4 PASS) · craft 5 PASS · constats confirmés non comptés par gate dans `gates.log` · faux positifs non relevés · coût non mesuré
 
+## [2026-11-02] D-004 close sans contenu
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: `MEMORY/gates.log` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: D-004 n'a jamais été décrite : deux lignes `REPRISE D-004` (F-001, agent-architecte, 2026-10-08) la citent seules. Décision du dev du 2026-11-02 (Q2) : close sans contenu, aucune dette ne lui correspond. Les deux lignes du journal des gates ne sont pas réécrites (le journal est écrit par le socle).
+- Dette: close D-004 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-006, D-007, D-009 clôturées
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: dettes levées — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: D-006 (rappel d'abonné qui lève) levée par F-002 ; D-009 (réparation de l'identifiant d'espace) reprise et levée par F-032 (F-032-AC23) ; D-007 (`pnpm typecheck` hors des hooks) couverte par la CI (job `typecheck`) depuis le 2026-10-16. Toutes trois restaient « à clore par le dev » : closes par la décision du 2026-11-02 « zéro dette ouverte ».
+- Dette: closes D-006, D-007, D-009
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-008 close (processus)
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: socle de contrôle — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Décision du dev du 2026-11-02 (Q1) : la délégation à l'orchestrateur des commits `Agent: dev` (validations de spec hors reprise, blocs 0, mise à l'abri) est une règle de fonctionnement assumée, pas une dette. Inchangé : l'orchestrateur ne commite jamais une `DEROGATION`, une `REPRISE`, un fichier protégé ni une validation de spec (le classifieur le lui refuse) ; ces commits restent au dev.
+- Dette: close D-008 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-013 close (processus)
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: gates — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Décision du dev du 2026-11-02 (Q1) : les relecteurs qui soulèvent des points nouveaux à chaque passage sont un trait connu du procédé, traité par le tour de correctifs puis la reprise ou la dérogation du dev (§5.6) ; plus de dette dédiée.
+- Dette: close D-013 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-018 scindée : GHSA acceptée, part F-029 renumérotée D-050
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `pnpm audit`, `packages/document` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: D-018 (ouverte à F-029) recouvrait deux objets. (a) GHSA-67mh-4wv8-2f99 : `esbuild` 0.18.20 tiré par `drizzle-kit`, modérée, outil de développement seul, jamais livré. Décision du dev du 2026-11-02 (Q3) : acceptée jusqu'à la publication d'un `drizzle-kit` corrigé ; à la prochaine alerte de `pnpm audit` ou de veille, la décision est revue. Close. (b) La part de F-029 (AC7 (d) éprouvé une seule fois à la borne de 1024, redistribution du rang non testée directement contre une borne abaissée, mutation non vue, ADR-0002 et ADR-0003 à amender) est renumérotée D-050 et portée par F-048.
+- Dette: résorbée D-018 (a, acceptée) ; introduite D-050 (b, F-048)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-050 Redistribution du rang non prouvée contre une borne abaissée
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `packages/document` (rang borné de F-029) — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Part F-029 de l'ancienne D-018 : AC7 (d) n'est éprouvé qu'avec la borne abaissée à 4 ; à 1024 un second déclenchement demande environ 6 000 insertions ; une redistribution qui ignorerait la borne abaissée n'est vue par aucun test (`MEMORY/features/F-029.md`). Reprise par `specs/F-048.md`.
+- Dette: introduite D-050
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-026 close ; F-017-AC25 amendé par F-054
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `specs/F-017.md`, `packages/document/test/table-contrat.test.ts` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: D-026 : reviewer-frontend non rejoué, sécurité sur la première empreinte, architecture non lancée (dérogation du dev déjà accordée) et AC25 qui n'éprouve que la compilation des dépendants. Décision du dev du 2026-11-02 (Q5) : AC25 est amendé en retirant « et ses tests » (le test énumère les dépendants et vérifie leurs types, il ne rejoue pas leurs suites). Voie choisie : par une feature (`specs/F-054.md`, critère F-054-AC12), sans retoucher la spec fusionnée `specs/F-017.md`, selon le précédent de F-033 H10 sur F-005 et de F-032 H10 sur F-014 ; une retouche en place imposerait une revalidation et ferait refuser `dossier-revue.sh` aux revues de F-017.
+- Dette: close D-026 ; amendement porté par F-054
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-027 acceptée
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `packages/document` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Clé de table à unité UTF-16 isolée forgée par un pair non normalisée (même défaut sur les titres de page de F-001). Décision du dev du 2026-11-02 (Q7) : acceptée, aucune feature (limite de F-017, partagée avec les titres de page de F-001).
+- Dette: close D-027 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-030 : plancher de Compose
+
+- TYPE: DEBT
+- Tier: structurel
+- Scope: `infra/pile.sh` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Compose 2.24.0 à 2.24.3 admises sans preuve. Décision du dev du 2026-11-02 (Q9) : plancher 2.24.4 si cette version est publiée (vérification par agent-veille, qui applique le délai de 7 jours), sinon la plage actuelle est acceptée. D-030 reste ouverte jusqu'à cette vérification ; le plancher est le critère F-055-AC8 de `specs/F-055.md`.
+- Dette: D-030 ouverte, portée par F-055
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-032 acceptée
+
+- TYPE: DEBT
+- Tier: structurel
+- Scope: `infra/` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Origine Playwright `http://127.0.0.1:5174` admise sous Compose. Décision du dev du 2026-11-02 (Q10) : risque local accepté (adresse de boucle, poste du dev), aucune feature.
+- Dette: close D-032 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-033 : shellcheck dans outils.env (action du dev)
+
+- TYPE: DEBT
+- Tier: structurel
+- Scope: `.agents/outils.env` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Aucun contrôle bash au socle. Décision du dev du 2026-11-02 (Q11) : il ajoute lui-même shellcheck à `.agents/outils.env` (fichier protégé). D-033 est close par cette décision ; si le contrôle est activé avant F-055, `pile.sh` et `fumee.sh` doivent le passer (F-055-AC9).
+- Dette: close D-033 (décision du dev ; action à lui)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-035 close : dnd-kit conservé
+
+- TYPE: DEBT
+- Tier: structurel
+- Scope: `apps/web/src/glisser/` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: dnd-kit, ancienne famille, sans publication depuis décembre 2024, confinée dans `apps/web/src/glisser/` (F-006 H6). Décision du dev du 2026-11-02 (Q4) : conservée ; la décision est revue à la prochaine alerte de sécurité ou de veille sur ces paquets.
+- Dette: close D-035 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-037 Bloc vide non déplaçable au toucher sur écran étroit
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/web/src/edition/` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Origine : F-005, entrée du 2026-10-19. Sur écran étroit (sans poignée), un bloc vide ne se déplace qu'au clavier (Alt+Maj+Flèches, F-006-AC18), la barre ne s'y affichant pas (F-005-AC6) ; F-006-AC28 reste tenu, mais un usage tactile seul n'a pas de voie. Non tranchée par les décisions du 2026-11-02 : portée par `specs/F-053.md` (critères F-053-AC9 et AC10, hypothèse H4 avec recommandation ; le dev peut aussi accepter la limite).
+- Dette: introduite D-037 (restée sans entrée jusqu'ici)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-038 e2e de la démonstration rouge à 360 px
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/web/e2e/demonstration.spec.ts` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: `demonstration.spec.ts` (F-004-AC45 à 360 px) échoue sur `main` : deux conteneurs de la démonstration débordent (479 et 589 px pour 326). CONTRADICTION D'ORIGINE à lever : `MEMORY/STATE.md` et F-035 H3 disent « depuis F-018 » (constaté par F-018 le 2026-10-21, entrée de F-033) ; l'entrée du 2026-10-16 (F-014, D-022) dit le même scénario « rouge à 360 px, venu de F-014 », avec le débordement de la légende du `Tableau` (D-020, D-022). Les deux datations ne s'excluent pas : le défaut peut être ancien et n'avoir été constaté qu'à F-018. F-053-AC1 impose de nommer le premier commit fautif. Décision du dev du 2026-11-02 (Q17) : D-038 bloque la RC1 ; F-053 est fusionnée avant le tag `v0.1.0`.
+- Dette: introduite D-038 (restée sans entrée jusqu'ici) ; portée par F-053, bloquante pour la RC1
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-046 Reprise de F-021 (revue et architecture)
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `MEMORY/gates.log` de la branche F-021 — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Le 2026-10-30, le dev reprend les gates reviewer-frontend et agent-architecte de F-021 sur l'empreinte `1dc242eba1e6` (lignes `REPRISE D-046`, branche `F-021`) après le 3e tour court. Ce n'est pas une dette de code : D-046 nomme la reprise. Reste à faire avant la fusion de F-021 : la correction de H13 et l'intégration de `main`. Close à la fusion de F-021.
+- Dette: D-046 reprise du dev, close à la fusion de F-021
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-047 numéro réservé, jamais utilisé
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: socle — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Le numéro avait été réservé (STATE du 2026-10-30) pour l'état UNVERIFIED du socle. Aucune dette n'a été décrite : l'UNVERIFIED d'un gate se liste dans `MEMORY/STATE.md` (« État des contrôles »), il n'est pas une dette. Décision de la planification relevée au dev : D-047 close sans contenu ; le numéro n'est pas réattribué.
+- Dette: close D-047 (sans contenu)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-048 close tant que non reproduite
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: `apps/server/test/synchro-*.test.ts` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Dépassement de 60 s de `synchro-document.test.ts` sous charge, non reproduit en 64 exécutions (F-046). Décision du dev du 2026-11-02 (Q12) : close tant que le symptôme n'est pas reproduit ; s'il revient avec sa sortie, une dette neuve est ouverte. Le délai de 60 s est repris, avec les autres, par la mesure de marge de F-054.
+- Dette: close D-048 (décision du dev)
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-049 Tests lents hors F-035, hooks et fermeture
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: tests de `apps/web`, `apps/server`, `packages/db`, `packages/document` — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Décision du dev du 2026-11-02 (Q18) : ouverte. Tests lents hors du lot de F-035 : `packages/document/test/table-contrat.test.ts:203`, `apps/web/test/demonstration.test.tsx:472`, `packages/db/test/commande.test.ts:104`, `apps/server/test/processus.test.ts:300` ; les `beforeAll` de `apps/web/test/synchronisation/connexion.test.ts`, `passe.test.ts` et `refus.test.ts` dépassent 10 s sous charge ; `adoption.test.ts:33` appelle `serveur.fermer()` sur un serveur jamais créé quand son `beforeAll` échoue. Portée par `specs/F-054.md`.
+- Dette: introduite D-049
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] Dérogations D-014 à D-029 et D-034 closes ; restes repris
+
+- TYPE: DEBT
+- Tier: trivial
+- Scope: dérogations déjà accordées par le dev — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Chacune de ces dettes est une dérogation que le dev a déjà décidée à la livraison de sa feature (F-008 à F-013, F-028, F-017, F-031, F-006). Décision du 2026-11-02 (« zéro dette ouverte ») : elles sont closes comme dérogations ; leurs restes concrets passent à une feature : D-010, D-011, D-023 (débit, copie, plafond) et D-050 à F-048 et F-049 ; D-020 et D-022 (débordement à 360 px) à F-053 ; D-016 (coutures de `creerApplication`, `lireConfiguration`, variables du service) et D-024 (AC41, AC10, AC45 de F-013) à F-056 ; D-031 à F-055. La présence usurpable (D-023) reste portée par F-015.
+- Dette: closes D-014, D-015, D-017, D-019, D-021, D-025, D-029, D-034 ; D-016, D-020, D-022, D-023, D-024 closes en tant que dérogations et reprises par feature
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] D-002, D-003, D-010, D-011, D-031, D-040, D-041, D-043 : portées par une feature
+
+- TYPE: DEBT
+- Tier: standard
+- Scope: tests, CI, serveur, pile — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Aucune décision nouvelle : ces dettes restent ouvertes et chacune a sa feature. D-002 (PostgreSQL réel) : F-051. D-003 (bout en bout, captures, `preuve:construction`) : F-052 ; les scénarios joués par le dev sur la pile avant la RC1 (Q14) restent à lui. D-010 : F-048. D-011 : F-049. D-031 : F-055. D-040 et D-043 : F-036 (spec amendée, brouillon). D-041 : F-034 (passage à une structure persistante décidé).
+- Dette: aucune introduite
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
+## [2026-11-02] Décisions du dev du 2026-11-02 hors dettes (Q6, Q8, Q13 à Q16)
+
+- TYPE: FIX
+- Tier: trivial
+- Scope: règles et specs — agents: agent-planif — commits: aucun (décision du dev du 2026-11-02, relevée par la planification)
+- Détail: Q6 : le dev pose lui-même la règle dependency-cruiser `espaces-par-un-seul-module` (fichier protégé `.dependency-cruiser.cjs`). Q8 : les deux `h1` en trop sont corrigés par F-050. Q13 : H2 de F-035, délai des tests lents de 12 000 ms (marge x 3,2) au lieu de 30 000 ms, repris par F-054. Q14 : le dev joue les scénarios de bout en bout manuels avant la RC1. Q15 : les points de F-004 H35 (animation de dépliage, destination du focus, `aria-controls`) sont acceptés ; l'infobulle du titre coupé (WCAG 1.4.13) est reprise par F-050. Q16 : les ADR « proposées » (0020, 0021, 0022, 0023, amendements F-016 d'ADR-0009 et F-026 d'ADR-0004, 0006, 0011) sont acceptées à la fusion de leur feature.
+- Dette: aucune
+- ADR: aucun
+- Tests: aucun — état: sans objet — preuve: sans objet
+- Gates: sans objet
+- Mesures: sans objet
+
 ## [2026-11-02] F-036 Coutures laissées par dérogation : ouverture d'un espace ajouté (D-040) et écriture des cellules (D-043)
 
 - TYPE: FEATURE

@@ -4,62 +4,56 @@
 
 Dépôt : `git@github.com:budocay/notionLike.git`. Clone neuf : `pnpm install --frozen-lockfile`. Prérequis : Node 26, pnpm 12.10.1, gitleaks, semgrep, trivy (`README.md`).
 
-`main` porte vingt-six features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032, F-019, F-020 (PR #17), F-046 (PR #19, stabilité de `synchro-document.test.ts`, D-028 levée, délai de 60 s en D-048). F-035 (tests fiables, D-042 et D-045) : DONE sur la branche `F-035`, PR à venir (5 tours de gates, reprise D-042 du dev après l'escalade du tour 3, tour 5 sur `495100ce2178` tout vert). F-036 (coutures de D-040 et D-043) : DONE sur la branche `F-036`, PR à venir (3 tours de gates, tour 3 sur `c438b3923b0c` tout vert) ; D-040 résorbée, D-043 réduite à ses non-bloquants sans couture (H2). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
+`main` (`5eae856`) porte vingt-huit features DONE : F-001, F-002, F-004, F-030, F-008, F-003, F-009, F-011, F-029, F-010, F-014, F-027, F-007, F-012, F-013, F-028, F-017, F-031, F-006, F-005, F-033, F-018, F-032 (dérogation D-040), F-019 (dérogation D-043), F-020 (PR #17), F-046 (PR #19), F-035 (PR #20, 2026-11-02), F-036 (PR #21, 2026-11-02 ; D-040 résorbée, D-043 réduite et portée par F-050). Restes de chaque feature dans « Dette et limites » de `MEMORY/features/<F-id>.md`.
 
-En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-034 (création de lignes linéaire, D-041) tour 2 en cours, spec amendée (AC11) validée par le dev ; F-021 calendrier, 3e tour court (`c6a7145`), REPRISE D-046 et correction de H13 attendues du dev ; F-026 courriels et F-023 PWA, conception faite (ADR-0022, 0023 ; ADR-0020), specs revalidées ; F-015, conception en cours. Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag RC1.
+Décision du dev du 2026-11-02 : zéro dette ouverte. Tout ce qui est accepté est clos au `PROJECT_LOG.md` ; ce qui reste ouvert a une feature (F-034, F-048 à F-056). Les specs F-048 à F-056 sont des brouillons à valider une par une. Le tag `v0.1.0` (RC1) attend F-053 (D-038) ; le dev joue les e2e manuels avant le tag.
 
-CI GitHub Actions (`.github/workflows/ci.yml`) : `main` protégée par un ruleset (PR obligatoire, merge commit seul, checks `commits`, `controles`, `typecheck`, `gates`, branche à jour, ni force push ni suppression). Hooks git débranchés le 2026-10-21 : la CI est la seule barrière.
+En cours, une branche et un worktree `../notionLike-<F-id>` par feature : F-034 (structure persistante, spec à valider) ; F-021 (dossier en correction, REPRISE D-046 et H13 du dev) ; F-040 (tour 5, reviewer-frontend escaladé au tour 3, D-051) ; F-038 (spec amendée à revalider) ; F-015, F-026, F-023 (conception faite) ; F-016 ; F-037 à F-045 et F-047 (specs validées, dossiers ouverts). Branche locale `rc-1` (jamais poussée) : essai du dev, à remplacer par le tag.
 
-ADR acceptées : 0013 à 0019, amendements de F-018 (ADR-0002, 0009, 0016) et de F-032 (ADR-0007, 0008, 0014). À accepter par le dev : ADR-0020, ADR-0021 et amendement F-016 d'ADR-0009, ADR-0022, ADR-0023 et amendements F-026 d'ADR-0004, 0006, 0011.
+CI GitHub Actions (`.github/workflows/ci.yml`) : `main` protégée (PR obligatoire, merge commit seul, checks `commits`, `controles`, `typecheck`, `gates`, branche à jour). Hooks git débranchés le 2026-10-21 : la CI est la seule barrière.
+
+ADR : acceptées 0013 à 0019 et les amendements de F-018 et F-032. ADR-0020 (F-023), 0021 à 0023 et les amendements de F-016 (ADR-0009) et F-026 (ADR-0004, 0006, 0011) : acceptées à la fusion de leur feature (décision du 2026-11-02). À accepter par le dev : ADR-0025 (F-015, présence), ADR-0026 (F-034, suite ordonnée persistante), ADR-0020 (F-023).
 
 Lancer l'application : `pnpm -w pile preparer` (une fois), `pnpm -w pile demarrer`, puis `pnpm --filter @notionlike/web dev` sur `http://127.0.0.1:5173`. Mot de passe d'un volume ancien : `pnpm -w pile accorder` dans le clone principal seulement, jamais `down -v`.
 
-Décisions du dev en vigueur : plusieurs features en parallèle si leurs dossiers sont disjoints ; tours de correctifs puis dérogation du dev ; fusion par l'orchestrateur (`gh pr create`, `gh pr merge --merge` quand les 4 checks sont verts), traçabilité dans la branche avant la PR. Producteurs et veille sur Sonnet ; gates, planif, conception sur le modèle par défaut.
+Décisions du dev en vigueur : features en parallèle si leurs dossiers sont disjoints ; tours de correctifs puis dérogation du dev ; fusion par l'orchestrateur (`gh pr create`, `gh pr merge --merge` quand les 4 checks sont verts), traçabilité dans la branche avant la PR. Délai des tests lents : 12 000 ms (F-035 H2, repris par F-054).
 
 ## Prochaine action prévue
 
-1. F-035 : PR, fusion quand les 4 checks sont verts (`main` à intégrer avant : STATE, INDEX et ROADMAP y ont bougé avec F-046). Au dev : garder 30 000 ms (H2) ou prendre 12 000 ms (marge x 3,2, proposée dans `MEMORY/features/F-035.md`).
-2. F-034 : tour 2 en cours (spec amendée AC11 validée par le dev).
-3. F-036 : PR, fusion quand les 4 checks sont verts (`main` à intégrer avant : STATE, INDEX et ROADMAP y bougent). Dossiers : F-040, F-038, F-021 (REPRISE D-046 et H13 du dev, intégrer `main`, brancher F-021-AC25 sur F-019).
-4. Conceptions : F-037, F-043, F-042, F-044, F-045, F-047 ; puis le tag `v0.1.0` (RC2).
-5. Lot de correctifs restant : D-043 (non-bloquants sans couture), D-041 (F-034), D-048, socle UNVERIFIED (D-047 réservée), bugs relevés par le dev ; F-026, F-023 : ADR acceptées et fichiers protégés commités par le dev ; puis F-015, F-016.
-6. Au dev : bout en bout filtres-et-tris, kanban (AC29), calendrier, largeurs, F-032-AC34 ; disposition étroite du calendrier ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; F-018 (H9, AC56), F-033-AC26 manuel ; D-030, D-033, D-037 ; F-031-AC28 ; D-038 (H3 de F-035 : feature avant la RC ou non).
+1. Au dev : valider F-034 et le lot F-048 à F-057 (une spec par commit), revalider F-038.
+2. F-053 en premier (bloque la RC1), puis le tag `v0.1.0` après les e2e manuels du dev.
+3. F-034 (conception), F-021 (REPRISE D-046, H13), puis F-037 à F-045 et F-047 ; F-015, F-016, F-023, F-026 (fichiers protégés commités par le dev).
+4. Lot de dettes : F-054, F-048, F-050, F-049, F-055, F-056 ; F-051 puis F-052 (le dev commite `ci.yml`).
+5. Au dev : règle dependency-cruiser `espaces-par-un-seul-module` ; shellcheck dans `.agents/outils.env` ; `LC_ALL=C sed` dans `controles.sh:32` ; alléger le crochet `Stop` ; e2e manuels (filtres-et-tris, kanban AC29, calendrier, largeurs, F-032-AC34, F-018 H9 et AC56, F-033-AC26, F-031-AC28).
 
 ## Dettes ouvertes
 
-- D-002 Tests d'intégration du serveur sur PGlite, pas sur PostgreSQL réel — depuis F-008.
-- D-003 Bout en bout, captures et `preuve:construction` hors des hooks et de la CI — depuis F-002.
-- D-004 Citée par deux lignes `REPRISE D-004`, à décrire par le dev.
-- D-006, D-009 Levées par F-002 et F-032, à clore par le dev.
-- D-007 `pnpm typecheck` hors des hooks — couvert en CI depuis le 2026-10-16.
-- D-008 Commits `Agent: dev` délégués à l'orchestrateur, sauf fichiers protégés, validations de spec et lignes DEROGATION/REPRISE.
-- D-010 Lecture brute sans borne — depuis F-030. D-011 Sonde hors délai qui garde sa connexion — depuis F-008.
-- D-013 Relecteurs de F-008 qui soulèvent des points nouveaux à chaque passage.
-- D-014 à D-024 F-008 à F-013 acceptées par dérogation ; D-023 : pas de limite de débit en WebSocket, présence usurpable jusqu'à F-015 ; D-020, D-022 : débordement à 360 px.
-- D-018 GHSA-67mh-4wv8-2f99 (`esbuild` 0.18.20 par `drizzle-kit`, modérée, développement seulement).
-- D-025, D-026, D-029, D-034 F-028, F-017, F-031, F-006 acceptées par dérogation.
-- D-027 Clé de table à unité UTF-16 isolée forgée par un pair non normalisée — depuis F-017.
-- D-028 Erreur non gérée de `synchro-document.test.ts` levée par F-046 ; délai en D-048.
-- D-030 Compose 2.24.0 à 2.24.3 admises sans preuve — plancher à trancher par le dev.
-- D-031 `PGPASSWORD` dans l'environnement du client `docker` (CWE-214) — depuis F-031.
-- D-032 Origine Playwright `http://127.0.0.1:5174` admise sous Compose — risque local accepté.
-- D-033 Aucun contrôle bash au socle ; shellcheck dans `outils.env` à décider par le dev.
-- D-035 dnd-kit ancienne famille, sans publication depuis décembre 2024 — confinée dans `apps/web/src/glisser/`.
-- D-037 Sur écran étroit, un bloc vide ne se déplace qu'au clavier — retouche de spec à décider.
-- D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) échoue sur `main` — depuis F-018.
-- D-041 `creerLigne` de `@notionlike/document` quadratique (500 lignes 0,3 s, 1 000 1,5 s, 2 000 9,8 s, 4 000 55 s ; cause probable : `lireEtat` complet à chaque `creerLigne`) — spec F-034 en brouillon, lot RC1.
-- D-043 F-019 (architecture), réduite par F-036 à ses non-bloquants sans couture : mémoïsation de `triActif`/`triDe` dans `useAffichage`, commentaires périmés de `use-vue-tableau.ts:73` et `BarresDeDefinition.tsx:2-3`, branche `return 0` inatteignable de `tris.ts:52` (H2 de la spec) — lot RC1.
-- D-048 Dépassement de délai de 60 s de `apps/server/test/synchro-document.test.ts` sous charge, non reproduit en 64 exécutions (D-028, symptôme 2) ; premiers passages sous saturation en échec de `synchro-fermetures.test.ts` (1/8) et `synchro-reponse.test.ts` (4 skipped), sortie perdue, non reproduits en 5/5 — depuis F-046.
+Chacune a sa feature ; une dette sans feature est close au `PROJECT_LOG.md`.
+
+- D-002 Tests d'intégration du serveur sur PGlite, pas sur PostgreSQL réel — F-051.
+- D-003 Bout en bout, captures et `preuve:construction` hors de la CI — F-052.
+- D-010 Lecture brute sans borne, depuis F-030 ; D-050 redistribution du rang non prouvée contre une borne abaissée (part F-029 de l'ancienne D-018) — F-048.
+- D-011 Sonde hors délai qui garde sa connexion ; D-023 sans limite de débit au passage en WebSocket, copie du document d'espace à chaque mise à jour, plafond de 500 connexions — F-049 (présence usurpable : F-015).
+- D-016 Coutures de `creerApplication`, `lireConfiguration`, variables du service ; D-024 AC41, AC10, AC45 de F-013 — F-056.
+- D-020, D-022 Débordement à 360 px de la légende du `Tableau` ; D-037 bloc vide sans poignée sur écran étroit ; D-038 `e2e/demonstration.spec.ts` (F-004-AC45 à 360 px) rouge sur `main`, conteneurs de 479 et 589 px pour 326, origine « depuis F-018 » ou « venu de F-014 » à nommer — F-053, bloquante pour la RC1.
+- D-030 Compose 2.24.0 à 2.24.3 admises sans preuve (plancher 2.24.4 si publiée, sinon close) ; D-031 `PGPASSWORD` dans l'environnement du client `docker` — F-055.
+- D-043 F-019, réduite par F-036 à ses non-bloquants sans couture (mémoïsation de `triActif`/`triDe`, commentaires périmés de `use-vue-tableau.ts:73` et `BarresDeDefinition.tsx:2-3`, branche `return 0` de `tris.ts:52`) — portée par F-050 (AC11 à AC15). D-040 résorbée par F-036.
+- D-041 `creerLigne` quadratique (5 000 lignes : 48 à 52 s) — F-034.
+- D-046 Reprise du dev sur F-021 (revue, architecture) — close à la fusion de F-021.
+- D-049 Tests lents hors F-035, `beforeAll` de `connexion`, `passe`, `refus` au-delà de 10 s, `adoption.test.ts:33`, `table-abonnement`, `compte-ecrans`, `page-ouverture`, `table-coutures` (crochet `Stop`, charge 40 à 165), cause racine le crochet `Stop` ; deux instabilités constatées sur `main` sous charge : `apps/web/test/barre-du-haut.test.tsx:382` et `apps/web/test/page-ouverture.test.tsx` (F-003-AC1, F-003-AC36 : « Nouvelle page » introuvable, rendu vide, suite complète à 328 s pendant que d'autres suites tournaient) — F-054.
+- D-051 Escalade reviewer-frontend de F-040 au tour 3, REPRISE du dev du 2026-11-06/10 — close quand le gate passe (F-040).
+
+Closes le 2026-11-02 : D-004, D-006 à D-009, D-013, D-014 à D-029 sauf celles citées ci-dessus, D-032 à D-035, D-047, D-048 (détail au journal).
 
 ## État des contrôles / gates
 
-Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-036 : tour 3 sur `c438b3923b0c` : reviewer-frontend APPROVED, sécurité, architecture, craft PASS (tours 1 et 2 : reviewer CHANGES_REQUESTED). F-035 : tour 5 sur `495100ce2178` : reviewer-frontend APPROVED, sécurité, architecture, craft PASS. F-046 : dossier OK (5 168 tests), tour 3 sur `84adfc9c5842` tout vert, fusionnée (PR #19). Exception body-parser retirée (2.4.0 en place).
+Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-035 : tour 5 tout vert, reprise D-042 du dev ; F-046 : tour 3 tout vert. UNVERIFIED listé : aucun. F-036 : tour 3 sur `c438b3923b0c` tout vert, fusionnée (PR #21). Les dossiers des branches F-021, F-034 sont à refaire après intégration de `main`.
 
 ## Pièges actifs
 
-- Le classifieur de Claude Code refuse à l'orchestrateur : `.agents/**`, lignes DEROGATION/REPRISE, `gh api` sur les réglages, `git merge` / `git status` dans les worktrees, réécriture d'historique, parfois un push. Jamais de contournement : bloc de commandes au dev.
-- Les validations de spec sont toujours un commit `Agent: dev` : `perimetre.sh` refuse `specs/` à l'orchestrateur, y compris dans l'historique d'une branche.
-- Le crochet `Stop` relance la suite complète sur le clone principal à chaque fin de tour de l'orchestrateur : lancer les dossiers en avant-plan.
+- Le classifieur de Claude Code refuse à l'orchestrateur : `.agents/**`, lignes DEROGATION/REPRISE, `gh api` sur les réglages, `git merge` et `git status` dans les worktrees, réécriture d'historique, parfois un push. Jamais de contournement : bloc de commandes au dev.
+- Les validations de spec sont toujours un commit `Agent: dev` (une spec par commit, `Feature:` unique) : `perimetre.sh` refuse `specs/` à l'orchestrateur, y compris dans l'historique d'une branche.
+- Le crochet `Stop` relance la suite complète sur le clone principal à chaque fin de tour : lancer les dossiers en avant-plan.
 - Check `commits` : `Agent:`, `Feature:` et `Co-Authored-By:` dans le même dernier paragraphe (trois `--trailer`). `git merge` n'accepte pas `--trailer` : trailers dans un second `-m`.
 - Une spec retouchée passe `prettier --check` : un `*` nu dans du texte devient `_` ; motifs de fichiers entre backticks.
 - Un worktree n'a pas les fichiers non suivis : copier `infra/.env` et `apps/server/.env` du clone principal ; personne ne les lit.
@@ -71,4 +65,4 @@ Verdicts dans `MEMORY/gates.log`, déroulé dans `PROJECT_LOG.md`. F-036 : tour 
 - Branches d'archive à ne pas fusionner : `planification-reunie`, `F-008`, `archive-arbre-2026-10-08`, `archive-F-008-dernier-tour` ; distantes `F-011`, `F-003`.
 - Après un redémarrage, la conversation principale peut tourner sous `token-eco:eco`, dont le hook de périmètre refuse Write : la traçabilité passe alors par agent-planif.
 - SSH GitHub cassé dans la session : push par HTTPS avec `gh auth git-credential` (jamais de push sans demande du dev).
-- Les tests lents portent un délai explicite de 30 000 ms et un commentaire identique (F-035) ; un nouvel appel d'attente se fait par `waitFor` sur l'état observable, jamais par délai fixe.
+- Les tests lents portent un délai explicite et un commentaire identique (F-035 ; 12 000 ms depuis le 2026-11-02, F-054) ; une attente se fait par `waitFor` sur l'état observable, jamais par délai fixe.
